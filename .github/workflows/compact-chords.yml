@@ -10,29 +10,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch chord-only display and add chord line
+      - name: Patch compact chord-only grouping
         run: |
           python - <<'PY'
           from pathlib import Path
           p=Path('index.html')
           s=p.read_text()
-          old="function lineHTML(pi,li,x){return `<div class=\"line\"><div class=\"handle\">•</div><div><div class=\"chordRow\"><input class=\"chordInput\" value=\"${esc(x[0])}\" ${editMode?'':'readonly'} onchange=\"updateLine(${pi},${li},0,this.value)\" aria-label=\"Chord\"></div><div class=\"lyricText\">${esc(x[1])}</div></div></div>`}"
-          new="""function lineHTML(pi,li,x){
-            if(!x[1] && x[0]) return `<div class=\"chordOnlyLine\"><div class=\"chordOnlyInner\">${editMode?`<input class=\"chordInput\" value=\"${esc(x[0])}\" onchange=\"updateLine(${pi},${li},0,this.value)\" aria-label=\"Chord line\">`:`<span>${esc(x[0])}</span>`}</div></div>`;
-            return `<div class=\"line\"><div class=\"handle\">•</div><div><div class=\"chordRow\"><input class=\"chordInput\" value=\"${esc(x[0])}\" ${editMode?'':'readonly'} onchange=\"updateLine(${pi},${li},0,this.value)\" aria-label=\"Chord\"></div><div class=\"lyricText\">${esc(x[1])}</div></div></div>`
-          }"""
-          if old not in s: raise SystemExit('lineHTML target not found')
-          s=s.replace(old,new)
-          old2="function addLine(pi){base[arrangement[pi]].push(['','']);renderSong();saveLocal(false)}"
-          new2="function addLine(pi){base[arrangement[pi]].push(['','']);renderSong();saveLocal(false)}\nfunction addChordLine(pi){base[arrangement[pi]].push(['C','']);renderSong();saveLocal(false);toast('Chord line added')}"
-          if old2 not in s: raise SystemExit('addLine target not found')
-          s=s.replace(old2,new2)
-          old3="${editMode?`<button class=\"btn\" onclick=\"addLine(${i})\">＋ Add line</button>`:''}"
-          new3="${editMode?`<div class=\"controls\"><button class=\"btn\" onclick=\"addLine(${i})\">＋ Add lyric line</button><button class=\"btn\" onclick=\"addChordLine(${i})\">＋ Add chord line</button></div>`:''}"
-          if old3 not in s: raise SystemExit('section buttons target not found')
-          s=s.replace(old3,new3)
-          css=".chordOnlyLine{margin:10px 0;padding:8px 7px;border-radius:10px}.chordOnlyInner{font:bold 18px monospace;color:#72b7ff;letter-spacing:.35em}.chordOnlyInner .chordInput{width:100%;letter-spacing:.1em}.editMode .chordOnlyLine{background:#0e1115;border:1px solid #3a424c}"
-          s=s.replace('</style>',css+'</style>')
+          marker="function finishImport(){closeModal();showTab('song');renderSong();saveLocal();toast('Song analyzed and imported')}"
+          insert="""function compactChordOnlyLines(){
+            for(const p of Object.keys(base)){
+              const out=[]; let pending=[];
+              const flush=()=>{if(pending.length){out.push([pending.join(' '),'']);pending=[]}};
+              for(const item of base[p]){
+                if(item[0] && !item[1]) pending.push(item[0].trim());
+                else { flush(); out.push(item); }
+              }
+              flush();
+              base[p]=out;
+            }
+          }
+          """
+          if 'function compactChordOnlyLines()' not in s:
+            if marker not in s: raise SystemExit('finishImport target not found')
+            s=s.replace(marker,insert+marker)
+          target="arrangement=sections;currentSongTitle=title;currentArtist=artist;currentKey=detectKey();"
+          replacement="compactChordOnlyLines(); arrangement=sections;currentSongTitle=title;currentArtist=artist;currentKey=detectKey();"
+          if target not in s: raise SystemExit('analyze target not found')
+          s=s.replace(target,replacement,1)
           p.write_text(s)
           PY
       - name: Commit update
@@ -40,5 +44,5 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add index.html
-          git diff --cached --quiet || git commit -m "Compact chord-only lines and add chord line editing"
+          git diff --cached --quiet || git commit -m "Group consecutive chord-only lines into compact rows"
           git push
