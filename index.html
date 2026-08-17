@@ -21,7 +21,422 @@
 'use strict';
 const base={Intro:[['C',''],['G',''],['Am',''],['F','']], 'Verse 1':[['C','You are here, moving in our midst'],['G','I worship You, I worship You'],['Am','You are here, working in this place'],['F','I worship You, I worship You']], Chorus:[['C','Way Maker, Miracle Worker'],['G','Promise Keeper, Light in the darkness'],['Am','My God, that is who You are'],['F','That is who You are']], 'Verse 2':[['C','You are here, touching every heart'],['G','I worship You, I worship You'],['Am','You are here, healing every heart'],['F','I worship You, I worship You']], Bridge:[['Am',"Even when I don't see it, You're working"],['F',"Even when I don't feel it, You're working"],['C','You never stop, You never stop working'],['G','You never stop, You never stop working']], Tag:[['C','That is who You are'],['G','That is who You are']], Adlib:[['Am','You are here'],['F','You are here']], Interlude:[['C',''],['G','']], Outro:[['C','That is who You are'],['G','That is who You are'],['Am','That is who You are'],['F','That is who You are']]};
 let arrangement=Object.keys(base),size=18,editMode=false,scrollTimer=null,activeSection='Intro',currentSongTitle='Way Maker',currentArtist='Sinach',currentKey='C',sectionDrag=null,setlist=['Way Maker','Goodness of God','What a Beautiful Name'];
-const keyNames=['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+/* =========================
+   KEY / TRANSPOSE SYSTEM
+   ========================= */
+
+const keyNames=[
+  'C',
+  'C#',
+  'D',
+  'Eb',
+  'E',
+  'F',
+  'F#',
+  'G',
+  'Ab',
+  'A',
+  'Bb',
+  'B'
+];
+
+/*
+  Every key has exactly one pitch number.
+
+  C  = 0
+  C# = 1
+  D  = 2
+  Eb = 3
+  E  = 4
+  F  = 5
+  F# = 6
+  G  = 7
+  Ab = 8
+  A  = 9
+  Bb = 10
+  B  = 11
+*/
+
+const pitch={
+  C:0,
+  'C#':1,
+  Db:1,
+
+  D:2,
+
+  Eb:3,
+  'D#':3,
+
+  E:4,
+
+  F:5,
+
+  'F#':6,
+  Gb:6,
+
+  G:7,
+
+  Ab:8,
+  'G#':8,
+
+  A:9,
+
+  Bb:10,
+  'A#':10,
+
+  B:11
+};
+
+
+/* Convert alternate spellings to our preferred spelling */
+
+function normalizeKey(k){
+
+  if(k==='A#') return 'Bb';
+
+  if(k==='D#') return 'Eb';
+
+  if(k==='Db') return 'C#';
+
+  if(k==='G#') return 'Ab';
+
+  return keyNames.includes(k)
+    ? k
+    : 'C';
+}
+
+
+/* Get the pitch number of a chord/key root */
+
+function getPitch(root){
+
+  if(!root) return null;
+
+  return pitch[root] !== undefined
+    ? pitch[root]
+    : null;
+}
+
+
+/*
+  Convert a pitch number back to our preferred key name.
+*/
+
+function pitchToKey(value){
+
+  return keyNames[
+    ((value % 12) + 12) % 12
+  ];
+}
+
+
+/*
+  Transpose one chord.
+
+  Examples:
+
+  C  + 2 = D
+  G  + 2 = A
+  Am + 2 = Bm
+  F  + 2 = G
+
+  Slash chords are also supported:
+
+  C/G + 2 = D/A
+*/
+
+function transposeChord(ch,interval){
+
+  if(!ch) return ch;
+
+  const text=String(ch).trim();
+
+  const match=
+    text.match(
+      /^([A-G](?:#|b)?)(.*)$/
+    );
+
+  if(!match){
+    return ch;
+  }
+
+  const root=match[1];
+  const suffix=match[2];
+
+  const rootPitch=getPitch(root);
+
+  if(rootPitch===null){
+    return ch;
+  }
+
+  const newRoot=
+    pitchToKey(
+      rootPitch+interval
+    );
+
+
+  /*
+    Also transpose the bass note
+    in slash chords.
+  */
+
+  const newSuffix=
+    suffix.replace(
+      /^\/([A-G](?:#|b)?)(.*)$/,
+      function(full,bass,rest){
+
+        const bassPitch=getPitch(bass);
+
+        if(bassPitch===null){
+          return full;
+        }
+
+        return '/' +
+          pitchToKey(bassPitch+interval) +
+          rest;
+      }
+    );
+
+
+  return newRoot + newSuffix;
+}
+
+
+/*
+  Open the transpose selector.
+*/
+
+function transpose(){
+
+  document
+    .getElementById('modal')
+    .style
+    .display='flex';
+
+
+  document
+    .getElementById('modalBody')
+    .innerHTML=`
+
+      <div class="row">
+
+        <div>
+
+          <h2 style="margin:0">
+            Transpose
+          </h2>
+
+          <div class="muted">
+            Select the new song key
+          </div>
+
+        </div>
+
+        <button
+          type="button"
+          class="btn"
+          onclick="closeModal()"
+        >
+          Close
+        </button>
+
+      </div>
+
+
+      <div
+        class="card"
+        style="
+          margin-top:15px;
+          text-align:center
+        "
+      >
+
+        <div class="muted">
+          Current Key
+        </div>
+
+        <div
+          style="
+            font-size:30px;
+            font-weight:800;
+            margin-top:5px
+          "
+        >
+          ${esc(normalizeKey(currentKey))}
+        </div>
+
+      </div>
+
+
+      <div class="keygrid">
+
+        ${
+          keyNames.map(k=>`
+
+            <button
+              type="button"
+              class="keybtn ${
+                k===normalizeKey(currentKey)
+                ? 'selected'
+                : ''
+              }"
+              onclick="applyTranspose('${k}')"
+            >
+              ${k}
+            </button>
+
+          `).join('')
+        }
+
+      </div>
+
+    `;
+
+}
+
+
+/*
+  IMPORTANT:
+
+  Clicking D means:
+
+  "Make the song key D."
+
+  It does NOT mean "move one step from D."
+
+  Example:
+
+  Current key = C
+  Selected key = D
+  Interval = +2
+
+  C -> D
+  G -> A
+  Am -> Bm
+  F -> G
+*/
+
+function applyTranspose(target){
+
+  target=normalizeKey(target);
+
+  const current=normalizeKey(currentKey);
+
+  const from=getPitch(current);
+  const to=getPitch(target);
+
+
+  if(
+    from===null ||
+    to===null
+  ){
+
+    toast('Invalid key');
+
+    return;
+
+  }
+
+
+  /*
+    Calculate the exact distance
+    from the CURRENT key to TARGET key.
+  */
+
+  const interval=
+    (to-from+12)%12;
+
+
+  /*
+    Transpose every chord.
+  */
+
+  Object.keys(base).forEach(part=>{
+
+    base[part]=
+      base[part].map(row=>{
+
+        const chord=row[0];
+        const lyric=row[1];
+
+        return [
+          transposeChord(
+            chord,
+            interval
+          ),
+          lyric
+        ];
+
+      });
+
+  });
+
+
+  /*
+    The displayed song key is now
+    exactly the key selected by the user.
+  */
+
+  currentKey=target;
+
+
+  closeModal();
+
+  renderSong();
+
+  saveLocal(false);
+
+
+  toast(
+    'Song is now in the key of '+target
+  );
+
+}
+
+
+/*
+  Detect the initial key from the first
+  chord found in the song.
+*/
+
+function detectKey(){
+
+  for(const part of arrangement){
+
+    for(const row of base[part] || []){
+
+      const chord=
+        String(row[0] || '');
+
+      const match=
+        chord.match(
+          /^([A-G](?:#|b)?)/
+        );
+
+
+      if(match){
+
+        const detected=
+          normalizeKey(match[1]);
+
+        if(
+          pitch[detected] !== undefined
+        ){
+
+          return detected;
+
+        }
+
+      }
+
+    }
+
+  }
+
+
+  return 'C';
+
+}
 const pitch={C:0,'C#':1,D:2,Eb:3,'D#':3,E:4,F:5,'F#':6,Gb:6,G:7,Ab:8,'G#':8,A:9,Bb:10,'A#':10,B:11,Db:1};
 function showTab(t){['songs','setlists','song'].forEach(id=>document.getElementById(id).classList.toggle('hidden',id!==t));document.getElementById('songsNav').classList.toggle('active',t==='songs');document.getElementById('setlistsNav').classList.toggle('active',t==='setlists');if(t==='setlists')renderSetlist();if(t==='song')renderSong()}
 function openSong(){showTab('song')}
