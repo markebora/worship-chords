@@ -387,7 +387,7 @@ main{padding:18px}
   min-height:0!important;
   line-height:1!important;
 }
-</style>
+.chordOnlyLine{display:block!important;margin:4px 0!important;padding:3px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}</style>
 </head>
 
 <body>
@@ -1263,6 +1263,21 @@ function partLinesHTML(pi, rows){
   }
 
   return html;
+}
+function compactChordOnlyLines(){
+  for(const part of Object.keys(base)){
+    const source=Array.isArray(base[part])?base[part]:[];
+    const out=[]; let chords=[];
+    const flush=()=>{if(chords.length){out.push([chords.join(' '),'']);chords=[]}};
+    for(const row of source){
+      const chord=String(row?.[0]??'').trim();
+      const lyric=String(row?.[1]??'').trim();
+      if(chord && !lyric) chords.push(chord);
+      else {flush();out.push(row)}
+    }
+    flush();
+    base[part]=out;
+  }
 }
 function renderSong(){
 
