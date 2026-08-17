@@ -155,7 +155,9 @@ main{padding:18px}
 }
 
 #content .card{
-  scroll-margin-top:75px
+  scroll-margin-top:75px;
+  height:auto!important;
+  min-height:0!important;
 }
 
 .editBanner{
@@ -225,9 +227,12 @@ main{padding:18px}
 
 .chordOnlyLine{
   display:block!important;
-  margin:4px 0!important;
-  padding:3px 7px!important;
-  border-radius:8px
+  margin:2px 0!important;
+  padding:2px 7px!important;
+  border-radius:8px;
+  height:auto!important;
+  min-height:0!important;
+  line-height:1!important;
 }
 
 .chordOnlyInner{
@@ -349,7 +354,40 @@ main{padding:18px}
     scroll-margin-top:65px
   }
 }
-.chordOnlyLine{display:block!important;margin:4px 0!important;padding:3px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}</style>
+.chordOnlyLine{display:block!important;margin:2px 0!important;padding:2px 7px!important;height:auto!important;min-height:0!important;line-height:1!important}.chordOnlyInner{display:flex!important;align-items:center!important;flex-wrap:nowrap!important;font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:inline-block!important;width:auto!important;flex:0 0 auto!important;letter-spacing:.08em!important;margin:0!important;padding:1px 5px!important}
+.chordGroup{display:flex!important;align-items:center!important;gap:0!important;flex-wrap:nowrap!important;height:auto!important;min-height:0!important;line-height:1!important}
+.chordGroupChord{font:bold 18px monospace;color:#72b7ff;white-space:nowrap}
+.chordSpace{white-space:pre}
+.chordGroupInput{display:inline-block!important;width:auto!important;min-width:2.2em!important;margin:0!important;padding:1px 3px!important}
+
+#content .chordOnlySection{
+  display:table!important;
+  width:100%!important;
+  height:1px!important;
+  min-height:0!important;
+  max-height:none!important;
+  padding:15px!important;
+  overflow:visible!important;
+}
+
+#content .chordOnlySection .part-title{
+  height:auto!important;
+  margin-bottom:5px!important;
+}
+
+#content .chordOnlySection .chordOnlyLine{
+  height:auto!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:2px 7px!important;
+}
+
+#content .chordOnlySection .chordOnlyInner{
+  height:auto!important;
+  min-height:0!important;
+  line-height:1!important;
+}
+</style>
 </head>
 
 <body>
@@ -520,7 +558,7 @@ main{padding:18px}
    SONG DATA
    ========================================================= */
 
-const base = {
+let base = {
 
   Intro:[
     ['C',''],
@@ -581,6 +619,15 @@ const base = {
 
 };
 
+/*
+   TRANSPOSE SOURCE
+   ----------------
+   `base` is the song currently displayed.
+   `transposeSource` is the editable song data in `currentKey`.
+   Transposing always starts from transposeSource, so repeated
+   transposes never accumulate rounding/state errors.
+*/
+let transposeSource = JSON.parse(JSON.stringify(base));
 
 let arrangement = Object.keys(base);
 let size = 18;
@@ -978,33 +1025,30 @@ function applyTranspose(target){
   const to = getPitch(target);
 
   if(from === null || to === null){
-
     toast('Invalid key');
-
     return;
   }
 
+  /*
+     Calculate the exact chromatic interval.
+
+     Examples:
+       C -> D  = +2
+       G -> C  = +5
+       D -> C# = -1 / +11
+       B -> C  = +1
+
+     The interval is calculated from the CURRENT displayed key,
+     while the chords themselves are always taken from
+     transposeSource (the chords in that current key).
+  */
+  const interval = (to - from + 12) % 12;
 
   /*
-     Calculate the actual distance.
-
-     The %12 makes the result always move
-     forward around the chromatic circle.
-
-     B -> C = 1
-     E -> F = 1
-     C -> D = 2
-     C -> B = 11
+     Do NOT repeatedly transpose an already-transposed copy.
+     Start from the clean source for the current key.
   */
-
-  const interval =
-    (to - from + 12) % 12;
-
-
-  /*
-     Now transpose every chord by that
-     exact interval.
-  */
+  base = JSON.parse(JSON.stringify(transposeSource));
 
   Object.keys(base).forEach(part => {
 
@@ -1022,19 +1066,15 @@ function applyTranspose(target){
 
   });
 
-
   /*
-     The selected key becomes the new
-     current key.
+     The newly displayed chords are now the source chords
+     for the newly selected key.
   */
-
   currentKey = target;
-
+  transposeSource = JSON.parse(JSON.stringify(base));
 
   closeModal();
-
   renderSong();
-
   saveLocal(false);
 
   toast(
@@ -1141,20 +1181,88 @@ function esc(s){
    RENDER SONG
    ========================================================= */
 
-function compactChordOnlyLines(){
-  for(const part of Object.keys(base)){
-    const source=Array.isArray(base[part])?base[part]:[];
-    const out=[]; let chords=[];
-    const flush=()=>{if(chords.length){out.push([chords.join(' '),'']);chords=[]}};
-    for(const row of source){
-      const chord=String(row?.[0]??'').trim();
-      const lyric=String(row?.[1]??'').trim();
-      if(chord && !lyric) chords.push(chord);
-      else {flush();out.push(row)}
+/* =========================================================
+   COMPACT CHORD-ONLY LINES
+   =========================================================
+   Consecutive chord-only rows are grouped visually, but the
+   underlying rows stay separate. This is important because
+   every chord must remain an individual transpose target.
+   Example:
+     C
+     G
+     Am
+     F
+   is displayed as:
+     C G Am F
+   ========================================================= */
+
+function chordGroupHTML(pi, startIndex, rows){
+
+  return `
+    <div class="chordOnlyLine">
+      <div class="chordOnlyInner chordGroup">
+        ${rows.map((row,offset) => {
+
+          const li = startIndex + offset;
+          const chord = String(row?.[0] ?? '').trim();
+
+          return editMode
+            ? `
+              <input
+                class="chordInput chordGroupInput"
+                value="${esc(chord)}"
+                onchange="updateLine(${pi},${li},0,this.value)"
+                aria-label="Chord"
+              >
+            `
+            : `
+              <span class="chordGroupChord">${esc(chord)}</span>
+            `;
+
+        }).join('<span class="chordSpace"> </span>')}
+      </div>
+    </div>
+  `;
+}
+
+function partLinesHTML(pi, rows){
+
+  let html = '';
+
+  for(let j = 0; j < rows.length; j++){
+
+    const row = rows[j];
+    const chord = String(row?.[0] ?? '').trim();
+    const lyric = String(row?.[1] ?? '').trim();
+
+    if(chord && !lyric){
+
+      const group = [];
+      let k = j;
+
+      while(k < rows.length){
+
+        const next = rows[k];
+        const nextChord = String(next?.[0] ?? '').trim();
+        const nextLyric = String(next?.[1] ?? '').trim();
+
+        if(!nextChord || nextLyric) break;
+
+        group.push(next);
+        k++;
+      }
+
+      html += chordGroupHTML(pi,j,group);
+      j = k - 1;
+
+    }else{
+
+      html += lineHTML(pi,j,row);
+
     }
-    flush();
-    base[part]=out;
   }
+
+  return html;
 }
 function renderSong(){
 
@@ -1233,7 +1341,15 @@ function renderSong(){
       <section
         class="card ${
           p === activeSection
-            ? 'sectionActive'
+            ? 'sectionActive '
+            : ''
+        }${
+          (base[p] || []).length &&
+          (base[p] || []).every(row =>
+            String(row?.[0] ?? '').trim() &&
+            !String(row?.[1] ?? '').trim()
+          )
+            ? 'chordOnlySection'
             : ''
         }"
         id="part${i}"
@@ -1244,9 +1360,7 @@ function renderSong(){
         </div>
 
         ${
-          base[p]
-            .map((x,j) => lineHTML(i,j,x))
-            .join('')
+          partLinesHTML(i, base[p])
         }
 
         ${
@@ -1506,6 +1620,13 @@ function updateLine(pi,li,field,val){
 
     base[p][li][field] =
       val;
+
+    /*
+       Edits are made in the current song key, so keep the
+       transpose source synchronized with the edited song.
+    */
+    transposeSource =
+      JSON.parse(JSON.stringify(base));
 
     saveLocal(false);
 
@@ -2074,6 +2195,13 @@ function analyzeSong(){
   currentKey =
     detectKey();
 
+  /*
+     The imported/analyzed song becomes the clean source
+     for future transposes.
+  */
+  transposeSource =
+    JSON.parse(JSON.stringify(base));
+
 
   document.getElementById(
     'analysisResult'
@@ -2210,6 +2338,7 @@ function saveLocal(show = true){
       JSON.stringify({
 
         base,
+        transposeSource,
         arrangement,
         size,
         setlist,
@@ -2262,6 +2391,15 @@ function loadLocal(){
         base,
         d.base
       );
+
+      /*
+         New saves contain transposeSource.
+         Old saves do not, so fall back to the loaded base.
+      */
+      transposeSource =
+        d.transposeSource
+          ? d.transposeSource
+          : JSON.parse(JSON.stringify(base));
 
     }
 
