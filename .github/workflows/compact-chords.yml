@@ -1,4 +1,4 @@
-name: Apply Worship Chords UI update
+name: Fix compact chord-only display
 on:
   push:
     branches: [main]
@@ -10,50 +10,45 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Fix compact chord-only rows
+      - name: Patch app
         run: |
           python - <<'PY'
           from pathlib import Path
-          p=Path('index.html')
-          s=p.read_text()
-          fn='''function compactChordOnlyLines(){
-            for(const p of Object.keys(base)){
-              const out=[]; let pending=[];
-              const flush=()=>{if(pending.length){out.push([pending.join(' '),'']);pending=[]}};
-              for(const item of base[p]){
-                const chord=(item[0]||'').trim(); const lyric=(item[1]||'').trim();
-                if(chord && !lyric) pending.push(chord);
-                else { flush(); out.push(item); }
+          import re
+          p = Path('index.html')
+          s = p.read_text()
+          # Inject a real compaction function before renderSong.
+          fn = '''function compactChordOnlyLines(){
+            for(const part of Object.keys(base)){
+              const source=Array.isArray(base[part])?base[part]:[];
+              const out=[]; let chords=[];
+              const flush=()=>{if(chords.length){out.push([chords.join(' '),'']);chords=[]}};
+              for(const row of source){
+                const chord=String(row?.[0]??'').trim();
+                const lyric=String(row?.[1]??'').trim();
+                if(chord && !lyric) chords.push(chord);
+                else {flush();out.push(row)}
               }
-              flush(); base[p]=out;
+              flush();
+              base[part]=out;
             }
           }
           '''
           if 'function compactChordOnlyLines()' not in s:
-            marker="function renderSong(){"
-            if marker not in s: raise SystemExit('renderSong target not found')
-            s=s.replace(marker,fn+marker,1)
-          # Always compact the current in-memory song before rendering.
-          target="function renderSong(){document.getElementById('songTitle')"
-          replacement="function renderSong(){compactChordOnlyLines();document.getElementById('songTitle')"
-          if target in s:
-            s=s.replace(target,replacement,1)
-          else:
-            raise SystemExit('renderSong body target not found')
-          # Also compact immediately after loading saved data, so old localStorage data is fixed.
-          target2="if(d.currentKey)currentKey=d.currentKey}catch(e){}"
-          replacement2="if(d.currentKey)currentKey=d.currentKey;compactChordOnlyLines()}catch(e){}"
-          if target2 in s:
-            s=s.replace(target2,replacement2,1)
-          # Add a clear visual compact style and make the compact line a single row.
-          css='.chordOnlyLine{display:block;margin:6px 0;padding:5px 7px}.chordOnlyInner{font:bold 18px monospace;color:#72b7ff;white-space:nowrap;letter-spacing:.08em}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}.editMode .chordOnlyLine{background:#0e1115;border:1px solid #3a424c;border-radius:8px}'
-          s=s.replace('</style>',css+'</style>')
+            s=s.replace('function renderSong(){', fn+'function renderSong(){', 1)
+          # Ensure renderSong compacts before it builds the UI.
+          s=s.replace('function renderSong(){document.getElementById(\'songTitle\')', 'function renderSong(){compactChordOnlyLines();document.getElementById(\'songTitle\')', 1)
+          # Ensure saved old data is compacted after loadLocal.
+          s=s.replace('if(d.currentKey)currentKey=d.currentKey}catch(e){}', 'if(d.currentKey)currentKey=d.currentKey;compactChordOnlyLines()}catch(e){}', 1)
+          # Remove excessive letter spacing and force a single compact row.
+          css='''.chordOnlyLine{display:block!important;margin:4px 0!important;padding:3px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}'''
+          s=s.replace('</style>', css+'</style>', 1)
           p.write_text(s)
           PY
-      - name: Commit update
+      - name: Commit patched app
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add index.html
-          git diff --cached --quiet || git commit -m "Fix chord-only compact display for existing songs"
+          git diff --cached --quiet || git commit -m "Fix compact chord-only rows"
           git push
