@@ -10,33 +10,44 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch compact chord-only grouping
+      - name: Fix compact chord-only rows
         run: |
           python - <<'PY'
           from pathlib import Path
           p=Path('index.html')
           s=p.read_text()
-          marker="function finishImport(){closeModal();showTab('song');renderSong();saveLocal();toast('Song analyzed and imported')}"
-          insert="""function compactChordOnlyLines(){
+          fn='''function compactChordOnlyLines(){
             for(const p of Object.keys(base)){
               const out=[]; let pending=[];
               const flush=()=>{if(pending.length){out.push([pending.join(' '),'']);pending=[]}};
               for(const item of base[p]){
-                if(item[0] && !item[1]) pending.push(item[0].trim());
+                const chord=(item[0]||'').trim(); const lyric=(item[1]||'').trim();
+                if(chord && !lyric) pending.push(chord);
                 else { flush(); out.push(item); }
               }
-              flush();
-              base[p]=out;
+              flush(); base[p]=out;
             }
           }
-          """
+          '''
           if 'function compactChordOnlyLines()' not in s:
-            if marker not in s: raise SystemExit('finishImport target not found')
-            s=s.replace(marker,insert+marker)
-          target="arrangement=sections;currentSongTitle=title;currentArtist=artist;currentKey=detectKey();"
-          replacement="compactChordOnlyLines(); arrangement=sections;currentSongTitle=title;currentArtist=artist;currentKey=detectKey();"
-          if target not in s: raise SystemExit('analyze target not found')
-          s=s.replace(target,replacement,1)
+            marker="function renderSong(){"
+            if marker not in s: raise SystemExit('renderSong target not found')
+            s=s.replace(marker,fn+marker,1)
+          # Always compact the current in-memory song before rendering.
+          target="function renderSong(){document.getElementById('songTitle')"
+          replacement="function renderSong(){compactChordOnlyLines();document.getElementById('songTitle')"
+          if target in s:
+            s=s.replace(target,replacement,1)
+          else:
+            raise SystemExit('renderSong body target not found')
+          # Also compact immediately after loading saved data, so old localStorage data is fixed.
+          target2="if(d.currentKey)currentKey=d.currentKey}catch(e){}"
+          replacement2="if(d.currentKey)currentKey=d.currentKey;compactChordOnlyLines()}catch(e){}"
+          if target2 in s:
+            s=s.replace(target2,replacement2,1)
+          # Add a clear visual compact style and make the compact line a single row.
+          css='.chordOnlyLine{display:block;margin:6px 0;padding:5px 7px}.chordOnlyInner{font:bold 18px monospace;color:#72b7ff;white-space:nowrap;letter-spacing:.08em}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}.editMode .chordOnlyLine{background:#0e1115;border:1px solid #3a424c;border-radius:8px}'
+          s=s.replace('</style>',css+'</style>')
           p.write_text(s)
           PY
       - name: Commit update
@@ -44,5 +55,5 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add index.html
-          git diff --cached --quiet || git commit -m "Group consecutive chord-only lines into compact rows"
+          git diff --cached --quiet || git commit -m "Fix chord-only compact display for existing songs"
           git push
