@@ -753,7 +753,19 @@ function renderSong(){
     }).join('');
 
 
-  document.getElementById('content').style.fontSize=size+'px';
+document.getElementById('content').style.fontSize=size+'px';
+
+document.querySelectorAll('#content .lyricText').forEach(el=>{
+  el.style.fontSize=size+'px';
+});
+
+document.querySelectorAll('#content .chordInput').forEach(el=>{
+  el.style.fontSize=Math.max(12,size-2)+'px';
+});
+
+document.querySelectorAll('#content .chordOnlyInner').forEach(el=>{
+  el.style.fontSize=Math.max(14,size)+'px';
+});
 
   applyModes();
 
@@ -1111,17 +1123,19 @@ function applyModes(){
 /* FONT */
 
 function font(n){
+  size=Math.max(14,Math.min(30,size+n));
 
-  size=Math.max(
-    14,
-    Math.min(30,size+n)
-  );
+  document.querySelectorAll('#content .lyricText').forEach(el=>{
+    el.style.fontSize=size+'px';
+  });
 
-  document
-    .getElementById('content')
-    .style
-    .fontSize=size+'px';
+  document.querySelectorAll('#content .chordInput').forEach(el=>{
+    el.style.fontSize=Math.max(12,size-2)+'px';
+  });
 
+  document.querySelectorAll('#content .chordOnlyInner').forEach(el=>{
+    el.style.fontSize=Math.max(14,size)+'px';
+  });
 }
 
 
