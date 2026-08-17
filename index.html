@@ -1,23 +1,12 @@
 <!doctype html>
 <html lang="en">
-
 <head>
-
 <meta charset="utf-8">
-
-<meta
-  name="viewport"
-  content="width=device-width,initial-scale=1"
->
-
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Worship Chords</title>
 
-
 <style>
-
-*{
-  box-sizing:border-box
-}
+*{box-sizing:border-box}
 
 body{
   margin:0;
@@ -46,8 +35,7 @@ header{
   font-weight:800
 }
 
-.sub,
-.muted{
+.sub,.muted{
   color:#929ca6;
   font-size:13px
 }
@@ -114,8 +102,7 @@ main{
   flex-wrap:wrap
 }
 
-.card,
-.item{
+.card,.item{
   background:#171c22;
   border:1px solid #293039;
   border-radius:14px;
@@ -145,30 +132,20 @@ main{
   margin-top:3px
 }
 
-
-/* =========================================
-   SECTION BUTTON BAR
-   ========================================= */
+/* ================================
+   STICKY SECTION BUTTONS ONLY
+================================ */
 
 .tabs{
   display:flex;
   gap:7px;
   overflow-x:auto;
-
   position:sticky;
   top:0;
-
   background:#11151a;
-
   padding:12px 0;
-
   z-index:10;
-
-  scrollbar-width:none
-}
-
-.tabs::-webkit-scrollbar{
-  display:none
+  border-bottom:1px solid #293039
 }
 
 .tabs button{
@@ -176,8 +153,7 @@ main{
   flex-shrink:0
 }
 
-
-/* SELECTED SECTION BUTTON */
+/* Selected section button */
 
 .tabs button.sectionActive{
   background:#cfe8d5 !important;
@@ -185,8 +161,7 @@ main{
   border-bottom:0 !important
 }
 
-
-/* SELECTED SECTION CARD */
+/* Selected section card */
 
 .card.sectionActive{
   background:#cfe8d5;
@@ -206,17 +181,11 @@ main{
   color:#4f6f57
 }
 
-
 /* Keep selected section visible below sticky buttons */
 
 #content .card{
-  scroll-margin-top:85px
+  scroll-margin-top:80px
 }
-
-
-/* =========================================
-   EDIT MODE
-   ========================================= */
 
 .editBanner{
   display:none;
@@ -249,11 +218,6 @@ main{
 .editSectionBtn.dropTarget{
   outline:2px solid #72b7ff
 }
-
-
-/* =========================================
-   SONG CONTENT
-   ========================================= */
 
 .part-title{
   text-transform:uppercase;
@@ -304,10 +268,7 @@ main{
   margin:0
 }
 
-
-/* =========================================
-   CHORD ONLY LINE
-   ========================================= */
+/* Chord-only line */
 
 .chordOnlyLine{
   display:block !important;
@@ -334,10 +295,23 @@ main{
   border:1px solid #3a424c
 }
 
+.singerBanner{
+  display:none;
+  background:#fff;
+  color:#111;
+  padding:8px 12px;
+  border-radius:9px;
+  font-weight:800;
+  margin:10px 0
+}
 
-/* =========================================
-   MODAL
-   ========================================= */
+.singerMode .singerBanner{
+  display:inline-block
+}
+
+.singerMode .chordRow{
+  display:none
+}
 
 .modalback{
   position:fixed;
@@ -361,9 +335,7 @@ main{
   margin-top:0
 }
 
-.input,
-.modal input,
-.modal textarea{
+.input,.modal input,.modal textarea{
   width:100%;
   background:#0e1115;
   color:#fff;
@@ -371,12 +343,6 @@ main{
   border-radius:9px;
   padding:12px;
   font:inherit
-}
-
-.modal textarea{
-  min-height:180px;
-  resize:vertical;
-  margin-top:8px
 }
 
 .searchbox{
@@ -392,8 +358,7 @@ main{
 .keygrid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
-  gap:8px;
-  margin-top:15px
+  gap:8px
 }
 
 .keybtn{
@@ -402,12 +367,7 @@ main{
   border-radius:9px;
   background:#20262d;
   color:#fff;
-  font-weight:800;
-  cursor:pointer
-}
-
-.keybtn:hover{
-  background:#2b333c
+  font-weight:800
 }
 
 .badge{
@@ -418,11 +378,6 @@ main{
   color:#aeb8c2;
   font-size:11px
 }
-
-
-/* =========================================
-   TOAST
-   ========================================= */
 
 .toast{
   position:fixed;
@@ -438,10 +393,9 @@ main{
   z-index:30
 }
 
-
-/* =========================================
+/* ================================
    MOBILE
-   ========================================= */
+================================ */
 
 @media(max-width:500px){
 
@@ -458,54 +412,30 @@ main{
   }
 
   #content .card{
-    scroll-margin-top:75px
+    scroll-margin-top:65px
   }
 
 }
-
-.chordOnlyLine{display:block!important;margin:4px 0!important;padding:3px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}</style>
-
+</style>
 </head>
-
 
 <body>
 
-
 <div class="app">
-
-
-<!-- =====================================
-     HEADER
-     ===================================== -->
 
 <header>
 
   <div>
-
-    <div class="brand">
-      Worship Chords
-    </div>
-
-    <div class="sub">
-      Lyrics • Chords • Setlists
-    </div>
-
+    <div class="brand">Worship Chords</div>
+    <div class="sub">Lyrics • Chords • Setlists</div>
   </div>
 
-
-  <button
-    class="btn"
-    onclick="openSearch()"
-  >
+  <button class="btn" onclick="openSearch()">
     🔎 Search Song
   </button>
 
 </header>
 
-
-<!-- =====================================
-     MAIN NAVIGATION
-     ===================================== -->
 
 <nav>
 
@@ -517,7 +447,6 @@ main{
     Songs
   </button>
 
-
   <button
     id="setlistsNav"
     onclick="showTab('setlists')"
@@ -528,9 +457,7 @@ main{
 </nav>
 
 
-<!-- =====================================
-     SONG LIBRARY
-     ===================================== -->
+<!-- SONG LIBRARY -->
 
 <main id="songs">
 
@@ -548,7 +475,6 @@ main{
 
     </div>
 
-
     <button
       class="btn primary"
       onclick="openSearch()"
@@ -562,7 +488,6 @@ main{
   <div class="card">
 
     <b>Current song</b>
-
 
     <div
       class="item"
@@ -581,7 +506,6 @@ main{
 
       </div>
 
-
       <button
         class="btn"
         onclick="openSong()"
@@ -596,9 +520,7 @@ main{
 </main>
 
 
-<!-- =====================================
-     SETLISTS
-     ===================================== -->
+<!-- SETLIST -->
 
 <main
   id="setlists"
@@ -619,7 +541,6 @@ main{
 
     </div>
 
-
     <button
       class="btn primary"
       onclick="addSetSong()"
@@ -629,7 +550,6 @@ main{
 
   </div>
 
-
   <div
     class="card"
     id="setlistBox"
@@ -638,15 +558,12 @@ main{
 </main>
 
 
-<!-- =====================================
-     SONG VIEW
-     ===================================== -->
+<!-- SONG VIEW -->
 
 <main
   id="song"
   class="hidden"
 >
-
 
   <div class="row">
 
@@ -658,7 +575,6 @@ main{
       >
         Way Maker
       </h1>
-
 
       <div class="muted">
 
@@ -686,7 +602,6 @@ main{
         ← Songs
       </button>
 
-
       <button
         class="btn"
         id="editBtn"
@@ -700,8 +615,6 @@ main{
   </div>
 
 
-  <!-- EDIT BANNER -->
-
   <div class="editBanner">
 
     ✎ EDIT MODE —
@@ -711,9 +624,9 @@ main{
   </div>
 
 
-  <!-- =================================
-       SECTION BUTTONS
-       ================================= -->
+  <!-- ==========================
+       ONLY THIS ROW IS STICKY
+  =========================== -->
 
   <div
     class="tabs"
@@ -721,80 +634,67 @@ main{
   ></div>
 
 
-  <!-- =================================
-       SONG CONTENT
-       ================================= -->
+  <!-- ==========================
+       THIS ROW SCROLLS AWAY
+  =========================== -->
 
-  <div id="content"></div>
+  <div
+    class="controls"
+    style="
+      margin:10px 0;
+      align-items:center;
+    "
+  >
 
+    <button
+      class="btn"
+      onclick="font(-1)"
+    >
+      A−
+    </button>
 
-  <!-- =================================
-       SONG CONTROLS
+    <button
+      class="btn"
+      onclick="font(1)"
+    >
+      A+
+    </button>
 
-       These are intentionally BELOW
-       the section buttons and lyrics.
+    <button
+      class="btn"
+      onclick="autoScroll()"
+    >
+      ▶ Auto Scroll
+    </button>
 
-       They are NOT sticky.
-       ================================= -->
+    <button
+      class="btn"
+      onclick="transpose()"
+    >
+      Transpose
+    </button>
 
-  <div class="card">
+    <!-- SAVE ONLY APPEARS IN EDIT MODE -->
 
-    <div class="controls">
-
-      <button
-        class="btn"
-        onclick="font(-1)"
-      >
-        A−
-      </button>
-
-
-      <button
-        class="btn"
-        onclick="font(1)"
-      >
-        A+
-      </button>
-
-
-      <button
-        class="btn"
-        onclick="autoScroll()"
-      >
-        ▶ Auto Scroll
-      </button>
-
-
-      <button
-        class="btn"
-        onclick="transpose()"
-      >
-        Transpose
-      </button>
-
-
-      <!-- SAVE ONLY APPEARS IN EDIT MODE -->
-
-      <button
-        class="btn primary"
-        id="saveBtn"
-        onclick="saveLocal()"
-        style="display:none"
-      >
-        💾 Save
-      </button>
-
-    </div>
+    <button
+      class="btn"
+      id="saveBtn"
+      onclick="saveLocal()"
+      style="display:none"
+    >
+      💾 Save
+    </button>
 
   </div>
+
+
+  <div id="content"></div>
 
 
 </main>
 
 
-<!-- =====================================
-     MODAL
-     ===================================== -->
+<!-- MODAL -->
 
 <div
   class="modalback"
@@ -809,10 +709,6 @@ main{
 </div>
 
 
-<!-- =====================================
-     TOAST
-     ===================================== -->
-
 <div
   class="toast"
   id="toast"
@@ -824,12 +720,11 @@ main{
 
 <script>
 
+/* =========================================================
+   BASE SONG
+========================================================= */
 
-/* =========================================
-   DEFAULT SONG
-   ========================================= */
-
-const base = {
+const base={
 
   "Intro":[
     ["C",""],
@@ -838,14 +733,12 @@ const base = {
     ["F",""]
   ],
 
-
   "Verse 1":[
     ["C","You are here, moving in our midst"],
     ["G","I worship You, I worship You"],
     ["Am","You are here, working in this place"],
     ["F","I worship You, I worship You"]
   ],
-
 
   "Chorus":[
     ["C","Way Maker, Miracle Worker"],
@@ -854,14 +747,12 @@ const base = {
     ["F","That is who You are"]
   ],
 
-
   "Verse 2":[
     ["C","You are here, touching every heart"],
     ["G","I worship You, I worship You"],
     ["Am","You are here, healing every heart"],
     ["F","I worship You, I worship You"]
   ],
-
 
   "Bridge":[
     ["Am","Even when I don't see it, You're working"],
@@ -870,24 +761,20 @@ const base = {
     ["G","You never stop, You never stop working"]
   ],
 
-
   "Tag":[
     ["C","That is who You are"],
     ["G","That is who You are"]
   ],
-
 
   "Adlib":[
     ["Am","You are here"],
     ["F","You are here"]
   ],
 
-
   "Interlude":[
     ["C",""],
     ["G",""]
   ],
-
 
   "Outro":[
     ["C","That is who You are"],
@@ -899,57 +786,51 @@ const base = {
 };
 
 
-let arrangement =
-  Object.keys(base);
+let arrangement=Object.keys(base);
+
+let size=18;
+
+let editMode=false;
+
+let singerMode=false;
+
+let scrollTimer=null;
+
+let currentSongTitle='Way Maker';
+
+let currentArtist='Sinach';
+
+let currentKey='C';
+
+let sectionDrag=null;
+
+let activeSection='Intro';
 
 
-let size = 18;
-
-let editMode = false;
-
-let scrollTimer = null;
-
-let currentSongTitle =
-  'Way Maker';
-
-let currentArtist =
-  'Sinach';
-
-let currentKey =
-  'C';
-
-let sectionDrag =
-  null;
-
-let activeSection =
-  'Intro';
-
-
-let setlist = [
+let setlist=[
   'Way Maker',
   'Goodness of God',
   'What a Beautiful Name'
 ];
 
 
-/* =========================================
-   NAVIGATION
-   ========================================= */
+/* =========================================================
+   TABS
+========================================================= */
 
 function showTab(t){
 
-  ['songs','setlists','song']
-    .forEach(x=>{
+  ['songs','setlists','song'].forEach(x=>{
 
-      document
-        .getElementById(x)
-        .classList
-        .toggle(
-          'hidden',
-          x!==t
-        );
+    document
+      .getElementById(x)
+      .classList
+      .toggle(
+        'hidden',
+        x!==t
+      );
 
-    });
+  });
 
 
   document
@@ -971,17 +852,15 @@ function showTab(t){
 
 
   if(t==='setlists'){
-
     renderSetlist();
-
   }
 
 }
 
 
-/* =========================================
+/* =========================================================
    OPEN SONG
-   ========================================= */
+========================================================= */
 
 function openSong(){
 
@@ -992,9 +871,9 @@ function openSong(){
 }
 
 
-/* =========================================
+/* =========================================================
    RENDER SONG
-   ========================================= */
+========================================================= */
 
 function renderSong(){
 
@@ -1003,222 +882,190 @@ function renderSong(){
 
   document
     .getElementById('songTitle')
-    .textContent =
-    currentSongTitle;
+    .textContent=currentSongTitle;
 
 
   document
     .getElementById('songArtist')
-    .textContent =
-    currentArtist;
+    .textContent=currentArtist;
 
 
   document
     .getElementById('key')
-    .textContent =
-    currentKey;
+    .textContent=currentKey;
 
 
   document
     .getElementById('libraryTitle')
-    .textContent =
-    currentSongTitle;
+    .textContent=currentSongTitle;
 
 
   document
     .getElementById('libraryArtist')
-    .textContent =
-    currentArtist +
-    ' • Key ' +
-    currentKey;
+    .textContent=
+      currentArtist+
+      ' • Key '+
+      currentKey;
 
 
   document
     .getElementById('editBtn')
-    .textContent =
-    editMode
-      ? '✓ Done Editing'
-      : '✎ Edit';
+    .textContent=
+      editMode
+      ?
+      '✓ Done Editing'
+      :
+      '✎ Edit';
 
 
-  /* SAVE BUTTON */
+  /* SAVE BUTTON ONLY IN EDIT MODE */
 
   document
     .getElementById('saveBtn')
     .style
-    .display =
-    editMode
-      ? 'inline-block'
-      : 'none';
+    .display=
+      editMode
+      ?
+      'inline-block'
+      :
+      'none';
 
 
   /* SECTION BUTTONS */
 
   document
     .getElementById('tabs')
-    .innerHTML =
+    .innerHTML=
 
-    arrangement
-      .map((p,i)=>{
+    arrangement.map((p,i)=>{
 
-        const selected =
-          p===activeSection;
-
-
-        return `
-
-          <button
-
-            class="btn ${
-              selected
-                ? 'sectionActive'
-                : ''
-            } ${
-              editMode
-                ? 'editSectionBtn'
-                : ''
-            }"
-
-            ${
-              editMode
-
-              ?
-
-              `draggable="true"
-
-               ondragstart="
-                 sectionDragStart(event,${i})
-               "
-
-               ondragover="
-                 sectionDragOver(event)
-               "
-
-               ondrop="
-                 sectionDrop(event,${i})
-               "
-
-               ondragend="
-                 sectionDragEnd(event)
-               "`
-
-              :
-
-              ''
-
-            }
-
-            onclick="jump(${i})"
-
-          >
-
-            ${esc(p)}
-
-          </button>
-
-        `;
-
-      })
-      .join('');
+      const selected=
+        p===activeSection;
 
 
-  /* SONG CONTENT */
+      return `
+
+        <button
+          class="btn
+          ${selected?'sectionActive':''}
+          ${editMode?'editSectionBtn':''}"
+
+          ${
+            editMode
+            ?
+            `
+              draggable="true"
+
+              ondragstart="
+                sectionDragStart(event,${i})
+              "
+
+              ondragover="
+                sectionDragOver(event)
+              "
+
+              ondrop="
+                sectionDrop(event,${i})
+              "
+
+              ondragend="
+                sectionDragEnd(event)
+              "
+            `
+            :
+            ''
+          }
+
+          onclick="jump(${i})"
+        >
+
+          ${esc(p)}
+
+        </button>
+
+      `;
+
+    }).join('');
+
+
+  /* CONTENT */
 
   document
     .getElementById('content')
-    .innerHTML =
+    .innerHTML=
 
-    arrangement
-      .map((p,i)=>{
+    arrangement.map((p,i)=>{
 
-        const selected =
-          p===activeSection;
-
-
-        return `
-
-          <section
-
-            class="card ${
-              selected
-                ? 'sectionActive'
-                : ''
-            }"
-
-            id="part${i}"
-
-          >
-
-            <div class="part-title">
-              ${esc(p)}
-            </div>
+      const selected=
+        p===activeSection;
 
 
-            <div>
+      return `
 
-              ${
-                base[p]
-                  .map(
-                    (x,j)=>
-                      lineHTML(
-                        i,
-                        j,
-                        x
-                      )
-                  )
-                  .join('')
-              }
+        <section
+          class="card
+          ${selected?'sectionActive':''}"
 
-            </div>
+          id="part${i}"
+        >
+
+          <div class="part-title">
+            ${esc(p)}
+          </div>
 
 
-            ${
-              editMode
+          <div>
 
-              ?
-
-              `
-
-                <div class="controls">
-
-                  <button
-                    class="btn"
-                    onclick="addLine(${i})"
-                  >
-                    ＋ Add lyric line
-                  </button>
-
-
-                  <button
-                    class="btn"
-                    onclick="addChordLine(${i})"
-                  >
-                    ＋ Add chord line
-                  </button>
-
-                </div>
-
-              `
-
-              :
-
-              ''
-
+            ${base[p]
+              .map((x,j)=>
+                lineHTML(i,j,x)
+              )
+              .join('')
             }
 
-          </section>
+          </div>
 
-        `;
 
-      })
-      .join('');
+          ${
+            editMode
+            ?
+            `
+
+              <div class="controls">
+
+                <button
+                  class="btn"
+                  onclick="addLine(${i})"
+                >
+                  ＋ Add lyric line
+                </button>
+
+
+                <button
+                  class="btn"
+                  onclick="addChordLine(${i})"
+                >
+                  ＋ Add chord line
+                </button>
+
+              </div>
+
+            `
+            :
+            ''
+          }
+
+        </section>
+
+      `;
+
+    }).join('');
 
 
   document
     .getElementById('content')
     .style
-    .fontSize =
-    size+'px';
+    .fontSize=size+'px';
 
 
   document
@@ -1227,7 +1074,7 @@ function renderSong(){
     )
     .forEach(el=>{
 
-      el.style.fontSize =
+      el.style.fontSize=
         size+'px';
 
     });
@@ -1239,7 +1086,7 @@ function renderSong(){
     )
     .forEach(el=>{
 
-      el.style.fontSize =
+      el.style.fontSize=
         Math.max(
           12,
           size-2
@@ -1254,7 +1101,7 @@ function renderSong(){
     )
     .forEach(el=>{
 
-      el.style.fontSize =
+      el.style.fontSize=
         Math.max(
           14,
           size
@@ -1266,13 +1113,9 @@ function renderSong(){
   applyModes();
 
 
-  if(
-    !arrangement.includes(
-      activeSection
-    )
-  ){
+  if(!arrangement.includes(activeSection)){
 
-    activeSection =
+    activeSection=
       arrangement[0] || '';
 
   }
@@ -1283,9 +1126,9 @@ function renderSong(){
 }
 
 
-/* =========================================
-   HIGHLIGHT SECTION
-   ========================================= */
+/* =========================================================
+   SECTION HIGHLIGHT
+========================================================= */
 
 function updateSectionHighlight(){
 
@@ -1297,7 +1140,7 @@ function updateSectionHighlight(){
 
       button.classList.toggle(
         'sectionActive',
-        button.textContent.trim() ===
+        button.textContent.trim()===
         activeSection
       );
 
@@ -1310,15 +1153,15 @@ function updateSectionHighlight(){
     )
     .forEach(card=>{
 
-      const title =
+      const title=
         card.querySelector(
           '.part-title'
         );
 
 
-      const isSelected =
+      const isSelected=
         title &&
-        title.textContent.trim() ===
+        title.textContent.trim()===
         activeSection;
 
 
@@ -1332,89 +1175,70 @@ function updateSectionHighlight(){
 }
 
 
-/* =========================================
-   JUMP TO SECTION
-   ========================================= */
+/* =========================================================
+   JUMP
+========================================================= */
 
 function jump(i){
 
-  if(!arrangement[i]){
-    return;
-  }
+  if(!arrangement[i]) return;
 
 
-  activeSection =
+  activeSection=
     arrangement[i];
 
 
   updateSectionHighlight();
 
 
-  const target =
+  const target=
     document.getElementById(
       'part'+i
     );
 
 
-  const tabs =
+  const tabs=
     document.getElementById(
       'tabs'
     );
 
 
-  if(!target){
-    return;
-  }
+  if(!target) return;
 
 
-  const extraSpace =
-    12;
+  const extraSpace=12;
 
 
-  const targetTop =
-    target
-      .getBoundingClientRect()
-      .top
-    +
-    window.scrollY
-    -
-    tabs.offsetHeight
-    -
+  const targetTop=
+    target.getBoundingClientRect().top+
+    window.scrollY-
+    tabs.offsetHeight-
     extraSpace;
 
 
   window.scrollTo({
 
-    top:
-      Math.max(
-        0,
-        targetTop
-      ),
+    top:Math.max(
+      0,
+      targetTop
+    ),
 
-    behavior:
-      'smooth'
+    behavior:'smooth'
 
   });
 
 }
 
 
-/* =========================================
+/* =========================================================
    LINE HTML
-   ========================================= */
+========================================================= */
 
-function lineHTML(
-  pi,
-  li,
-  x
-){
+function lineHTML(pi,li,x){
 
   /* CHORD ONLY */
 
-  if(
-    !x[1] &&
-    x[0]
-  ){
+  if(!x[1] && x[0]){
 
     return `
 
@@ -1424,15 +1248,11 @@ function lineHTML(
 
           ${
             editMode
-
             ?
-
             `
 
               <input
-
                 class="chordInput"
-
                 value="${esc(x[0])}"
 
                 onchange="
@@ -1445,21 +1265,15 @@ function lineHTML(
                 "
 
                 aria-label="Chord line"
-
               >
 
             `
-
             :
-
             `
-
               <span>
                 ${esc(x[0])}
               </span>
-
             `
-
           }
 
         </div>
@@ -1471,7 +1285,7 @@ function lineHTML(
   }
 
 
-  /* NORMAL LINE */
+  /* NORMAL LYRIC */
 
   return `
 
@@ -1479,18 +1293,16 @@ function lineHTML(
 
       <div class="handle"></div>
 
-
       <div>
 
         <div class="chordRow">
 
           <input
-
             class="chordInput"
 
             value="${esc(x[0])}"
 
-            ${editMode ? '' : 'readonly'}
+            ${editMode?'':'readonly'}
 
             onchange="
               updateLine(
@@ -1502,7 +1314,6 @@ function lineHTML(
             "
 
             aria-label="Chord"
-
           >
 
         </div>
@@ -1523,15 +1334,13 @@ function lineHTML(
 }
 
 
-/* =========================================
-   ESCAPE HTML
-   ========================================= */
+/* =========================================================
+   ESCAPE
+========================================================= */
 
 function esc(s){
 
-  return String(
-    s ?? ''
-  )
+  return String(s??'')
 
     .replace(
       /&/g,
@@ -1556,9 +1365,9 @@ function esc(s){
 }
 
 
-/* =========================================
+/* =========================================================
    UPDATE LINE
-   ========================================= */
+========================================================= */
 
 function updateLine(
   pi,
@@ -1567,7 +1376,7 @@ function updateLine(
   val
 ){
 
-  const p =
+  const p=
     arrangement[pi];
 
 
@@ -1576,14 +1385,7 @@ function updateLine(
     base[p][li]
   ){
 
-    base[p][li][field] =
-      val;
-
-
-    /*
-      Do not show "Saved locally"
-      while editing every field.
-    */
+    base[p][li][field]=val;
 
     saveLocal(false);
 
@@ -1592,28 +1394,20 @@ function updateLine(
 }
 
 
-/* =========================================
+/* =========================================================
    SECTION DRAGGING
-   ========================================= */
+========================================================= */
 
-function sectionDragStart(
-  e,
-  i
-){
+function sectionDragStart(e,i){
 
-  sectionDrag =
-    i;
+  sectionDrag=i;
 
-
-  e.dataTransfer.effectAllowed =
+  e.dataTransfer.effectAllowed=
     'move';
 
-
-  e.currentTarget
-    .classList
-    .add(
-      'dragging'
-    );
+  e.currentTarget.classList.add(
+    'dragging'
+  );
 
 }
 
@@ -1621,9 +1415,7 @@ function sectionDragStart(
 function sectionDragOver(e){
 
   if(editMode){
-
     e.preventDefault();
-
   }
 
 }
@@ -1638,8 +1430,8 @@ function sectionDrop(
 
 
   if(
-    sectionDrag === null ||
-    sectionDrag === target
+    sectionDrag===null ||
+    sectionDrag===target
   ){
 
     return;
@@ -1647,7 +1439,7 @@ function sectionDrop(
   }
 
 
-  const moved =
+  const moved=
     arrangement.splice(
       sectionDrag,
       1
@@ -1661,8 +1453,7 @@ function sectionDrop(
   );
 
 
-  sectionDrag =
-    null;
+  sectionDrag=null;
 
 
   renderSong();
@@ -1679,27 +1470,22 @@ function sectionDrop(
 
 function sectionDragEnd(e){
 
-  sectionDrag =
-    null;
+  sectionDrag=null;
 
-
-  e.currentTarget
-    .classList
-    .remove(
-      'dragging'
-    );
+  e.currentTarget.classList.remove(
+    'dragging'
+  );
 
 }
 
 
-/* =========================================
+/* =========================================================
    EDIT MODE
-   ========================================= */
+========================================================= */
 
 function toggleEdit(){
 
-  editMode =
-    !editMode;
+  editMode=!editMode;
 
 
   renderSong();
@@ -1707,16 +1493,18 @@ function toggleEdit(){
 
   toast(
     editMode
-      ? 'Edit mode on'
-      : 'Edit mode closed'
+    ?
+    'Edit mode on'
+    :
+    'Edit mode closed'
   );
 
 }
 
 
-/* =========================================
-   ADD LINE
-   ========================================= */
+/* =========================================================
+   ADD LINES
+========================================================= */
 
 function addLine(pi){
 
@@ -1734,10 +1522,6 @@ function addLine(pi){
 
 }
 
-
-/* =========================================
-   ADD CHORD LINE
-   ========================================= */
 
 function addChordLine(pi){
 
@@ -1761,11 +1545,20 @@ function addChordLine(pi){
 }
 
 
-/* =========================================
-   APPLY MODES
-   ========================================= */
+/* =========================================================
+   MODES
+========================================================= */
 
 function applyModes(){
+
+  document
+    .getElementById('song')
+    .classList
+    .toggle(
+      'singerMode',
+      singerMode
+    );
+
 
   document
     .getElementById('song')
@@ -1778,13 +1571,13 @@ function applyModes(){
 }
 
 
-/* =========================================
+/* =========================================================
    FONT
-   ========================================= */
+========================================================= */
 
 function font(n){
 
-  size =
+  size=
     Math.max(
       14,
       Math.min(
@@ -1800,7 +1593,7 @@ function font(n){
     )
     .forEach(el=>{
 
-      el.style.fontSize =
+      el.style.fontSize=
         size+'px';
 
     });
@@ -1812,7 +1605,7 @@ function font(n){
     )
     .forEach(el=>{
 
-      el.style.fontSize =
+      el.style.fontSize=
         Math.max(
           12,
           size-2
@@ -1827,7 +1620,7 @@ function font(n){
     )
     .forEach(el=>{
 
-      el.style.fontSize =
+      el.style.fontSize=
         Math.max(
           14,
           size
@@ -1835,15 +1628,12 @@ function font(n){
 
     });
 
-
-  saveLocal(false);
-
 }
 
 
-/* =========================================
+/* =========================================================
    AUTO SCROLL
-   ========================================= */
+========================================================= */
 
 function autoScroll(){
 
@@ -1853,9 +1643,7 @@ function autoScroll(){
       scrollTimer
     );
 
-
-    scrollTimer =
-      null;
+    scrollTimer=null;
 
 
     toast(
@@ -1868,7 +1656,7 @@ function autoScroll(){
   }
 
 
-  scrollTimer =
+  scrollTimer=
     setInterval(
       ()=>scrollBy(0,1),
       45
@@ -1882,9 +1670,9 @@ function autoScroll(){
 }
 
 
-/* =========================================
+/* =========================================================
    SEARCH
-   ========================================= */
+========================================================= */
 
 function openSearch(){
 
@@ -1896,140 +1684,136 @@ function openSearch(){
 
   document
     .getElementById('modalBody')
-    .innerHTML = `
+    .innerHTML=`
 
-      <div class="row">
+    <div class="row">
 
-        <div>
+      <div>
 
-          <h2>
-            Search / Import Song
-          </h2>
+        <h2>
+          Search / Import Song
+        </h2>
 
-          <div class="muted">
-            Search a song title or paste a
-            song/chord-sheet link.
-          </div>
-
+        <div class="muted">
+          Search a song title or paste
+          a song/chord-sheet link.
         </div>
 
-
-        <button
-          class="btn"
-          onclick="closeModal()"
-        >
-          Close
-        </button>
-
       </div>
 
 
-      <div class="searchbox">
+      <button
+        class="btn"
+        onclick="closeModal()"
+      >
+        Close
+      </button>
 
-        <input
-          class="input"
-          id="searchTerm"
-          placeholder="Song title — e.g. Way Maker"
-        >
-
-
-        <button
-          class="btn primary"
-          onclick="searchSongs()"
-        >
-          Search
-        </button>
-
-      </div>
+    </div>
 
 
-      <div id="searchResults"></div>
+    <div class="searchbox">
+
+      <input
+        class="input"
+        id="searchTerm"
+        placeholder="Song title — e.g. Way Maker"
+      >
 
 
-      <hr
-        style="
-          border-color:#293039;
-          margin:18px 0
-        "
+      <button
+        class="btn primary"
+        onclick="searchSongs()"
+      >
+        Search
+      </button>
+
+    </div>
+
+
+    <div id="searchResults"></div>
+
+
+    <hr
+      style="
+        border-color:#293039;
+        margin:18px 0
+      "
+    >
+
+
+    <input
+      class="input"
+      id="songUrl"
+      placeholder="Paste song/chord-sheet URL here"
+    >
+
+
+    <button
+      class="btn"
+      style="
+        width:100%;
+        margin-top:8px
+      "
+      onclick="fetchSongLink()"
+    >
+      Fetch & Analyze Link
+    </button>
+
+
+    <div
+      class="muted"
+      style="margin-top:8px"
+    >
+      If a site blocks browser access,
+      paste its chord/lyric text below instead.
+    </div>
+
+
+    <textarea
+      id="songText"
+      placeholder="Paste lyrics/chords here..."
+    ></textarea>
+
+
+    <div class="controls">
+
+      <input
+        class="input"
+        id="importTitle"
+        placeholder="Song title"
+        style="flex:1"
       >
 
 
       <input
         class="input"
-        id="songUrl"
-        placeholder="Paste song/chord-sheet URL here"
+        id="importArtist"
+        placeholder="Artist"
+        style="flex:1"
       >
 
-
-      <button
-        class="btn"
-        style="
-          width:100%;
-          margin-top:8px
-        "
-        onclick="fetchSongLink()"
-      >
-        Fetch & Analyze Link
-      </button>
+    </div>
 
 
-      <div
-        class="muted"
-        style="margin-top:8px"
-      >
-        If a site blocks browser access,
-        paste its chord/lyric text below instead.
-      </div>
+    <button
+      class="btn primary"
+      style="
+        width:100%;
+        margin-top:8px
+      "
+      onclick="analyzeSong()"
+    >
+      Analyze Pasted Text
+    </button>
 
 
-      <textarea
-        id="songText"
-        placeholder="Paste lyrics/chords here..."
-      ></textarea>
+    <div id="analysisResult"></div>
 
-
-      <div class="controls">
-
-        <input
-          class="input"
-          id="importTitle"
-          placeholder="Song title"
-          style="flex:1"
-        >
-
-
-        <input
-          class="input"
-          id="importArtist"
-          placeholder="Artist"
-          style="flex:1"
-        >
-
-      </div>
-
-
-      <button
-        class="btn primary"
-        style="
-          width:100%;
-          margin-top:8px
-        "
-        onclick="analyzeSong()"
-      >
-        Analyze Pasted Text
-      </button>
-
-
-      <div id="analysisResult"></div>
-
-    `;
+  `;
 
 }
 
-
-/* =========================================
-   CLOSE MODAL
-   ========================================= */
 
 function closeModal(){
 
@@ -2041,27 +1825,27 @@ function closeModal(){
 }
 
 
-/* =========================================
+/* =========================================================
    SEARCH SONGS
-   ========================================= */
+========================================================= */
 
 async function searchSongs(){
 
-  const q =
+  const q=
     document
       .getElementById('searchTerm')
       .value
       .trim();
 
 
-  const box =
+  const box=
     document
       .getElementById('searchResults');
 
 
   if(!q){
 
-    box.innerHTML =
+    box.innerHTML=
       '<div class="muted">Enter a song title.</div>';
 
     return;
@@ -2069,71 +1853,68 @@ async function searchSongs(){
   }
 
 
-  box.innerHTML =
+  box.innerHTML=
     '<div class="muted">Searching…</div>';
 
 
   try{
 
-    const r =
+    const r=
       await fetch(
-        'https://itunes.apple.com/search?term=' +
-        encodeURIComponent(q) +
+        'https://itunes.apple.com/search?term='+
+        encodeURIComponent(q)+
         '&entity=song&limit=8'
       );
 
 
-    const d =
+    const d=
       await r.json();
 
 
-    box.innerHTML =
+    box.innerHTML=
       d.results.length
 
       ?
 
-      d.results
-        .map(x=>`
+      d.results.map(x=>`
 
-          <div class="item">
+        <div class="item">
 
-            <div class="itemmain">
+          <div class="itemmain">
 
-              <b>
-                ${esc(x.trackName)}
-              </b>
+            <b>
+              ${esc(x.trackName)}
+            </b>
 
+            <span>
 
-              <span>
+              ${esc(x.artistName)}
 
-                ${esc(x.artistName)}
-
-                <span class="badge">
-                  ${esc(
-                    x.collectionName ||
-                    'Song'
-                  )}
-                </span>
-
+              <span class="badge">
+                ${esc(
+                  x.collectionName||
+                  'Song'
+                )}
               </span>
 
-            </div>
-
-
-            <button
-              class="btn"
-              onclick='selectSearch(
-                ${JSON.stringify(x.trackName)},
-                ${JSON.stringify(x.artistName)}
-              )'
-            >
-              Use
-            </button>
+            </span>
 
           </div>
 
-        `)
-        .join('')
+
+          <button
+            class="btn"
+            onclick='selectSearch(
+              ${JSON.stringify(x.trackName)},
+              ${JSON.stringify(x.artistName)}
+            )'
+          >
+            Use
+          </button>
+
+        </div>
+
+      `).join('')
 
       :
 
@@ -2143,12 +1924,13 @@ async function searchSongs(){
 
   catch(e){
 
-    box.innerHTML =
+    box.innerHTML=
       `
-        <div class="muted">
-          Search service unavailable.
-          You can still paste a link or chord sheet.
-        </div>
+      <div class="muted">
+        Search service unavailable.
+        You can still paste a link
+        or chord sheet.
+      </div>
       `;
 
   }
@@ -2156,9 +1938,9 @@ async function searchSongs(){
 }
 
 
-/* =========================================
-   SELECT SEARCH RESULT
-   ========================================= */
+/* =========================================================
+   SELECT SEARCH
+========================================================= */
 
 function selectSearch(
   title,
@@ -2167,14 +1949,12 @@ function selectSearch(
 
   document
     .getElementById('importTitle')
-    .value =
-    title;
+    .value=title;
 
 
   document
     .getElementById('importArtist')
-    .value =
-    artist;
+    .value=artist;
 
 
   document
@@ -2189,27 +1969,27 @@ function selectSearch(
 }
 
 
-/* =========================================
-   FETCH SONG LINK
-   ========================================= */
+/* =========================================================
+   FETCH LINK
+========================================================= */
 
 async function fetchSongLink(){
 
-  const url =
+  const url=
     document
       .getElementById('songUrl')
       .value
       .trim();
 
 
-  const out =
+  const out=
     document
       .getElementById('analysisResult');
 
 
   if(!url){
 
-    out.innerHTML =
+    out.innerHTML=
       '<div class="card">Paste a URL first.</div>';
 
     return;
@@ -2217,7 +1997,7 @@ async function fetchSongLink(){
   }
 
 
-  out.innerHTML =
+  out.innerHTML=
     '<div class="card">Fetching link…</div>';
 
 
@@ -2228,51 +2008,41 @@ async function fetchSongLink(){
 
     try{
 
-      const r =
+      const r=
         await fetch(url);
 
 
       if(r.ok){
-
-        text =
-          await r.text();
-
+        text=await r.text();
       }
 
     }
-
     catch(e){}
 
 
     if(!text){
 
-      const r =
+      const r=
         await fetch(
-          'https://api.allorigins.win/raw?url=' +
+          'https://api.allorigins.win/raw?url='+
           encodeURIComponent(url)
         );
 
 
       if(r.ok){
-
-        text =
-          await r.text();
-
+        text=await r.text();
       }
 
     }
 
 
-    if(!text){
-
+    if(!text)
       throw 0;
-
-    }
 
 
     document
       .getElementById('songText')
-      .value =
+      .value=
 
       new DOMParser()
         .parseFromString(
@@ -2287,38 +2057,41 @@ async function fetchSongLink(){
         );
 
 
-    out.innerHTML =
+    out.innerHTML=
       `
-        <div class="card">
-          Link loaded. Review the text,
-          then tap
-          <b>Analyze Pasted Text</b>.
-        </div>
+      <div class="card">
+
+        Link loaded.
+
+        Review the text,
+        then tap
+        <b>Analyze Pasted Text</b>.
+
+      </div>
       `;
 
   }
 
   catch(e){
 
-    out.innerHTML =
+    out.innerHTML=
       `
 
-        <div class="card">
+      <div class="card">
 
-          <b>
-            Could not fetch this link.
-          </b>
+        <b>
+          Could not fetch this link.
+        </b>
 
+        <div class="muted">
 
-          <div class="muted">
-
-            The site may block browser access.
-            Copy the chord/lyrics text
-            and paste it below.
-
-          </div>
+          The site may block browser access.
+          Copy the chord/lyrics text
+          and paste it below.
 
         </div>
+
+      </div>
 
       `;
 
@@ -2327,21 +2100,21 @@ async function fetchSongLink(){
 }
 
 
-/* =========================================
-   NORMALIZE SECTION
-   ========================================= */
+/* =========================================================
+   SONG ANALYSIS
+========================================================= */
 
 function normalizeSection(s){
 
-  s =
+  s=
     s
       .toLowerCase()
-      .replace(/[\_-]+/g,' ')
+      .replace(/[_-]+/g,' ')
       .replace(/\s+/g,' ')
       .trim();
 
 
-  s =
+  s=
     s
       .replace(
         /^./,
@@ -2374,29 +2147,27 @@ function normalizeSection(s){
 }
 
 
-/* =========================================
-   ANALYZE SONG
-   ========================================= */
-
 function analyzeSong(){
 
-  const title =
+  const title=
     document
       .getElementById('importTitle')
       .value
-      .trim() ||
+      .trim()
+    ||
     'Imported Song';
 
 
-  const artist =
+  const artist=
     document
       .getElementById('importArtist')
       .value
-      .trim() ||
+      .trim()
+    ||
     'Unknown Artist';
 
 
-  const text =
+  const text=
     document
       .getElementById('songText')
       .value
@@ -2407,32 +2178,25 @@ function analyzeSong(){
 
     document
       .getElementById('analysisResult')
-      .innerHTML =
-      `
-        <div class="card">
-          Paste lyrics/chords first.
-        </div>
-      `;
+      .innerHTML=
+      '<div class="card">Paste lyrics/chords first.</div>';
 
     return;
 
   }
 
 
-  const allowed =
+  const allowed=
     /^(intro|verse(?:\s*\d+)?|pre[- ]?chorus|chorus|bridge|tag|ad[- ]?lib|adlib|interlude|outro)$/i;
 
 
-  const lines =
+  const lines=
     text.split(/\r?\n/);
 
 
   const sections=[];
 
-
-  let current =
-    'Verse 1';
-
+  let current='Verse 1';
 
   let bucket=[];
 
@@ -2441,14 +2205,9 @@ function analyzeSong(){
 
     if(bucket.length){
 
-      base[current] =
-        bucket;
+      base[current]=bucket;
 
-
-      sections.push(
-        current
-      );
-
+      sections.push(current);
 
       bucket=[];
 
@@ -2457,71 +2216,52 @@ function analyzeSong(){
   }
 
 
-  for(
-    const raw of lines
-  ){
+  for(const raw of lines){
 
-    let line =
+    let line=
       raw
-        .replace(
-          /\t/g,
-          ' '
-        )
+        .replace(/\t/g,' ')
         .trim();
 
 
-    if(!line){
-
+    if(!line)
       continue;
 
-    }
 
-
-    const marker =
+    const marker=
       line
-        .replace(
-          /^\[|\]$/g,
-          ''
-        )
-        .replace(
-          /:$/,
-          ''
-        )
+        .replace(/^\[|\]$/g,'')
+        .replace(/:$/,'')
         .trim();
 
 
-    if(
-      allowed.test(marker)
-    ){
+    if(allowed.test(marker)){
 
       flush();
 
-
-      current =
-        normalizeSection(
-          marker
-        );
-
+      current=
+        normalizeSection(marker);
 
       continue;
 
     }
 
 
-    const chordMatch =
+    const chordMatch=
       line.match(
         /^[A-G](?:#|b)?(?:m|maj|min|sus|add|dim|aug|7|9|11|13|6|2|4)?(?:\/[A-G](?:#|b)?)?/i
       );
 
 
-    const chord =
+    const chord=
       chordMatch
-        ? chordMatch[0]
-        : '';
+      ?
+      chordMatch[0]
+      :
+      '';
 
 
-    let lyric =
-      line;
+    let lyric=line;
 
 
     if(
@@ -2533,11 +2273,9 @@ function analyzeSong(){
         )
     ){
 
-      lyric =
+      lyric=
         line
-          .slice(
-            chord.length
-          )
+          .slice(chord.length)
           .trim();
 
     }
@@ -2556,7 +2294,7 @@ function analyzeSong(){
 
   if(!sections.length){
 
-    base['Verse 1'] =
+    base['Verse 1']=
       lines
         .filter(Boolean)
         .map(
@@ -2574,32 +2312,25 @@ function analyzeSong(){
   }
 
 
-  arrangement =
-    sections;
+  compactChordOnlyLines();
 
 
-  activeSection =
+  arrangement=sections;
+
+  activeSection=
     arrangement[0] || '';
 
 
-  currentSongTitle =
-    title;
+  currentSongTitle=title;
 
+  currentArtist=artist;
 
-  currentArtist =
-    artist;
-
-
-  currentKey =
-    detectKey();
-
-
-  compactChordOnlyLines();
+  currentKey=detectKey();
 
 
   document
     .getElementById('analysisResult')
-    .innerHTML =
+    .innerHTML=
 
     `
 
@@ -2622,7 +2353,8 @@ function analyzeSong(){
 
           ${sections
             .map(esc)
-            .join(' • ')}
+            .join(' • ')
+          }
 
         </div>
 
@@ -2639,7 +2371,6 @@ function analyzeSong(){
                     ${i+1}.
                     ${esc(s)}
                   </b>
-
 
                   <span>
                     ${base[s].length}
@@ -2673,9 +2404,9 @@ function analyzeSong(){
 }
 
 
-/* =========================================
-   DETECT KEY
-   ========================================= */
+/* =========================================================
+   KEY DETECTION
+========================================================= */
 
 function detectKey(){
 
@@ -2708,9 +2439,9 @@ function detectKey(){
 }
 
 
-/* =========================================
-   COMPACT CHORD ONLY LINES
-   ========================================= */
+/* =========================================================
+   COMPACT CHORD LINES
+========================================================= */
 
 function compactChordOnlyLines(){
 
@@ -2731,7 +2462,6 @@ function compactChordOnlyLines(){
           pending.join(' '),
           ''
         ]);
-
 
         pending=[];
 
@@ -2759,9 +2489,7 @@ function compactChordOnlyLines(){
 
         flush();
 
-        out.push(
-          item
-        );
+        out.push(item);
 
       }
 
@@ -2770,18 +2498,16 @@ function compactChordOnlyLines(){
 
     flush();
 
-
-    base[p]=
-      out;
+    base[p]=out;
 
   }
 
 }
 
 
-/* =========================================
+/* =========================================================
    FINISH IMPORT
-   ========================================= */
+========================================================= */
 
 function finishImport(){
 
@@ -2800,30 +2526,32 @@ function finishImport(){
 }
 
 
-/* =========================================
+/* =========================================================
    TRANSPOSE
-   ========================================= */
-
+========================================================= */
 
 /*
-  PREFERRED KEY ORDER
+   IMPORTANT:
 
-  C
-  C#
-  D
-  Eb
-  E
-  F
-  F#
-  G
-  Ab
-  A
-  Bb
-  B
+   We use ONLY the preferred key names:
+
+   C
+   C#
+   D
+   Eb
+   E
+   F
+   F#
+   G
+   Ab
+   A
+   Bb
+   B
+
+   This prevents A# / D# from appearing.
 */
 
-const transposeKeys = [
-
+const keyOrder=[
   'C',
   'C#',
   'D',
@@ -2836,281 +2564,41 @@ const transposeKeys = [
   'A',
   'Bb',
   'B'
-
 ];
 
 
-/*
-  NOTE INDEX
+const semitones={
 
-  The app understands both sharp and flat
-  spellings when reading imported chords.
-
-  Output uses our preferred flat notation.
-*/
-
-const noteIndex = {
-
-  'C':0,
+  C:0,
 
   'C#':1,
-  'Db':1,
 
-  'D':2,
+  D:2,
 
-  'D#':3,
-  'Eb':3,
+  Eb:3,
 
-  'E':4,
+  E:4,
 
-  'F':5,
+  F:5,
 
   'F#':6,
-  'Gb':6,
 
-  'G':7,
+  G:7,
 
-  'G#':8,
-  'Ab':8,
+  Ab:8,
 
-  'A':9,
+  A:9,
 
-  'A#':10,
-  'Bb':10,
+  Bb:10,
 
-  'B':11
+  B:11
 
 };
 
 
-/*
-  GET ROOT NOTE
-*/
-
-function getChordRoot(chord){
-
-  if(!chord){
-
-    return null;
-
-  }
-
-
-  const match =
-    String(chord)
-      .trim()
-      .match(
-        /^([A-G](?:#|b)?)/
-      );
-
-
-  return match
-    ? match[1]
-    : null;
-
-}
-
-
-/*
-  GET ACTUAL SONG KEY
-
-  We determine the current key from
-  the actual chords instead of trusting
-  currentKey.
-
-  This fixes the previous problem where:
-
-  Display = D
-  Actual chords = C#
-*/
-
-function getActualSongKey(){
-
-  for(
-    const p of arrangement
-  ){
-
-    if(!base[p]){
-
-      continue;
-
-    }
-
-
-    for(
-      const line of base[p]
-    ){
-
-      if(
-        !line ||
-        !line[0]
-      ){
-
-        continue;
-
-      }
-
-
-      const root =
-        getChordRoot(
-          line[0]
-        );
-
-
-      if(
-        root &&
-        noteIndex[root] !== undefined
-      ){
-
-        return root;
-
-      }
-
-    }
-
-  }
-
-
-  return null;
-
-}
-
-
-/*
-  CONVERT INDEX TO PREFERRED NOTE
-
-  This ensures output uses:
-
-  D# → Eb
-  G# → Ab
-  A# → Bb
-*/
-
-function canonicalNote(index){
-
-  return transposeKeys[
-    (
-      (index % 12) +
-      12
-    ) % 12
-  ];
-
-}
-
-
-/*
-  TRANSPOSE ONE CHORD
-*/
-
-function transposeChord(
-  chord,
-  interval
-){
-
-  if(!chord){
-
-    return chord;
-
-  }
-
-
-  const match =
-    String(chord)
-      .trim()
-      .match(
-        /^([A-G](?:#|b)?)(.*)$/
-      );
-
-
-  if(!match){
-
-    return chord;
-
-  }
-
-
-  const root =
-    match[1];
-
-
-  const suffix =
-    match[2];
-
-
-  if(
-    noteIndex[root] === undefined
-  ){
-
-    return chord;
-
-  }
-
-
-  const newRoot =
-    canonicalNote(
-      noteIndex[root] +
-      interval
-    );
-
-
-  let newSuffix =
-    suffix;
-
-
-  /*
-    SLASH CHORD
-
-    G/B → A/C#
-  */
-
-  const slashMatch =
-    suffix.match(
-      /^\/([A-G](?:#|b)?)(.*)$/
-    );
-
-
-  if(slashMatch){
-
-    const bass =
-      slashMatch[1];
-
-
-    const bassRest =
-      slashMatch[2];
-
-
-    if(
-      noteIndex[bass] !== undefined
-    ){
-
-      const newBass =
-        canonicalNote(
-          noteIndex[bass] +
-          interval
-        );
-
-
-      newSuffix =
-        '/' +
-        newBass +
-        bassRest;
-
-    }
-
-  }
-
-
-  return (
-    newRoot +
-    newSuffix
-  );
-
-}
-
-
-/*
-  OPEN TRANSPOSE WINDOW
-*/
+/* =========================================================
+   TRANSPOSE MODAL
+========================================================= */
 
 function transpose(){
 
@@ -3120,40 +2608,17 @@ function transpose(){
     .display='flex';
 
 
-  const actualKey =
-    getActualSongKey();
-
-
   document
     .getElementById('modalBody')
-    .innerHTML =
+    .innerHTML=
 
     `
 
       <div class="row">
 
-        <div>
-
-          <h2>
-            Transpose
-          </h2>
-
-
-          <div class="muted">
-
-            Current key:
-
-            <b>
-              ${esc(
-                actualKey ||
-                currentKey ||
-                'C'
-              )}
-            </b>
-
-          </div>
-
-        </div>
+        <h2>
+          Transpose
+        </h2>
 
 
         <button
@@ -3169,7 +2634,7 @@ function transpose(){
       <div class="keygrid">
 
         ${
-          transposeKeys
+          keyOrder
             .map(k=>`
 
               <button
@@ -3192,161 +2657,202 @@ function transpose(){
 }
 
 
-/*
-  APPLY TRANSPOSE
+/* =========================================================
+   TRANSPOSE CHORD
+========================================================= */
 
-  IMPORTANT:
+function transposeChord(
+  ch,
+  interval
+){
 
-  The selected key is ABSOLUTE.
-
-  If the user clicks D,
-  the song becomes D.
-
-  Example:
-
-  C  → D
-  C# → D
-  Eb → D
-  G  → D
-*/
-
-function applyTranspose(target){
-
-  if(
-    !target ||
-    noteIndex[target] === undefined
-  ){
-
-    return;
-
-  }
+  if(!ch)
+    return ch;
 
 
-  /*
-    Get actual current key.
-  */
-
-  const actualKey =
-    getActualSongKey();
-
-
-  if(
-    !actualKey ||
-    noteIndex[actualKey] === undefined
-  ){
-
-    toast(
-      'Could not detect the current chord key'
+  const match=
+    ch.match(
+      /^([A-G](?:#|b)?)(.*)$/
     );
 
 
+  if(!match)
+    return ch;
+
+
+  let root=
+    match[1];
+
+  const suffix=
+    match[2];
+
+
+  /*
+     Normalize enharmonic spellings
+  */
+
+  const normalize={
+
+    Db:'C#',
+
+    D#:'Eb',
+
+    Gb:'F#',
+
+    G#:'Ab',
+
+    A#:'Bb'
+
+  };
+
+
+  if(normalize[root]){
+    root=normalize[root];
+  }
+
+
+  if(
+    semitones[root]===undefined
+  ){
+
+    return ch;
+
+  }
+
+
+  const newIndex=
+    (
+      semitones[root]+
+      interval+
+      12
+    )%12;
+
+
+  const newRoot=
+    keyOrder[newIndex];
+
+
+  return newRoot+suffix;
+
+}
+
+
+/* =========================================================
+   APPLY TRANSPOSE
+========================================================= */
+
+function applyTranspose(target){
+
+  /*
+     Calculate the distance from
+     CURRENT KEY to TARGET KEY.
+
+     Example:
+
+     Current = C
+     Target  = D
+
+     C = 0
+     D = 2
+
+     Interval = 2
+
+     C → D
+     G → A
+     Am → Bm
+     F → G
+  */
+
+
+  const currentRoot=
+    currentKey;
+
+
+  const currentValue=
+    semitones[currentRoot];
+
+
+  const targetValue=
+    semitones[target];
+
+
+  if(
+    currentValue===undefined ||
+    targetValue===undefined
+  ){
+
+    toast(
+      'Invalid key'
+    );
+
     return;
 
   }
 
 
-  /*
-    Calculate interval.
-
-    Example:
-
-    C# = 1
-    D  = 2
-
-    interval = +1
-  */
-
-  let interval =
-    noteIndex[target] -
-    noteIndex[actualKey];
+  const interval=
+    (
+      targetValue-
+      currentValue+
+      12
+    )%12;
 
 
   /*
-    Use shortest direction.
-  */
-
-  if(
-    interval > 6
-  ){
-
-    interval -= 12;
-
-  }
-
-
-  if(
-    interval < -6
-  ){
-
-    interval += 12;
-
-  }
-
-
-  /*
-    TRANSPOSE ALL CHORDS
+     Transpose EVERY chord.
   */
 
   Object.keys(base)
     .forEach(p=>{
 
-      base[p] =
-        base[p]
-          .map(
-            ([chord,lyric])=>{
-
-              return [
-
-                transposeChord(
-                  chord,
-                  interval
-                ),
-
-                lyric
-
-              ];
-
-            }
-          );
+      base[p]=
+        base[p].map(
+          ([c,l])=>[
+            transposeChord(
+              c,
+              interval
+            ),
+            l
+          ]
+        );
 
     });
 
 
   /*
-    Displayed key now matches
-    the selected target.
+     IMPORTANT:
+
+     The displayed key is exactly
+     the key selected by the user.
   */
 
-  currentKey =
+  currentKey=
     target;
 
 
   closeModal();
 
-
   renderSong();
-
 
   saveLocal();
 
 
   toast(
-    'Song is now in the key of ' +
-    target
+    'Transposed to '+target
   );
 
 }
 
 
-/* =========================================
+/* =========================================================
    SETLIST
-   ========================================= */
+========================================================= */
 
 function renderSetlist(){
 
   document
     .getElementById('setlistBox')
-    .innerHTML =
+    .innerHTML=
 
     setlist
       .map((s,i)=>`
@@ -3366,9 +2872,7 @@ function renderSetlist(){
           <button
             class="btn"
             onclick="
-              openSetSong(
-                '${esc(s)}'
-              )
+              openSetSong('${esc(s)}')
             "
           >
             Open
@@ -3382,13 +2886,9 @@ function renderSetlist(){
 }
 
 
-/* =========================================
-   ADD SETLIST SONG
-   ========================================= */
-
 function addSetSong(){
 
-  const n =
+  const n=
     prompt(
       'Song title:'
     );
@@ -3398,9 +2898,7 @@ function addSetSong(){
 
     setlist.push(n);
 
-
     renderSetlist();
-
 
     saveLocal(false);
 
@@ -3409,14 +2907,10 @@ function addSetSong(){
 }
 
 
-/* =========================================
-   OPEN SETLIST SONG
-   ========================================= */
-
 function openSetSong(s){
 
   if(
-    s === currentSongTitle
+    s===currentSongTitle
   ){
 
     openSong();
@@ -3434,15 +2928,18 @@ function openSetSong(s){
 }
 
 
-/* =========================================
+/* =========================================================
    SAVE
-   ========================================= */
+========================================================= */
 
-function saveLocal(show=true){
+function saveLocal(
+  show=true
+){
 
   try{
 
     localStorage.setItem(
+
       'worshipChordsApp',
 
       JSON.stringify({
@@ -3493,15 +2990,15 @@ function saveLocal(show=true){
 }
 
 
-/* =========================================
+/* =========================================================
    LOAD
-   ========================================= */
+========================================================= */
 
 function loadLocal(){
 
   try{
 
-    const d =
+    const d=
       JSON.parse(
         localStorage.getItem(
           'worshipChordsApp'
@@ -3510,11 +3007,8 @@ function loadLocal(){
       );
 
 
-    if(!d){
-
+    if(!d)
       return;
-
-    }
 
 
     if(d.base){
@@ -3534,7 +3028,7 @@ function loadLocal(){
       d.arrangement.length
     ){
 
-      arrangement =
+      arrangement=
         d.arrangement;
 
     }
@@ -3546,7 +3040,7 @@ function loadLocal(){
       )
     ){
 
-      setlist =
+      setlist=
         d.setlist;
 
     }
@@ -3554,7 +3048,7 @@ function loadLocal(){
 
     if(d.size){
 
-      size =
+      size=
         d.size;
 
     }
@@ -3562,7 +3056,7 @@ function loadLocal(){
 
     if(d.currentSongTitle){
 
-      currentSongTitle =
+      currentSongTitle=
         d.currentSongTitle;
 
     }
@@ -3570,7 +3064,7 @@ function loadLocal(){
 
     if(d.currentArtist){
 
-      currentArtist =
+      currentArtist=
         d.currentArtist;
 
     }
@@ -3578,7 +3072,24 @@ function loadLocal(){
 
     if(d.currentKey){
 
-      currentKey =
+      /*
+         Convert old A# / D# saved keys
+         to the new preferred spelling.
+      */
+
+      const oldKeyMap={
+
+        'A#':'Bb',
+
+        'D#':'Eb',
+
+        'G#':'Ab'
+
+      };
+
+
+      currentKey=
+        oldKeyMap[d.currentKey] ||
         d.currentKey;
 
     }
@@ -3591,14 +3102,14 @@ function loadLocal(){
       )
     ){
 
-      activeSection =
+      activeSection=
         d.activeSection;
 
     }
 
     else{
 
-      activeSection =
+      activeSection=
         arrangement[0] || '';
 
     }
@@ -3613,40 +3124,34 @@ function loadLocal(){
 }
 
 
-/* =========================================
+/* =========================================================
    TOAST
-   ========================================= */
+========================================================= */
 
 function toast(m){
 
-  const t =
+  const t=
     document.getElementById(
       'toast'
     );
 
 
-  t.textContent =
-    m;
+  t.textContent=m;
 
-
-  t.style.display =
-    'block';
+  t.style.display='block';
 
 
   setTimeout(
-    ()=>{
-      t.style.display =
-        'none';
-    },
+    ()=>t.style.display='none',
     1700
   );
 
 }
 
 
-/* =========================================
-   START APP
-   ========================================= */
+/* =========================================================
+   START
+========================================================= */
 
 loadLocal();
 
@@ -3654,7 +3159,5 @@ renderSong();
 
 </script>
 
-
 </body>
-
 </html>
