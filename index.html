@@ -31,15 +31,8 @@ header{
   gap:10px
 }
 
-.brand{
-  font-size:20px;
-  font-weight:800
-}
-
-.sub,.muted{
-  color:#929ca6;
-  font-size:13px
-}
+.brand{font-size:20px;font-weight:800}
+.sub,.muted{color:#929ca6;font-size:13px}
 
 .btn{
   border:0;
@@ -51,9 +44,7 @@ header{
   cursor:pointer
 }
 
-.btn:active{
-  transform:scale(.98)
-}
+.btn:active{transform:scale(.98)}
 
 .btn.primary,.btn.active{
   background:#fff;
@@ -81,13 +72,8 @@ nav button.active{
   border-bottom:2px solid #fff
 }
 
-main{
-  padding:18px
-}
-
-.hidden{
-  display:none
-}
+main{padding:18px}
+.hidden{display:none}
 
 .row{
   display:flex;
@@ -123,9 +109,7 @@ main{
   min-width:0
 }
 
-.itemmain b{
-  display:block
-}
+.itemmain b{display:block}
 
 .itemmain span{
   display:block;
@@ -282,9 +266,7 @@ main{
   padding:20px
 }
 
-.modal h2{
-  margin-top:0
-}
+.modal h2{margin-top:0}
 
 .input,.modal input,.modal textarea{
   width:100%;
@@ -302,9 +284,7 @@ main{
   margin:15px 0
 }
 
-.searchbox input{
-  flex:1
-}
+.searchbox input{flex:1}
 
 .keygrid{
   display:grid;
@@ -324,8 +304,9 @@ main{
 }
 
 .keybtn.selected{
-  background:#fff;
-  color:#111
+  background:#cfe8d5;
+  color:#111;
+  border-color:#9ac9a5
 }
 
 .badge{
@@ -368,7 +349,7 @@ main{
     scroll-margin-top:65px
   }
 }
-.chordOnlyLine{display:block!important;margin:4px 0!important;padding:3px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}</style>
+</style>
 </head>
 
 <body>
@@ -399,6 +380,7 @@ main{
 <main id="songs">
 
   <div class="row">
+
     <div>
       <h1 style="margin:4px 0">Song Library</h1>
       <div class="muted">
@@ -409,9 +391,11 @@ main{
     <button type="button" class="btn primary" onclick="openSearch()">
       ＋ Add / Search Song
     </button>
+
   </div>
 
   <div class="card">
+
     <b>Current song</b>
 
     <div class="item" style="padding:10px 0;border:0">
@@ -426,6 +410,7 @@ main{
       </button>
 
     </div>
+
   </div>
 
 </main>
@@ -433,6 +418,7 @@ main{
 <main id="setlists" class="hidden">
 
   <div class="row">
+
     <div>
       <h1 style="margin:4px 0">Setlists</h1>
       <div class="muted">Your worship service songs</div>
@@ -441,6 +427,7 @@ main{
     <button type="button" class="btn primary" onclick="addSetSong()">
       ＋ Add Song
     </button>
+
   </div>
 
   <div class="card" id="setlistBox"></div>
@@ -452,7 +439,9 @@ main{
   <div class="row">
 
     <div>
-      <h1 id="songTitle" style="margin:4px 0">Way Maker</h1>
+      <h1 id="songTitle" style="margin:4px 0">
+        Way Maker
+      </h1>
 
       <div class="muted">
         <span id="songArtist">Sinach</span>
@@ -500,7 +489,8 @@ main{
       Transpose
     </button>
 
-    <button type="button" class="btn" id="saveBtn" onclick="saveLocal()" style="display:none">
+    <button type="button" class="btn" id="saveBtn"
+      onclick="saveLocal()" style="display:none">
       💾 Save
     </button>
 
@@ -511,7 +501,9 @@ main{
 </main>
 
 <div class="modalback" id="modal">
+
   <div class="modal" id="modalBody"></div>
+
 </div>
 
 <div class="toast" id="toast"></div>
@@ -520,14 +512,16 @@ main{
 
 
 <script>
+
 'use strict';
 
 
 /* =========================================================
-   INITIAL SONG DATA
-========================================================= */
+   SONG DATA
+   ========================================================= */
 
 const base = {
+
   Intro:[
     ['C',''],
     ['G',''],
@@ -584,23 +578,18 @@ const base = {
     ['Am','That is who You are'],
     ['F','That is who You are']
   ]
+
 };
 
 
 let arrangement = Object.keys(base);
-
 let size = 18;
-
 let editMode = false;
-
 let scrollTimer = null;
-
 let activeSection = 'Intro';
 
 let currentSongTitle = 'Way Maker';
-
 let currentArtist = 'Sinach';
-
 let currentKey = 'C';
 
 let sectionDrag = null;
@@ -614,17 +603,24 @@ let setlist = [
 
 /* =========================================================
    KEY / TRANSPOSE SYSTEM
-========================================================= */
+   =========================================================
 
-/*
    IMPORTANT:
 
-   These are the preferred displayed key names.
+   This is a chromatic pitch system.
 
-   A# is displayed as Bb.
-   D# is displayed as Eb.
-   G# is displayed as Ab.
-*/
+   C  -> C# -> D -> Eb -> E -> F
+   -> F# -> G -> Ab -> A -> Bb -> B
+   -> C
+
+   Notice:
+
+   B -> C = 1 semitone
+   E -> F = 1 semitone
+
+   There is NO B# or E# in our displayed key names.
+
+   ========================================================= */
 
 const keyNames = [
   'C',
@@ -643,11 +639,26 @@ const keyNames = [
 
 
 /*
-   Every key has exactly one pitch number.
+   Each key gets a pitch number.
+
+   C  = 0
+   C# = 1
+   D  = 2
+   Eb = 3
+   E  = 4
+   F  = 5
+   F# = 6
+   G  = 7
+   Ab = 8
+   A  = 9
+   Bb = 10
+   B  = 11
 */
 
 const pitch = {
+
   C:0,
+
   'C#':1,
   Db:1,
 
@@ -674,12 +685,13 @@ const pitch = {
   'A#':10,
 
   B:11
+
 };
 
 
 /* =========================================================
-   KEY HELPERS
-========================================================= */
+   KEY NORMALIZATION
+   ========================================================= */
 
 function normalizeKey(k){
 
@@ -691,100 +703,133 @@ function normalizeKey(k){
 
   if(k === 'G#') return 'Ab';
 
-  if(keyNames.includes(k)) return k;
+  if(keyNames.includes(k)){
+    return k;
+  }
 
   return 'C';
 }
 
 
+/* =========================================================
+   GET PITCH
+   ========================================================= */
+
 function getPitch(root){
 
   if(!root) return null;
 
-  return pitch[root] !== undefined
-    ? pitch[root]
-    : null;
+  if(pitch[root] === undefined){
+    return null;
+  }
+
+  return pitch[root];
 }
 
 
+/* =========================================================
+   PITCH → DISPLAY KEY
+   ========================================================= */
+
 function pitchToKey(value){
 
-  return keyNames[
-    ((value % 12) + 12) % 12
-  ];
+  const normalized =
+    ((value % 12) + 12) % 12;
+
+  return keyNames[normalized];
 }
 
 
 /* =========================================================
    TRANSPOSE ONE CHORD
-========================================================= */
+   =========================================================
 
-/*
    Examples:
 
-   C  + 2 = D
-   G  + 2 = A
-   Am + 2 = Bm
-   F  + 2 = G
+   C  +2 = D
+   G  +2 = A
+   Am +2 = Bm
+   F  +2 = G
 
-   Slash chords:
+   B  +1 = C
+   E  +1 = F
 
-   C/G + 2 = D/A
-*/
+   C/G +2 = D/A
 
-function transposeChord(ch, interval){
+   ========================================================= */
 
-  if(!ch) return ch;
+function transposeChord(chord, interval){
 
-  const text = String(ch).trim();
+  if(!chord){
+    return chord;
+  }
+
+  const text = String(chord).trim();
 
   /*
-     Root:
-     A-G
+     Capture:
 
-     Optional:
-     # or b
+     Root
+     Everything after the root
 
-     Everything after root is suffix.
+     Examples:
+
+     C
+     Am
+     C7
+     Cmaj7
+     C/G
+     Am/G
   */
 
-  const match = text.match(/^([A-G](?:#|b)?)(.*)$/);
+  const match =
+    text.match(/^([A-G](?:#|b)?)(.*)$/);
 
   if(!match){
-    return ch;
+    return chord;
   }
 
   const root = match[1];
-
   const suffix = match[2];
 
   const rootPitch = getPitch(root);
 
   if(rootPitch === null){
-    return ch;
+    return chord;
   }
 
-  const newRoot = pitchToKey(rootPitch + interval);
+  const newRoot =
+    pitchToKey(rootPitch + interval);
 
 
   /*
-     Transpose bass note if this is
-     a slash chord.
+     Handle slash chords.
+
+     Example:
+
+     C/G
+
+     becomes
+
+     D/A
   */
 
-  const newSuffix = suffix.replace(
-    /\/([A-G](?:#|b)?)(.*)$/,
-    function(full, bass, rest){
+  const newSuffix =
+    suffix.replace(
+      /\/([A-G](?:#|b)?)/g,
+      function(full,bass){
 
-      const bassPitch = getPitch(bass);
+        const bassPitch = getPitch(bass);
 
-      if(bassPitch === null){
-        return full;
+        if(bassPitch === null){
+          return full;
+        }
+
+        return '/' +
+          pitchToKey(bassPitch + interval);
+
       }
-
-      return '/' + pitchToKey(bassPitch + interval) + rest;
-    }
-  );
+    );
 
 
   return newRoot + newSuffix;
@@ -792,8 +837,8 @@ function transposeChord(ch, interval){
 
 
 /* =========================================================
-   TRANSPOSE BUTTON / SELECTOR
-========================================================= */
+   TRANSPOSE BUTTON
+   ========================================================= */
 
 function transpose(){
 
@@ -853,61 +898,83 @@ function transpose(){
 
     <div class="keygrid">
 
-      ${
-        keyNames.map(k => `
+      ${keyNames.map(k => `
 
-          <button
-            type="button"
-            class="keybtn ${
-              k === normalizeKey(currentKey)
-                ? 'selected'
-                : ''
-            }"
-            onclick="applyTranspose('${k}')"
-          >
-            ${k}
-          </button>
+        <button
+          type="button"
+          class="keybtn ${
+            k === normalizeKey(currentKey)
+              ? 'selected'
+              : ''
+          }"
+          onclick="applyTranspose('${k}')"
+        >
+          ${k}
+        </button>
 
-        `).join('')
-      }
+      `).join('')}
 
     </div>
 
   `;
+
 }
 
 
 /* =========================================================
    APPLY TRANSPOSE
-========================================================= */
+   =========================================================
 
-/*
-   VERY IMPORTANT:
+   THIS IS THE IMPORTANT FIX.
 
-   If current key = C
-   and user clicks D,
+   We do NOT use a fixed +2.
 
-   interval = D - C = +2
+   Instead:
+
+   target pitch - current pitch
+
+   Example:
+
+   Current = B
+   Target  = C
+
+   0 - 11 = -11
+   normalized = +1
 
    Therefore:
 
-   C  -> D
-   G  -> A
-   Am -> Bm
-   F  -> G
+   B -> C
 
-   The selected key itself becomes
-   the displayed song key.
-*/
+   Example:
+
+   Current = E
+   Target  = F
+
+   5 - 4 = +1
+
+   Therefore:
+
+   E -> F
+
+   Example:
+
+   Current = C
+   Target = D
+
+   2 - 0 = +2
+
+   Therefore:
+
+   C -> D
+
+   ========================================================= */
 
 function applyTranspose(target){
 
   target = normalizeKey(target);
+  currentKey = normalizeKey(currentKey);
 
-  const current = normalizeKey(currentKey);
-
-  const from = getPitch(current);
-
+  const from = getPitch(currentKey);
   const to = getPitch(target);
 
   if(from === null || to === null){
@@ -918,11 +985,25 @@ function applyTranspose(target){
   }
 
 
-  const interval = (to - from + 12) % 12;
+  /*
+     Calculate the actual distance.
+
+     The %12 makes the result always move
+     forward around the chromatic circle.
+
+     B -> C = 1
+     E -> F = 1
+     C -> D = 2
+     C -> B = 11
+  */
+
+  const interval =
+    (to - from + 12) % 12;
 
 
   /*
-     Transpose all chords.
+     Now transpose every chord by that
+     exact interval.
   */
 
   Object.keys(base).forEach(part => {
@@ -930,7 +1011,6 @@ function applyTranspose(target){
     base[part] = base[part].map(row => {
 
       const chord = row[0];
-
       const lyric = row[1];
 
       return [
@@ -944,8 +1024,8 @@ function applyTranspose(target){
 
 
   /*
-     Set the song's displayed key
-     to exactly what the user selected.
+     The selected key becomes the new
+     current key.
   */
 
   currentKey = target;
@@ -957,13 +1037,16 @@ function applyTranspose(target){
 
   saveLocal(false);
 
-  toast('Song is now in the key of ' + target);
+  toast(
+    'Song is now in the key of ' + target
+  );
+
 }
 
 
 /* =========================================================
    DETECT KEY
-========================================================= */
+   ========================================================= */
 
 function detectKey(){
 
@@ -971,22 +1054,29 @@ function detectKey(){
 
     for(const row of base[part] || []){
 
-      const chord = String(row[0] || '');
+      const chord =
+        String(row[0] || '');
 
-      const match = chord.match(
-        /^([A-G](?:#|b)?)/
-      );
+      const match =
+        chord.match(/^([A-G](?:#|b)?)/);
 
       if(match){
 
-        const detected = normalizeKey(match[1]);
+        const detected =
+          normalizeKey(match[1]);
 
-        if(pitch[detected] !== undefined){
+        if(
+          pitch[detected] !== undefined
+        ){
 
           return detected;
+
         }
+
       }
+
     }
+
   }
 
   return 'C';
@@ -994,8 +1084,8 @@ function detectKey(){
 
 
 /* =========================================================
-   TAB NAVIGATION
-========================================================= */
+   GENERAL FUNCTIONS
+   ========================================================= */
 
 function showTab(t){
 
@@ -1004,22 +1094,19 @@ function showTab(t){
     document
       .getElementById(id)
       .classList
-      .toggle('hidden', id !== t);
+      .toggle('hidden',id !== t);
 
   });
-
 
   document
     .getElementById('songsNav')
     .classList
-    .toggle('active', t === 'songs');
-
+    .toggle('active',t === 'songs');
 
   document
     .getElementById('setlistsNav')
     .classList
-    .toggle('active', t === 'setlists');
-
+    .toggle('active',t === 'setlists');
 
   if(t === 'setlists'){
     renderSetlist();
@@ -1028,6 +1115,7 @@ function showTab(t){
   if(t === 'song'){
     renderSong();
   }
+
 }
 
 
@@ -1037,10 +1125,6 @@ function openSong(){
 
 }
 
-
-/* =========================================================
-   ESCAPE HTML
-========================================================= */
 
 function esc(s){
 
@@ -1054,114 +1138,38 @@ function esc(s){
 
 
 /* =========================================================
-   COMPACT CHORD-ONLY LINES
-========================================================= */
-
-function compactChordOnlyLines(){
-
-  for(const part of Object.keys(base)){
-
-    const source = Array.isArray(base[part])
-      ? base[part]
-      : [];
-
-    const out = [];
-
-    let chords = [];
-
-
-    const flush = () => {
-
-      if(chords.length){
-
-        out.push([
-          chords.join(' '),
-          ''
-        ]);
-
-        chords = [];
-      }
-
-    };
-
-
-    for(const row of source){
-
-      const chord = String(
-        row?.[0] ?? ''
-      ).trim();
-
-      const lyric = String(
-        row?.[1] ?? ''
-      ).trim();
-
-
-      if(chord && !lyric){
-
-        chords.push(chord);
-
-      }else{
-
-        flush();
-
-        out.push(row);
-
-      }
-    }
-
-
-    flush();
-
-    base[part] = out;
-  }
-}
-
-
-/* =========================================================
    RENDER SONG
-========================================================= */
+   ========================================================= */
 
 function renderSong(){
 
   if(!arrangement.length){
-
     arrangement = Object.keys(base);
-
   }
-
 
   if(!arrangement.includes(activeSection)){
-
     activeSection = arrangement[0] || '';
-
   }
-
 
   document.getElementById('songTitle').textContent =
     currentSongTitle;
 
-
   document.getElementById('songArtist').textContent =
     currentArtist;
-
 
   document.getElementById('key').textContent =
     currentKey;
 
-
   document.getElementById('libraryTitle').textContent =
     currentSongTitle;
 
-
   document.getElementById('libraryArtist').textContent =
     currentArtist + ' • Key ' + currentKey;
-
 
   document.getElementById('editBtn').textContent =
     editMode
       ? '✓ Done Editing'
       : '✎ Edit';
-
 
   document.getElementById('saveBtn').style.display =
     editMode
@@ -1221,7 +1229,7 @@ function renderSong(){
         </div>
 
         ${
-          (base[p] || [])
+          base[p]
             .map((x,j) => lineHTML(i,j,x))
             .join('')
         }
@@ -1262,14 +1270,14 @@ function renderSong(){
   document
     .getElementById('song')
     .classList
-    .toggle('editMode', editMode);
+    .toggle('editMode',editMode);
 
 }
 
 
 /* =========================================================
-   SONG LINE HTML
-========================================================= */
+   LINE HTML
+   ========================================================= */
 
 function lineHTML(pi,li,x){
 
@@ -1283,14 +1291,21 @@ function lineHTML(pi,li,x){
 
           ${
             editMode
+
               ? `
                 <input
                   class="chordInput"
                   value="${esc(x[0])}"
-                  onchange="updateLine(${pi},${li},0,this.value)"
+                  onchange="updateLine(
+                    ${pi},
+                    ${li},
+                    0,
+                    this.value
+                  )"
                   aria-label="Chord line"
                 >
               `
+
               : `
                 <span>
                   ${esc(x[0])}
@@ -1303,6 +1318,7 @@ function lineHTML(pi,li,x){
       </div>
 
     `;
+
   }
 
 
@@ -1315,8 +1331,17 @@ function lineHTML(pi,li,x){
         <input
           class="chordInput"
           value="${esc(x[0])}"
-          ${editMode ? '' : 'readonly'}
-          onchange="updateLine(${pi},${li},0,this.value)"
+          ${
+            editMode
+              ? ''
+              : 'readonly'
+          }
+          onchange="updateLine(
+            ${pi},
+            ${li},
+            0,
+            this.value
+          )"
           aria-label="Chord"
         >
 
@@ -1329,12 +1354,13 @@ function lineHTML(pi,li,x){
     </div>
 
   `;
+
 }
 
 
 /* =========================================================
    FONT
-========================================================= */
+   ========================================================= */
 
 function applyFont(){
 
@@ -1342,7 +1368,8 @@ function applyFont(){
     .querySelectorAll('#content .lyricText')
     .forEach(e => {
 
-      e.style.fontSize = size + 'px';
+      e.style.fontSize =
+        size + 'px';
 
     });
 
@@ -1371,10 +1398,14 @@ function applyFont(){
 
 function font(n){
 
-  size = Math.max(
-    14,
-    Math.min(30,size+n)
-  );
+  size =
+    Math.max(
+      14,
+      Math.min(
+        30,
+        size + n
+      )
+    );
 
   applyFont();
 
@@ -1382,15 +1413,15 @@ function font(n){
 
 
 /* =========================================================
-   JUMP TO SECTION
-========================================================= */
+   SECTION JUMP
+   ========================================================= */
 
 function jump(i){
 
   if(!arrangement[i]) return;
 
-  activeSection = arrangement[i];
-
+  activeSection =
+    arrangement[i];
 
   document
     .querySelectorAll('#tabs button')
@@ -1422,18 +1453,18 @@ function jump(i){
   const tabs =
     document.getElementById('tabs');
 
-
   if(target){
 
     window.scrollTo({
 
-      top:Math.max(
-        0,
-        target.getBoundingClientRect().top +
-        window.scrollY -
-        tabs.offsetHeight -
-        10
-      ),
+      top:
+        Math.max(
+          0,
+          target.getBoundingClientRect().top +
+          window.scrollY -
+          tabs.offsetHeight -
+          10
+        ),
 
       behavior:'smooth'
 
@@ -1446,15 +1477,20 @@ function jump(i){
 
 /* =========================================================
    EDITING
-========================================================= */
+   ========================================================= */
 
 function updateLine(pi,li,field,val){
 
-  const p = arrangement[pi];
+  const p =
+    arrangement[pi];
 
-  if(base[p] && base[p][li]){
+  if(
+    base[p] &&
+    base[p][li]
+  ){
 
-    base[p][li][field] = val;
+    base[p][li][field] =
+      val;
 
     saveLocal(false);
 
@@ -1480,10 +1516,9 @@ function toggleEdit(){
 
 function addLine(pi){
 
-  base[arrangement[pi]].push([
-    '',
-    ''
-  ]);
+  base[
+    arrangement[pi]
+  ].push(['','']);
 
   renderSong();
 
@@ -1494,10 +1529,9 @@ function addLine(pi){
 
 function addChordLine(pi){
 
-  base[arrangement[pi]].push([
-    'C',
-    ''
-  ]);
+  base[
+    arrangement[pi]
+  ].push(['C','']);
 
   renderSong();
 
@@ -1509,16 +1543,19 @@ function addChordLine(pi){
 
 
 /* =========================================================
-   SECTION DRAG
-========================================================= */
+   DRAG SECTIONS
+   ========================================================= */
 
 function sectionDragStart(e,i){
 
   sectionDrag = i;
 
-  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.effectAllowed =
+    'move';
 
-  e.currentTarget.classList.add('dragging');
+  e.currentTarget.classList.add(
+    'dragging'
+  );
 
 }
 
@@ -1526,9 +1563,7 @@ function sectionDragStart(e,i){
 function sectionDragOver(e){
 
   if(editMode){
-
     e.preventDefault();
-
   }
 
 }
@@ -1549,8 +1584,10 @@ function sectionDrop(e,target){
 
 
   const moved =
-    arrangement.splice(sectionDrag,1)[0];
-
+    arrangement.splice(
+      sectionDrag,
+      1
+    )[0];
 
   arrangement.splice(
     target,
@@ -1558,14 +1595,15 @@ function sectionDrop(e,target){
     moved
   );
 
-
   sectionDrag = null;
 
   renderSong();
 
   saveLocal(false);
 
-  toast('Section order updated');
+  toast(
+    'Section order updated'
+  );
 
 }
 
@@ -1583,7 +1621,7 @@ function sectionDragEnd(e){
 
 /* =========================================================
    AUTO SCROLL
-========================================================= */
+   ========================================================= */
 
 function autoScroll(){
 
@@ -1596,15 +1634,15 @@ function autoScroll(){
     toast('Auto-scroll stopped');
 
     return;
+
   }
 
 
-  scrollTimer = setInterval(() => {
-
-    window.scrollBy(0,1);
-
-  },45);
-
+  scrollTimer =
+    setInterval(
+      () => window.scrollBy(0,1),
+      45
+    );
 
   toast('Auto-scroll started');
 
@@ -1613,7 +1651,7 @@ function autoScroll(){
 
 /* =========================================================
    SEARCH / IMPORT
-========================================================= */
+   ========================================================= */
 
 function openSearch(){
 
@@ -1631,10 +1669,13 @@ function openSearch(){
 
         <div>
 
-          <h2>Search / Import Song</h2>
+          <h2>
+            Search / Import Song
+          </h2>
 
           <div class="muted">
-            Search a song title or paste chord/lyric text.
+            Search a song title or paste
+            chord/lyric text.
           </div>
 
         </div>
@@ -1671,11 +1712,12 @@ function openSearch(){
 
       <div id="searchResults"></div>
 
-
       <hr
-        style="border-color:#293039;margin:18px 0"
+        style="
+          border-color:#293039;
+          margin:18px 0
+        "
       >
-
 
       <textarea
         id="songText"
@@ -1707,7 +1749,10 @@ function openSearch(){
       <button
         type="button"
         class="btn primary"
-        style="width:100%;margin-top:8px"
+        style="
+          width:100%;
+          margin-top:8px
+        "
         onclick="analyzeSong()"
       >
         Analyze Pasted Text
@@ -1717,12 +1762,9 @@ function openSearch(){
       <div id="analysisResult"></div>
 
     `;
+
 }
 
-
-/* =========================================================
-   CLOSE MODAL
-========================================================= */
 
 function closeModal(){
 
@@ -1735,8 +1777,8 @@ function closeModal(){
 
 
 /* =========================================================
-   SEARCH SONGS
-========================================================= */
+   SEARCH
+   ========================================================= */
 
 async function searchSongs(){
 
@@ -1744,12 +1786,14 @@ async function searchSongs(){
     (
       document
         .getElementById('searchTerm')
-        .value || ''
+        .value ||
+      ''
     ).trim();
 
-
   const box =
-    document.getElementById('searchResults');
+    document.getElementById(
+      'searchResults'
+    );
 
 
   if(!q){
@@ -1768,18 +1812,20 @@ async function searchSongs(){
 
   try{
 
-    const r = await fetch(
-      'https://itunes.apple.com/search?term=' +
-      encodeURIComponent(q) +
-      '&entity=song&limit=8'
-    );
+    const r =
+      await fetch(
+        'https://itunes.apple.com/search?term=' +
+        encodeURIComponent(q) +
+        '&entity=song&limit=8'
+      );
 
-
-    const d = await r.json();
+    const d =
+      await r.json();
 
 
     box.innerHTML =
-      d.results && d.results.length
+      d.results &&
+      d.results.length
 
         ? d.results.map(x => `
 
@@ -1818,7 +1864,10 @@ async function searchSongs(){
   }catch(e){
 
     box.innerHTML =
-      '<div class="muted">Search unavailable. You can paste chord/lyric text below.</div>';
+      '<div class="muted">' +
+      'Search unavailable. You can paste ' +
+      'chord/lyric text below.' +
+      '</div>';
 
   }
 
@@ -1831,11 +1880,9 @@ function selectSearch(title,artist){
     'importTitle'
   ).value = title;
 
-
   document.getElementById(
     'importArtist'
   ).value = artist;
-
 
   document.getElementById(
     'songText'
@@ -1845,32 +1892,37 @@ function selectSearch(title,artist){
 
 
 /* =========================================================
-   ANALYZE PASTED SONG
-========================================================= */
+   ANALYZE SONG
+   ========================================================= */
 
 function analyzeSong(){
 
   const title =
     (
-      document.getElementById(
-        'importTitle'
-      ).value || ''
-    ).trim() || 'Imported Song';
+      document
+        .getElementById('importTitle')
+        .value ||
+      ''
+    ).trim() ||
+    'Imported Song';
 
 
   const artist =
     (
-      document.getElementById(
-        'importArtist'
-      ).value || ''
-    ).trim() || 'Unknown Artist';
+      document
+        .getElementById('importArtist')
+        .value ||
+      ''
+    ).trim() ||
+    'Unknown Artist';
 
 
   const text =
     (
-      document.getElementById(
-        'songText'
-      ).value || ''
+      document
+        .getElementById('songText')
+        .value ||
+      ''
     ).trim();
 
 
@@ -1879,7 +1931,9 @@ function analyzeSong(){
     document.getElementById(
       'analysisResult'
     ).innerHTML =
-      '<div class="card">Paste lyrics/chords first.</div>';
+      '<div class="card">' +
+      'Paste lyrics/chords first.' +
+      '</div>';
 
     return;
 
@@ -1896,7 +1950,6 @@ function analyzeSong(){
 
   const sections = [];
 
-
   let current = 'Verse 1';
 
   let bucket = [];
@@ -1906,7 +1959,8 @@ function analyzeSong(){
 
     if(bucket.length){
 
-      base[current] = bucket;
+      base[current] =
+        bucket;
 
       sections.push(current);
 
@@ -1920,7 +1974,9 @@ function analyzeSong(){
   for(const raw of lines){
 
     const line =
-      raw.replace(/\t/g,' ').trim();
+      raw
+        .replace(/\t/g,' ')
+        .trim();
 
 
     if(!line) continue;
@@ -1937,7 +1993,6 @@ function analyzeSong(){
 
       flush();
 
-
       current =
         marker
           .toLowerCase()
@@ -1947,19 +2002,21 @@ function analyzeSong(){
           .replace(/^Prechorus$/i,'Pre-Chorus')
           .replace(/^Ad lib$/i,'Adlib');
 
-
       continue;
 
     }
 
 
-    const m = line.match(
-      /^([A-G](?:#|b)?(?:m|maj|min|sus|add|dim|aug|7|9|11|13|6|2|4)?(?:\/[A-G](?:#|b)?)?)(?:\s+|$)/i
-    );
+    const m =
+      line.match(
+        /^([A-G](?:#|b)?(?:m|maj|min|sus|add|dim|aug|7|9|11|13|6|2|4)?(?:\/[A-G](?:#|b)?)?)(?:\s+|$)/i
+      );
 
 
     const chord =
-      m ? m[1] : '';
+      m
+        ? m[1]
+        : '';
 
 
     bucket.push([
@@ -1982,21 +2039,25 @@ function analyzeSong(){
         .filter(Boolean)
         .map(x => ['',x.trim()]);
 
-
     sections.push('Verse 1');
 
   }
 
 
-  arrangement = sections;
+  arrangement =
+    sections;
 
-  activeSection = arrangement[0];
+  activeSection =
+    arrangement[0];
 
-  currentSongTitle = title;
+  currentSongTitle =
+    title;
 
-  currentArtist = artist;
+  currentArtist =
+    artist;
 
-  currentKey = detectKey();
+  currentKey =
+    detectKey();
 
 
   document.getElementById(
@@ -2009,7 +2070,9 @@ function analyzeSong(){
 
       <div
         class="muted"
-        style="margin:7px 0 12px"
+        style="
+          margin:7px 0 12px
+        "
       >
         ${sections.length}
         sections •
@@ -2047,7 +2110,7 @@ function finishImport(){
 
 /* =========================================================
    SETLIST
-========================================================= */
+   ========================================================= */
 
 function renderSetlist(){
 
@@ -2062,7 +2125,7 @@ function renderSetlist(){
         <div class="itemmain">
 
           <b>
-            ${i+1}. ${esc(s)}
+            ${i + 1}. ${esc(s)}
           </b>
 
         </div>
@@ -2086,10 +2149,8 @@ function renderSetlist(){
 
 function addSetSong(){
 
-  const n = prompt(
-    'Song title:'
-  );
-
+  const n =
+    prompt('Song title:');
 
   if(n){
 
@@ -2122,10 +2183,10 @@ function openSetSong(s){
 
 
 /* =========================================================
-   LOCAL STORAGE
-========================================================= */
+   SAVE / LOAD
+   ========================================================= */
 
-function saveLocal(show=true){
+function saveLocal(show = true){
 
   try{
 
@@ -2151,7 +2212,6 @@ function saveLocal(show=true){
       toast('Saved locally');
 
     }
-
 
   }catch(e){
 
@@ -2255,8 +2315,7 @@ function loadLocal(){
         ? d.activeSection
 
         : (
-            arrangement[0] ||
-            ''
+            arrangement[0] || ''
           );
 
 
@@ -2274,7 +2333,7 @@ function loadLocal(){
 
 /* =========================================================
    TOAST
-========================================================= */
+   ========================================================= */
 
 function toast(m){
 
@@ -2283,10 +2342,11 @@ function toast(m){
       'toast'
     );
 
+  t.textContent =
+    m;
 
-  t.textContent = m;
-
-  t.style.display = 'block';
+  t.style.display =
+    'block';
 
 
   clearTimeout(
@@ -2295,18 +2355,20 @@ function toast(m){
 
 
   window.__toastTimer =
-    setTimeout(() => {
-
-      t.style.display = 'none';
-
-    },1700);
+    setTimeout(
+      () => {
+        t.style.display =
+          'none';
+      },
+      1700
+    );
 
 }
 
 
 /* =========================================================
    START APP
-========================================================= */
+   ========================================================= */
 
 loadLocal();
 
