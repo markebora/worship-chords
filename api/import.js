@@ -1,4 +1,11 @@
 export default async function handler(req, res) {
+  // Allow the GitHub Pages frontend to call this Vercel API.
+  res.setHeader('Access-Control-Allow-Origin', 'https://markebora.github.io');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Vary', 'Origin');
+
+  if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
   try {
@@ -23,8 +30,6 @@ export default async function handler(req, res) {
 
     const html = await response.text();
 
-    // Keep this importer deliberately conservative: extract page text only.
-    // The AI analyzer will operate on content supplied to the app/backend.
     let text = html
       .replace(/<script[\s\S]*?<\/script>/gi, ' ')
       .replace(/<style[\s\S]*?<\/style>/gi, ' ')
