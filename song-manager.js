@@ -7,39 +7,34 @@ function isChordToken(s){return /^(?:[A-G](?:#|b)?)(?:m|min|maj|dim|aug|sus|add)
 function parseChordLine(line){const t=line.trim().split(/\s+/).filter(Boolean);return !!t.length&&t.every(isChordToken);}
 function normalizeText(text){return String(text||'').replace(/\r/g,'').replace(/&(?:#0*39|apos);/gi,"'").replace(/&#x27;/gi,"'").replace(/&quot;/gi,'"').replace(/&amp;/gi,'&').replace(/&nbsp;/gi,' ');}
 function parseSongText(text){
- const sections={};
- let section='Verse 1',pending=null;
+ const sections={}; let section='Verse 1',pending=null;
  const ensure=n=>(sections[n]||(sections[n]=[]));
  const flushPending=()=>{if(pending!==null){ensure(section).push([pending,'']);pending=null;}};
  for(const raw of normalizeText(text).split('\n')){
   const line=raw.trim();
   if(!line){flushPending();continue;}
   const h=line.match(/^\[([^\]]+)\]$/);
-  if(h){
-   flushPending();
-   let n=h[1].trim(),l=n.toLowerCase();
+  if(h){flushPending();let n=h[1].trim(),l=n.toLowerCase();
    if(l==='verse')n='Verse '+(Object.keys(sections).filter(k=>/^Verse \d+$/i.test(k)).length+1);
    else if(/^verse\s+\d+$/i.test(n))n='Verse '+n.match(/\d+/)[0];
-   else if(l==='chorus')n='Chorus';
-   else if(l==='bridge')n='Bridge';
-   else if(l==='intro')n='Intro';
-   else if(l==='outro'||l==='ending')n='Outro';
-   else if(l==='pre-chorus'||l==='pre chorus')n='Pre-Chorus';
-   else if(l==='instrumental')n='Instrumental';
+   else if(l==='chorus')n='Chorus'; else if(l==='bridge')n='Bridge'; else if(l==='intro')n='Intro';
+   else if(l==='outro'||l==='ending')n='Outro'; else if(l==='pre-chorus'||l==='pre chorus')n='Pre-Chorus'; else if(l==='instrumental')n='Instrumental';
    section=n;ensure(section);continue;
   }
   if(parseChordLine(line)){flushPending();pending=line;continue;}
   ensure(section).push([pending||'',line]);pending=null;
  }
- flushPending();
- if(!Object.keys(sections).length)sections['Verse 1']=[];
- return sections;
+ flushPending(); if(!Object.keys(sections).length)sections['Verse 1']=[]; return sections;
 }
 function appGetBase(){try{return JSON.parse(window.eval('JSON.stringify(base)'));}catch(e){return {};}}
 function appSetBase(parsed){window.eval('base='+JSON.stringify(parsed)+'; transposeSource=JSON.parse(JSON.stringify(base)); arrangement=Object.keys(base); activeSection=arrangement[0]||\'Verse 1\';');}
 function appRender(){try{if(typeof window.renderSong==='function')window.renderSong();if(typeof window.showTab==='function')window.showTab('song');}catch(e){console.error(e);}}
-function setMeta(title,artist,key){const t=document.getElementById('songTitle'),a=document.getElementById('songArtist'),k=document.getElementById('key'),lt=document.getElementById('libraryTitle'),la=document.getElementById('libraryArtist');if(t)t.textContent=title;if(a)a.textContent=artist;if(k&&key)k.textContent=key;if(lt)lt.textContent=title;if(la)la.textContent=artist+(key?' • Key '+key:'' );}
-function loadIntoEditor(text,meta){const sections=parseSongText(text);appSetBase(sections);setMeta(meta.title,meta.artist,meta.key||'');appRender();const song={title:meta.title,artist:meta.artist,key:meta.key||'',sourceUrl:meta.sourceUrl||'',sections,updatedAt:new Date().toISOString()};localStorage.setItem(CURRENT_KEY,JSON.stringify(song));return song;}
+function detectKey(sections){
+ try{if(window.WorshipChordFamilies&&typeof window.WorshipChordFamilies.detectKey==='function')return window.WorshipChordFamilies.detectKey(sections).key||'';}catch(e){console.warn('Key detection failed',e);}
+ return '';
+}
+function setMeta(title,artist,key){const t=document.getElementById('songTitle'),a=document.getElementById('songArtist'),k=document.getElementById('key'),lt=document.getElementById('libraryTitle'),la=document.getElementById('libraryArtist');if(t)t.textContent=title;if(a)a.textContent=artist;if(k&&key)k.textContent=key;if(lt)lt.textContent=title;if(la)la.textContent=artist+(key?' • Key '+key:'');}
+function loadIntoEditor(text,meta){const sections=parseSongText(text),detected=detectKey(sections),key=detected||meta.key||'';appSetBase(sections);setMeta(meta.title,meta.artist,key);appRender();const song={title:meta.title,artist:meta.artist,key,sourceUrl:meta.sourceUrl||'',sections,updatedAt:new Date().toISOString()};localStorage.setItem(CURRENT_KEY,JSON.stringify(song));return song;}
 function currentSong(){return{title:document.getElementById('songTitle')?.textContent?.trim()||'Imported Song',artist:document.getElementById('songArtist')?.textContent?.trim()||'Unknown Artist',key:document.getElementById('key')?.textContent?.trim()||'',sections:appGetBase()};}
 function librarySave(song){const list=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'),i=list.findIndex(x=>x.title===song.title&&x.artist===song.artist);if(i>=0)list[i]=song;else list.unshift(song);localStorage.setItem(STORAGE_KEY,JSON.stringify(list));}
 function saveLocalSong(){const s=currentSong();s.updatedAt=new Date().toISOString();librarySave(s);localStorage.setItem(CURRENT_KEY,JSON.stringify(s));alert('Song saved locally.');}
