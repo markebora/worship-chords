@@ -19,7 +19,7 @@ frame.addEventListener('load',()=>{
       const rp=getPitch(root);
       if(rp===null) return token;
       const nr=pitchToKey(rp+interval);
-      const ns=suffix.replace(/\\/([A-G](?:#|b)?)/g,(full,bass)=>{
+      const ns=suffix.replace(/\/([A-G](?:#|b)?)/g,(full,bass)=>{
         const bp=getPitch(bass);
         return bp===null?full:'/'+pitchToKey(bp+interval);
       });
