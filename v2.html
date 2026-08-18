@@ -1,0 +1,31 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Worship Chords – Transpose Fix</title><style>html,body{margin:0;height:100%;background:#090b0e}iframe{width:100%;height:100%;border:0}</style></head><body>
+<iframe id="app" src="./index.html"></iframe>
+<script>
+const frame=document.getElementById('app');
+frame.addEventListener('load',()=>{
+  const w=frame.contentWindow;
+  const pitchToKey=w.pitchToKey;
+  const getPitch=w.getPitch;
+  w.transposeChord=function(chord, interval){
+    if(!chord) return chord;
+    const text=String(chord).trim();
+    const normalize=(s)=>String(s).replace(/♯/g,'#').replace(/♭/g,'b');
+    const transposeOne=(token)=>{
+      const t=normalize(token);
+      const m=t.match(/^([A-G](?:#|b)?)(.*)$/);
+      if(!m) return token;
+      const root=m[1], suffix=m[2];
+      const rp=getPitch(root);
+      if(rp===null) return token;
+      const nr=pitchToKey(rp+interval);
+      const ns=suffix.replace(/\\/([A-G](?:#|b)?)/g,(full,bass)=>{
+        const bp=getPitch(bass);
+        return bp===null?full:'/'+pitchToKey(bp+interval);
+      });
+      return nr+ns;
+    };
+    return text.split(/(\s+)/).map(part=>/^\s+$/.test(part)?part:transposeOne(part)).join('');
+  };
+});
+</script></body></html>
