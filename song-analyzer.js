@@ -5,137 +5,73 @@
   const originalAnalyzeSong = window.analyzeSong;
 
   /* =========================================================
-     CHORD BANK / MUSIC-THEORY REFERENCE
+     CHORD BANK
      =========================================================
-     The transposer works on the ROOT of a chord and preserves
-     its quality/suffix. This bank documents the chord qualities
-     we explicitly recognize in the app.
-
-     It intentionally accepts additional suffixes too, so a chord
-     such as Fdim, Fdim7, C#m7, G#maj7, Bbadd9, or Dsus4 is not
-     silently skipped just because a new extension appears.
+     Chord qualities used/referenced by the app. The transposer
+     separates the ROOT from the suffix, so Fdim, Fdim7, F#dim,
+     C#m7, Bb7, sus chords, add chords, slash chords, etc. keep
+     their quality while the root/bass note is transposed.
   ========================================================= */
   const CHORD_BANK = {
-    triads: ['', 'm', 'dim', 'aug'],
-    sevenths: ['7', 'maj7', 'm7', 'min7', 'dim7', 'mMaj7', 'maj7#5', 'aug7'],
-    extensions: ['6', 'm6', '9', 'm9', 'maj9', '11', 'm11', '13', 'm13'],
-    suspended: ['sus2', 'sus4', '7sus4'],
-    added: ['add2', 'add4', 'add9', 'add11', 'add13'],
-    alterations: ['5', 'b5', '#5', 'b9', '#9', '#11', 'b13'],
-    symbols: ['M', 'min', 'maj', '°', 'ø', '+', '-']
+    triads:['','m','dim','aug'],
+    sevenths:['7','maj7','m7','min7','dim7','mMaj7','maj7#5','aug7'],
+    extensions:['6','m6','9','m9','maj9','11','m11','13','m13'],
+    suspended:['sus2','sus4','7sus4'],
+    added:['add2','add4','add9','add11','add13'],
+    alterations:['5','b5','#5','b9','#9','#11','b13'],
+    symbols:['M','min','maj','°','ø','Δ','+','-']
   };
 
-  const CHORD_ROOT_PITCH = {
-    C:0, 'C#':1, Db:1, D:2, 'D#':3, Eb:3,
-    E:4, F:5, 'F#':6, Gb:6, G:7, 'G#':8,
-    Ab:8, A:9, 'A#':10, Bb:10, B:11
+  const PITCH={
+    C:0,'B#':0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,Fb:4,
+    F:5,'E#':5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,
+    'A#':10,Bb:10,B:11,Cb:11
   };
 
-  // Common key spellings. The target key controls whether the
-  // black-key roots are displayed with sharps or flats.
-  const KEY_SPELLINGS = {
-    C:  ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'],
-    'C#':['C#','D','D#','E','F','F#','G','G#','A','A#','B','C'],
-    Db: ['Db','Eb','E','Gb','Ab','A','Bb','B','Db','D','Eb','F','Gb'],
-    D:  ['D','Eb','E','F','F#','G','Ab','A','Bb','B','C','C#'],
-    Eb: ['Eb','F','G','Ab','Bb','C','D','Eb','F','G','Ab','Bb'],
-    E:  ['E','F#','G#','A','B','C#','D#','E','F#','G#','A','B'],
-    F:  ['F','G','A','Bb','C','D','E','F','G','A','Bb','C'],
-    'F#':['F#','G#','A#','B','C#','D#','E#','F#','G#','A#','B','C#'],
-    Gb: ['Gb','Ab','Bb','Cb','Db','Eb','F','Gb','Ab','Bb','Cb','Db'],
-    G:  ['G','A','B','C','D','E','F#','G','A','B','C','D'],
-    Ab: ['Ab','Bb','C','Db','Eb','F','G','Ab','Bb','C','Db','Eb'],
-    A:  ['A','B','C#','D','E','F#','G#','A','B','C#','D','E'],
-    Bb: ['Bb','C','D','Eb','F','G','A','Bb','C','D','Eb','F'],
-    B:  ['B','C#','D#','E','F#','G#','A#','B','C#','D#','E','F#']
-  };
-
-  const ENHARMONIC_PITCH = {
-    C:0, 'B#':0,
-    'C#':1, Db:1,
-    D:2,
-    'D#':3, Eb:3,
-    E:4, Fb:4,
-    F:5, 'E#':5,
-    'F#':6, Gb:6,
-    G:7,
-    'G#':8, Ab:8,
-    A:9,
-    'A#':10, Bb:10,
-    B:11, Cb:11
-  };
-
-  function pitchOf(root){
-    return ENHARMONIC_PITCH[root] ?? null;
+  function pitchOf(n){
+    return PITCH[n] ?? null;
   }
 
-  function normalizeTargetKey(k){
-    if(k === 'A#') return 'Bb';
-    if(k === 'D#') return 'Eb';
-    if(k === 'G#') return 'Ab';
-    if(k === 'Db') return 'C#';
+  function normalizeKeyName(k){
+    if(k==='A#') return 'Bb';
+    if(k==='D#') return 'Eb';
+    if(k==='G#') return 'Ab';
     return k;
   }
 
-  function preferredRootForPitch(pitch, targetKey){
-    const p=((pitch%12)+12)%12;
-    const key=normalizeTargetKey(targetKey);
+  function rootForPitch(value,targetKey){
+    const p=((value%12)+12)%12;
+    const key=normalizeKeyName(targetKey);
 
-    // Flat keys should display flat roots; sharp keys should display
-    // sharp roots. Natural keys use the same practical convention
-    // already used by the app.
+    // Prefer the accidental family normally used by the target key.
     const flatKeys=new Set(['F','Bb','Eb','Ab','Db','Gb']);
     const sharpKeys=new Set(['G','D','A','E','B','F#','C#']);
-
     const flats=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
     const sharps=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
     if(flatKeys.has(key)) return flats[p];
     if(sharpKeys.has(key)) return sharps[p];
 
-    const table=KEY_SPELLINGS[key];
-    if(table && table[p]) return table[p];
+    // C and other neutral cases: retain the app's practical spelling.
     return ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'][p];
   }
 
   function splitChord(chord){
     const text=String(chord ?? '').trim();
-    // Root is always the first letter plus optional #/b.
-    const match=text.match(/^([A-G](?:#|b)?)(.*)$/);
-    if(!match) return null;
-    return {root:match[1], suffix:match[2]};
+    const m=text.match(/^([A-G](?:#|b)?)(.*)$/);
+    return m ? {root:m[1],suffix:m[2]} : null;
   }
 
-  function transposeRoot(root, interval, targetKey){
-    const p=pitchOf(root);
-    if(p===null) return root;
-    return preferredRootForPitch(p+interval,targetKey);
-  }
-
-  /*
-     Robust chord transposer.
-
-     Examples:
-       Fdim  -> F#dim
-       F#dim -> Gdim
-       C#m7  -> Dm7
-       Bb7   -> B7
-       C/G   -> D/A
-       F#dim/A -> Gdim/Bb
-
-     The chord quality is NOT interpreted as a root. Everything
-     after the first root is preserved, while slash-bass notes
-     are transposed separately.
-  */
-  function transposeChordFromBank(chord, interval, targetKey){
+  function transposeChordFromBank(chord,interval,targetKey){
     if(!chord) return chord;
 
-    // A compact chord-only line may contain several chords.
     const text=String(chord).trim();
+
+    // Compact chord-only rows can contain several separate chords.
     if(/\s+/.test(text)){
-      const tokens=text.split(/\s+/);
-      if(tokens.length>1 && tokens.every(t=>splitChord(t))){
-        return tokens.map(t=>transposeChordFromBank(t,interval,targetKey)).join(' ');
+      const parts=text.split(/\s+/);
+      if(parts.length>1 && parts.every(x=>splitChord(x))){
+        return parts.map(x=>transposeChordFromBank(x,interval,targetKey)).join(' ');
       }
     }
 
@@ -145,58 +81,37 @@
     const rootPitch=pitchOf(parts.root);
     if(rootPitch===null) return chord;
 
+    // The original transpose button calls transposeChord(chord, interval)
+    // before it changes currentKey. Therefore derive the target key from
+    // the current key shown in the UI plus the requested interval.
+    if(!targetKey){
+      const displayed=document.getElementById('key')?.textContent?.trim() || 'C';
+      const currentPitch=pitchOf(displayed);
+      if(currentPitch!==null){
+        targetKey=rootForPitch(currentPitch+interval,'C');
+      }else{
+        targetKey='C';
+      }
+    }
+
+    // Preserve every suffix exactly: dim, dim7, m7, maj7, sus4,
+    // add9, altered extensions, symbols, etc.
     let suffix=parts.suffix;
 
-    // Transpose slash-bass separately, while preserving all quality
-    // symbols such as dim, aug, sus4, maj7, add9, etc.
+    // Slash chords: transpose the bass note independently.
     suffix=suffix.replace(/\/([A-G](?:#|b)?)/g,(full,bass)=>{
       const bassPitch=pitchOf(bass);
       if(bassPitch===null) return full;
-      return '/'+preferredRootForPitch(bassPitch+interval,targetKey);
+      return '/'+rootForPitch(bassPitch+interval,targetKey);
     });
 
-    return preferredRootForPitch(rootPitch+interval,targetKey)+suffix;
+    return rootForPitch(rootPitch+interval,targetKey)+suffix;
   }
 
-  /* =========================================================
-     OVERRIDE THE ORIGINAL TRANSPOSER
-     ========================================================= */
+  // Replace only the chord conversion function. The original
+  // applyTranspose/render/save flow remains untouched and protected.
   window.transposeChord=transposeChordFromBank;
-
-  /* The original applyTranspose only knows about the old 12-name
-     key list. Replace it so target-key spelling is passed into the
-     chord-bank transposer. */
-  window.applyTranspose=function(target){
-    target=normalizeTargetKey(target);
-    const fromKey=normalizeTargetKey(window.currentKey || 'C');
-    const from=pitchOf(fromKey);
-    const to=pitchOf(target);
-
-    if(from===null || to===null){
-      if(typeof window.toast==='function') window.toast('Invalid key');
-      return;
-    }
-
-    const interval=(to-from+12)%12;
-    const source=JSON.parse(JSON.stringify(window.transposeSource || window.base || {}));
-
-    Object.keys(source).forEach(part=>{
-      source[part]=(source[part]||[]).map(row=>{
-        const chord=row?.[0] ?? '';
-        const lyric=row?.[1] ?? '';
-        return [transposeChordFromBank(chord,interval,target),lyric];
-      });
-    });
-
-    window.base=source;
-    window.currentKey=target;
-    window.transposeSource=JSON.parse(JSON.stringify(source));
-
-    if(typeof window.closeModal==='function') window.closeModal();
-    if(typeof window.renderSong==='function') window.renderSong();
-    if(typeof window.saveLocal==='function') window.saveLocal(false);
-    if(typeof window.toast==='function') window.toast('Song is now in the key of '+target);
-  };
+  window.__worshipChordBank=CHORD_BANK;
 
   /* =========================================================
      SEARCH / URL ANALYZER
@@ -258,9 +173,9 @@
   }
 
   function isChordToken(token){
-    // Supports roots, accidentals, qualities, extensions, symbols,
-    // parenthesized alterations, and slash chords.
-    return /^(?:[A-G](?:#|b)?)(?:[A-Za-z0-9+#b°øΔ+\-]*(?:\([^)]*\))?)(?:\/[A-G](?:#|b)?)?$/.test(token);
+    // Broad recognition: root + any common chord suffix + optional slash bass.
+    // This deliberately accepts new extensions instead of dropping them.
+    return /^(?:[A-G](?:#|b)?)[A-Za-z0-9+#b°øΔ+\-]*(?:\([^)]*\))?(?:\/[A-G](?:#|b)?)?$/.test(token);
   }
 
   function looksLikeChordLine(line){
@@ -268,7 +183,7 @@
     if(!s || s.length>140) return false;
     const tokens=s.split(/\s+/).filter(Boolean);
     if(!tokens.length || tokens.length>16) return false;
-    return tokens.every(isChordToken) && tokens.length>=1;
+    return tokens.every(isChordToken);
   }
 
   function normalizeChordSpacing(text){
