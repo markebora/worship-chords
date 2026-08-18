@@ -1,11 +1,10 @@
 (function(){
 'use strict';
 
-const UG_SEARCH='https://www.ultimate-guitar.com/search.php';
+const UG_API='https://worship-chords-rho.vercel.app/api/import';
 const UG_DOMAIN='tabs.ultimate-guitar.com';
 
-function searchEsc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function ugSearchUrl(q){return UG_SEARCH+'?search_type=title&value='+encodeURIComponent(q);}
+function searchEsc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function isUgUrl(value){try{return new URL(value).hostname.endsWith(UG_DOMAIN);}catch(e){return false;}}
 
 function renderSearch(){
@@ -36,37 +35,32 @@ window.runSongSearch=async function(){
   const box=document.getElementById('ugSearchResults');
   const q=(input?.value||'').trim();
   if(!box||!q)return;
-
   if(!isUgUrl(q)){
     box.innerHTML=`<div class="muted">Please paste a direct Ultimate Guitar chord-page URL.</div>`;
     return;
   }
-
   box.innerHTML=`<div class="muted">⏳ Loading song from Ultimate Guitar…</div>`;
   try{
-    const response=await fetch('/api/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:q})});
+    const response=await fetch(UG_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:q})});
     const data=await response.json().catch(()=>({}));
     if(!response.ok) throw new Error(data.error||`Importer returned HTTP ${response.status}`);
-
     localStorage.setItem('worshipChordsSourceUrl',data.sourceUrl||q);
     localStorage.setItem('worshipChordsImportedText',data.text||'');
-
     box.innerHTML=`
       <div style="font-weight:800">✅ Song loaded</div>
-      <div class="muted" style="margin:6px 0 12px">The page content is now inside the app and ready for the analyzer.</div>
+      <div class="muted" style="margin:6px 0 12px">The page content is now inside the app and ready for analysis.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button type="button" class="btn primary" id="ugAnalyzeLoaded">🤖 Analyze Song</button>
         <a class="btn" href="${searchEsc(q)}" target="_blank" rel="noopener noreferrer">Open Source</a>
       </div>
       <textarea id="ugLoadedPreview" rows="12" style="width:100%;margin-top:12px;padding:12px;border-radius:9px;border:1px solid #3a424b;background:#0f1317;color:#fff">${searchEsc(data.text||'')}</textarea>`;
-
     document.getElementById('ugAnalyzeLoaded').onclick=()=>{
       window.dispatchEvent(new CustomEvent('worshipchords:song-imported',{detail:{sourceUrl:q,text:data.text||''}}));
       const btn=document.getElementById('ugAnalyzeLoaded');
       if(btn) btn.textContent='✅ Ready for AI Analyzer';
     };
   }catch(error){
-    box.innerHTML=`<div class="card"><b>⚠️ Could not load the page</b><div class="muted" style="margin-top:7px">${searchEsc(error.message||'Importer failed.')}</div><div class="muted" style="margin-top:7px">The backend must be deployed for automatic loading. The current GitHub Pages site cannot run server-side API code.</div></div>`;
+    box.innerHTML=`<div class="card"><b>⚠️ Could not load the page</b><div class="muted" style="margin-top:7px">${searchEsc(error.message||'Importer failed.')}</div></div>`;
   }
 };
 
