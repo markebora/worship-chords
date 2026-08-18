@@ -14,12 +14,8 @@ export default async function handler(req, res) {
 
   try {
     const { text, sourceUrl = '' } = req.body || {};
-    if (!text || typeof text !== 'string') {
-      return res.status(400).json({ error: 'Missing song text.' });
-    }
-    if (text.length > 30000) {
-      return res.status(413).json({ error: 'Song text is too large. Please analyze a shorter chart.' });
-    }
+    if (!text || typeof text !== 'string') return res.status(400).json({ error: 'Missing song text.' });
+    if (text.length > 30000) return res.status(413).json({ error: 'Song text is too large. Please analyze a shorter chart.' });
 
     const prompt = `You are a worship-song chord-chart analyzer. Analyze the supplied song chart and return ONLY valid JSON.
 
@@ -29,8 +25,8 @@ Rules:
 - Split the chart into ordered sections such as Intro, Verse 1, Pre-Chorus, Chorus, Bridge, Tag, Instrumental, Outro, Ending.
 - Preserve lyric wording exactly as supplied.
 - Identify every chord token, including sharps, flats, diminished, augmented, sus, add, extensions, alterations, slash chords and chord symbols.
-- Never silently delete an unfamiliar chord. Keep its original spelling in `rawChord` and use `normalizedChord` only when you are confident.
-- A slash chord has a chord root and a separate bass note. Example: G/B means root G and bass B.
+- Never silently delete an unfamiliar chord. Keep its original spelling in rawChord and use normalizedChord only when confident.
+- A slash chord has a chord root and separate bass note. Example: G/B means root G and bass B.
 - Do NOT transpose anything. Transposition is handled separately by the deterministic chord engine.
 - Keep chord order and lyric/chord alignment.
 
@@ -39,19 +35,7 @@ JSON shape:
   "title": string|null,
   "artist": string|null,
   "key": string|null,
-  "sections": [
-    {
-      "name": string,
-      "lines": [
-        {
-          "lyrics": string,
-          "chords": [
-            {"rawChord": string, "normalizedChord": string|null, "root": string|null, "bass": string|null}
-          ]
-        }
-      ]
-    }
-  ]
+  "sections": [{"name": string, "lines": [{"lyrics": string, "chords": [{"rawChord": string, "normalizedChord": string|null, "root": string|null, "bass": string|null}]}]}]
 }
 
 Source URL: ${sourceUrl}
@@ -61,31 +45,23 @@ ${text}`;
 
     const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || 'gpt-5.6-luna',
+        model: process.env.OPENAI_MODEL || 'gpt-5.6',
         input: prompt,
         text: { format: { type: 'json_object' } }
       })
     });
 
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      return res.status(502).json({ error: data?.error?.message || `AI provider returned HTTP ${response.status}.` });
-    }
+    if (!response.ok) return res.status(502).json({ error: data?.error?.message || `AI provider returned HTTP ${response.status}.` });
 
     const output = data.output_text;
     if (!output) return res.status(502).json({ error: 'AI provider returned no analysis.' });
 
     let analysis;
-    try {
-      analysis = JSON.parse(output);
-    } catch (_) {
-      return res.status(502).json({ error: 'AI provider returned invalid JSON.' });
-    }
+    try { analysis = JSON.parse(output); }
+    catch (_) { return res.status(502).json({ error: 'AI provider returned invalid JSON.' }); }
 
     return res.status(200).json({ analysis });
   } catch (error) {
