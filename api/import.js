@@ -29,8 +29,8 @@ export default async function handler(req, res) {
 
     const html = await response.text();
 
-    // Ultimate Guitar stores the page data in a .js-store element.
-    // The actual chord sheet is at:
+    // Ultimate Guitar stores the song in a .js-store element.
+    // The chord sheet is normally at:
     // store.page.data.tab_view.wiki_tab.content
     const storeObjects = extractJsStoreObjects(html);
     const candidates = [];
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // Some UG responses use the same data object without the exact wrapper.
+    // Fallback for slight variations in the embedded object structure.
     if (!candidates.length) {
       for (const store of storeObjects) {
         const content = findWikiTabContent(store);
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
 function extractJsStoreObjects(html) {
   const results = [];
 
-  // The data-content attribute contains JSON-encoded page state.
+  // data-content contains the JSON-encoded page state.
   const patterns = [
     /<[^>]*class=["'][^"']*js-store[^"']*["'][^>]*data-content=["']([\s\S]*?)["'][^>]*>/gi,
     /<[^>]*data-content=["']([\s\S]*?)["'][^>]*class=["'][^"']*js-store[^"']*["'][^>]*>/gi
@@ -80,15 +80,12 @@ function extractJsStoreObjects(html) {
     for (const match of html.matchAll(pattern)) {
       const decoded = decodeHtmlEntities(match[1]);
       try {
-        const parsed = JSON.parse(decoded);
-        results.push(parsed);
+        results.push(JSON.parse(decoded));
       } catch {
-        // Attribute parsing can contain escaped quotes. Try a second decode.
         try {
-          const parsed = JSON.parse(decoded.replace(/\\"/g, '"'));
-          results.push(parsed);
+          results.push(JSON.parse(decoded.replace(/\\"/g, '"')));
         } catch {
-          // Ignore malformed candidates and continue.
+          // Ignore malformed candidates.
         }
       }
     }
@@ -135,7 +132,6 @@ function looksLikeSongContent(value) {
 function chooseBestCandidate(candidates) {
   const unique = [...new Set(candidates.map(cleanSongText).filter(Boolean))];
   if (!unique.length) return '';
-
   unique.sort((a, b) => scoreCandidate(b) - scoreCandidate(a));
   return unique[0];
 }
