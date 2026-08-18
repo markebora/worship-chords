@@ -29,60 +29,25 @@ export default async function handler(req, res) {
 
     const html = await response.text();
 
-    // Prefer fields that are likely to contain the actual tab/chord body.
-    // Do not recursively collect arbitrary page strings: that also captures
-    // user profiles, comments, image URLs and navigation links.
+    // Ultimate Guitar stores the page data in a .js-store element.
+    // The actual chord sheet is at:
+    // store.page.data.tab_view.wiki_tab.content
+    const storeObjects = extractJsStoreObjects(html);
     const candidates = [];
 
-    const directPatterns = [
-      /"content"\s*:\s*"((?:\\.|[^"\\])*)"/gi,
-      /"tab_view"\s*:\s*"((?:\\.|[^"\\])*)"/gi,
-      /"tabContent"\s*:\s*"((?:\\.|[^"\\])*)"/gi,
-      /"songContent"\s*:\s*"((?:\\.|[^"\\])*)"/gi,
-      /data-content=["']([^"']+)["']/gi
-    ];
-
-    for (const pattern of directPatterns) {
-      for (const match of html.matchAll(pattern)) {
-        const value = decodeHtmlEntities(decodeEscaped(match[1]));
-        if (looksLikeSongContent(value)) candidates.push(value);
+    for (const store of storeObjects) {
+      const content = store?.store?.page?.data?.tab_view?.wiki_tab?.content;
+      if (typeof content === 'string' && content.trim()) {
+        candidates.push(content);
       }
     }
 
-    // Some pages put the tab in a JSON object under a script element.
-    const scriptBlocks = html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi);
-    for (const block of scriptBlocks) {
-      const script = block[1];
-      if (!/tab_view|tabContent|songContent|content/i.test(script)) continue;
-
-      for (const pattern of directPatterns.slice(0, 4)) {
-        for (const match of script.matchAll(pattern)) {
-          const value = decodeHtmlEntities(decodeEscaped(match[1]));
-          if (looksLikeSongContent(value)) candidates.push(value);
-        }
-      }
-    }
-
-    // Last-resort visible-text fallback, but remove navigation/comments/URLs.
+    // Some UG responses use the same data object without the exact wrapper.
     if (!candidates.length) {
-      const visible = html
-        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-        .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<\/p>|<\/div>|<\/li>|<\/tr>/gi, '\n')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\r/g, '');
-
-      const filtered = visible
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line && !/^https?:\/\//i.test(line))
-        .filter(line => !/ultimate-guitar\.com\/u\//i.test(line))
-        .filter(line => !/static\/users\//i.test(line))
-        .join('\n');
-
-      if (looksLikeSongContent(filtered)) candidates.push(filtered);
+      for (const store of storeObjects) {
+        const content = findWikiTabContent(store);
+        if (content) candidates.push(content);
+      }
     }
 
     const text = chooseBestCandidate(candidates);
@@ -102,46 +67,84 @@ export default async function handler(req, res) {
   }
 }
 
-function looksLikeSongContent(value) {
-  if (!value || value.length < 60) return false;
+function extractJsStoreObjects(html) {
+  const results = [];
 
-  // Reject obvious non-song material.
+  // The data-content attribute contains JSON-encoded page state.
+  const patterns = [
+    /<[^>]*class=["'][^"']*js-store[^"']*["'][^>]*data-content=["']([\s\S]*?)["'][^>]*>/gi,
+    /<[^>]*data-content=["']([\s\S]*?)["'][^>]*class=["'][^"']*js-store[^"']*["'][^>]*>/gi
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of html.matchAll(pattern)) {
+      const decoded = decodeHtmlEntities(match[1]);
+      try {
+        const parsed = JSON.parse(decoded);
+        results.push(parsed);
+      } catch {
+        // Attribute parsing can contain escaped quotes. Try a second decode.
+        try {
+          const parsed = JSON.parse(decoded.replace(/\\"/g, '"'));
+          results.push(parsed);
+        } catch {
+          // Ignore malformed candidates and continue.
+        }
+      }
+    }
+  }
+
+  return results;
+}
+
+function findWikiTabContent(value) {
+  if (!value || typeof value !== 'object') return '';
+
+  if (typeof value.content === 'string' && looksLikeSongContent(value.content)) {
+    return value.content;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findWikiTabContent(item);
+      if (found) return found;
+    }
+    return '';
+  }
+
+  for (const child of Object.values(value)) {
+    const found = findWikiTabContent(child);
+    if (found) return found;
+  }
+
+  return '';
+}
+
+function looksLikeSongContent(value) {
+  if (!value || value.length < 40) return false;
   if (/https?:\/\//i.test(value)) return false;
   if (/ultimate-guitar\.com\/u\//i.test(value)) return false;
-  if (/static\/users\//i.test(value)) return false;
 
-  const chord = /\b[A-G](?:#|b)?(?:m|min|maj|dim|aug|sus|add)?\d*(?:\/[A-G](?:#|b)?)?\b/;
-  const section = /\b(?:intro|verse|pre[- ]?chorus|chorus|bridge|outro|interlude)\b/i;
+  const section = /\[(?:intro|verse|pre[- ]?chorus|chorus|bridge|outro|interlude|solo|instrumental)[^\]]*\]/i;
+  const chord = /\[ch\][\s\S]*?\[\/ch\]/i;
+  const plainChord = /\b[A-G](?:#|b)?(?:m|min|maj|dim|aug|sus|add)?\d*(?:\/[A-G](?:#|b)?)?\b/;
 
-  return chord.test(value) && (section.test(value) || value.split('\n').length >= 4);
+  return section.test(value) && (chord.test(value) || plainChord.test(value));
 }
 
 function chooseBestCandidate(candidates) {
   const unique = [...new Set(candidates.map(cleanSongText).filter(Boolean))];
   if (!unique.length) return '';
 
-  // Prefer a substantial candidate with multiple lines and chord/section data.
   unique.sort((a, b) => scoreCandidate(b) - scoreCandidate(a));
   return unique[0];
 }
 
 function scoreCandidate(value) {
   const lines = value.split('\n').length;
-  const chords = (value.match(/\b[A-G](?:#|b)?(?:m|min|maj|dim|aug|sus|add)?\d*(?:\/[A-G](?:#|b)?)?\b/g) || []).length;
-  const sections = (value.match(/\b(?:intro|verse|pre[- ]?chorus|chorus|bridge|outro|interlude)\b/gi) || []).length;
+  const chords = (value.match(/\[ch\][\s\S]*?\[\/ch\]/gi) || []).length;
+  const sections = (value.match(/\[[^\]]*(?:intro|verse|pre[- ]?chorus|chorus|bridge|outro|interlude|solo)[^\]]*\]/gi) || []).length;
   return Math.min(value.length, 20000) + lines * 50 + chords * 25 + sections * 200;
-}
-
-function decodeEscaped(value) {
-  return value
-    .replace(/\\"/g, '"')
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '')
-    .replace(/\\t/g, '\t')
-    .replace(/\\\\/g, '\\')
-    .replace(/\\u0026/g, '&')
-    .replace(/\\u003c/g, '<')
-    .replace(/\\u003e/g, '>');
 }
 
 function decodeHtmlEntities(value) {
@@ -158,8 +161,8 @@ function decodeHtmlEntities(value) {
 function cleanSongText(text) {
   return decodeHtmlEntities(text)
     .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/https?:\/\/\S+/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\r/g, '')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
