@@ -3,8 +3,30 @@
 const STORAGE_KEY='worshipChordsSongs',CURRENT_KEY='worshipChordsCurrentSong';
 function slugTitle(url){try{const p=new URL(url).pathname.split('/').filter(Boolean),s=p[p.length-1]||'Imported Song';return s.replace(/-\d+$/,'').replace(/-chords?$/i,'').replace(/-tabs?$/i,'').split('-').map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(' ');}catch(e){return 'Imported Song';}}
 function artistFromUrl(url){try{const p=new URL(url).pathname.split('/').filter(Boolean),i=p.indexOf('tab');if(i>=0&&p[i+1])return p[i+1].split('-').map(x=>x.charAt(0).toUpperCase()+x.slice(1)).join(' ');}catch(e){}return 'Unknown Artist';}
-function isChordToken(s){return /^(?:[A-G](?:#|b)?)(?:m|min|maj|dim|aug|sus|add)?\d*(?:\/[A-G](?:#|b)?)?$/.test(s);}
-function parseChordLine(line){const t=line.trim().split(/\s+/).filter(Boolean);return !!t.length&&t.every(isChordToken);}
+
+/*
+  IMPORTANT CHORD PARSER FIX
+  --------------------------
+  Do not use a short fixed list of chord qualities here.
+  Worship songs commonly contain chords such as:
+    CM7, Cmaj7, D/C, D/C#, Bm7, E7sus, E7sus4, F#dim7,
+    Cadd9, G/B, Am9, etc.
+
+  The chord-family parser already understands ROOT + arbitrary SUFFIX
+  + optional /BASS, so use that parser for chord-line detection too.
+*/
+function isChordToken(s){
+  const token=String(s||'').trim().replace(/♯/g,'#').replace(/♭/g,'b');
+  if(!token)return false;
+  if(window.WorshipChordParser&&typeof window.WorshipChordParser.isChord==='function'){
+    return window.WorshipChordParser.isChord(token);
+  }
+  return /^(?:[A-G](?:#|b)?)(?:[^/\s]*)(?:\/[A-G](?:#|b)?)?$/.test(token);
+}
+function parseChordLine(line){
+  const t=String(line||'').trim().split(/\s+/).filter(Boolean);
+  return !!t.length&&t.every(isChordToken);
+}
 function normalizeText(text){return String(text||'').replace(/\r/g,'').replace(/&(?:#0*39|apos);/gi,"'").replace(/&#x27;/gi,"'").replace(/&quot;/gi,'"').replace(/&amp;/gi,'&').replace(/&nbsp;/gi,' ');}
 function cleanName(n){return String(n||'').replace(/[\u200B-\u200D\uFEFF]/g,'');}
 function parseSongText(text){const sections={};let section='Verse 1',pending=null;const ensure=n=>(sections[n]||(sections[n]=[]));const flush=()=>{if(pending!==null){ensure(section).push([pending,'']);pending=null;}};for(const raw of normalizeText(text).split('\n')){const line=raw.trim();if(!line){flush();continue;}const h=line.match(/^\[([^\]]+)\]$/);if(h){flush();let n=cleanName(h[1].trim()),l=n.toLowerCase();if(l==='verse')n='Verse '+(Object.keys(sections).filter(k=>/^Verse \d+$/i.test(k)).length+1);else if(/^verse\s+\d+$/i.test(n))n='Verse '+n.match(/\d+/)[0];else if(l==='chorus')n='Chorus';else if(l==='bridge')n='Bridge';else if(l==='intro')n='Intro';else if(l==='outro'||l==='ending')n='Outro';else if(l==='pre-chorus'||l==='pre chorus')n='Pre-Chorus';else if(l==='instrumental')n='Instrumental';section=n;ensure(section);continue;}if(parseChordLine(line)){flush();pending=line;continue;}ensure(section).push([pending||'',line]);pending=null;}flush();if(!Object.keys(sections).length)sections['Verse 1']=[];return sections;}
