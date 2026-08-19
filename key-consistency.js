@@ -121,11 +121,13 @@ window.saveLocal=function(show){
   if(typeof originalSave==='function')return originalSave(show);
 };
 
-/* Repair the state after the existing importer/song-manager listener finishes. */
+/* Repair the state after the existing importer/song-manager listener finishes.
+   For a NEW imported song we must detect from its chords first; currentKey may
+   still contain the previous song's key. */
 window.addEventListener('worshipchords:song-imported',function(){
   setTimeout(function(){
     const s=getState();
-    const key=chooseKey(s.currentKey||detectKeyFromBase());
+    const key=detectKeyFromBase() || keyNormalize(s.currentKey) || 'C';
     setMeta(s.title,s.artist,key);
     saveCurrentKeyToStorage();
     if(typeof window.renderSong==='function')window.renderSong();
