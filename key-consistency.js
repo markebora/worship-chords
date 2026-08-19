@@ -1,26 +1,13 @@
 (function(){
 'use strict';
 
-/* =========================================================
-   KEY CONSISTENCY PATCH
-   ---------------------------------------------------------
-   One authoritative key is used everywhere:
-     - imported/analyzed song
-     - song header
-     - Library
-     - saved song
-     - reopened saved song
-
-   This patch intentionally does NOT change transpose logic.
-   ========================================================= */
-
+/* KEY CONSISTENCY PATCH - does not change transpose logic. */
 const KEY_NAMES=['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
-const KEY_PC={C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,F:5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11};
 
 function keyNormalize(k){
   const x=String(k||'').trim();
-  const aliases={A#:'Bb',D#:'Eb',Db:'C#',G#:'Ab',Gb:'F#'};
-  return aliases[x]|| (KEY_NAMES.includes(x)?x:'');
+  const aliases={'A#':'Bb','D#':'Eb','Db':'C#','G#':'Ab','Gb':'F#'};
+  return aliases[x] || (KEY_NAMES.includes(x)?x:'');
 }
 
 function getState(){
@@ -32,7 +19,9 @@ function getState(){
       title:window.eval('currentSongTitle'),
       artist:window.eval('currentArtist')
     };
-  }catch(e){return {base:{},arrangement:[],currentKey:'',title:'Imported Song',artist:'Unknown Artist'};}
+  }catch(e){
+    return {base:{},arrangement:[],currentKey:'',title:'Imported Song',artist:'Unknown Artist'};
+  }
 }
 
 function setCurrentKey(k){
@@ -57,9 +46,7 @@ function detectKeyFromBase(){
 function chooseKey(preferred){
   const p=keyNormalize(preferred);
   if(p)return p;
-  const detected=detectKeyFromBase();
-  if(detected)return detected;
-  return 'C';
+  return detectKeyFromBase() || 'C';
 }
 
 function setMeta(title,artist,key){
@@ -71,18 +58,13 @@ function setMeta(title,artist,key){
   }catch(e){}
   setCurrentKey(k);
   const ids={songTitle:t,songArtist:a,key:k,libraryTitle:t,libraryArtist:a+' • Key '+k};
-  Object.keys(ids).forEach(id=>{
-    const el=document.getElementById(id);
-    if(el)el.textContent=ids[id];
-  });
+  Object.keys(ids).forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=ids[id];});
   return k;
 }
 
 function syncUI(){
   const s=getState();
-  const k=chooseKey(s.currentKey);
-  setMeta(s.title,s.artist,k);
-  return k;
+  return setMeta(s.title,s.artist,chooseKey(s.currentKey));
 }
 
 function saveCurrentKeyToStorage(){
@@ -96,13 +78,12 @@ function saveCurrentKeyToStorage(){
   }catch(e){}
 }
 
-/* Saved-song Open: always restore the saved key BEFORE renderSong(). */
+/* Saved-song Open: restore key BEFORE renderSong, because renderSong reads currentKey. */
 window.__worshipOpenSaved=function(i){
   try{
     const list=JSON.parse(localStorage.getItem('worshipChordsSongs')||'[]');
     const s=list[i];
     if(!s)return;
-
     const sections=s.sections||{};
     const order=Array.isArray(s.arrangement)&&s.arrangement.length?s.arrangement:Object.keys(sections);
     const key=chooseKey(s.key);
@@ -118,7 +99,6 @@ window.__worshipOpenSaved=function(i){
 
     setMeta(title,artist,key);
     localStorage.setItem('worshipChordsCurrentSong',JSON.stringify(Object.assign({},s,{key:key,arrangement:order,sections:sections})));
-
     if(typeof window.renderSong==='function')window.renderSong();
     if(typeof window.showTab==='function')window.showTab('song');
     syncUI();
@@ -126,36 +106,33 @@ window.__worshipOpenSaved=function(i){
   }catch(e){console.error('Key consistency: open failed',e);}
 };
 
-/* Keep the app's ordinary Open button from changing the key. */
+/* Ordinary Open button: never assign a default key such as E. */
 window.openSong=function(){
   syncUI();
   if(typeof window.showTab==='function')window.showTab('song');
   syncUI();
 };
 
-/* Ensure save uses the same key shown on screen. */
+/* Save with the same key that the UI uses. */
 const originalSave=window.saveLocal;
 window.saveLocal=function(show){
-  const key=syncUI();
+  syncUI();
   saveCurrentKeyToStorage();
   if(typeof originalSave==='function')return originalSave(show);
 };
 
-/* The importer dispatches this event after AI/import analysis. The existing
-   song-manager handler runs first; this listener then repairs the key state
-   before the user sees the result. */
+/* Repair the state after the existing importer/song-manager listener finishes. */
 window.addEventListener('worshipchords:song-imported',function(){
   setTimeout(function(){
     const s=getState();
-    const detected=chooseKey(s.currentKey||detectKeyFromBase());
-    setMeta(s.title,s.artist,detected);
+    const key=chooseKey(s.currentKey||detectKeyFromBase());
+    setMeta(s.title,s.artist,key);
     saveCurrentKeyToStorage();
     if(typeof window.renderSong==='function')window.renderSong();
     syncUI();
   },0);
 });
 
-/* Initial repair after all existing modules have loaded. */
 function install(){
   syncUI();
   if(typeof window.__worshipRenderLibrary==='function')window.__worshipRenderLibrary();
