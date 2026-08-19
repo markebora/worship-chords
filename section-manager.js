@@ -8,16 +8,14 @@ function setSections(sections){
   window.eval('base='+JSON.stringify(sections)+'; transposeSource=JSON.parse(JSON.stringify(base)); arrangement=Object.keys(base);');
   try{window.renderSong();}catch(e){console.error(e);}
 }
-function uniqueName(name,sections){
-  let n=2, candidate=name+' Copy';
-  while(Object.prototype.hasOwnProperty.call(sections,candidate)) candidate=name+' Copy '+(n++);
-  return candidate;
-}
 function duplicateSection(name){
   const sections=getSections(), keys=Object.keys(sections), idx=keys.indexOf(name);
   if(idx<0)return;
-  const copy=uniqueName(name,sections), next={};
-  keys.forEach((k,i)=>{next[k]=sections[k];if(i===idx)next[copy]=JSON.parse(JSON.stringify(sections[k]));});
+  const next={};
+  keys.forEach((k,i)=>{
+    next[k]=sections[k];
+    if(i===idx)next[name]=JSON.parse(JSON.stringify(sections[k]));
+  });
   setSections(next);
 }
 function deleteSection(name){
