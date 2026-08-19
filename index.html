@@ -10,12 +10,12 @@
 <body>
 <iframe id="app" src="./app.html?v=20260819-1500"></iframe>
 <script>
-const VERSION='20260819-1500';
+const VERSION='20260819-1501';
 const frame=document.getElementById('app');
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js?v='+VERSION,{scope:'./'}).catch(()=>{});});}
 frame.addEventListener('load',()=>{
  const doc=frame.contentDocument;
- const scripts=['song-database.js','core-app.js','transpose-chord-bank.js','search-module.js','song-import.js','chord-families.js','song-manager.js','merge-songs.js','section-controls.js','key-consistency.js','analyzer-chord-fix.js','focused-chord-mode.js','analyzer-focused.js','analyzed-song-bridge.js','library-search-ui.js','app-navigation.js'];
+ const scripts=['google-drive-config.js','google-drive-auth.js','song-database.js','core-app.js','transpose-chord-bank.js','search-module.js','song-import.js','chord-families.js','song-manager.js','merge-songs.js','section-controls.js','key-consistency.js','analyzer-chord-fix.js','focused-chord-mode.js','analyzer-focused.js','analyzed-song-bridge.js','library-search-ui.js','app-navigation.js'];
  let i=0;function next(){if(i>=scripts.length)return;const s=doc.createElement('script');s.src='./'+scripts[i++]+'?v='+VERSION;s.onload=next;s.onerror=next;doc.body.appendChild(s);}next();
 });
 </script>
