@@ -1,4 +1,4 @@
-const VERSION='20260819-0942';
+const VERSION='20260819-0945';
 const CACHE='worship-chords-'+VERSION;
 const ASSETS=[
   './',
@@ -10,7 +10,8 @@ const ASSETS=[
   './chord-families.js?v='+VERSION,
   './song-manager.js?v='+VERSION,
   './section-controls.js?v='+VERSION,
-  './key-consistency.js?v='+VERSION
+  './key-consistency.js?v='+VERSION,
+  './analyzer-chord-fix.js?v='+VERSION
 ];
 
 self.addEventListener('install',event=>{
