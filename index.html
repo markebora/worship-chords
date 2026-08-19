@@ -4,18 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#090b0e">
-<title>Worship Chords</title>
-<style>html,body{margin:0;height:100%;background:#090b0e}iframe{width:100%;height:100%;border:0}.chordOnlyLine{display:block!important;margin:4px 0!important;padding:4px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}.chordOnlyLine{display:block!important;margin:4px 0!important;padding:3px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}.chordOnlyLine{display:block!important;margin:4px 0!important;padding:3px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}</style>
+<title>The Disciples</title>
+<style>html,body{margin:0;height:100%;background:#090b0e}iframe{width:100%;height:100%;border:0}.chordOnlyLine{display:block!important;margin:4px 0!important;padding:4px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}</style>
 </head>
 <body>
-<iframe id="app" src="./app.html?v=20260819-1240"></iframe>
+<iframe id="app" src="./app.html?v=20260819-1305"></iframe>
 <script>
-const VERSION='20260819-1240';
+const VERSION='20260819-1305';
 const frame=document.getElementById('app');
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js?v='+VERSION,{scope:'./'}).catch(()=>{});});}
 frame.addEventListener('load',()=>{
  const doc=frame.contentDocument;
- const scripts=['core-app.js','transpose-chord-bank.js','search-module.js','song-import.js','chord-families.js','song-manager.js','merge-songs.js','section-controls.js','key-consistency.js','analyzer-chord-fix.js','focused-chord-mode.js','analyzer-focused.js','analyzed-song-bridge.js','library-search-ui.js'];
+ const scripts=['core-app.js','transpose-chord-bank.js','search-module.js','song-import.js','chord-families.js','song-manager.js','merge-songs.js','section-controls.js','key-consistency.js','analyzer-chord-fix.js','focused-chord-mode.js','analyzer-focused.js','analyzed-song-bridge.js','library-search-ui.js','app-navigation.js'];
  let i=0;function next(){if(i>=scripts.length)return;const s=doc.createElement('script');s.src='./'+scripts[i++]+'?v='+VERSION;s.onload=next;s.onerror=next;doc.body.appendChild(s);}next();
 });
 </script>
