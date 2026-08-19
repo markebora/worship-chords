@@ -3,6 +3,31 @@
 
 const IMPORT_API='https://worship-chords-rho.vercel.app/api/import';
 
+function normalizeImportedSongText(text){
+ return String(text||'')
+  .replace(/&ndash;|&#8211;|&#x2013;/gi,'–')
+  .replace(/&mdash;|&#8212;|&#x2014;/gi,'—')
+  .split('\n')
+  .map(line=>normalizeChordSeparatorLine(line))
+  .join('\n');
+}
+
+function normalizeChordSeparatorLine(line){
+ const trimmed=line.trim();
+ if(!trimmed) return line;
+
+ const chordToken='[A-G](?:#|b)?(?:m|min|maj|dim|aug|sus|add)?\\d*(?:[#b]\\d+)?(?:/[A-G](?:#|b)?)?';
+ const chordRe=new RegExp('^'+chordToken+'$','i');
+ const separatorRe=/\\s*(?:-|–|—)\\s*/g;
+
+ if(!/(?:-|–|—)/.test(trimmed)) return line;
+ const parts=trimmed.split(separatorRe);
+ if(parts.length<2 || !parts.every(part=>chordRe.test(part.trim()))) return line;
+
+ const indent=line.match(/^\\s*/)?.[0]||'';
+ return indent+parts.map(part=>part.trim()).join('   ');
+}
+
 function install(){
  if(document.getElementById('song-import-panel')) return;
  const panel=document.createElement('section');
@@ -44,9 +69,10 @@ function install(){
    if(!response.ok) throw new Error(data.error||('Importer returned HTTP '+response.status));
    if(!data.text) throw new Error('The importer returned no readable song content.');
 
+   const normalizedText=normalizeImportedSongText(data.text);
    localStorage.setItem('worshipChordsSourceUrl',data.sourceUrl||url);
-   localStorage.setItem('worshipChordsImportedText',data.text);
-   content.value=data.text;
+   localStorage.setItem('worshipChordsImportedText',normalizedText);
+   content.value=normalizedText;
    wrap.style.display='block';
    status.textContent='✅ Song loaded successfully. The content is ready for AI analysis.';
    content.focus();
@@ -60,8 +86,9 @@ function install(){
  };
 
  document.getElementById('ug-analyze').onclick=function(){
-  const text=content.value.trim();
+  const text=normalizeImportedSongText(content.value.trim());
   if(!text){status.textContent='No song content is available to analyze.';return;}
+  content.value=text;
   localStorage.setItem('worshipChordsImportedText',text);
   window.dispatchEvent(new CustomEvent('worshipchords:song-imported',{
    detail:{sourceUrl:document.getElementById('ug-url').value.trim(),text:text}
