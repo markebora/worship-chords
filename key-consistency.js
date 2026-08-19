@@ -1,7 +1,17 @@
 (function(){
 'use strict';
 
-/* KEY CONSISTENCY PATCH - does not change transpose logic. */
+/* KEY CONSISTENCY PATCH
+   The displayed Key is derived from the actual chord shapes in the song,
+   NOT from a website's metadata / "Key of ..." label.
+
+   This is intentional for capo songs:
+     Ultimate Guitar: Key D, Capo 2
+     Chord shapes in the lyrics: C G Am F
+     App Key: C
+
+   The transpose engine works from the chord shapes shown in the app.
+*/
 const KEY_NAMES=['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
 
 function keyNormalize(k){
@@ -31,6 +41,7 @@ function setCurrentKey(k){
   return key;
 }
 
+/* Detect the key from the chords currently displayed in the song. */
 function detectKeyFromBase(){
   try{
     const b=getState().base;
@@ -43,10 +54,17 @@ function detectKeyFromBase(){
   return '';
 }
 
+/*
+   IMPORTANT:
+   Never prefer imported/page metadata here.
+   The chords are the source of truth for the app's displayed Key.
+*/
 function chooseKey(preferred){
+  const detected=detectKeyFromBase();
+  if(detected)return detected;
   const p=keyNormalize(preferred);
   if(p)return p;
-  return detectKeyFromBase() || 'C';
+  return 'C';
 }
 
 function setMeta(title,artist,key){
@@ -64,7 +82,10 @@ function setMeta(title,artist,key){
 
 function syncUI(){
   const s=getState();
-  return setMeta(s.title,s.artist,chooseKey(s.currentKey));
+  /* Re-detect from the current chord shapes every time the song is rendered. */
+  const detected=detectKeyFromBase();
+  const k=detected || keyNormalize(s.currentKey) || 'C';
+  return setMeta(s.title,s.artist,k);
 }
 
 function saveCurrentKeyToStorage(){
@@ -72,13 +93,14 @@ function saveCurrentKeyToStorage(){
     const raw=localStorage.getItem('worshipChordsCurrentSong');
     if(raw){
       const song=JSON.parse(raw);
-      song.key=chooseKey(song.key||getState().currentKey);
+      const detected=detectKeyFromBase();
+      song.key=detected || chooseKey(song.key||getState().currentKey);
       localStorage.setItem('worshipChordsCurrentSong',JSON.stringify(song));
     }
   }catch(e){}
 }
 
-/* Saved-song Open: restore key BEFORE renderSong, because renderSong reads currentKey. */
+/* Saved-song Open: restore chords first, then derive the Key from those chords. */
 window.__worshipOpenSaved=function(i){
   try{
     const list=JSON.parse(localStorage.getItem('worshipChordsSongs')||'[]');
@@ -86,9 +108,6 @@ window.__worshipOpenSaved=function(i){
     if(!s)return;
     const sections=s.sections||{};
     const order=Array.isArray(s.arrangement)&&s.arrangement.length?s.arrangement:Object.keys(sections);
-    const key=chooseKey(s.key);
-    const title=s.title||'Imported Song';
-    const artist=s.artist||'Unknown Artist';
 
     window.eval(
       'base='+JSON.stringify(sections)+';'+
@@ -96,6 +115,11 @@ window.__worshipOpenSaved=function(i){
       'arrangement='+JSON.stringify(order)+';'+
       'activeSection=arrangement[0]||\'Verse 1\';'
     );
+
+    /* Ignore s.key here. It may be the original website's key metadata. */
+    const key=detectKeyFromBase() || keyNormalize(s.key) || 'C';
+    const title=s.title||'Imported Song';
+    const artist=s.artist||'Unknown Artist';
 
     setMeta(title,artist,key);
     localStorage.setItem('worshipChordsCurrentSong',JSON.stringify(Object.assign({},s,{key:key,arrangement:order,sections:sections})));
@@ -106,14 +130,14 @@ window.__worshipOpenSaved=function(i){
   }catch(e){console.error('Key consistency: open failed',e);}
 };
 
-/* Ordinary Open button: never assign a default key such as E. */
+/* Ordinary Open button: derive the Key from the displayed chords. */
 window.openSong=function(){
   syncUI();
   if(typeof window.showTab==='function')window.showTab('song');
   syncUI();
 };
 
-/* Save with the same key that the UI uses. */
+/* Save with the same chord-derived key that the UI uses. */
 const originalSave=window.saveLocal;
 window.saveLocal=function(show){
   syncUI();
@@ -121,9 +145,7 @@ window.saveLocal=function(show){
   if(typeof originalSave==='function')return originalSave(show);
 };
 
-/* Repair the state after the existing importer/song-manager listener finishes.
-   For a NEW imported song we must detect from its chords first; currentKey may
-   still contain the previous song's key. */
+/* Repair the state after the existing importer/song-manager listener finishes. */
 window.addEventListener('worshipchords:song-imported',function(){
   setTimeout(function(){
     const s=getState();
