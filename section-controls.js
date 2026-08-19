@@ -1,0 +1,13 @@
+(function(){
+'use strict';
+const ZW='\u200B';
+function clean(n){return String(n||'').replace(/[\u200B-\u200D\uFEFF]/g,'');}
+function get(){try{return{base:JSON.parse(window.eval('JSON.stringify(base)')),arr:JSON.parse(window.eval('JSON.stringify(arrangement)'))};}catch(e){return{base:{},arr:[]};}}
+function put(base,arr,active){window.eval('base='+JSON.stringify(base)+'; transposeSource=JSON.parse(JSON.stringify(base)); arrangement='+JSON.stringify(arr)+'; activeSection='+JSON.stringify(active||arr[0]||'')+';');if(typeof window.renderSong==='function')window.renderSong();if(window.__worshipRenderLibrary)window.__worshipRenderLibrary();}
+function uniqueName(name,base){let n=String(name||'Section');if(!Object.prototype.hasOwnProperty.call(base,n))return n;let i=1;while(Object.prototype.hasOwnProperty.call(base,n+ZW.repeat(i)))i++;return n+ZW.repeat(i);}
+function duplicate(i){const d=get(),name=d.arr[i];if(name===undefined)return;const newName=uniqueName(clean(name),d.base);d.base[newName]=JSON.parse(JSON.stringify(d.base[name]||[]));d.arr.splice(i+1,0,newName);put(d.base,d.arr,newName);toast('Section duplicated');}
+function remove(i){const d=get(),name=d.arr[i];if(name===undefined)return;if(d.arr.length<=1){toast('A song must keep at least one section');return;}if(!confirm('Delete the entire '+clean(name)+' section, including its chords and lyrics?'))return;d.arr.splice(i,1);delete d.base[name];put(d.base,d.arr,d.arr[Math.min(i,d.arr.length-1)]);toast('Section deleted');}
+function enhance(){const tabs=document.getElementById('tabs');if(!tabs||!document.body.classList.contains('editMode'))return;tabs.querySelectorAll('button.editSectionBtn').forEach((b,i)=>{if(b.dataset.sectionControls)return;b.dataset.sectionControls='1';b.style.display='inline-flex';b.style.alignItems='center';b.style.gap='5px';const label=document.createElement('span');label.textContent=clean(b.textContent);b.textContent='';b.appendChild(label);const dup=document.createElement('span');dup.textContent='⧉';dup.title='Duplicate section';dup.style.cursor='pointer';dup.style.padding='2px 4px';dup.onclick=e=>{e.stopPropagation();duplicate(i);};const del=document.createElement('span');del.textContent='×';del.title='Delete section';del.style.cursor='pointer';del.style.padding='2px 4px';del.onclick=e=>{e.stopPropagation();remove(i);};b.append(dup,del);});}
+function install(){const original=window.renderSong;if(typeof original!=='function')return setTimeout(install,50);window.renderSong=function(){original.apply(this,arguments);setTimeout(enhance,0);};setTimeout(enhance,0);}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
+})();
