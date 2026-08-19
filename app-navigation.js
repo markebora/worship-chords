@@ -1,0 +1,27 @@
+(function(){'use strict';
+if(window.__worshipAppNavigationInstalled)return;window.__worshipAppNavigationInstalled=true;
+function install(){
+ const app=document.querySelector('.app');if(!app)return;
+ const songs=document.getElementById('songs'),setlists=document.getElementById('setlists'),song=document.getElementById('song');if(!songs||!setlists||!song)return;
+ const home=document.createElement('main');home.id='homePage';home.className='hidden';home.innerHTML='<div style="text-align:center;padding:42px 10px 24px"><div style="font-size:30px;font-weight:800">The Disciples</div><div style="color:#929ca6;margin-top:4px">Soli Deo Gloria</div><button id="homeSearchButton" type="button" class="btn primary" style="margin-top:34px;width:min(520px,100%);padding:16px;font-size:16px">⌕&nbsp; Search / Import Song</button><div style="color:#929ca6;font-size:12px;margin-top:10px">Search your saved songs or paste an Ultimate Guitar link.</div></div>';
+ const menu=document.createElement('main');menu.id='menuPage';menu.className='hidden';menu.innerHTML='<div style="padding:10px 0"><h1 style="margin:4px 0">Menu</h1><div class="card"><b>Settings</b><div class="muted" style="margin-top:5px">More app settings will be added here.</div></div></div>';
+ const library=document.createElement('main');library.id='libraryPage';library.className='hidden';
+ const libraryHead=document.createElement('div');libraryHead.innerHTML='<div class="row"><div><h1 style="margin:4px 0">Library</h1><div class="muted">Songs and Setlists</div></div></div><div id="libraryTypeNav" style="display:flex;gap:8px;margin:14px 0"><button id="librarySongsTab" class="btn active" type="button">Songs</button><button id="librarySetlistsTab" class="btn" type="button">Setlists</button></div>';
+ library.appendChild(libraryHead);library.appendChild(songs);library.appendChild(setlists);app.insertBefore(home,app.querySelector('#songs'));app.insertBefore(library,app.querySelector('#song'));app.appendChild(menu);
+ songs.classList.remove('hidden');setlists.classList.add('hidden');
+ const oldSongsHeader=songs.querySelector('.row');if(oldSongsHeader)oldSongsHeader.style.display='none';
+ const oldSetHeader=setlists.querySelector('.row');if(oldSetHeader)oldSetHeader.style.display='none';
+ const typeSongs=library.querySelector('#librarySongsTab'),typeSet=library.querySelector('#librarySetlistsTab');
+ function libraryMode(mode){songs.classList.toggle('hidden',mode!=='songs');setlists.classList.toggle('hidden',mode!=='setlists');typeSongs.classList.toggle('active',mode==='songs');typeSet.classList.toggle('active',mode==='setlists');}
+ typeSongs.onclick=()=>libraryMode('songs');typeSet.onclick=()=>libraryMode('setlists');
+ const bottom=document.createElement('nav');bottom.id='appBottomNav';bottom.innerHTML='<button type="button" data-page="home">🏠<span>Home</span></button><button type="button" data-page="library">📚<span>Library</span></button><button type="button" data-page="song">🎵<span>Lyrics</span></button><button type="button" data-page="menu">☰<span>Menu</span></button>';app.appendChild(bottom);
+ const style=document.createElement('style');style.textContent='#appBottomNav{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(920px,100%);height:64px;background:#151a20;border-top:1px solid #293039;display:flex;z-index:9998;padding-bottom:env(safe-area-inset-bottom)}#appBottomNav button{flex:1;border:0;background:none;color:#8f99a4;font-size:20px;padding:7px 3px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer}#appBottomNav button span{font-size:11px;font-weight:700}#appBottomNav button.active{color:#fff}body{padding-bottom:64px}.app{padding-bottom:10px}#homePage{min-height:calc(100vh - 150px)}#libraryPage> #songs,#libraryPage> #setlists{padding:0}#libraryPage .card{margin-top:8px}#libraryPage #songs>.card>b,#libraryPage #songs>.card>.item{display:none!important}#libraryPage #songs .row{display:none!important}#libraryPage #setlists .row{display:none!important}#libraryPage #setlists .card{margin-top:0}#song{padding-bottom:10px}';app.appendChild(style);
+ function activate(page){['home','library','song','menu'].forEach(p=>{const e=document.getElementById(p==='home'?'homePage':p==='library'?'libraryPage':p==='song'?'song':'menuPage');if(e)e.classList.toggle('hidden',p!==page);});bottom.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));const searchBtn=document.getElementById('librarySearchButton');if(searchBtn)searchBtn.style.display=page==='home'?'block':'none';if(page==='song'&&typeof window.renderSong==='function')window.renderSong();}
+ window.showTab=function(t){if(t==='songs'){activate('library');libraryMode('songs');}else if(t==='setlists'){activate('library');libraryMode('setlists');}else if(t==='song'){activate('song');}else if(t==='home'){activate('home');}else if(t==='library'){activate('library');libraryMode('songs');}else if(t==='menu'){activate('menu');}};
+ window.openSong=function(){window.showTab('song');};
+ bottom.querySelectorAll('button').forEach(b=>b.onclick=()=>window.showTab(b.dataset.page));
+ document.getElementById('homeSearchButton').onclick=()=>{const b=document.getElementById('librarySearchButton');if(b)b.click();};
+ activate('home');
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
+})();
