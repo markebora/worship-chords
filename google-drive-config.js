@@ -5,7 +5,7 @@
  * in this file or in frontend code.
  */
 window.DISCIPLES_GOOGLE_CONFIG = Object.freeze({
-  clientId: '',
+  clientId: '605989665660-ah099ttujlhgf2mdqamkodee8vpp2gng.apps.googleusercontent.com',
   driveScope: 'https://www.googleapis.com/auth/drive.file',
-  folderId: ''
+  folderId: '1nREvml4j0IzkS00JUymTVVKQwuwcJRlg'
 });
