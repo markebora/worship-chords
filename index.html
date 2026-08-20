@@ -1,34 +1,5194 @@
 <!doctype html>
 <html lang="en">
 <head>
+
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0b0b0c">
+
+<meta
+  name="viewport"
+  content="width=device-width,initial-scale=1,viewport-fit=cover"
+>
+
+<meta
+  name="theme-color"
+  content="#0b0b0c"
+>
+
 <title>Worship Chords</title>
+
+
 <style>
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#0b0b0c;color:#f7f7f7;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{display:flex;justify-content:center}button,input{font:inherit}.app{width:100%;max-width:920px;min-height:100vh;background:#111113;position:relative;padding-bottom:82px}.top{padding:24px 22px 0}.welcome{font-size:15px;color:#a7a7ad;font-weight:600}.hero{text-align:center;padding:58px 20px 80px}.hero h1{margin:0;font-size:42px;line-height:1.05;font-weight:800}.hero p{margin:10px 0 0;color:#a7a7ad;font-size:15px}.content{padding:0 22px}.placeholder{min-height:360px;display:flex;align-items:center;justify-content:center;color:#66666d;font-size:14px;text-align:center}.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(920px,100%);height:72px;background:rgba(22,22,24,.97);border-top:1px solid #2a2a2e;display:flex;z-index:20}.nav button{flex:1;border:0;background:none;color:#85858c;font:600 12px inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}.nav button.active{color:#fff}.icon{font-size:20px;line-height:1}.libraryHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}.libraryTitle{font-size:28px;font-weight:800}.searchBtn{width:44px;height:44px;border:1px solid #303036;border-radius:14px;background:#1a1a1d;color:#fff;display:grid;place-items:center;font-size:21px;cursor:pointer}.librarySection{margin:22px 0}.sectionLabel{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:#77777f;font-weight:800;margin-bottom:9px}.songCard{display:flex;align-items:center;gap:12px;padding:14px 15px;margin:8px 0;background:#18181b;border:1px solid #29292e;border-radius:14px}.songIcon{width:38px;height:38px;border-radius:10px;background:#232328;display:grid;place-items:center;font-size:18px}.songInfo{flex:1;min-width:0}.songName{font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.songMeta{font-size:12px;color:#777780;margin-top:3px}.songAction,.smallBtn{border:0;background:#29292e;color:#eee;border-radius:9px;padding:8px 10px;font-size:12px;font-weight:700;cursor:pointer}.smallBtn.primary,.goBtn{background:#fff;color:#111}.empty{padding:18px;border:1px dashed #303036;border-radius:14px;color:#707078;font-size:13px;text-align:center}.modalBack{position:fixed;inset:0;background:rgba(0,0,0,.68);z-index:50;display:none;align-items:flex-end;justify-content:center}.modal{width:min(920px,100%);max-height:88vh;overflow:auto;background:#151518;border:1px solid #2d2d32;border-radius:22px 22px 0 0;padding:20px}.modalTop{display:flex;align-items:center;gap:12px}.modalTop h2{margin:0;font-size:20px;flex:1}.closeBtn{border:0;background:#242429;color:#ddd;border-radius:10px;padding:9px 12px;cursor:pointer}.searchBox{display:flex;gap:8px;margin:16px 0 12px}.searchInput{flex:1;min-width:0;background:#0e0e10;border:1px solid #34343a;color:#fff;border-radius:12px;padding:13px 14px;outline:none}.goBtn{border:0;border-radius:12px;padding:0 16px;font-weight:800;cursor:pointer}.sourceTabs{display:flex;gap:8px;margin-bottom:14px}.sourceTabs button{flex:1;border:1px solid #303036;background:#1b1b1f;color:#9999a2;border-radius:10px;padding:10px;font-size:12px;font-weight:750;cursor:pointer}.sourceTabs button.active{background:#29292e;color:#fff;border-color:#44444b}.result{padding:13px 0;border-top:1px solid #29292e}.result:first-child{border-top:0}.resultTitle{font-weight:750}.resultMeta,.hint{font-size:12px;color:#777780;line-height:1.5;margin-top:5px}.resultActions{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}.driveStatus{padding:12px;background:#1a1a1d;border-radius:12px;color:#aaa;font-size:13px;line-height:1.5;margin-top:10px}
-.songPage{padding:0 0 30px}.songSticky{position:sticky;top:0;z-index:15;background:rgba(17,17,19,.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:4px 0 10px;border-bottom:1px solid #29292e}.songTop{display:flex;align-items:center;gap:10px;margin-bottom:12px}.backBtn{border:0;background:#25252a;color:#fff;border-radius:10px;padding:9px 12px;cursor:pointer}.songHeading{flex:1;min-width:0}.songHeading h1{margin:0;font-size:26px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.songHeading p{margin:5px 0 0;color:#85858c;font-size:13px}.partsLabel{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#777780;font-weight:800;margin:0 0 7px 2px}.lyricsParts{display:flex;gap:7px;overflow-x:auto;overflow-y:hidden;padding:0 1px 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.lyricsParts::-webkit-scrollbar{display:none}.partBtn{flex:0 0 auto;border:1px solid #303036;background:#1a1a1d;color:#d7d7dc;border-radius:999px;padding:8px 13px;font-size:12px;font-weight:750;cursor:pointer;white-space:nowrap}.partBtn.active{background:#fff;color:#111;border-color:#fff}.songToolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.toolbarBtn{border:1px solid #303036;background:#1a1a1d;color:#eee;border-radius:10px;padding:9px 11px;font-size:12px;font-weight:700;cursor:pointer}.lyricsView{background:#0e0e10;border:1px solid #29292e;border-radius:14px;padding:18px;white-space:pre-wrap;font:15px/1.75 ui-monospace,SFMono-Regular,Menlo,monospace;overflow:auto;min-height:300px}.lyricsLine{display:block;min-height:1.75em;scroll-margin-top:150px}.partHeading{color:#fff;font-weight:800}.songSource{margin-top:10px;font-size:12px;color:#777780}.songSource a{color:#bbb}.chordOnlyLine{display:block!important;margin:4px 0!important;padding:3px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}
-@media(max-width:600px){.content{padding:0 14px}.songHeading h1{font-size:22px}.songSticky{margin:0 -1px;padding-left:1px;padding-right:1px}.partBtn{padding:8px 12px}.lyricsView{padding:14px;font-size:14px}.toolbarBtn{padding:9px 10px}}
-.chordOnlyLine{display:block!important;margin:4px 0!important;padding:3px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}</style>
+
+/* =========================================================
+   GLOBAL
+========================================================= */
+
+*{
+  box-sizing:border-box;
+}
+
+html,
+body{
+  margin:0;
+  min-height:100%;
+
+  background:#0b0b0c;
+  color:#f7f7f7;
+
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+body{
+  display:flex;
+  justify-content:center;
+}
+
+button,
+input,
+textarea{
+  font:inherit;
+}
+
+button{
+  -webkit-tap-highlight-color:transparent;
+}
+
+.app{
+  width:100%;
+  max-width:920px;
+  min-height:100vh;
+
+  background:#111113;
+
+  position:relative;
+
+  padding-bottom:110px;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.top{
+  padding:24px 22px 0;
+}
+
+.welcome{
+  font-size:15px;
+  color:#a7a7ad;
+  font-weight:600;
+}
+
+.hero{
+  text-align:center;
+  padding:42px 20px 48px;
+}
+
+.hero h1{
+  margin:0;
+
+  font-size:42px;
+  line-height:1.05;
+
+  font-weight:800;
+}
+
+.hero p{
+  margin:10px 0 0;
+
+  color:#a7a7ad;
+  font-size:15px;
+}
+
+
+/* =========================================================
+   MAIN
+========================================================= */
+
+.content{
+  padding:0 22px;
+}
+
+.placeholder{
+  min-height:280px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  color:#66666d;
+
+  font-size:14px;
+  text-align:center;
+}
+
+
+/* =========================================================
+   COMMON BUTTONS
+========================================================= */
+
+.toolbarBtn,
+.smallBtn,
+.editorBtn,
+.backBtn,
+.goBtn,
+.searchBtn,
+.closeBtn{
+  cursor:pointer;
+}
+
+.toolbarBtn{
+  border:1px solid #303036;
+
+  background:#1a1a1d;
+
+  color:#eee;
+
+  border-radius:10px;
+
+  padding:9px 11px;
+
+  font-size:12px;
+  font-weight:700;
+}
+
+.toolbarBtn:hover{
+  background:#222226;
+}
+
+.toolbarBtn.primary{
+  background:#fff;
+  color:#111;
+}
+
+
+/* =========================================================
+   FLOATING NAVIGATION
+========================================================= */
+
+.nav{
+  position:fixed;
+
+  bottom:12px;
+  left:50%;
+
+  transform:translateX(-50%);
+
+  width:calc(100% - 24px);
+  max-width:620px;
+
+  height:70px;
+
+  padding:5px;
+
+  display:flex;
+  align-items:center;
+
+  gap:4px;
+
+  z-index:100;
+
+  background:rgba(0,0,0,.48);
+
+  border:1px solid rgba(255,255,255,.12);
+
+  border-radius:22px;
+
+  backdrop-filter:blur(24px);
+  -webkit-backdrop-filter:blur(24px);
+
+  box-shadow:
+    0 12px 40px rgba(0,0,0,.60),
+    inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.nav button{
+  flex:1;
+
+  min-width:0;
+
+  height:58px;
+
+  border:0;
+  border-radius:17px;
+
+  background:transparent;
+
+  color:rgba(255,255,255,.38);
+
+  font:600 11px inherit;
+
+  cursor:pointer;
+
+  display:flex;
+  flex-direction:column;
+
+  align-items:center;
+  justify-content:center;
+
+  gap:4px;
+
+  transition:
+    background .25s ease,
+    color .25s ease,
+    transform .2s ease,
+    box-shadow .25s ease;
+}
+
+.nav button[data-screen="lyrics"]{
+  flex:1.35;
+
+  background:rgba(255,255,255,.055);
+
+  border:1px solid rgba(255,255,255,.07);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+.nav button.active{
+  color:#fff;
+
+  background:rgba(255,255,255,.06);
+
+  border:1px solid rgba(255,255,255,.09);
+
+  box-shadow:
+    0 0 14px rgba(255,255,255,.12),
+    inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.nav button[data-screen="lyrics"].active{
+  background:rgba(255,255,255,.08);
+
+  border:1px solid rgba(255,255,255,.12);
+
+  box-shadow:
+    0 0 8px rgba(255,255,255,.25),
+    0 0 20px rgba(255,255,255,.12),
+    inset 0 1px 0 rgba(255,255,255,.10);
+}
+
+.nav .icon{
+  width:25px;
+  height:25px;
+
+  display:flex;
+
+  align-items:center;
+  justify-content:center;
+
+  color:currentColor;
+
+  filter:
+    drop-shadow(0 0 3px rgba(255,255,255,.30))
+    drop-shadow(0 0 7px rgba(255,255,255,.12));
+}
+
+.nav .icon svg{
+  width:20px;
+  height:20px;
+
+  fill:none;
+
+  stroke:currentColor;
+
+  stroke-width:1.8;
+
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+.nav button.active .icon{
+  color:#fff;
+
+  filter:
+    drop-shadow(0 0 4px rgba(255,255,255,1))
+    drop-shadow(0 0 9px rgba(255,255,255,.75))
+    drop-shadow(0 0 18px rgba(255,255,255,.35));
+
+  transform:translateY(-1px);
+}
+
+.nav button.active .icon svg{
+  stroke-width:2;
+}
+
+.nav button[data-screen="lyrics"] .icon svg{
+  width:24px;
+  height:24px;
+}
+
+.nav button[data-screen="lyrics"] span:last-child{
+  font-size:12px;
+  font-weight:800;
+}
+
+.nav button:active{
+  transform:scale(.94);
+}
+
+
+/* =========================================================
+   HOME
+========================================================= */
+
+.homePage{
+  padding-bottom:30px;
+}
+
+.homeActions{
+  display:grid;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+
+  gap:10px;
+}
+
+.homeCard{
+  padding:18px;
+
+  border:1px solid #29292e;
+
+  border-radius:15px;
+
+  background:#18181b;
+
+  cursor:pointer;
+
+  transition:
+    transform .15s ease,
+    background .2s ease;
+}
+
+.homeCard:active{
+  transform:scale(.98);
+}
+
+.homeCardIcon{
+  font-size:24px;
+  margin-bottom:10px;
+}
+
+.homeCardTitle{
+  font-size:15px;
+  font-weight:800;
+}
+
+.homeCardText{
+  margin-top:5px;
+
+  color:#777780;
+
+  font-size:12px;
+
+  line-height:1.5;
+}
+
+
+/* =========================================================
+   LYRICS WORKSPACE
+========================================================= */
+
+.lyricsWorkspace{
+  padding:4px 0 30px;
+}
+
+.lyricsWorkspaceHead{
+  display:flex;
+
+  align-items:center;
+  justify-content:space-between;
+
+  gap:12px;
+
+  margin-bottom:18px;
+}
+
+.lyricsWorkspaceTitle{
+  font-size:28px;
+  font-weight:800;
+}
+
+.lyricsWorkspaceSub{
+  margin-top:4px;
+
+  color:#85858c;
+
+  font-size:12px;
+}
+
+.lyricsActions{
+  display:grid;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+
+  gap:10px;
+
+  margin-bottom:18px;
+}
+
+.lyricsAction{
+  border:1px solid #303036;
+
+  background:#18181b;
+
+  color:#fff;
+
+  border-radius:14px;
+
+  padding:15px;
+
+  text-align:left;
+
+  cursor:pointer;
+}
+
+.lyricsAction:hover{
+  background:#202024;
+}
+
+.lyricsActionIcon{
+  font-size:20px;
+}
+
+.lyricsActionTitle{
+  margin-top:7px;
+
+  font-size:13px;
+  font-weight:800;
+}
+
+.lyricsActionSub{
+  margin-top:3px;
+
+  color:#777780;
+
+  font-size:11px;
+}
+
+.recentTitle{
+  margin:20px 0 9px;
+
+  color:#777780;
+
+  font-size:11px;
+
+  text-transform:uppercase;
+
+  letter-spacing:.09em;
+
+  font-weight:800;
+}
+
+
+/* =========================================================
+   LIBRARY
+========================================================= */
+
+.libraryHead{
+  display:flex;
+
+  align-items:center;
+  justify-content:space-between;
+
+  margin-bottom:18px;
+}
+
+.libraryTitle{
+  font-size:28px;
+  font-weight:800;
+}
+
+.searchBtn{
+  width:44px;
+  height:44px;
+
+  border:1px solid #303036;
+
+  border-radius:14px;
+
+  background:#1a1a1d;
+
+  color:#fff;
+
+  display:grid;
+  place-items:center;
+
+  font-size:21px;
+}
+
+.librarySection{
+  margin:22px 0;
+}
+
+.sectionLabel{
+  font-size:12px;
+
+  text-transform:uppercase;
+
+  letter-spacing:.09em;
+
+  color:#77777f;
+
+  font-weight:800;
+
+  margin-bottom:9px;
+}
+
+.songCard{
+  display:flex;
+
+  align-items:center;
+
+  gap:12px;
+
+  padding:14px 15px;
+
+  margin:8px 0;
+
+  background:#18181b;
+
+  border:1px solid #29292e;
+
+  border-radius:14px;
+
+  transition:
+    background .2s ease,
+    transform .15s ease;
+}
+
+.songCard:active{
+  transform:scale(.985);
+
+  background:#1d1d21;
+}
+
+.songIcon{
+  width:38px;
+  height:38px;
+
+  flex-shrink:0;
+
+  border-radius:10px;
+
+  background:#232328;
+
+  display:grid;
+  place-items:center;
+
+  font-size:18px;
+}
+
+.songInfo{
+  flex:1;
+
+  min-width:0;
+}
+
+.songName{
+  font-weight:750;
+
+  white-space:nowrap;
+
+  overflow:hidden;
+
+  text-overflow:ellipsis;
+}
+
+.songMeta{
+  font-size:12px;
+
+  color:#777780;
+
+  margin-top:3px;
+}
+
+.empty{
+  padding:18px;
+
+  border:1px dashed #303036;
+
+  border-radius:14px;
+
+  color:#707078;
+
+  font-size:13px;
+
+  text-align:center;
+}
+
+
+/* =========================================================
+   SEARCH MODAL
+========================================================= */
+
+.modalBack{
+  position:fixed;
+
+  inset:0;
+
+  background:rgba(0,0,0,.68);
+
+  z-index:500;
+
+  display:none;
+
+  align-items:flex-end;
+
+  justify-content:center;
+}
+
+.modal{
+  width:min(920px,100%);
+
+  max-height:88vh;
+
+  overflow:auto;
+
+  background:#151518;
+
+  border:1px solid #2d2d32;
+
+  border-radius:22px 22px 0 0;
+
+  padding:20px;
+}
+
+.modalTop{
+  display:flex;
+
+  align-items:center;
+
+  gap:12px;
+}
+
+.modalTop h2{
+  margin:0;
+
+  font-size:20px;
+
+  flex:1;
+}
+
+.closeBtn{
+  border:0;
+
+  background:#242429;
+
+  color:#ddd;
+
+  border-radius:10px;
+
+  padding:9px 12px;
+}
+
+.searchBox{
+  display:flex;
+
+  gap:8px;
+
+  margin:16px 0 12px;
+}
+
+.searchInput{
+  flex:1;
+
+  min-width:0;
+
+  background:#0e0e10;
+
+  border:1px solid #34343a;
+
+  color:#fff;
+
+  border-radius:12px;
+
+  padding:13px 14px;
+
+  outline:none;
+}
+
+.goBtn{
+  border:0;
+
+  border-radius:12px;
+
+  padding:0 16px;
+
+  background:#fff;
+
+  color:#111;
+
+  font-weight:800;
+}
+
+.sourceTabs{
+  display:flex;
+
+  gap:8px;
+
+  margin-bottom:14px;
+}
+
+.sourceTabs button{
+  flex:1;
+
+  border:1px solid #303036;
+
+  background:#1b1b1f;
+
+  color:#9999a2;
+
+  border-radius:10px;
+
+  padding:10px;
+
+  font-size:12px;
+
+  font-weight:750;
+
+  cursor:pointer;
+}
+
+.sourceTabs button.active{
+  background:#29292e;
+
+  color:#fff;
+
+  border-color:#44444b;
+}
+
+.result{
+  padding:13px 0;
+
+  border-top:1px solid #29292e;
+}
+
+.result:first-child{
+  border-top:0;
+}
+
+.resultTitle{
+  font-weight:750;
+}
+
+.resultMeta,
+.hint{
+  font-size:12px;
+
+  color:#777780;
+
+  line-height:1.5;
+
+  margin-top:5px;
+}
+
+.resultActions{
+  display:flex;
+
+  gap:7px;
+
+  margin-top:9px;
+
+  flex-wrap:wrap;
+}
+
+.driveStatus{
+  padding:12px;
+
+  background:#1a1a1d;
+
+  border-radius:12px;
+
+  color:#aaa;
+
+  font-size:13px;
+
+  line-height:1.5;
+
+  margin-top:10px;
+}
+
+
+/* =========================================================
+   SONG VIEWER
+========================================================= */
+
+.songPage{
+  padding:4px 0 30px;
+}
+
+.songTop{
+  display:flex;
+
+  align-items:center;
+
+  gap:10px;
+
+  margin-bottom:18px;
+}
+
+.backBtn{
+  border:0;
+
+  background:#25252a;
+
+  color:#fff;
+
+  border-radius:10px;
+
+  padding:9px 12px;
+}
+
+.songHeading{
+  flex:1;
+
+  min-width:0;
+}
+
+.songHeading h1{
+  margin:0;
+
+  font-size:26px;
+
+  line-height:1.15;
+}
+
+.songHeading p{
+  margin:5px 0 0;
+
+  color:#85858c;
+
+  font-size:13px;
+}
+
+.songToolbar{
+  display:flex;
+
+  gap:8px;
+
+  flex-wrap:wrap;
+
+  margin-bottom:14px;
+}
+
+
+/* =========================================================
+   COMPACT LYRICS VIEW
+========================================================= */
+
+.lyricsView{
+  background:#0e0e10;
+
+  border:1px solid #29292e;
+
+  border-radius:14px;
+
+  padding:14px 8px;
+
+  overflow:auto;
+
+  min-height:300px;
+
+  text-align:left;
+
+  font:
+    15px/1.15
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+
+
+/* =========================================================
+   STRUCTURED SONG DISPLAY
+========================================================= */
+
+.songStructure{
+  display:flex;
+
+  flex-direction:column;
+
+  gap:6px;
+}
+
+.songSection{
+  border-bottom:1px solid #25252a;
+
+  padding-bottom:6px;
+}
+
+.songSection:last-child{
+  border-bottom:0;
+}
+
+.songSectionName{
+  margin-bottom:4px;
+
+  color:#72b7ff;
+
+  font-size:12px;
+
+  text-transform:uppercase;
+
+  letter-spacing:.08em;
+
+  font-weight:800;
+}
+
+.songLine{
+  margin:0;
+
+  padding:0;
+
+  white-space:pre-wrap;
+
+  font:inherit;
+
+  line-height:1.15;
+}
+
+.chordLine{
+  color:#72b7ff;
+
+  font-weight:800;
+
+  min-height:0;
+
+  margin:0;
+
+  padding:0;
+
+  line-height:1.05;
+
+  white-space:pre-wrap;
+}
+
+.lyricLine{
+  color:#f1f1f1;
+
+  min-height:0;
+
+  margin:0;
+
+  padding:0;
+
+  line-height:1.15;
+}
+
+.chordToken{
+  color:#72b7ff;
+
+  font-weight:900;
+}
+
+
+/* =========================================================
+   ANALYZER
+========================================================= */
+
+.analyzerPage{
+  padding:4px 0 30px;
+}
+
+.analyzerTitle{
+  font-size:28px;
+
+  font-weight:800;
+
+  margin-bottom:6px;
+}
+
+.analyzerSub{
+  font-size:13px;
+
+  color:#85858c;
+
+  margin-bottom:18px;
+}
+
+.analyzerInput{
+  width:100%;
+
+  min-height:280px;
+
+  background:#0e0e10;
+
+  border:1px solid #303036;
+
+  color:#fff;
+
+  border-radius:14px;
+
+  padding:16px;
+
+  resize:vertical;
+
+  outline:none;
+
+  line-height:1.6;
+}
+
+.analyzerActions{
+  display:flex;
+
+  gap:8px;
+
+  flex-wrap:wrap;
+
+  margin:12px 0;
+}
+
+.analyzerStatus{
+  padding:12px;
+
+  border-radius:12px;
+
+  background:#1a1a1d;
+
+  color:#aaa;
+
+  font-size:13px;
+
+  margin:10px 0;
+
+  display:none;
+}
+
+.analysisResult{
+  background:#0e0e10;
+
+  border:1px solid #29292e;
+
+  border-radius:14px;
+
+  padding:16px;
+
+  margin-top:14px;
+}
+
+.analysisResult h3{
+  margin:0 0 12px;
+
+  font-size:18px;
+}
+
+.sectionCard{
+  border-top:1px solid #29292e;
+
+  padding:12px 0;
+}
+
+.sectionCard:first-child{
+  border-top:0;
+}
+
+.sectionName{
+  font-size:12px;
+
+  color:#72b7ff;
+
+  font-weight:800;
+
+  text-transform:uppercase;
+
+  letter-spacing:.08em;
+
+  margin-bottom:7px;
+}
+
+.sectionText{
+  white-space:pre-wrap;
+
+  font:
+    14px/1.7
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+
+.detectedChord{
+  color:#72b7ff;
+
+  font-weight:800;
+}
+
+
+/* =========================================================
+   EDITOR
+========================================================= */
+
+.editorPage{
+  padding:4px 0 30px;
+}
+
+.editorActions{
+  display:flex;
+
+  gap:8px;
+
+  flex-wrap:wrap;
+
+  margin-bottom:14px;
+}
+
+.editorSections{
+  display:flex;
+
+  flex-direction:column;
+
+  gap:10px;
+}
+
+.editorSection{
+  background:#171719;
+
+  border:1px solid #2d2d32;
+
+  border-radius:15px;
+
+  overflow:hidden;
+}
+
+.editorSectionHead{
+  display:flex;
+
+  align-items:center;
+
+  gap:8px;
+
+  padding:10px;
+
+  background:#1d1d20;
+
+  border-bottom:1px solid #29292e;
+}
+
+.sectionType{
+  flex:1;
+
+  min-width:0;
+
+  background:#101012;
+
+  color:#fff;
+
+  border:1px solid #34343a;
+
+  border-radius:9px;
+
+  padding:8px 9px;
+
+  font-size:12px;
+
+  font-weight:800;
+
+  outline:none;
+}
+
+.sectionTools{
+  display:flex;
+
+  gap:5px;
+}
+
+.sectionTool{
+  width:34px;
+  height:34px;
+
+  border:0;
+
+  border-radius:9px;
+
+  background:#29292e;
+
+  color:#ddd;
+
+  cursor:pointer;
+}
+
+.sectionTool.delete{
+  color:#ff8b8b;
+}
+
+.editorTextarea{
+  width:100%;
+
+  min-height:150px;
+
+  display:block;
+
+  resize:vertical;
+
+  border:0;
+
+  outline:none;
+
+  background:#0e0e10;
+
+  color:#fff;
+
+  padding:14px;
+
+  font:
+    14px/1.7
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+
+.addSectionArea{
+  margin-top:12px;
+
+  display:flex;
+
+  gap:8px;
+}
+
+.addSectionSelect{
+  flex:1;
+
+  min-width:0;
+
+  background:#1a1a1d;
+
+  color:#fff;
+
+  border:1px solid #303036;
+
+  border-radius:10px;
+
+  padding:10px;
+
+  font-size:12px;
+
+  font-weight:700;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media(max-width:480px){
+
+  .app{
+    padding-bottom:100px;
+  }
+
+  .hero{
+    padding:
+      35px
+      16px
+      38px;
+  }
+
+  .hero h1{
+    font-size:36px;
+  }
+
+  .content{
+    padding:0 16px;
+  }
+
+  .nav{
+    bottom:10px;
+
+    width:calc(100% - 18px);
+
+    height:68px;
+
+    border-radius:22px;
+
+    padding:6px;
+  }
+
+  .nav button{
+    height:54px;
+
+    border-radius:17px;
+
+    gap:3px;
+  }
+
+  .nav button[data-screen="lyrics"]{
+    flex:2;
+  }
+
+  .nav .icon{
+    width:25px;
+    height:25px;
+  }
+
+  .nav button[data-screen="lyrics"] .icon{
+    width:29px;
+    height:29px;
+  }
+
+  .lyricsActions,
+  .homeActions{
+    grid-template-columns:1fr;
+  }
+
+  .songHeading h1{
+    font-size:22px;
+  }
+
+  .toolbarBtn{
+    padding:9px 10px;
+  }
+
+  /* Extra compact lyrics on phones */
+
+  .lyricsView{
+    padding:
+      12px
+      6px;
+
+    font-size:14px;
+  }
+
+  .songStructure{
+    gap:5px;
+  }
+
+  .songSection{
+    padding-bottom:5px;
+  }
+
+  .songSectionName{
+    margin-bottom:3px;
+  }
+
+  .songLine{
+    line-height:1.1;
+  }
+
+  .chordLine{
+    line-height:1;
+  }
+
+  .lyricLine{
+    line-height:1.1;
+  }
+
+}
+
+@media(max-width:360px){
+
+  .nav{
+    width:calc(100% - 12px);
+  }
+
+  .nav button{
+    font-size:10px;
+  }
+
+  .nav button[data-screen="lyrics"] span:last-child{
+    font-size:11px;
+  }
+
+}
+
+
+/* =========================================================
+   END CSS
+========================================================= */
+
+</style>
+
 </head>
+
+
 <body>
-<div class="app"><div class="top"><div class="welcome">Welcome!</div></div><section class="hero"><h1>Disciples</h1><p>Soli Deo Gloria</p></section><main class="content" id="screen"><div class="placeholder">Your songs and tools will appear here.</div></main><nav class="nav" aria-label="Main navigation"><button class="active" data-screen="home"><span class="icon">⌂</span><span>Home</span></button><button data-screen="library"><span class="icon">▱</span><span>Library</span></button><button data-screen="lyrics"><span class="icon">♫</span><span>Lyrics</span></button><button data-screen="menu"><span class="icon">☰</span><span>Menu</span></button></nav></div>
-<div class="modalBack" id="searchModal"><div class="modal" role="dialog" aria-modal="true"><div class="modalTop"><h2>Search Library</h2><button class="closeBtn" id="closeSearch">Close</button></div><div class="searchBox"><input class="searchInput" id="libraryQuery" placeholder="Search song title..." autocomplete="off"><button class="goBtn" id="runSearch">Search</button></div><div class="sourceTabs"><button class="active" data-source="all">All</button><button data-source="drive">Google Drive</button><button data-source="ug">Ultimate Guitar</button></div><div id="searchResults"></div></div></div>
+
+<div class="app">
+
+
+  <!-- =====================================================
+       HEADER
+  ====================================================== -->
+
+  <div class="top">
+
+    <div class="welcome">
+      Welcome!
+    </div>
+
+  </div>
+
+
+  <section class="hero">
+
+    <h1>
+      Disciples
+    </h1>
+
+    <p>
+      Soli Deo Gloria
+    </p>
+
+  </section>
+
+
+  <!-- =====================================================
+       MAIN SCREEN
+  ====================================================== -->
+
+  <main
+    class="content"
+    id="screen"
+  ></main>
+
+
+  <!-- =====================================================
+       FLOATING NAV
+  ====================================================== -->
+
+  <nav
+    class="nav"
+    aria-label="Main navigation"
+  >
+
+
+    <button
+      data-screen="lyrics"
+    >
+
+      <span class="icon">
+
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+
+          <path d="M9 18V5l10-2v13"/>
+
+          <circle
+            cx="6"
+            cy="18"
+            r="3"
+          />
+
+          <circle
+            cx="16"
+            cy="16"
+            r="3"
+          />
+
+        </svg>
+
+      </span>
+
+      <span>
+        Lyrics
+      </span>
+
+    </button>
+
+
+    <button
+      class="active"
+      data-screen="home"
+    >
+
+      <span class="icon">
+
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+
+          <path d="M3 10.5 12 3l9 7.5"/>
+
+          <path d="M5.5 9.5V21h13V9.5"/>
+
+          <path d="M9.5 21v-6h5v6"/>
+
+        </svg>
+
+      </span>
+
+      <span>
+        Home
+      </span>
+
+    </button>
+
+
+    <button
+      data-screen="library"
+    >
+
+      <span class="icon">
+
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+
+          <rect
+            x="4"
+            y="4"
+            width="16"
+            height="16"
+            rx="4"
+          />
+
+          <path d="M8 10h8"/>
+
+          <path d="M8 14h8"/>
+
+        </svg>
+
+      </span>
+
+      <span>
+        Library
+      </span>
+
+    </button>
+
+
+    <button
+      data-screen="menu"
+    >
+
+      <span class="icon">
+
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+
+          <path d="M5 7h14"/>
+
+          <path d="M5 12h14"/>
+
+          <path d="M5 17h14"/>
+
+        </svg>
+
+      </span>
+
+      <span>
+        Menu
+      </span>
+
+    </button>
+
+  </nav>
+
+</div>
+
+
+<!-- =======================================================
+     SEARCH MODAL
+======================================================== -->
+
+<div
+  class="modalBack"
+  id="searchModal"
+>
+
+  <div
+    class="modal"
+    role="dialog"
+    aria-modal="true"
+  >
+
+    <div class="modalTop">
+
+      <h2>
+        Search Library
+      </h2>
+
+      <button
+        class="closeBtn"
+        id="closeSearch"
+      >
+        Close
+      </button>
+
+    </div>
+
+
+    <div class="searchBox">
+
+      <input
+        class="searchInput"
+        id="libraryQuery"
+        placeholder="Search song title..."
+        autocomplete="off"
+      >
+
+      <button
+        class="goBtn"
+        id="runSearch"
+      >
+        Search
+      </button>
+
+    </div>
+
+
+    <div class="sourceTabs">
+
+      <button
+        class="active"
+        data-source="all"
+      >
+        All
+      </button>
+
+      <button
+        data-source="drive"
+      >
+        Google Drive
+      </button>
+
+      <button
+        data-source="ug"
+      >
+        Ultimate Guitar
+      </button>
+
+    </div>
+
+
+    <div id="searchResults"></div>
+
+  </div>
+
+</div>
+
+
 <script>
-const screen=document.getElementById('screen'),modal=document.getElementById('searchModal'),query=document.getElementById('libraryQuery');let source='all';let currentSong=null;
-const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-function getSongs(){try{return JSON.parse(localStorage.getItem('worshipChordsSongs')||'[]')}catch{return[]}}
-function saveSong(title,text,url){const a=getSongs(),item={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),title:title||'Untitled Song',text:text||'',sourceUrl:url||'',savedAt:new Date().toISOString(),kind:'analyzed'};a.unshift(item);localStorage.setItem('worshipChordsSongs',JSON.stringify(a.slice(0,200)));return item}
-function detectParts(text){const defs=[['Intro','intro'],['Verse','verse'],['Chorus','chorus'],['Pre-Chorus','pre[- ]?chorus'],['Bridge','bridge'],['Interlude','interlude'],['Instrumental','instrumental'],['Outro','outro'],['Ending','ending']];const found=[];for(const [label,pattern] of defs){const re=new RegExp('^\\s*(?:\\[?'+pattern+'\\]?)(?:\\s*\\d+)?\\s*:?[\\s-]*$','i');if(String(text||'').split(/\\r?\\n/).some(line=>re.test(line))){found.push({label,pattern})}}return found.length?found:[{label:'All Lyrics',pattern:'(?:.)'}]}
-function renderLyrics(text){return String(text||'No lyrics/chords saved yet.').split(/\r?\n/).map((line,i)=>{const trimmed=line.trim();const heading=/^(?:\[?)(intro|verse|chorus|pre[- ]?chorus|bridge|interlude|instrumental|outro|ending)(?:\]?)(?:\s*\d+)?\s*:?[\s-]*$/i.test(trimmed);return `<span class="lyricsLine ${heading?'partHeading':''}" data-line="${i}">${esc(line)||' '}</span>`}).join('')}
-function scrollToPart(label){const lines=[...document.querySelectorAll('.lyricsLine')];if(label==='All Lyrics'){document.getElementById('lyricsText')?.scrollIntoView({behavior:'smooth',block:'start'});return}const safe=label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/pre-chorus/i,'pre[- ]?chorus');const re=new RegExp('^\\s*\\[?'+safe+'\\]?\\s*\\d*\\s*:?[\\s-]*$','i');const target=lines.find(x=>re.test(x.textContent||''));if(target){target.scrollIntoView({behavior:'smooth',block:'start'});document.querySelectorAll('.partBtn').forEach(b=>b.classList.toggle('active',b.textContent===label))}}
-function openSong(song){currentSong=song;modal.style.display='none';const parts=detectParts(song.text||'');screen.innerHTML=`<div class="songPage"><div class="songSticky"><div class="songTop"><button class="backBtn" id="backToLibrary">← Library</button><div class="songHeading"><h1>${esc(song.title||'Untitled Song')}</h1><p>Lyrics & Chords</p></div></div><div class="partsLabel">Lyrics Parts</div><div class="lyricsParts" id="lyricsParts">${parts.map(p=>`<button class="partBtn" data-part="${esc(p.label)}">${esc(p.label)}</button>`).join('')}</div></div><div class="songToolbar"><button class="toolbarBtn" id="transposeBtn">Transpose</button><button class="toolbarBtn" id="fontMinus">A−</button><button class="toolbarBtn" id="fontPlus">A+</button><button class="toolbarBtn" id="editBtn">Edit Song</button><button class="toolbarBtn" id="saveBtn">Save</button></div><div class="lyricsView" id="lyricsText">${renderLyrics(song.text)}</div>${song.sourceUrl?`<div class="songSource">Source: <a href="${esc(song.sourceUrl)}" target="_blank" rel="noopener">${esc(song.sourceUrl)}</a></div>`:''}</div>`;document.getElementById('backToLibrary').onclick=renderLibrary;document.querySelectorAll('.partBtn').forEach(b=>b.onclick=()=>scrollToPart(b.dataset.part));let size=15;document.getElementById('fontMinus').onclick=()=>{size=Math.max(11,size-1);document.getElementById('lyricsText').style.fontSize=size+'px'};document.getElementById('fontPlus').onclick=()=>{size=Math.min(30,size+1);document.getElementById('lyricsText').style.fontSize=size+'px'};document.getElementById('editBtn').onclick=editCurrentSong;document.getElementById('saveBtn').onclick=()=>{if(currentSong){const list=getSongs().map(x=>x.id===currentSong.id?currentSong:x);localStorage.setItem('worshipChordsSongs',JSON.stringify(list));alert('Song saved.')}};document.getElementById('transposeBtn').onclick=()=>alert('Transpose is ready to connect to the existing chord engine next.')}
-function editCurrentSong(){if(!currentSong)return;const next=prompt('Edit lyrics and chords:',currentSong.text||'');if(next===null)return;currentSong.text=next;const list=getSongs().map(x=>x.id===currentSong.id?currentSong:x);localStorage.setItem('worshipChordsSongs',JSON.stringify(list));openSong(currentSong)}
-function renderLibrary(){const list=getSongs();screen.innerHTML=`<div class="libraryHead"><div class="libraryTitle">Library</div><button class="searchBtn" id="openSearch" aria-label="Search library">⌕</button></div><div class="librarySection"><div class="sectionLabel">Saved & Analyzed Songs</div>${list.length?list.map(s=>`<div class="songCard"><div class="songIcon">♫</div><div class="songInfo"><div class="songName">${esc(s.title)}</div><div class="songMeta">Analyzed${s.savedAt?' · '+new Date(s.savedAt).toLocaleDateString():''}</div></div><button class="songAction" data-id="${esc(s.id)}">Open</button></div>`).join(''):'<div class="empty">No saved songs yet.<br>Analyzed songs will appear here.</div>'}</div><div class="librarySection"><div class="sectionLabel">Sources</div><div class="songCard"><div class="songIcon">G</div><div class="songInfo"><div class="songName">Google Drive</div><div class="songMeta">Search your saved song files</div></div><button class="songAction" id="driveSearch">Search</button></div><div class="songCard"><div class="songIcon">UG</div><div class="songInfo"><div class="songName">Ultimate Guitar</div><div class="songMeta">Search and load chord pages</div></div><button class="songAction" id="ugSearch">Search</button></div></div>`;document.getElementById('openSearch').onclick=()=>openSearch('all');document.getElementById('driveSearch').onclick=()=>openSearch('drive');document.getElementById('ugSearch').onclick=()=>openSearch('ug');screen.querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>{const s=list.find(x=>x.id===b.dataset.id);if(s)openSong(s)})}
-function openSearch(s){source=s||'all';modal.style.display='flex';document.querySelectorAll('.sourceTabs button').forEach(b=>b.classList.toggle('active',b.dataset.source===source));query.focus();renderResults()}
-function renderResults(){const q=query.value.trim().toLowerCase(),list=getSongs().filter(s=>!q||String(s.title+' '+s.text).toLowerCase().includes(q));let html='';if(source==='all'||source==='drive')html+=`<div class="result"><div class="resultTitle">Google Drive</div><div class="resultMeta">${list.length?'Saved songs matching your search':'No matching saved songs'}</div>${list.map(s=>`<div class="resultActions"><button class="smallBtn primary" data-open="${esc(s.id)}">Open ${esc(s.title)}</button></div>`).join('')}<div class="driveStatus">🔐 Google Drive UI is ready. Private Drive search will be connected with Google OAuth next.</div></div>`;if(source==='all'||source==='ug')html+=`<div class="result"><div class="resultTitle">Ultimate Guitar</div><div class="resultMeta">${q?'Search for “'+esc(q)+'”':'Search by song title'}</div><div class="resultActions"><button class="smallBtn primary" id="ugSearchWeb">Search Ultimate Guitar</button></div><div class="hint">Or paste a direct Ultimate Guitar chord-page URL to load it into Worship Chords.</div><div class="searchBox"><input class="searchInput" id="ugUrl" placeholder="https://tabs.ultimate-guitar.com/..."><button class="goBtn" id="ugLoad">Load</button></div><div id="ugResult"></div></div>`;document.getElementById('searchResults').innerHTML=html||'<div class="empty">No results.</div>';document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{const s=getSongs().find(x=>x.id===b.dataset.open);if(s)openSong(s)});const web=document.getElementById('ugSearchWeb');if(web)web.onclick=()=>window.open('https://www.ultimate-guitar.com/search.php?search_type=title&value='+encodeURIComponent(query.value.trim()),'_blank','noopener');const load=document.getElementById('ugLoad');if(load)load.onclick=loadUG}
-async function loadUG(){const input=document.getElementById('ugUrl'),box=document.getElementById('ugResult'),url=(input?.value||'').trim();if(!url)return;try{const u=new URL(url);if(!u.hostname.endsWith('ultimate-guitar.com'))throw new Error('Please use an Ultimate Guitar URL.')}catch(e){box.innerHTML='<div class="hint">'+esc(e.message)+'</div>';return}box.innerHTML='<div class="hint">⏳ Loading song...</div>';try{const r=await fetch('/api/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})}),data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||`Importer returned HTTP ${r.status}`);const raw=(url.split('/').pop()||'Ultimate Guitar Song').replace(/[-_]/g,' '),title=raw.replace(/\b\w/g,c=>c.toUpperCase()),song=saveSong(title,data.text||'',data.sourceUrl||url);localStorage.setItem('worshipChordsSourceUrl',data.sourceUrl||url);localStorage.setItem('worshipChordsImportedText',data.text||'');box.innerHTML='<div class="hint">✅ Song loaded and saved to Library.</div><div class="resultActions"><button class="smallBtn primary" id="openLoaded">Open Lyrics Page</button></div>';document.getElementById('openLoaded').onclick=()=>openSong(song)}catch(e){box.innerHTML='<div class="hint">⚠️ '+esc(e.message||'Importer failed.')+'</div>'}}
-query.addEventListener('input',renderResults);document.getElementById('runSearch').onclick=renderResults;document.getElementById('closeSearch').onclick=()=>modal.style.display='none';modal.addEventListener('click',e=>{if(e.target===modal)modal.style.display='none'});document.querySelectorAll('.sourceTabs button').forEach(b=>b.onclick=()=>openSearch(b.dataset.source));document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');const n=b.dataset.screen;if(n==='library')renderLibrary();else if(n==='lyrics'){const list=getSongs();if(list[0])openSong(list[0]);else screen.innerHTML='<div class="placeholder">No song is loaded yet.</div>'}else screen.innerHTML='<div class="placeholder">'+n.charAt(0).toUpperCase()+n.slice(1)+' screen — ready to connect.</div>'}));
+
+/* =========================================================
+   GLOBAL VARIABLES
+========================================================= */
+
+const screen =
+  document.getElementById('screen');
+
+const modal =
+  document.getElementById('searchModal');
+
+const query =
+  document.getElementById('libraryQuery');
+
+let source = 'all';
+
+let currentSong = null;
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+function setActiveNav(name){
+
+  document
+    .querySelectorAll('.nav button')
+    .forEach(button => {
+
+      button.classList.toggle(
+        'active',
+        button.dataset.screen === name
+      );
+
+    });
+
+}
+
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function esc(value){
+
+  return String(value ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+
+}
+
+
+/* =========================================================
+   STORAGE
+========================================================= */
+
+function getSongs(){
+
+  try{
+
+    return JSON.parse(
+      localStorage.getItem(
+        'worshipChordsSongs'
+      ) || '[]'
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    return [];
+
+  }
+
+}
+
+
+function writeSongs(songs){
+
+  localStorage.setItem(
+    'worshipChordsSongs',
+    JSON.stringify(songs)
+  );
+
+}
+
+
+function saveSong(
+  title,
+  text,
+  url='',
+  analysis=null
+){
+
+  const songs =
+    getSongs();
+
+  const item = {
+
+    id:
+      window.crypto &&
+      crypto.randomUUID
+        ? crypto.randomUUID()
+        : String(
+            Date.now() +
+            Math.random()
+          ),
+
+    title:
+      title ||
+      'Untitled Song',
+
+    text:
+      text || '',
+
+    originalText:
+      text || '',
+
+    sourceUrl:
+      url || '',
+
+    savedAt:
+      new Date().toISOString(),
+
+    kind:
+      'analyzed',
+
+    analysis:
+      analysis || null,
+
+    transposeSteps:
+      0,
+
+    fontSize:
+      15
+
+  };
+
+
+  songs.unshift(item);
+
+
+  writeSongs(
+    songs.slice(0,200)
+  );
+
+
+  return item;
+
+}
+
+
+/* =========================================================
+   HOME
+========================================================= */
+
+function renderHome(){
+
+  setActiveNav('home');
+
+
+  screen.innerHTML = `
+
+    <div class="homePage">
+
+      <div class="homeActions">
+
+        <div
+          class="homeCard"
+          id="homeLyrics"
+        >
+
+          <div class="homeCardIcon">
+            🎵
+          </div>
+
+          <div class="homeCardTitle">
+            Lyrics
+          </div>
+
+          <div class="homeCardText">
+            Search, import, analyze and view worship songs.
+          </div>
+
+        </div>
+
+
+        <div
+          class="homeCard"
+          id="homeLibrary"
+        >
+
+          <div class="homeCardIcon">
+            📚
+          </div>
+
+          <div class="homeCardTitle">
+            Library
+          </div>
+
+          <div class="homeCardText">
+            Open your saved songs.
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  `;
+
+
+  document
+    .getElementById('homeLyrics')
+    .onclick =
+      renderLyrics;
+
+
+  document
+    .getElementById('homeLibrary')
+    .onclick =
+      renderLibrary;
+
+}
+
+
+/* =========================================================
+   REAL LYRICS WORKSPACE
+========================================================= */
+
+function renderLyrics(){
+
+  setActiveNav('lyrics');
+
+
+  const songs =
+    getSongs();
+
+
+  screen.innerHTML = `
+
+    <div class="lyricsWorkspace">
+
+      <div class="lyricsWorkspaceHead">
+
+        <div>
+
+          <div class="lyricsWorkspaceTitle">
+            Lyrics
+          </div>
+
+          <div class="lyricsWorkspaceSub">
+            Search, import, analyze and manage songs
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="lyricsActions">
+
+
+        <button
+          class="lyricsAction"
+          id="lyricsSearch"
+        >
+
+          <div class="lyricsActionIcon">
+            🔍
+          </div>
+
+          <div class="lyricsActionTitle">
+            Search Song
+          </div>
+
+          <div class="lyricsActionSub">
+            Search your library or Ultimate Guitar
+          </div>
+
+        </button>
+
+
+        <button
+          class="lyricsAction"
+          id="lyricsImport"
+        >
+
+          <div class="lyricsActionIcon">
+            📥
+          </div>
+
+          <div class="lyricsActionTitle">
+            Import Song
+          </div>
+
+          <div class="lyricsActionSub">
+            Load an Ultimate Guitar chord page
+          </div>
+
+        </button>
+
+
+        <button
+          class="lyricsAction"
+          id="lyricsAnalyze"
+        >
+
+          <div class="lyricsActionIcon">
+            ✨
+          </div>
+
+          <div class="lyricsActionTitle">
+            Analyze Song
+          </div>
+
+          <div class="lyricsActionSub">
+            Detect sections, lyrics and chords
+          </div>
+
+        </button>
+
+
+        <button
+          class="lyricsAction"
+          id="lyricsLibrary"
+        >
+
+          <div class="lyricsActionIcon">
+            📚
+          </div>
+
+          <div class="lyricsActionTitle">
+            Open Library
+          </div>
+
+          <div class="lyricsActionSub">
+            View all saved songs
+          </div>
+
+        </button>
+
+      </div>
+
+
+      <div class="recentTitle">
+        Recent Songs
+      </div>
+
+
+      ${
+        songs.length
+
+        ? songs
+            .slice(0,5)
+            .map(song => `
+
+              <div
+                class="songCard"
+                data-lyrics-song="${esc(song.id)}"
+                style="cursor:pointer;"
+              >
+
+                <div class="songIcon">
+                  ♫
+                </div>
+
+                <div class="songInfo">
+
+                  <div class="songName">
+                    ${esc(song.title)}
+                  </div>
+
+                  <div class="songMeta">
+                    ${
+                      song.analysis
+                        ? 'Analyzed'
+                        : 'Imported'
+                    }
+                    ${
+                      song.savedAt
+                        ? ' · ' +
+                          new Date(
+                            song.savedAt
+                          ).toLocaleDateString()
+                        : ''
+                    }
+                  </div>
+
+                </div>
+
+              </div>
+
+            `)
+            .join('')
+
+        : `
+
+          <div class="empty">
+
+            No songs saved yet.<br>
+            Search or import a song to get started.
+
+          </div>
+
+        `
+      }
+
+    </div>
+
+  `;
+
+
+  document
+    .getElementById('lyricsSearch')
+    .onclick =
+      () => openSearch('all');
+
+
+  document
+    .getElementById('lyricsImport')
+    .onclick =
+      () => openSearch('ug');
+
+
+  document
+    .getElementById('lyricsAnalyze')
+    .onclick =
+      () => renderAnalyzer('');
+
+
+  document
+    .getElementById('lyricsLibrary')
+    .onclick =
+      renderLibrary;
+
+
+  screen
+    .querySelectorAll(
+      '[data-lyrics-song]'
+    )
+    .forEach(card => {
+
+      card.onclick = () => {
+
+        const song =
+          getSongs().find(
+            item =>
+              item.id ===
+              card.dataset.lyricsSong
+          );
+
+        if(song){
+
+          openSong(song);
+
+        }
+
+      };
+
+    });
+
+}
+
+
+/* =========================================================
+   SONG SECTION PARSER
+========================================================= */
+
+function parseSections(text){
+
+  const lines =
+    String(text || '')
+      .split(/\r?\n/);
+
+
+  const sections = [];
+
+
+  let current = {
+
+    name:'Song',
+
+    lines:[]
+
+  };
+
+
+  const sectionPattern =
+    /^\s*(intro|verse(?:\s*\d+)?|pre[- ]?chorus|chorus|refrain|bridge|interlude|instrumental|outro|ending|tag|hook|solo)(?:\s*\d+)?\s*:?\s*$/i;
+
+
+  lines.forEach(line => {
+
+    const clean =
+      line.trim();
+
+
+    const match =
+      clean.match(
+        sectionPattern
+      );
+
+
+    if(match){
+
+      if(
+        current.lines.length ||
+        current.name !== 'Song'
+      ){
+
+        sections.push(
+          current
+        );
+
+      }
+
+
+      current = {
+
+        name:
+          clean.replace(
+            /:$/,
+            ''
+          ),
+
+        lines:[]
+
+      };
+
+    }else{
+
+      current.lines.push(
+        line
+      );
+
+    }
+
+  });
+
+
+  if(
+    current.lines.length ||
+    !sections.length
+  ){
+
+    sections.push(
+      current
+    );
+
+  }
+
+
+  return sections;
+
+}
+
+
+/* =========================================================
+   CHORD ENGINE
+========================================================= */
+
+const CHORD_TOKEN_REGEX =
+  /^[A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add)?(?:[0-9]+)?(?:[#b][0-9]+)?(?:\/[A-G](?:#|b)?)?$/;
+
+
+function isChordToken(token){
+
+  if(!token){
+
+    return false;
+
+  }
+
+
+  const clean =
+    token
+      .replace(
+        /^[\[\(\{<]+|[\]\)\}>.,;:!?]+$/g,
+        ''
+      );
+
+
+  if(
+    !CHORD_TOKEN_REGEX.test(
+      clean
+    )
+  ){
+
+    return false;
+
+  }
+
+
+  return true;
+
+}
+
+
+function findChords(line){
+
+  const matches = [];
+
+
+  const tokenRegex =
+    /(?:^|\s)([A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add)?(?:[0-9]+)?(?:[#b][0-9]+)?(?:\/[A-G](?:#|b)?)?)(?=\s|$)/g;
+
+
+  let match;
+
+
+  while(
+    (match =
+      tokenRegex.exec(line))
+  ){
+
+    const chord =
+      match[1];
+
+
+    if(
+      isChordToken(chord)
+    ){
+
+      matches.push(
+        chord
+      );
+
+    }
+
+  }
+
+
+  return [
+    ...new Set(matches)
+  ];
+
+}
+
+
+function isChordOnlyLine(line){
+
+  const clean =
+    String(line || '')
+      .trim();
+
+
+  if(!clean){
+
+    return false;
+
+  }
+
+
+  const tokens =
+    clean.split(/\s+/);
+
+
+  if(!tokens.length){
+
+    return false;
+
+  }
+
+
+  return tokens.every(
+    isChordToken
+  );
+
+}
+
+
+/* =========================================================
+   ANALYZER
+========================================================= */
+
+function analyzeFocusedSong(text){
+
+  const sections =
+    parseSections(text);
+
+
+  const analyzedSections =
+    sections.map(section => {
+
+      const lines =
+        section.lines.map(line => {
+
+          const chords =
+            findChords(line);
+
+
+          return {
+
+            text:line,
+
+            chords
+
+          };
+
+        });
+
+
+      return {
+
+        name:
+          section.name,
+
+        lines,
+
+        chords:[
+          ...new Set(
+            lines.flatMap(
+              line =>
+                line.chords
+            )
+          )
+
+        ]
+
+      };
+
+    });
+
+
+  return {
+
+    rawText:text,
+
+    sections:
+      analyzedSections,
+
+    chords:[
+      ...new Set(
+        analyzedSections.flatMap(
+          section =>
+            section.chords
+        )
+      )
+
+    ]
+
+  };
+
+}
+
+
+/* =========================================================
+   RENDER ANALYSIS
+========================================================= */
+
+function formatAnalysisLine(line){
+
+  if(
+    isChordOnlyLine(
+      line.text
+    )
+  ){
+
+    return `
+      <div class="chordLine">
+        ${esc(line.text)}
+      </div>
+    `;
+
+  }
+
+
+  let html =
+    esc(line.text);
+
+
+  line.chords
+    .forEach(chord => {
+
+      const safe =
+        esc(chord);
+
+
+      html =
+        html.replace(
+          new RegExp(
+            `(^|\\s)(${escapeRegExp(chord)})(?=\\s|$)`,
+            'g'
+          ),
+          `$1<span class="detectedChord">$2</span>`
+        );
+
+    });
+
+
+  return `
+    <div class="lyricLine">
+      ${html || '&nbsp;'}
+    </div>
+  `;
+
+}
+
+
+function escapeRegExp(value){
+
+  return String(value)
+    .replace(
+      /[.*+?^${}()|[\]\\]/g,
+      '\\$&'
+    );
+
+}
+
+
+function renderAnalysisResult(
+  analysis
+){
+
+  const result =
+    document.getElementById(
+      'analysisResult'
+    );
+
+
+  if(!result){
+
+    return;
+
+  }
+
+
+  result.innerHTML = `
+
+    <div class="analysisResult">
+
+      <h3>
+        Detected Song Structure
+      </h3>
+
+
+      ${
+        analysis.sections.length
+
+        ? analysis.sections
+            .map(section => `
+
+              <div class="sectionCard">
+
+                <div class="sectionName">
+                  ${esc(section.name)}
+                </div>
+
+                <div class="sectionText">
+
+                  ${
+                    section.lines
+                      .map(
+                        formatAnalysisLine
+                      )
+                      .join('')
+                  }
+
+                </div>
+
+
+                ${
+                  section.chords.length
+
+                  ? `
+
+                    <div class="hint">
+
+                      Chords:
+                      ${section.chords
+                        .map(esc)
+                        .join(' · ')}
+
+                    </div>
+
+                  `
+
+                  : ''
+
+                }
+
+              </div>
+
+            `)
+            .join('')
+
+        : `
+
+          <div class="empty">
+            No sections detected yet.
+          </div>
+
+        `
+      }
+
+
+      <div class="analyzerActions">
+
+        <button
+          class="toolbarBtn primary"
+          id="saveAnalysisBtn"
+        >
+          Save Analyzed Song
+        </button>
+
+        <button
+          class="toolbarBtn"
+          id="openAnalysisBtn"
+        >
+          Open Lyrics
+        </button>
+
+      </div>
+
+    </div>
+
+  `;
+
+
+  document
+    .getElementById(
+      'saveAnalysisBtn'
+    )
+    .onclick = () => {
+
+      const title =
+        prompt(
+          'Song title:',
+          'Analyzed Song'
+        );
+
+
+      if(!title){
+
+        return;
+
+      }
+
+
+      const song =
+        saveSong(
+          title,
+          analysis.rawText,
+          '',
+          analysis
+        );
+
+
+      currentSong =
+        song;
+
+
+      alert(
+        'Analyzed song saved to Library.'
+      );
+
+
+      openSong(song);
+
+    };
+
+
+  document
+    .getElementById(
+      'openAnalysisBtn'
+    )
+    .onclick = () => {
+
+      const title =
+        prompt(
+          'Song title:',
+          'Analyzed Song'
+        );
+
+
+      if(!title){
+
+        return;
+
+      }
+
+
+      const song = {
+
+        id:
+          'preview-' +
+          Date.now(),
+
+        title,
+
+        text:
+          analysis.rawText,
+
+        originalText:
+          analysis.rawText,
+
+        sourceUrl:'',
+
+        analysis,
+
+        transposeSteps:0,
+
+        fontSize:15
+
+      };
+
+
+      openSong(song);
+
+    };
+
+}
+
+
+/* =========================================================
+   ANALYZER PAGE
+========================================================= */
+
+function renderAnalyzer(
+  prefill=''
+){
+
+  setActiveNav('lyrics');
+
+
+  screen.innerHTML = `
+
+    <div class="analyzerPage">
+
+      <div class="songTop">
+
+        <button
+          class="backBtn"
+          id="backAnalyzer"
+        >
+          ← Lyrics
+        </button>
+
+        <div class="songHeading">
+
+          <h1>
+            Analyze Song
+          </h1>
+
+          <p>
+            Detect sections, lyrics and chords
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <textarea
+        class="analyzerInput"
+        id="songText"
+        placeholder="Paste lyrics and chords here..."
+      >${esc(prefill)}</textarea>
+
+
+      <div class="analyzerActions">
+
+        <button
+          class="toolbarBtn primary"
+          id="analyzeBtn"
+        >
+          Analyze Song
+        </button>
+
+        <button
+          class="toolbarBtn"
+          id="clearAnalyzer"
+        >
+          Clear
+        </button>
+
+      </div>
+
+
+      <div
+        class="analyzerStatus"
+        id="analysisStatus"
+      ></div>
+
+
+      <div
+        id="analysisResult"
+      ></div>
+
+    </div>
+
+  `;
+
+
+  document
+    .getElementById(
+      'backAnalyzer'
+    )
+    .onclick =
+      renderLyrics;
+
+
+  document
+    .getElementById(
+      'clearAnalyzer'
+    )
+    .onclick = () => {
+
+      document
+        .getElementById(
+          'songText'
+        )
+        .value = '';
+
+
+      document
+        .getElementById(
+          'analysisResult'
+        )
+        .innerHTML = '';
+
+
+      document
+        .getElementById(
+          'analysisStatus'
+        )
+        .style.display =
+          'none';
+
+    };
+
+
+  document
+    .getElementById(
+      'analyzeBtn'
+    )
+    .onclick =
+      runAnalyzer;
+
+}
+
+
+function runAnalyzer(){
+
+  const input =
+    document.getElementById(
+      'songText'
+    );
+
+
+  const result =
+    document.getElementById(
+      'analysisResult'
+    );
+
+
+  const status =
+    document.getElementById(
+      'analysisStatus'
+    );
+
+
+  const text =
+    (
+      input?.value ||
+      ''
+    ).trim();
+
+
+  if(!text){
+
+    status.style.display =
+      'block';
+
+    status.textContent =
+      'Paste the song lyrics and chords first.';
+
+    return;
+
+  }
+
+
+  status.style.display =
+    'block';
+
+
+  status.textContent =
+    'Analyzing song...';
+
+
+  try{
+
+    const analysis =
+      analyzeFocusedSong(
+        text
+      );
+
+
+    renderAnalysisResult(
+      analysis
+    );
+
+
+    status.textContent =
+      'Analysis complete. Sections and chord lines detected.';
+
+  }catch(error){
+
+    console.error(error);
+
+    status.textContent =
+      'Analyzer error: ' +
+      (
+        error.message ||
+        'Unknown error.'
+      );
+
+  }
+
+}
+
+
+/* =========================================================
+   TRANSPOSE ENGINE
+========================================================= */
+
+const chromatic = [
+
+  'C',
+  'C#',
+  'D',
+  'D#',
+  'E',
+  'F',
+  'F#',
+  'G',
+  'G#',
+  'A',
+  'A#',
+  'B'
+
+];
+
+
+const flatToSharp = {
+
+  Db:'C#',
+  Eb:'D#',
+  Gb:'F#',
+  Ab:'G#',
+  Bb:'A#'
+
+};
+
+
+function normalizeNote(note){
+
+  return (
+    flatToSharp[note] ||
+    note
+  );
+
+}
+
+
+function transposeNote(
+  note,
+  amount
+){
+
+  const normalized =
+    normalizeNote(note);
+
+
+  const index =
+    chromatic.indexOf(
+      normalized
+    );
+
+
+  if(index === -1){
+
+    return note;
+
+  }
+
+
+  const newIndex =
+    (
+      (index + amount) % 12 +
+      12
+    ) % 12;
+
+
+  return chromatic[newIndex];
+
+}
+
+
+function transposeChord(
+  chord,
+  amount
+){
+
+  const slashParts =
+    chord.split('/');
+
+
+  let mainChord =
+    slashParts[0];
+
+
+  let bassNote =
+    slashParts[1];
+
+
+  const match =
+    mainChord.match(
+      /^([A-G](?:#|b)?)(.*)$/
+    );
+
+
+  if(!match){
+
+    return chord;
+
+  }
+
+
+  const root =
+    match[1];
+
+
+  const suffix =
+    match[2];
+
+
+  const newRoot =
+    transposeNote(
+      root,
+      amount
+    );
+
+
+  let result =
+    newRoot +
+    suffix;
+
+
+  if(bassNote){
+
+    bassNote =
+      transposeNote(
+        bassNote,
+        amount
+      );
+
+
+    result +=
+      '/' +
+      bassNote;
+
+  }
+
+
+  return result;
+
+}
+
+
+function transposeText(
+  text,
+  amount
+){
+
+  if(!amount){
+
+    return text;
+
+  }
+
+
+  const regex =
+    /(^|\s)([A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add)?(?:[0-9]+)?(?:[#b][0-9]+)?(?:\/[A-G](?:#|b)?)?)(?=\s|$)/gm;
+
+
+  return text.replace(
+    regex,
+    (
+      full,
+      prefix,
+      chord
+    ) => {
+
+      if(
+        !isChordToken(chord)
+      ){
+
+        return full;
+
+      }
+
+
+      return (
+        prefix +
+        transposeChord(
+          chord,
+          amount
+        )
+      );
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   SONG VIEWER
+========================================================= */
+
+function openSong(song){
+
+  currentSong =
+    song;
+
+
+  modal.style.display =
+    'none';
+
+
+  setActiveNav('lyrics');
+
+
+  if(
+    !currentSong.originalText
+  ){
+
+    currentSong.originalText =
+      currentSong.text || '';
+
+  }
+
+
+  if(
+    typeof currentSong.transposeSteps !==
+    'number'
+  ){
+
+    currentSong.transposeSteps =
+      0;
+
+  }
+
+
+  if(
+    typeof currentSong.fontSize !==
+    'number'
+  ){
+
+    currentSong.fontSize =
+      15;
+
+  }
+
+
+  renderSongViewer();
+
+}
+
+
+function renderSongViewer(){
+
+  const song =
+    currentSong;
+
+
+  const amount =
+    song.transposeSteps || 0;
+
+
+  const displayedText =
+    transposeText(
+      song.originalText || song.text || '',
+      amount
+    );
+
+
+  song.text =
+    displayedText;
+
+
+  const sections =
+    parseSections(
+      displayedText
+    );
+
+
+  screen.innerHTML = `
+
+    <div class="songPage">
+
+
+      <div class="songTop">
+
+        <button
+          class="backBtn"
+          id="backToLyrics"
+        >
+          ← Lyrics
+        </button>
+
+
+        <div class="songHeading">
+
+          <h1>
+            ${esc(song.title || 'Untitled Song')}
+          </h1>
+
+          <p>
+            Lyrics & Chords
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <div class="songToolbar">
+
+
+        <button
+          class="toolbarBtn"
+          id="transposeDown"
+        >
+          −
+        </button>
+
+
+        <button
+          class="toolbarBtn"
+          id="transposeReset"
+        >
+          Transpose:
+          ${
+            amount > 0
+              ? '+'
+              : ''
+          }${amount}
+        </button>
+
+
+        <button
+          class="toolbarBtn"
+          id="transposeUp"
+        >
+          +
+        </button>
+
+
+        <button
+          class="toolbarBtn"
+          id="fontMinus"
+        >
+          A−
+        </button>
+
+
+        <button
+          class="toolbarBtn"
+          id="fontPlus"
+        >
+          A+
+        </button>
+
+
+        <button
+          class="toolbarBtn"
+          id="editBtn"
+        >
+          Edit Song
+        </button>
+
+
+        <button
+          class="toolbarBtn primary"
+          id="saveBtn"
+        >
+          Save
+        </button>
+
+
+      </div>
+
+
+      <div
+        class="lyricsView"
+        id="lyricsText"
+        style="font-size:${song.fontSize}px;"
+      >
+
+        <div class="songStructure">
+
+  ${
+  sections
+    .map(section => `
+
+      <div class="songSection">
+
+        <div class="songSectionName">
+          ${esc(section.name)}
+        </div>
+
+        ${
+          section.lines
+            .filter(line => line.trim() !== '')
+            .map(line => {
+
+              if(
+                isChordOnlyLine(line)
+              ){
+
+                return `
+<div class="songLine chordLine">${esc(line)}</div>
+`;
+
+              }
+
+              return `
+<div class="songLine lyricLine">${formatViewerLine(line)}</div>
+`;
+
+            })
+            .join('')
+        }
+
+      </div>
+
+    `)
+    .join('')
+}
+
+        </div>
+
+      </div>
+
+
+    </div>
+
+  `;
+
+
+  document
+    .getElementById(
+      'backToLyrics'
+    )
+    .onclick =
+      renderLyrics;
+
+
+  document
+    .getElementById(
+      'transposeDown'
+    )
+    .onclick = () => {
+
+      song.transposeSteps--;
+
+      renderSongViewer();
+
+    };
+
+
+  document
+    .getElementById(
+      'transposeUp'
+    )
+    .onclick = () => {
+
+      song.transposeSteps++;
+
+      renderSongViewer();
+
+    };
+
+
+  document
+    .getElementById(
+      'transposeReset'
+    )
+    .onclick = () => {
+
+      song.transposeSteps =
+        0;
+
+      renderSongViewer();
+
+    };
+
+
+  document
+    .getElementById(
+      'fontMinus'
+    )
+    .onclick = () => {
+
+      song.fontSize =
+        Math.max(
+          11,
+          song.fontSize - 1
+        );
+
+
+      renderSongViewer();
+
+    };
+
+
+  document
+    .getElementById(
+      'fontPlus'
+    )
+    .onclick = () => {
+
+      song.fontSize =
+        Math.min(
+          30,
+          song.fontSize + 1
+        );
+
+
+      renderSongViewer();
+
+    };
+
+
+  document
+    .getElementById(
+      'editBtn'
+    )
+    .onclick =
+      editCurrentSong;
+
+
+  document
+    .getElementById(
+      'saveBtn'
+    )
+    .onclick =
+      saveCurrentSong;
+
+}
+
+
+function formatViewerLine(
+  line
+){
+
+  let html =
+    esc(line);
+
+
+  const chordRegex =
+    /(^|\s)([A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add)?(?:[0-9]+)?(?:[#b][0-9]+)?(?:\/[A-G](?:#|b)?)?)(?=\s|$)/g;
+
+
+  html =
+    html.replace(
+      chordRegex,
+      (
+        prefix,
+        chord
+      ) => {
+
+        return (
+          prefix +
+          '<span class="chordToken">' +
+          chord +
+          '</span>'
+        );
+
+      }
+    );
+
+
+  return html || '&nbsp;';
+
+}
+
+
+/* =========================================================
+   SAVE CURRENT SONG
+========================================================= */
+
+function saveCurrentSong(){
+
+  if(!currentSong){
+
+    return;
+
+  }
+
+
+  const songs =
+    getSongs();
+
+
+  const index =
+    songs.findIndex(
+      item =>
+        item.id ===
+        currentSong.id
+    );
+
+
+  if(index === -1){
+
+    currentSong.id =
+      window.crypto &&
+      crypto.randomUUID
+        ? crypto.randomUUID()
+        : String(Date.now());
+
+
+    currentSong.savedAt =
+      new Date().toISOString();
+
+
+    currentSong.originalText =
+      currentSong.originalText ||
+      currentSong.text ||
+      '';
+
+
+    currentSong.kind =
+      'analyzed';
+
+
+    songs.unshift(
+      currentSong
+    );
+
+  }else{
+
+    songs[index] =
+      currentSong;
+
+  }
+
+
+  writeSongs(
+    songs.slice(0,200)
+  );
+
+
+  alert(
+    'Song saved.'
+  );
+
+
+  renderSongViewer();
+
+}
+
+
+/* =========================================================
+   EDIT CURRENT SONG
+========================================================= */
+
+function editCurrentSong(){
+
+  if(!currentSong){
+
+    return;
+
+  }
+
+
+  renderEditor(
+    currentSong
+  );
+
+}
+
+
+/* =========================================================
+   STRUCTURED EDITOR
+========================================================= */
+
+function renderEditor(song){
+
+  setActiveNav('lyrics');
+
+
+  const sections =
+    parseSections(
+      song.originalText ||
+      song.text ||
+      ''
+    );
+
+
+  screen.innerHTML = `
+
+    <div class="editorPage">
+
+
+      <div class="songTop">
+
+        <button
+          class="backBtn"
+          id="editorBack"
+        >
+          ← Song
+        </button>
+
+
+        <div class="songHeading">
+
+          <h1>
+            Edit Song
+          </h1>
+
+          <p>
+            ${esc(song.title || 'Untitled Song')}
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <div class="editorActions">
+
+        <button
+          class="toolbarBtn primary"
+          id="saveEditor"
+        >
+          Save Changes
+        </button>
+
+
+        <button
+          class="toolbarBtn"
+          id="addEditorSection"
+        >
+          + Add Section
+        </button>
+
+      </div>
+
+
+      <div
+        class="editorSections"
+        id="editorSections"
+      >
+
+        ${
+          sections
+            .map(
+              (section,index) =>
+                editorSectionHTML(
+                  section,
+                  index
+                )
+            )
+            .join('')
+        }
+
+      </div>
+
+
+      <div class="addSectionArea">
+
+        <select
+          class="addSectionSelect"
+          id="sectionTypeSelect"
+        >
+
+          <option>
+            Intro
+          </option>
+
+          <option>
+            Verse
+          </option>
+
+          <option>
+            Pre-Chorus
+          </option>
+
+          <option>
+            Chorus
+          </option>
+
+          <option>
+            Bridge
+          </option>
+
+          <option>
+            Interlude
+          </option>
+
+          <option>
+            Instrumental
+          </option>
+
+          <option>
+            Outro
+          </option>
+
+          <option>
+            Tag
+          </option>
+
+        </select>
+
+
+        <button
+          class="toolbarBtn"
+          id="addSelectedSection"
+        >
+          Add
+        </button>
+
+      </div>
+
+    </div>
+
+  `;
+
+
+  document
+    .getElementById(
+      'editorBack'
+    )
+    .onclick =
+      renderSongViewer;
+
+
+  document
+    .getElementById(
+      'saveEditor'
+    )
+    .onclick =
+      saveEditorChanges;
+
+
+  document
+    .getElementById(
+      'addEditorSection'
+    )
+    .onclick =
+      addEditorSection;
+
+
+  document
+    .getElementById(
+      'addSelectedSection'
+    )
+    .onclick =
+      addEditorSection;
+
+}
+
+
+function editorSectionHTML(
+  section,
+  index
+){
+
+  return `
+
+    <div
+      class="editorSection"
+      data-editor-section
+    >
+
+      <div class="editorSectionHead">
+
+        <input
+          class="sectionType"
+          value="${esc(section.name)}"
+        >
+
+
+        <div class="sectionTools">
+
+          <button
+            class="sectionTool"
+            type="button"
+            onclick="moveEditorSection(this,-1)"
+          >
+            ↑
+          </button>
+
+
+          <button
+            class="sectionTool"
+            type="button"
+            onclick="moveEditorSection(this,1)"
+          >
+            ↓
+          </button>
+
+
+          <button
+            class="sectionTool delete"
+            type="button"
+            onclick="deleteEditorSection(this)"
+          >
+            ×
+          </button>
+
+        </div>
+
+      </div>
+
+
+      <textarea
+        class="editorTextarea"
+      >${esc(
+        section.lines.join('\n')
+      )}</textarea>
+
+    </div>
+
+  `;
+
+}
+
+
+function addEditorSection(){
+
+  const select =
+    document.getElementById(
+      'sectionTypeSelect'
+    );
+
+
+  const name =
+    select
+      ? select.value
+      : 'Verse';
+
+
+  const container =
+    document.getElementById(
+      'editorSections'
+    );
+
+
+  if(!container){
+
+    return;
+
+  }
+
+
+  const wrapper =
+    document.createElement('div');
+
+
+  wrapper.innerHTML =
+    editorSectionHTML(
+      {
+        name,
+        lines:[]
+      },
+      container.children.length
+    );
+
+
+  container.appendChild(
+    wrapper.firstElementChild
+  );
+
+}
+
+
+function moveEditorSection(
+  button,
+  direction
+){
+
+  const section =
+    button.closest(
+      '[data-editor-section]'
+    );
+
+
+  if(!section){
+
+    return;
+
+  }
+
+
+  const container =
+    section.parentElement;
+
+
+  const sections =
+    [...container.children];
+
+
+  const index =
+    sections.indexOf(
+      section
+    );
+
+
+  const target =
+    index + direction;
+
+
+  if(
+    target < 0 ||
+    target >= sections.length
+  ){
+
+    return;
+
+  }
+
+
+  if(
+    direction < 0
+  ){
+
+    container.insertBefore(
+      section,
+      sections[target]
+    );
+
+  }else{
+
+    container.insertBefore(
+      sections[target],
+      section
+    );
+
+  }
+
+}
+
+
+function deleteEditorSection(
+  button
+){
+
+  const section =
+    button.closest(
+      '[data-editor-section]'
+    );
+
+
+  if(section){
+
+    section.remove();
+
+  }
+
+}
+
+
+function saveEditorChanges(){
+
+  const sections =
+    document
+      .querySelectorAll(
+        '[data-editor-section]'
+      );
+
+
+  const output = [];
+
+
+  sections.forEach(section => {
+
+    const name =
+      section
+        .querySelector(
+          '.sectionType'
+        )
+        .value
+        .trim();
+
+
+    const text =
+      section
+        .querySelector(
+          '.editorTextarea'
+        )
+        .value;
+
+
+    if(
+      name ||
+      text.trim()
+    ){
+
+      output.push(
+        name || 'Section'
+      );
+
+
+      output.push(
+        text
+      );
+
+
+      output.push('');
+
+    }
+
+  });
+
+
+  const text =
+    output.join('\n')
+      .replace(
+        /\n{3,}/g,
+        '\n\n'
+      )
+      .trim();
+
+
+  currentSong.originalText =
+    text;
+
+
+  currentSong.text =
+    text;
+
+
+  currentSong.analysis =
+    analyzeFocusedSong(
+      text
+    );
+
+
+  saveCurrentSong();
+
+}
+
+
+/* =========================================================
+   LONG PRESS SONG ACTIONS
+========================================================= */
+
+function showSongActions(
+  songId
+){
+
+  const existing =
+    document.getElementById(
+      'songActionsModal'
+    );
+
+
+  if(existing){
+
+    existing.remove();
+
+  }
+
+
+  const overlay =
+    document.createElement(
+      'div'
+    );
+
+
+  overlay.id =
+    'songActionsModal';
+
+
+  overlay.style.cssText = `
+
+    position:fixed;
+    inset:0;
+
+    background:rgba(0,0,0,.68);
+
+    z-index:600;
+
+    display:flex;
+
+    align-items:flex-end;
+    justify-content:center;
+
+  `;
+
+
+  overlay.innerHTML = `
+
+    <div style="
+      width:min(920px,100%);
+      background:#18181b;
+      border:1px solid #303036;
+      border-radius:22px 22px 0 0;
+      padding:20px;
+    ">
+
+      <div style="
+        color:#aaa;
+        font-size:13px;
+        margin-bottom:14px;
+      ">
+        Song options
+      </div>
+
+
+      <div style="
+        display:flex;
+        gap:10px;
+      ">
+
+        <button
+          id="mergeSongAction"
+          class="toolbarBtn"
+          style="flex:1;"
+        >
+          Merge
+        </button>
+
+
+        <button
+          id="cancelSongAction"
+          class="toolbarBtn"
+          style="flex:1;"
+        >
+          Cancel
+        </button>
+
+
+        <button
+          id="deleteSongAction"
+          class="toolbarBtn"
+          style="
+            flex:1;
+            background:#3a2020;
+            color:#ff8b8b;
+          "
+        >
+          Delete
+        </button>
+
+      </div>
+
+    </div>
+
+  `;
+
+
+  document.body.appendChild(
+    overlay
+  );
+
+
+  document
+    .getElementById(
+      'cancelSongAction'
+    )
+    .onclick = () => {
+
+      overlay.remove();
+
+    };
+
+
+  document
+    .getElementById(
+      'deleteSongAction'
+    )
+    .onclick = () => {
+
+      const song =
+        getSongs().find(
+          item =>
+            item.id ===
+            songId
+        );
+
+
+      if(!song){
+
+        return;
+
+      }
+
+
+      const confirmed =
+        confirm(
+          `Delete "${song.title}" from your library?`
+        );
+
+
+      if(!confirmed){
+
+        return;
+
+      }
+
+
+      const remaining =
+        getSongs().filter(
+          item =>
+            item.id !==
+            songId
+        );
+
+
+      writeSongs(
+        remaining
+      );
+
+
+      overlay.remove();
+
+
+      renderLibrary();
+
+    };
+
+
+  document
+    .getElementById(
+      'mergeSongAction'
+    )
+    .onclick = () => {
+
+      overlay.remove();
+
+
+      alert(
+        'Merge is ready. We will connect the song merge function next.'
+      );
+
+    };
+
+
+  overlay.addEventListener(
+    'click',
+    event => {
+
+      if(
+        event.target ===
+        overlay
+      ){
+
+        overlay.remove();
+
+      }
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   LIBRARY
+========================================================= */
+
+function renderLibrary(){
+
+  setActiveNav('library');
+
+
+  const list =
+    getSongs();
+
+
+  screen.innerHTML = `
+
+    <div class="libraryHead">
+
+      <div class="libraryTitle">
+        Library
+      </div>
+
+
+      <button
+        class="searchBtn"
+        id="openSearch"
+        aria-label="Search library"
+      >
+        ⌕
+      </button>
+
+    </div>
+
+
+    <div class="librarySection">
+
+      <div class="sectionLabel">
+        Saved & Analyzed Songs
+      </div>
+
+
+      ${
+        list.length
+
+        ? list.map(song => `
+
+          <div
+            class="songCard"
+            data-song-card="${esc(song.id)}"
+            style="cursor:pointer;"
+          >
+
+            <div class="songIcon">
+              ♫
+            </div>
+
+
+            <div class="songInfo">
+
+              <div class="songName">
+                ${esc(song.title)}
+              </div>
+
+
+              <div class="songMeta">
+
+                ${
+                  song.analysis
+                    ? 'Analyzed'
+                    : 'Imported'
+                }
+
+                ${
+                  song.savedAt
+                    ? ' · ' +
+                      new Date(
+                        song.savedAt
+                      ).toLocaleDateString()
+                    : ''
+                }
+
+              </div>
+
+            </div>
+
+          </div>
+
+        `).join('')
+
+        : `
+
+          <div class="empty">
+
+            No saved songs yet.<br>
+
+            Search, import or analyze a song.
+
+          </div>
+
+        `
+      }
+
+    </div>
+
+  `;
+
+
+  document
+    .getElementById(
+      'openSearch'
+    )
+    .onclick =
+      () => openSearch('all');
+
+
+  screen
+    .querySelectorAll(
+      '[data-song-card]'
+    )
+    .forEach(card => {
+
+      let pressTimer =
+        null;
+
+
+      let longPressed =
+        false;
+
+
+      const songId =
+        card.dataset.songCard;
+
+
+      function openThisSong(){
+
+        const song =
+          list.find(
+            item =>
+              item.id ===
+              songId
+          );
+
+
+        if(song){
+
+          openSong(song);
+
+        }
+
+      }
+
+
+      card.addEventListener(
+        'click',
+        event => {
+
+          if(longPressed){
+
+            longPressed =
+              false;
+
+            return;
+
+          }
+
+
+          if(
+            event.target.closest(
+              '.songAction'
+            )
+          ){
+
+            return;
+
+          }
+
+
+          openThisSong();
+
+        }
+      );
+
+
+      card.addEventListener(
+        'pointerdown',
+        event => {
+
+          if(
+            event.target.closest(
+              '.songAction'
+            )
+          ){
+
+            return;
+
+          }
+
+
+          longPressed =
+            false;
+
+
+          pressTimer =
+            setTimeout(
+              () => {
+
+                longPressed =
+                  true;
+
+
+                showSongActions(
+                  songId
+                );
+
+              },
+              650
+            );
+
+        }
+      );
+
+
+      card.addEventListener(
+        'pointerup',
+        () => {
+
+          clearTimeout(
+            pressTimer
+          );
+
+        }
+      );
+
+
+      card.addEventListener(
+        'pointerleave',
+        () => {
+
+          clearTimeout(
+            pressTimer
+          );
+
+        }
+      );
+
+
+      card.addEventListener(
+        'pointercancel',
+        () => {
+
+          clearTimeout(
+            pressTimer
+          );
+
+        }
+      );
+
+    });
+
+}
+
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+function openSearch(
+  selectedSource='all'
+){
+
+  source =
+    selectedSource;
+
+
+  modal.style.display =
+    'flex';
+
+
+  document
+    .querySelectorAll(
+      '.sourceTabs button'
+    )
+    .forEach(button => {
+
+      button.classList.toggle(
+        'active',
+        button.dataset.source ===
+        source
+      );
+
+    });
+
+
+  query.focus();
+
+
+  renderResults();
+
+}
+
+
+function renderResults(){
+
+  const searchText =
+    query.value
+      .trim()
+      .toLowerCase();
+
+
+  const list =
+    getSongs().filter(song => {
+
+      const content =
+        (
+          song.title +
+          ' ' +
+          song.text
+        )
+        .toLowerCase();
+
+
+      return (
+        !searchText ||
+        content.includes(
+          searchText
+        )
+      );
+
+    });
+
+
+  let html = '';
+
+
+  /* =======================================================
+     LOCAL / DRIVE
+  ====================================================== */
+
+  if(
+    source === 'all' ||
+    source === 'drive'
+  ){
+
+    html += `
+
+      <div class="result">
+
+        <div class="resultTitle">
+          Saved Songs
+        </div>
+
+
+        <div class="resultMeta">
+
+          ${
+            list.length
+              ? 'Songs matching your search'
+              : 'No matching saved songs'
+          }
+
+        </div>
+
+
+        ${
+          list
+            .map(song => `
+
+              <div class="resultActions">
+
+                <button
+                  class="smallBtn toolbarBtn primary"
+                  data-open="${esc(song.id)}"
+                >
+                  Open ${esc(song.title)}
+                </button>
+
+              </div>
+
+            `)
+            .join('')
+        }
+
+
+        <div class="driveStatus">
+
+          🔐 Google Drive UI is ready.
+
+          Private Drive search can be connected
+          with Google OAuth later.
+
+        </div>
+
+      </div>
+
+    `;
+
+  }
+
+
+  /* =======================================================
+     ULTIMATE GUITAR
+  ====================================================== */
+
+  if(
+    source === 'all' ||
+    source === 'ug'
+  ){
+
+    html += `
+
+      <div class="result">
+
+        <div class="resultTitle">
+          Ultimate Guitar
+        </div>
+
+
+        <div class="resultMeta">
+
+          ${
+            searchText
+              ? `Search for “${esc(searchText)}”`
+              : 'Search by song title'
+          }
+
+        </div>
+
+
+        <div class="resultActions">
+
+          <button
+            class="smallBtn toolbarBtn primary"
+            id="ugSearchWeb"
+          >
+            Search Ultimate Guitar
+          </button>
+
+        </div>
+
+
+        <div class="hint">
+
+          Paste a direct Ultimate Guitar
+          chord-page URL below to import it.
+
+        </div>
+
+
+        <div class="searchBox">
+
+          <input
+            class="searchInput"
+            id="ugUrl"
+            placeholder="https://tabs.ultimate-guitar.com/..."
+          >
+
+
+          <button
+            class="goBtn"
+            id="ugLoad"
+          >
+            Load
+          </button>
+
+        </div>
+
+
+        <div id="ugResult"></div>
+
+      </div>
+
+    `;
+
+  }
+
+
+  document
+    .getElementById(
+      'searchResults'
+    )
+    .innerHTML =
+      html ||
+      '<div class="empty">No results.</div>';
+
+
+  document
+    .querySelectorAll(
+      '[data-open]'
+    )
+    .forEach(button => {
+
+      button.onclick = () => {
+
+        const song =
+          getSongs().find(
+            item =>
+              item.id ===
+              button.dataset.open
+          );
+
+
+        if(song){
+
+          openSong(song);
+
+        }
+
+      };
+
+    });
+
+
+  const webButton =
+    document.getElementById(
+      'ugSearchWeb'
+    );
+
+
+  if(webButton){
+
+    webButton.onclick =
+      () => {
+
+        const value =
+          query.value.trim();
+
+
+        window.open(
+
+          'https://www.ultimate-guitar.com/search.php?search_type=title&value=' +
+          encodeURIComponent(
+            value
+          ),
+
+          '_blank'
+
+        );
+
+      };
+
+  }
+
+
+  const loadButton =
+    document.getElementById(
+      'ugLoad'
+    );
+
+
+  if(loadButton){
+
+    loadButton.onclick =
+      loadUG;
+
+  }
+
+}
+
+
+/* =========================================================
+   ULTIMATE GUITAR IMPORT
+========================================================= */
+
+async function loadUG(){
+
+  const input =
+    document.getElementById(
+      'ugUrl'
+    );
+
+
+  const box =
+    document.getElementById(
+      'ugResult'
+    );
+
+
+  const url =
+    (
+      input?.value ||
+      ''
+    ).trim();
+
+
+  if(!url){
+
+    box.innerHTML =
+      '<div class="hint">Paste an Ultimate Guitar URL first.</div>';
+
+    return;
+
+  }
+
+
+  try{
+
+    const parsedUrl =
+      new URL(url);
+
+
+    if(
+      !parsedUrl.hostname.endsWith(
+        'ultimate-guitar.com'
+      )
+    ){
+
+      throw new Error(
+        'Please use an Ultimate Guitar URL.'
+      );
+
+    }
+
+  }catch(error){
+
+    box.innerHTML =
+      '<div class="hint">' +
+      esc(error.message) +
+      '</div>';
+
+    return;
+
+  }
+
+
+  box.innerHTML =
+    '<div class="hint">⏳ Loading song...</div>';
+
+
+  try{
+
+    const response =
+      await fetch(
+        '/api/import',
+        {
+
+          method:'POST',
+
+          headers:{
+            'Content-Type':
+              'application/json'
+          },
+
+          body:
+            JSON.stringify({
+              url
+            })
+
+        }
+      );
+
+
+    const data =
+      await response
+        .json()
+        .catch(
+          () => ({})
+        );
+
+
+    if(!response.ok){
+
+      throw new Error(
+
+        data.error ||
+        `Importer returned HTTP ${response.status}`
+
+      );
+
+    }
+
+
+    const raw =
+      (
+        url.split('/').pop() ||
+        'Ultimate Guitar Song'
+      )
+      .replace(
+        /[-_]/g,
+        ' '
+      );
+
+
+    const title =
+      raw
+        .replace(
+          /\s+chords?\s+\d+.*$/i,
+          ''
+        )
+        .replace(
+          /\s+\d+.*$/,
+          ''
+        )
+        .trim()
+        .replace(
+          /\b\w/g,
+          character =>
+            character.toUpperCase()
+        );
+
+
+    const importedText =
+      data.text || '';
+
+
+    const analysis =
+      analyzeFocusedSong(
+        importedText
+      );
+
+
+    const song =
+      saveSong(
+        title,
+        importedText,
+        data.sourceUrl || url,
+        analysis
+      );
+
+
+    localStorage.setItem(
+      'worshipChordsSourceUrl',
+      data.sourceUrl || url
+    );
+
+
+    localStorage.setItem(
+      'worshipChordsImportedText',
+      importedText
+    );
+
+
+    box.innerHTML = `
+
+      <div class="hint">
+
+        ✅ Song imported and saved.
+
+      </div>
+
+
+      <div class="resultActions">
+
+        <button
+          class="smallBtn toolbarBtn primary"
+          id="analyzeLoaded"
+        >
+          Analyze Song
+        </button>
+
+
+        <button
+          class="smallBtn toolbarBtn"
+          id="openLoaded"
+        >
+          Open Lyrics
+        </button>
+
+      </div>
+
+    `;
+
+
+    document
+      .getElementById(
+        'openLoaded'
+      )
+      .onclick =
+        () => openSong(song);
+
+
+    document
+      .getElementById(
+        'analyzeLoaded'
+      )
+      .onclick =
+        () =>
+          renderAnalyzer(
+            importedText
+          );
+
+  }catch(error){
+
+    console.error(error);
+
+
+    box.innerHTML =
+      '<div class="hint">⚠️ ' +
+      esc(
+        error.message ||
+        'Importer failed.'
+      ) +
+      '</div>';
+
+  }
+
+}
+
+
+/* =========================================================
+   SEARCH EVENTS
+========================================================= */
+
+query.addEventListener(
+  'input',
+  renderResults
+);
+
+
+document
+  .getElementById(
+    'runSearch'
+  )
+  .onclick =
+    renderResults;
+
+
+document
+  .getElementById(
+    'closeSearch'
+  )
+  .onclick = () => {
+
+    modal.style.display =
+      'none';
+
+  };
+
+
+modal.addEventListener(
+  'click',
+  event => {
+
+    if(
+      event.target ===
+      modal
+    ){
+
+      modal.style.display =
+        'none';
+
+    }
+
+  }
+);
+
+
+document
+  .querySelectorAll(
+    '.sourceTabs button'
+  )
+  .forEach(button => {
+
+    button.onclick = () => {
+
+      openSearch(
+        button.dataset.source
+      );
+
+    };
+
+  });
+
+
+/* =========================================================
+   MAIN NAVIGATION
+========================================================= */
+
+document
+  .querySelectorAll(
+    '.nav button'
+  )
+  .forEach(button => {
+
+    button.addEventListener(
+      'click',
+      () => {
+
+        const screenName =
+          button.dataset.screen;
+
+
+        if(
+          screenName ===
+          'home'
+        ){
+
+          renderHome();
+
+        }
+
+
+        else if(
+          screenName ===
+          'lyrics'
+        ){
+
+          renderLyrics();
+
+        }
+
+
+        else if(
+          screenName ===
+          'library'
+        ){
+
+          renderLibrary();
+
+        }
+
+
+        else if(
+          screenName ===
+          'menu'
+        ){
+
+          setActiveNav('menu');
+
+
+          screen.innerHTML = `
+
+            <div class="placeholder">
+
+              Menu
+              <br>
+              — ready to connect —
+
+            </div>
+
+          `;
+
+        }
+
+      }
+    );
+
+  });
+
+
+/* =========================================================
+   INITIAL SCREEN
+========================================================= */
+
+renderHome();
+
 </script>
+
 </body>
 </html>
