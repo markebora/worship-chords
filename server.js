@@ -88,7 +88,6 @@ async function handleImport(req, res) {
 const server = http.createServer(async (req, res) => {
   const requestPath = decodeURIComponent((req.url || '/').split('?')[0]);
 
-  // Run the exact same importer source used by Vercel.
   if (requestPath === '/api/import') {
     return handleImport(req, res);
   }
@@ -96,7 +95,6 @@ const server = http.createServer(async (req, res) => {
   const relativePath = requestPath === '/' ? 'index.html' : requestPath.replace(/^\/+/, '');
   const filePath = path.resolve(ROOT, relativePath);
 
-  // Prevent requests from escaping the repository directory.
   if (!filePath.startsWith(ROOT + path.sep) && filePath !== ROOT) {
     return sendJson(res, 403, { error: 'Forbidden' });
   }
