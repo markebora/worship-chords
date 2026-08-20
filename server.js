@@ -4,6 +4,7 @@ const path = require('path');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
+const IMPORTER_PATH = path.join(ROOT, 'api', 'import.js');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -18,15 +19,86 @@ const MIME = {
   '.webp': 'image/webp'
 };
 
-const server = http.createServer((req, res) => {
+function loadImporter() {
+  const source = fs.readFileSync(IMPORTER_PATH, 'utf8')
+    .replace(/^\s*export\s+default\s+async\s+function\s+handler/, 'async function handler');
+  return new Function(`${source}\nreturn handler;`)();
+}
+
+function sendJson(res, statusCode, data) {
+  res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify(data));
+}
+
+async function handleImport(req, res) {
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    return res.end();
+  }
+
+  if (req.method !== 'POST') {
+    return sendJson(res, 405, { error: 'POST only' });
+  }
+
+  let rawBody = '';
+  req.setEncoding('utf8');
+
+  for await (const chunk of req) rawBody += chunk;
+
+  let body;
+  try {
+    body = rawBody ? JSON.parse(rawBody) : {};
+  } catch {
+    return sendJson(res, 400, { error: 'Invalid JSON body.' });
+  }
+
+  const importerReq = {
+    method: req.method,
+    body,
+    headers: req.headers
+  };
+
+  let statusCode = 200;
+  const importerRes = {
+    setHeader() {},
+    status(code) {
+      statusCode = code;
+      return this;
+    },
+    json(data) {
+      return sendJson(res, statusCode, data);
+    },
+    end(data) {
+      res.writeHead(statusCode);
+      return res.end(data);
+    }
+  };
+
+  try {
+    const handler = loadImporter();
+    await handler(importerReq, importerRes);
+  } catch (error) {
+    console.error('Local importer error:', error);
+    if (!res.writableEnded) {
+      sendJson(res, 500, { error: error?.message || 'Local importer failed.' });
+    }
+  }
+}
+
+const server = http.createServer(async (req, res) => {
   const requestPath = decodeURIComponent((req.url || '/').split('?')[0]);
+
+  // Run the exact same importer source used by Vercel.
+  if (requestPath === '/api/import') {
+    return handleImport(req, res);
+  }
+
   const relativePath = requestPath === '/' ? 'index.html' : requestPath.replace(/^\/+/, '');
   const filePath = path.resolve(ROOT, relativePath);
 
   // Prevent requests from escaping the repository directory.
   if (!filePath.startsWith(ROOT + path.sep) && filePath !== ROOT) {
-    res.writeHead(403);
-    return res.end('Forbidden');
+    return sendJson(res, 403, { error: 'Forbidden' });
   }
 
   fs.stat(filePath, (err, stat) => {
