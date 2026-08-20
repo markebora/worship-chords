@@ -1,0 +1,181 @@
+name: Update song viewer layout
+
+on:
+  push:
+    paths:
+      - '.ui-layout-trigger'
+
+permissions:
+  contents: write
+
+jobs:
+  update-layout:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Patch index.html
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+
+          css = r'''
+
+/* =========================================================
+   SONG VIEWER — FIXED TITLE + HORIZONTAL LYRICS PARTS
+========================================================= */
+
+.songFixedHeader{
+  position:sticky;
+  top:0;
+  z-index:50;
+  padding:4px 0 10px;
+  background:#111113;
+  border-bottom:1px solid #29292e;
+  box-shadow:0 8px 22px rgba(0,0,0,.28);
+}
+
+.songFixedHeader .songTop{
+  margin-bottom:10px;
+}
+
+.songPartsNav{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  width:100%;
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding:1px 1px 3px;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+}
+
+.songPartsNav::-webkit-scrollbar{
+  display:none;
+}
+
+.songPartBtn{
+  flex:0 0 auto;
+  border:1px solid #303036;
+  background:#18181b;
+  color:#a9a9b1;
+  border-radius:999px;
+  padding:8px 13px;
+  font-size:11px;
+  font-weight:800;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:background .18s ease,color .18s ease,border-color .18s ease,transform .15s ease;
+}
+
+.songPartBtn:hover{
+  background:#232328;
+  color:#fff;
+}
+
+.songPartBtn:active{
+  transform:scale(.96);
+}
+
+.songPartBtn.active{
+  background:#fff;
+  color:#111;
+  border-color:#fff;
+}
+
+.songSection{
+  scroll-margin-top:150px;
+}
+
+@media (max-width:600px){
+  .songFixedHeader{
+    padding-bottom:9px;
+  }
+
+  .songPartBtn{
+    padding:8px 12px;
+    font-size:10px;
+  }
+
+  .songSection{
+    scroll-margin-top:142px;
+  }
+}
+'''
+
+          if 'SONG VIEWER — FIXED TITLE + HORIZONTAL LYRICS PARTS' not in text:
+              marker = '</style>'
+              if marker not in text:
+                  raise SystemExit('Could not find </style> in index.html')
+              text = text.replace(marker, css + '\n' + marker, 1)
+
+          start_marker = 'function renderSongViewer(){'
+          end_marker = 'function formatViewerLine('
+          start = text.find(start_marker)
+          end = text.find(end_marker, start)
+          if start < 0 or end < 0:
+              raise SystemExit('Could not locate renderSongViewer function')
+
+          block = text[start:end]
+
+          toolbar_marker = '      <div class="songToolbar">'
+          top_start = block.find('      <div class="songTop">')
+          toolbar_start = block.find(toolbar_marker)
+          if top_start < 0 or toolbar_start < 0:
+              raise SystemExit('Could not locate song header/toolbar in renderSongViewer')
+
+          top = block[top_start:toolbar_start]
+          parts = '''      <div class="songPartsNav" id="songPartsNav">
+
+        ${
+          sections
+            .map(
+              (section,index) => `
+                <button
+                  class="songPartBtn"
+                  type="button"
+                  data-part-index="${index}"
+                >
+                  ${esc(section.name)}
+                </button>
+              `
+            )
+            .join('')
+        }
+
+      </div>
+
+'''
+          replacement = '''      <div class="songFixedHeader">\n\n''' + top + parts + '''      </div>\n\n\n'''
+          block = block[:top_start] + replacement + block[toolbar_start:]
+
+          old_section = '<div class="songSection">'
+          new_section = '<div class="songSection" id="song-section-${index}">'
+          if old_section not in block:
+              raise SystemExit('Could not locate songSection markup')
+          block = block.replace(old_section, new_section, 1)
+
+          listener_marker = "  document\n    .getElementById(\n      'backToLyrics'\n    )"
+          listeners = '''  document\n    .querySelectorAll('.songPartBtn')\n    .forEach(button => {\n\n      button.onclick = () => {\n\n        const index =\n          Number(button.dataset.partIndex);\n\n        const target =\n          document.getElementById(\n            `song-section-${index}`\n          );\n\n        if(!target){\n          return;\n        }\n\n        document\n          .querySelectorAll('.songPartBtn')\n          .forEach(item => item.classList.remove('active'));\n\n        button.classList.add('active');\n\n        target.scrollIntoView({\n          behavior:'smooth',\n          block:'start'\n        });\n\n      };\n\n    });\n\n\n'''
+          if listener_marker not in block:
+              raise SystemExit('Could not locate viewer event-listener insertion point')
+          block = block.replace(listener_marker, listeners + listener_marker, 1)
+
+          text = text[:start] + block + text[end:]
+          path.write_text(text, encoding='utf-8')
+          print('index.html patched successfully')
+          PY
+
+      - name: Commit updated app and remove temporary files
+        run: |
+          rm -f .ui-layout-trigger .github/workflows/app-layout-update.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html .ui-layout-trigger .github/workflows/app-layout-update.yml
+          git commit -m 'Add fixed song header and lyrics parts navigation'
+          git push
