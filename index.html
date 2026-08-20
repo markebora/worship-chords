@@ -5,15 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#090b0e">
 <title>Worship Chords</title>
-<style>html,body{margin:0;height:100%;background:#090b0e}iframe{width:100%;height:100%;border:0}.chordOnlyLine{display:block!important;margin:4px 0!important;padding:4px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}.chordOnlyLine{display:block!important;margin:4px 0!important;padding:3px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}.chordOnlyLine{display:block!important;margin:4px 0!important;padding:3px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}.chordOnlyLine{display:block!important;margin:4px 0!important;padding:3px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}</style>
+<style>html,body{margin:0;height:100%;background:#090b0e}iframe{width:100%;height:100%;border:0}.chordOnlyLine{display:block!important;margin:4px 0!important;padding:4px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}</style>
 </head>
 <body>
-<iframe id="app" src="./app.html?v=20260819-1003"></iframe>
+<iframe id="app" src="./app.html?v=20260820-old-ui"></iframe>
 <script>
-const VERSION='20260819-1145';
+const VERSION='20260820-old-ui';
 const frame=document.getElementById('app');
-if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js?v='+VERSION,{scope:'./'}).catch(()=>{});});}
-frame.addEventListener('load',()=>{const doc=frame.contentDocument;['transpose-chord-bank.js','search-module.js','song-import.js','chord-families.js','song-manager.js','merge-songs.js','section-controls.js','key-consistency.js','analyzer-chord-fix.js','focused-chord-mode.js','analyzer-focused.js','library-search-ui.js'].forEach(src=>{const s=doc.createElement('script');s.src='./'+src+'?v='+VERSION;doc.body.appendChild(s);});});
+if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});}
+if('caches' in window){caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('worship-chords-')).map(k=>caches.delete(k)))).catch(()=>{});}
+frame.addEventListener('load',()=>{const doc=frame.contentDocument;const scripts=['transpose-chord-bank.js','search-module.js','song-import.js','chord-families.js','song-manager.js','merge-songs.js','section-controls.js','key-consistency.js','analyzer-chord-fix.js','focused-chord-mode.js','analyzer-focused.js'];let i=0;function next(){if(i>=scripts.length)return;const s=doc.createElement('script');s.src='./'+scripts[i++]+'?v='+VERSION;s.onload=next;s.onerror=next;doc.body.appendChild(s);}next();});
 </script>
 </body>
 </html>
