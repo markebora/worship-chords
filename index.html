@@ -882,11 +882,6 @@ button{
   margin-bottom:14px;
 }
 
-
-/* =========================================================
-   COMPACT LYRICS VIEW
-========================================================= */
-
 .lyricsView{
   background:#0e0e10;
 
@@ -894,16 +889,27 @@ button{
 
   border-radius:14px;
 
-  padding:14px 8px;
+  padding:18px 6px 18px 8px;
+
+  white-space:pre-wrap;
+
+  font:
+    15px/1.75
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
 
   overflow:auto;
 
   min-height:300px;
 
   text-align:left;
+}
+  overflow:auto;
 
   font:
-    15px/1.15
+    15px/1.75
     ui-monospace,
     SFMono-Regular,
     Menlo,
@@ -920,13 +926,13 @@ button{
 
   flex-direction:column;
 
-  gap:6px;
+  gap:10px;
 }
 
 .songSection{
   border-bottom:1px solid #25252a;
 
-  padding-bottom:6px;
+  padding-bottom:8px;
 }
 
 .songSection:last-child{
@@ -934,7 +940,7 @@ button{
 }
 
 .songSectionName{
-  margin-bottom:4px;
+  margin-bottom:6px;
 
   color:#72b7ff;
 
@@ -948,15 +954,20 @@ button{
 }
 
 .songLine{
+  min-height:0;
+
   margin:0;
 
   padding:0;
 
   white-space:pre-wrap;
 
-  font:inherit;
-
-  line-height:1.15;
+  font:
+    15px/1.2
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
 }
 
 .chordLine{
@@ -970,7 +981,7 @@ button{
 
   padding:0;
 
-  line-height:1.05;
+  line-height:1.2;
 
   white-space:pre-wrap;
 }
@@ -984,7 +995,7 @@ button{
 
   padding:0;
 
-  line-height:1.15;
+  line-height:1.2;
 }
 
 .chordToken{
@@ -993,7 +1004,6 @@ button{
   font-weight:900;
 }
 
-
 /* =========================================================
    ANALYZER
 ========================================================= */
@@ -1001,7 +1011,7 @@ button{
 .analyzerPage{
   padding:4px 0 30px;
 }
-
+    
 .analyzerTitle{
   font-size:28px;
 
@@ -1351,40 +1361,6 @@ button{
     padding:9px 10px;
   }
 
-  /* Extra compact lyrics on phones */
-
-  .lyricsView{
-    padding:
-      12px
-      6px;
-
-    font-size:14px;
-  }
-
-  .songStructure{
-    gap:5px;
-  }
-
-  .songSection{
-    padding-bottom:5px;
-  }
-
-  .songSectionName{
-    margin-bottom:3px;
-  }
-
-  .songLine{
-    line-height:1.1;
-  }
-
-  .chordLine{
-    line-height:1;
-  }
-
-  .lyricLine{
-    line-height:1.1;
-  }
-
 }
 
 @media(max-width:360px){
@@ -1403,12 +1379,7 @@ button{
 
 }
 
-
-/* =========================================================
-   END CSS
-========================================================= */
-
-.chordOnlyLine{display:block!important;margin:4px 0!important;padding:3px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}.chordOnlyLine{display:block!important;margin:4px 0!important;padding:3px 7px!important}.chordOnlyInner{font:bold 18px monospace!important;color:#72b7ff!important;white-space:nowrap!important;letter-spacing:0!important}.chordOnlyInner .chordInput{display:block;width:100%;letter-spacing:.08em}</style>
+</style>
 
 </head>
 
@@ -2243,6 +2214,30 @@ function parseSections(text){
    CHORD ENGINE
 ========================================================= */
 
+/*
+  Chord matching is deliberately stricter than ordinary
+  word matching so normal lyric words are not treated as chords.
+
+  Supports:
+
+  C
+  C#
+  Db
+  Cm
+  Cmin
+  Cmaj7
+  C7
+  Cdim
+  Caug
+  Csus2
+  Cadd9
+  C7#9
+  Cb5
+  C/E
+  F#/A#
+  Bbmaj7/D
+*/
+
 const CHORD_TOKEN_REGEX =
   /^[A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add)?(?:[0-9]+)?(?:[#b][0-9]+)?(?:\/[A-G](?:#|b)?)?$/;
 
@@ -2274,6 +2269,17 @@ function isChordToken(token){
 
   }
 
+
+  /*
+    Avoid treating common lyric words such as:
+    A
+    I
+    Am
+    etc. incorrectly.
+
+    Single-letter A-G are valid chords.
+    More complex forms are accepted by regex.
+  */
 
   return true;
 
@@ -3064,6 +3070,16 @@ function transposeText(
   }
 
 
+  /*
+    Matches chord-like tokens including:
+    Fdim
+    F#dim
+    E7#9
+    Cmaj7
+    G/B
+    Bb
+  */
+
   const regex =
     /(^|\s)([A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add)?(?:[0-9]+)?(?:[#b][0-9]+)?(?:\/[A-G](?:#|b)?)?)(?=\s|$)/gm;
 
@@ -3282,9 +3298,7 @@ function renderSongViewer(){
         id="lyricsText"
         style="font-size:${song.fontSize}px;"
       >
-
         <div class="songStructure">
-
   ${
   sections
     .map(section => `
@@ -3323,9 +3337,7 @@ function renderSongViewer(){
     `)
     .join('')
 }
-
         </div>
-
       </div>
 
 
@@ -3498,6 +3510,11 @@ function saveCurrentSong(){
 
 
   if(index === -1){
+
+    /*
+      This is a preview/new song.
+      Give it a real ID and save it.
+    */
 
     currentSong.id =
       window.crypto &&
@@ -4946,6 +4963,10 @@ async function loadUG(){
     const importedText =
       data.text || '';
 
+
+    /*
+      Immediately analyze the imported song.
+    */
 
     const analysis =
       analyzeFocusedSong(
