@@ -205,6 +205,65 @@ button{
 
 
 /* =========================================================
+   OPEN-SONG NAV INDICATOR (bouncing dots)
+========================================================= */
+
+.nav .icon{
+  position:relative;
+}
+
+.navDots{
+  display:none;
+
+  position:absolute;
+  inset:0;
+
+  align-items:center;
+  justify-content:center;
+
+  gap:4px;
+}
+
+.navDots i{
+  width:5px;
+  height:5px;
+
+  border-radius:50%;
+
+  background:currentColor;
+
+  animation:navDotBounce 1.1s ease-in-out infinite;
+}
+
+.navDots i:nth-child(2){
+  animation-delay:.18s;
+}
+
+.navDots i:nth-child(3){
+  animation-delay:.36s;
+}
+
+@keyframes navDotBounce{
+  0%,60%,100%{
+    transform:translateY(0);
+    opacity:.45;
+  }
+  30%{
+    transform:translateY(-4px);
+    opacity:1;
+  }
+}
+
+.nav button.songOpen .icon svg{
+  display:none;
+}
+
+.nav button.songOpen .navDots{
+  display:flex;
+}
+
+
+/* =========================================================
    FLOATING NAVIGATION
 ========================================================= */
 
@@ -606,6 +665,11 @@ button{
 
   border-radius:14px;
 
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+
   transition:
     background .2s ease,
     transform .15s ease;
@@ -694,15 +758,41 @@ button{
 
   inset:0;
 
-  background:rgba(0,0,0,.68);
+  background:rgba(0,0,0,0);
 
   z-index:500;
 
-  display:none;
+  display:flex;
 
   align-items:flex-end;
 
   justify-content:center;
+
+  opacity:0;
+
+  visibility:hidden;
+
+  pointer-events:none;
+
+  transition:
+    opacity .25s ease,
+    background .25s ease,
+    visibility 0s linear .25s;
+}
+
+.modalBack.open{
+  opacity:1;
+
+  visibility:visible;
+
+  pointer-events:auto;
+
+  background:rgba(0,0,0,.68);
+
+  transition:
+    opacity .25s ease,
+    background .25s ease,
+    visibility 0s linear 0s;
 }
 
 .modal{
@@ -719,6 +809,14 @@ button{
   border-radius:22px 22px 0 0;
 
   padding:20px;
+
+  transform:translateY(28px);
+
+  transition:transform .3s cubic-bezier(.22,.8,.36,1);
+}
+
+.modalBack.open .modal{
+  transform:translateY(0);
 }
 
 .modalTop{
@@ -953,6 +1051,48 @@ button{
   justify-content:flex-start;
 }
 
+.viewModeGroup{
+  display:flex;
+
+  width:100%;
+
+  gap:4px;
+
+  background:#1b1b1f;
+
+  border:1px solid #303036;
+
+  border-radius:13px;
+
+  padding:4px;
+}
+
+.viewModeBtn{
+  flex:1;
+
+  border:0;
+
+  background:transparent;
+
+  color:#9999a2;
+
+  border-radius:9px;
+
+  padding:9px 10px;
+
+  font-size:13px;
+  font-weight:800;
+
+  cursor:pointer;
+
+  transition:background .18s ease,color .18s ease;
+}
+
+.viewModeBtn.active{
+  background:#fff;
+  color:#111;
+}
+
 .transposeGroup,
 .autoScrollGroup{
   display:flex;
@@ -982,6 +1122,40 @@ button{
 
   user-select:none;
   -webkit-user-select:none;
+
+  outline:none;
+}
+
+.asPlayIcon{
+  display:inline-block;
+
+  width:0;
+  height:0;
+
+  margin-left:2px;
+
+  border-style:solid;
+  border-width:6px 0 6px 10px;
+  border-color:transparent transparent transparent currentColor;
+}
+
+.asPauseIcon{
+  display:inline-flex;
+
+  align-items:center;
+  justify-content:center;
+
+  gap:3px;
+}
+
+.asPauseIcon i{
+  display:block;
+
+  width:3px;
+  height:12px;
+
+  background:currentColor;
+  border-radius:1px;
 }
 
 .asArrowBtn{
@@ -1067,12 +1241,52 @@ button{
    STRUCTURED SONG DISPLAY
 ========================================================= */
 
-.songFixedTitle{display:flex;align-items:center;gap:10px;min-width:0;margin-bottom:14px;}
-.songFixedTitle h1{margin:0;flex:1;min-width:0;font-size:22px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.songFixedHeader{position:sticky;top:0;z-index:40;background:rgba(17,17,19,.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);margin:0 -1px 14px;padding:8px 0;border-bottom:1px solid #29292e;}
+.songFixedHeader{position:sticky;top:0;z-index:40;background:rgba(17,17,19,.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);margin:0 -1px 14px;padding:10px 0;border-bottom:1px solid #29292e;}
+.songHeaderTop{display:flex;align-items:center;gap:10px;min-width:0;padding:0 1px;}
+.songBackBtn{flex:0 0 auto;width:34px;height:34px;border:1px solid #303036;background:#18181b;color:#f7f7f7;border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .18s ease,border-color .18s ease;}
+.songBackBtn:active{background:#303036;}
+.songBackBtn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round;}
+.songHeaderTitle{margin:0;flex:1;min-width:0;font-size:19px;font-weight:800;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+.songSectionFloatBar{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:620px;z-index:99;background:transparent;border:0;box-shadow:none;padding:0;}
+
+/* =========================================================
+   ANALYSIS TITLE + RENAME
+========================================================= */
+
+.analysisTitleRow{display:flex;align-items:center;gap:8px;min-width:0;margin-bottom:2px;}
+.keyBadge{display:inline-block;margin:10px 0 4px;background:#1d3a2b;color:#7fe0a3;font-size:12px;font-weight:800;padding:5px 12px;border-radius:20px;border:1px solid #2c5a41;}
+.songHeaderKey{flex:0 0 auto;margin:0;font-size:11px;padding:4px 10px;white-space:nowrap;}
+.analysisTitle{margin:0;flex:1;min-width:0;font-size:17px;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.analysisTitle.untitled{color:#85858c;font-weight:700;font-style:italic;}
+.analysisRenameBtn{flex:0 0 auto;width:30px;height:30px;border:1px solid #303036;background:#18181b;color:#cfcfd4;border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .18s ease,color .18s ease,border-color .18s ease;}
+.analysisRenameBtn:active{background:#303036;color:#fff;}
+.analysisRenameBtn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;}
+.analysisTitleInput{margin:0;flex:1;min-width:0;font-size:17px;font-weight:800;line-height:1.2;background:#0e0e10;border:1px solid #4a4a52;border-radius:8px;color:#fff;padding:4px 8px;outline:none;font-family:inherit;}
+
+/* =========================================================
+   LIBRARY MULTI-SELECT
+========================================================= */
+
+.songCard{position:relative;}
+.songCard.selectable{padding-left:44px;}
+.songCheck{display:none;position:absolute;left:12px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;border:1.5px solid #46464d;background:#111113;align-items:center;justify-content:center;}
+.songCard.selectable .songCheck{display:flex;}
+.songCard.selected{background:#1c1c22;border-color:#4a4a55;}
+.songCard.selected .songCheck{background:#fff;border-color:#fff;}
+.songCheck svg{width:13px;height:13px;fill:none;stroke:#111;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0;}
+.songCard.selected .songCheck svg{opacity:1;}
+
+.librarySelectBar{position:fixed;bottom:82px;left:50%;width:calc(100% - 24px);max-width:620px;z-index:99;display:flex;align-items:center;gap:8px;padding:10px;background:rgba(28,28,32,.92);border:1px solid rgba(255,255,255,.12);border-radius:17px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 10px 30px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.06);transform:translateX(-50%);animation:librarySelectBarIn .22s cubic-bezier(.2,.7,.3,1) both;}
+@keyframes librarySelectBarIn{
+  from{opacity:0;transform:translateX(-50%) translateY(16px);}
+  to{opacity:1;transform:translateX(-50%) translateY(0);}
+}
+.librarySelectCount{flex:1;min-width:0;font-size:12px;font-weight:800;color:#cfcfd4;padding-left:4px;}
+.librarySelectBar button{flex:0 0 auto;}
 .songSectionNav{display:flex;gap:7px;overflow-x:auto;padding:0 1px 3px;scrollbar-width:none;touch-action:pan-x;}
 .songSectionNav::-webkit-scrollbar{display:none;}
-.songSectionNav button{flex:0 0 auto;border:1px solid #303036;background:#18181b;color:#a7a7ad;border-radius:10px;padding:8px 11px;font-size:11px;font-weight:800;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;transition:background .18s ease,color .18s ease,border-color .18s ease;}
+.songSectionNav button{flex:0 0 auto;border:1px solid #303036;background:#18181b;color:#a7a7ad;border-radius:10px;padding:8px 11px;font-size:11px;font-weight:800;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:pan-x;transition:background .18s ease,color .18s ease,border-color .18s ease;}
 .songSectionNav button.active{background:#fff;color:#111;border-color:#fff;}
 .songSectionNav button.longPressing{transform:scale(.96);background:#303036;}
 .songSectionNav button.dragging{opacity:.45;}
@@ -1083,33 +1297,35 @@ button{
 
   flex-direction:column;
 
-  gap:4px;
+  gap:22px;
 }
 
 .songSection{
-  border-bottom:1px solid #25252a;
-
-  padding-bottom:4px;
-
   scroll-margin-top:64px;
 }
 
-.songSection:last-child{
-  border-bottom:0;
-}
-
 .songSectionName{
-  margin-bottom:3px;
+  display:inline-block;
 
-  color:#72b7ff;
+  margin-bottom:10px;
+
+  background:#26262b;
+
+  color:#f7f7f7;
 
   font-size:12px;
 
-  text-transform:uppercase;
-
-  letter-spacing:.08em;
+  letter-spacing:.02em;
 
   font-weight:800;
+
+  padding:5px 13px;
+
+  border-radius:20px;
+}
+
+.songStructure.chordsHidden .chordLine{
+  display:none;
 }
 
 .songLine{
@@ -1128,7 +1344,7 @@ button{
     Menlo,
     monospace;
 
-  line-height:1.05;
+  line-height:1.4;
 }
 
 .chordLine{
@@ -1142,7 +1358,7 @@ button{
 
   padding:0;
 
-  line-height:1.05;
+  line-height:1.35;
 
   white-space:pre-wrap;
 }
@@ -1152,11 +1368,11 @@ button{
 
   min-height:0;
 
-  margin:0;
+  margin:0 0 10px;
 
   padding:0;
 
-  line-height:1.05;
+  line-height:1.55;
 }
 
 .chordToken{
@@ -1244,13 +1460,23 @@ button{
 
   border-radius:14px;
 
-  padding:16px;
+  padding:14px 12px;
 
-  margin-top:14px;
+  margin-top:12px;
+}
+
+.analysisSectionsScroll{
+  max-height:44vh;
+
+  overflow-y:auto;
+
+  margin:0 -4px;
+
+  padding:0 4px;
 }
 
 .analysisResult h3{
-  margin:0 0 12px;
+  margin:0 0 8px;
 
   font-size:18px;
 }
@@ -1258,7 +1484,7 @@ button{
 .sectionCard{
   border-top:1px solid #29292e;
 
-  padding:12px 0;
+  padding:6px 0;
 }
 
 .sectionCard:first-child{
@@ -1276,14 +1502,14 @@ button{
 
   letter-spacing:.08em;
 
-  margin-bottom:7px;
+  margin-bottom:3px;
 }
 
 .sectionText{
   white-space:pre-wrap;
 
   font:
-    14px/1.7
+    14px/1.05
     ui-monospace,
     SFMono-Regular,
     Menlo,
@@ -1487,6 +1713,18 @@ button{
     padding:6px;
   }
 
+  .songSectionFloatBar{
+    bottom:74px;
+
+    width:calc(100% - 18px);
+  }
+
+  .librarySelectBar{
+    bottom:74px;
+
+    width:calc(100% - 18px);
+  }
+
   .nav button{
     height:44px;
 
@@ -1566,6 +1804,9 @@ button{
     id="screen"
   ></main>
 
+  <div id="libraryOverlay"></div>
+  <div id="songSectionOverlay"></div>
+
 
   <!-- =====================================================
        FLOATING NAV
@@ -1580,6 +1821,7 @@ button{
     <button
       data-screen="lyrics"
       aria-label="Lyrics"
+      id="navLyricsBtn"
     >
 
       <span class="icon">
@@ -1602,6 +1844,12 @@ button{
           <path d="M12 16v4"/>
 
         </svg>
+
+        <span class="navDots" aria-hidden="true">
+          <i></i>
+          <i></i>
+          <i></i>
+        </span>
 
       </span>
 
@@ -1726,7 +1974,7 @@ button{
       <input
         class="searchInput"
         id="libraryQuery"
-        placeholder="Search song title..."
+        placeholder="Search song title, or paste a song URL..."
         autocomplete="off"
       >
 
@@ -1815,6 +2063,41 @@ let source = 'all';
 
 let currentSong = null;
 
+/*
+  Whether the song viewer shows chords above the lyrics
+  or lyrics only. Session-level display preference — not
+  saved with the song.
+*/
+let showChords = true;
+
+/*
+  Library multi-select state: song IDs currently checked in
+  the Library's long-press select mode (Rename/Delete/Merge).
+*/
+let librarySelectedIds = new Set();
+
+
+/*
+  Whenever a song is open (currentSong is set), the Lyrics tab
+  in the bottom nav swaps its icon for a small bouncing-dots
+  "loading" animation, signalling that a song is open and one
+  tap will jump straight back into it — from any screen.
+*/
+
+function updateLyricsNavIndicator(){
+
+  const navBtn=
+    document.getElementById('navLyricsBtn');
+
+  if(!navBtn)return;
+
+  navBtn.classList.toggle(
+    'songOpen',
+    !!currentSong
+  );
+
+}
+
 
 /* =========================================================
    NAVIGATION
@@ -1847,6 +2130,46 @@ function setActiveNav(name){
 
   }
 
+
+  /*
+    Both the library select-bar and the song section float-bar
+    live in fixed-position overlays that sit as SIBLINGS of
+    #screen (not children of it). #screen replays a transform
+    animation on every render, and a `transform` on an ancestor
+    turns `position:fixed` descendants into elements positioned
+    relative to that ancestor instead of the viewport — which is
+    what caused the bars to visibly pop in near the content and
+    then snap down into place. Clearing both overlays here, and
+    letting each render function repopulate its own overlay,
+    keeps them genuinely viewport-fixed with no jump.
+  */
+
+  const libraryOverlay =
+    document.getElementById('libraryOverlay');
+
+  if(libraryOverlay){
+
+    libraryOverlay.innerHTML = '';
+
+  }
+
+
+  const songSectionOverlay =
+    document.getElementById('songSectionOverlay');
+
+  if(songSectionOverlay){
+
+    songSectionOverlay.innerHTML = '';
+
+  }
+
+
+  if(typeof updateLyricsNavIndicator==='function'){
+
+    updateLyricsNavIndicator();
+
+  }
+
 }
 
 
@@ -1862,6 +2185,31 @@ function esc(value){
     .replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;')
     .replace(/'/g,'&#39;');
+
+}
+
+
+/*
+  Pasted or imported lyrics sometimes already contain literal
+  HTML entities (e.g. "that&#039;s" instead of "that's") because
+  the source page had them baked into its raw text. Decoding them
+  once, up front, means esc() never has to re-escape an entity
+  that was never a real character to begin with.
+*/
+
+function decodeHtmlEntities(text){
+
+  const textarea =
+    document.createElement(
+      'textarea'
+    );
+
+
+  textarea.innerHTML =
+    String(text ?? '');
+
+
+  return textarea.value;
 
 }
 
@@ -2048,6 +2396,25 @@ function renderHome(){
     .getElementById('homeLibrary')
     .onclick =
       renderLibrary;
+
+}
+
+
+/* =========================================================
+   PROFILE (placeholder)
+========================================================= */
+
+function renderProfile(){
+
+  setActiveNav('profile');
+
+  screen.innerHTML = `
+
+    <div class="placeholder">
+      Profile settings coming soon.
+    </div>
+
+  `;
 
 }
 
@@ -2393,7 +2760,7 @@ function parseSections(text){
 */
 
 const CHORD_TOKEN_REGEX =
-  /^[A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add)?(?:[0-9]+)?(?:[#b][0-9]+)?(?:\/[A-G](?:#|b)?)?$/;
+  /^[A-G](?:#|b)?(?:(?:[Mm][Aa][Jj]|[Mm][Ii][Nn]|[Dd][Ii][Mm]|[Aa][Uu][Gg]|[Ss][Uu][Ss]|[Aa][Dd][Dd]|[Mm])[0-9]*|[0-9]+)*(?:[#b][0-9]+)*(?:\/[A-G](?:#|b)?)?$/;
 
 
 function isChordToken(token){
@@ -2446,7 +2813,7 @@ function findChords(line){
 
 
   const tokenRegex =
-    /(?:^|\s)([A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add)?(?:[0-9]+)?(?:[#b][0-9]+)?(?:\/[A-G](?:#|b)?)?)(?=\s|$)/g;
+    /(?:^|[^A-Za-z0-9#\/])([A-G](?:#|b)?(?:(?:[Mm][Aa][Jj]|[Mm][Ii][Nn]|[Dd][Ii][Mm]|[Aa][Uu][Gg]|[Ss][Uu][Ss]|[Aa][Dd][Dd]|[Mm])[0-9]*|[0-9]+)*(?:[#b][0-9]+)*(?:\/[A-G](?:#|b)?)?)(?=[^A-Za-z0-9#\/]|$)/g;
 
 
   let match;
@@ -2496,7 +2863,9 @@ function isChordOnlyLine(line){
 
 
   const tokens =
-    clean.split(/\s+/);
+    clean
+      .split(/[^A-Za-z0-9#\/]+/)
+      .filter(Boolean);
 
 
   if(!tokens.length){
@@ -2514,8 +2883,348 @@ function isChordOnlyLine(line){
 
 
 /* =========================================================
+   KEY DETECTION
+
+   Guesses the song's key by matching the chords used
+   against the diatonic chord set of each of the 24 major/
+   minor keys, weighted by how often each chord appears.
+   The most likely tonic (first/last chord in the song) gets
+   a small bonus, since songs overwhelmingly start or end on
+   the tonic chord.
+========================================================= */
+
+const MAJOR_SCALE_STEPS =
+  [0,2,4,5,7,9,11];
+
+const MAJOR_KEY_QUALITIES =
+  ['major','minor','minor','major','major','minor','diminished'];
+
+const MINOR_SCALE_STEPS =
+  [0,2,3,5,7,8,10];
+
+const MINOR_KEY_QUALITIES =
+  ['minor','diminished','major','minor','minor','major','major'];
+
+
+function chordQualityFromSuffix(suffix){
+
+  const clean =
+    String(suffix || '');
+
+  if(/^dim/i.test(clean)) return 'diminished';
+  if(/^aug/i.test(clean)) return 'augmented';
+  if(/^maj/i.test(clean)) return 'major';
+  if(/^min/i.test(clean)) return 'minor';
+
+  /*
+    Lone "m"/"M" is ambiguous by design elsewhere (both are
+    accepted as valid chord tokens), but for key detection
+    the case matters: lowercase m ("Dm","Dm7") is minor,
+    uppercase M ("DM7") is shorthand for a major 7th.
+  */
+  if(clean[0] === 'm') return 'minor';
+  if(clean[0] === 'M') return 'major';
+
+  /* Plain root, dominant 7ths, sus/add chords: major-rooted. */
+  return 'major';
+
+}
+
+
+function parseChordRootQuality(token){
+
+  const clean =
+    String(token || '')
+      .replace(
+        /^[\[\(\{<]+|[\]\)\}>.,;:!?]+$/g,
+        ''
+      );
+
+  const mainChord =
+    clean.split('/')[0];
+
+  const match =
+    mainChord.match(
+      /^([A-G](?:#|b)?)(.*)$/
+    );
+
+  if(!match){
+
+    return null;
+
+  }
+
+  const root =
+    normalizeNote(
+      match[1]
+    );
+
+  const rootIndex =
+    chromatic.indexOf(root);
+
+  if(rootIndex === -1){
+
+    return null;
+
+  }
+
+  return {
+
+    root:rootIndex,
+
+    quality:
+      chordQualityFromSuffix(
+        match[2]
+      )
+
+  };
+
+}
+
+
+function buildKeyChordMap(rootIndex, isMinor){
+
+  const steps =
+    isMinor
+      ? MINOR_SCALE_STEPS
+      : MAJOR_SCALE_STEPS;
+
+  const qualities =
+    isMinor
+      ? MINOR_KEY_QUALITIES
+      : MAJOR_KEY_QUALITIES;
+
+  const map = new Map();
+
+  steps.forEach((step,index) => {
+
+    const noteIndex =
+      (rootIndex + step) % 12;
+
+    if(!map.has(noteIndex)){
+
+      map.set(noteIndex, new Set());
+
+    }
+
+    map.get(noteIndex).add(
+      qualities[index]
+    );
+
+  });
+
+  if(isMinor){
+
+    /*
+      Harmonic-minor borrowed dominant (V major instead of
+      the natural-minor v). Extremely common in worship/pop
+      songs written in a minor key.
+    */
+    const dominantIndex =
+      (rootIndex + 7) % 12;
+
+    if(!map.has(dominantIndex)){
+
+      map.set(dominantIndex, new Set());
+
+    }
+
+    map.get(dominantIndex).add('major');
+
+  }
+
+  return map;
+
+}
+
+
+function detectKeyFromChords(chordTokens){
+
+  const frequency = {};
+
+  let firstChord = null;
+  let lastChord = null;
+
+  (chordTokens || []).forEach(token => {
+
+    frequency[token] =
+      (frequency[token] || 0) + 1;
+
+    if(!firstChord){
+
+      firstChord = token;
+
+    }
+
+    lastChord = token;
+
+  });
+
+  const entries =
+    Object.keys(frequency)
+      .map(token => ({
+
+        weight:frequency[token],
+
+        parsed:
+          parseChordRootQuality(token)
+
+      }))
+      .filter(entry => entry.parsed);
+
+  if(!entries.length){
+
+    return null;
+
+  }
+
+  const totalWeight =
+    entries.reduce(
+      (sum,entry) => sum + entry.weight,
+      0
+    );
+
+  const firstParsed =
+    firstChord
+      ? parseChordRootQuality(firstChord)
+      : null;
+
+  const lastParsed =
+    lastChord
+      ? parseChordRootQuality(lastChord)
+      : null;
+
+  let best = null;
+
+  for(let rootIndex = 0; rootIndex < 12; rootIndex++){
+
+    [false,true].forEach(isMinor => {
+
+      const keyMap =
+        buildKeyChordMap(
+          rootIndex,
+          isMinor
+        );
+
+      let matchedWeight = 0;
+
+      entries.forEach(entry => {
+
+        const allowed =
+          keyMap.get(
+            entry.parsed.root
+          );
+
+        if(
+          allowed &&
+          allowed.has(
+            entry.parsed.quality
+          )
+        ){
+
+          matchedWeight +=
+            entry.weight;
+
+        }
+
+      });
+
+      let score =
+        matchedWeight / totalWeight;
+
+      const tonicQuality =
+        isMinor
+          ? 'minor'
+          : 'major';
+
+      if(
+        firstParsed &&
+        firstParsed.root === rootIndex &&
+        firstParsed.quality === tonicQuality
+      ){
+
+        score += 0.15;
+
+      }
+
+      if(
+        lastParsed &&
+        lastParsed.root === rootIndex &&
+        lastParsed.quality === tonicQuality
+      ){
+
+        score += 0.15;
+
+      }
+
+      if(!best || score > best.score){
+
+        best = {rootIndex,isMinor,score};
+
+      }
+
+    });
+
+  }
+
+  const tonicName =
+    chromatic[best.rootIndex];
+
+  return {
+
+    tonic:tonicName,
+
+    mode:
+      best.isMinor
+        ? 'minor'
+        : 'major',
+
+    label:
+      best.isMinor
+        ? tonicName + 'm'
+        : tonicName
+
+  };
+
+}
+
+
+function extractChordTokens(text){
+
+  return String(text || '')
+    .split(/\r?\n/)
+    .flatMap(findChords);
+
+}
+
+
+/* =========================================================
    ANALYZER
 ========================================================= */
+
+function guessTitleFromText(text){
+
+  const sectionPattern =
+    /^\s*\[?\s*(intro|verse(?:\s*\d+)?|pre[- ]?chorus|chorus|refrain|bridge|interlude|instrumental|outro|ending|tag|hook|solo)(?:\s*\d+)?\s*:?\s*\]?\s*$/i;
+
+  const lines =
+    String(text || '').split(/\r?\n/);
+
+  for(const rawLine of lines){
+
+    const line = rawLine.trim();
+
+    if(!line)continue;
+    if(sectionPattern.test(line))continue;
+    if(isChordOnlyLine(line))continue;
+
+    return line.slice(0,80);
+
+  }
+
+  return '';
+
+}
 
 function analyzeFocusedSong(text){
 
@@ -2581,7 +3290,12 @@ function analyzeFocusedSong(text){
         )
       )
 
-    ]
+    ],
+
+    key:
+      detectKeyFromChords(
+        extractChordTokens(text)
+      )
 
   };
 
@@ -2600,11 +3314,7 @@ function formatAnalysisLine(line){
     )
   ){
 
-    return `
-      <div class="chordLine">
-        ${esc(line.text)}
-      </div>
-    `;
+    return `<div class="songLine chordLine">${esc(line.text)}</div>`;
 
   }
 
@@ -2623,7 +3333,7 @@ function formatAnalysisLine(line){
       html =
         html.replace(
           new RegExp(
-            `(^|\\s)(${escapeRegExp(chord)})(?=\\s|$)`,
+            `(^|[^A-Za-z0-9#\\/])(${escapeRegExp(chord)})(?=[^A-Za-z0-9#\\/]|$)`,
             'g'
           ),
           `$1<span class="detectedChord">$2</span>`
@@ -2632,11 +3342,7 @@ function formatAnalysisLine(line){
     });
 
 
-  return `
-    <div class="lyricLine">
-      ${html || '&nbsp;'}
-    </div>
-  `;
+  return `<div class="songLine lyricLine">${html || '&nbsp;'}</div>`;
 
 }
 
@@ -2673,10 +3379,38 @@ function renderAnalysisResult(
 
     <div class="analysisResult">
 
+      <div class="analysisTitleRow">
+
+        <h3 class="analysisTitle${analysis.title?'':' untitled'}" id="analysisTitle">
+          ${esc(analysis.title || 'Untitled Song — tap to rename')}
+        </h3>
+
+        <button
+          class="analysisRenameBtn"
+          id="analysisRenameBtn"
+          type="button"
+          aria-label="Rename song title"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 20l1-4 11-11 3 3-11 11-4 1z"/>
+            <path d="M14 6l3 3"/>
+          </svg>
+        </button>
+
+      </div>
+
+      ${
+        analysis.key
+        ? `<div class="keyBadge">Key: ${esc(analysis.key.label)}</div>`
+        : ''
+      }
+
       <h3>
         Detected Song Structure
       </h3>
 
+
+      <div class="analysisSectionsScroll">
 
       ${
         analysis.sections.length
@@ -2684,23 +3418,18 @@ function renderAnalysisResult(
         ? analysis.sections
             .map(section => `
 
-              <div class="sectionCard">
+              <div class="songSection">
 
-                <div class="sectionName">
+                <div class="songSectionName">
                   ${esc(section.name)}
                 </div>
 
-                <div class="sectionText">
-
-                  ${
-                    section.lines
-                      .map(
-                        formatAnalysisLine
-                      )
-                      .join('')
-                  }
-
-                </div>
+                ${
+                  section.lines
+                    .filter(line => line.text.trim() !== '')
+                    .map(formatAnalysisLine)
+                    .join('')
+                }
 
 
                 ${
@@ -2737,6 +3466,8 @@ function renderAnalysisResult(
         `
       }
 
+      </div>
+
 
       <div class="analyzerActions">
 
@@ -2763,22 +3494,124 @@ function renderAnalysisResult(
 
   document
     .getElementById(
+      'analysisRenameBtn'
+    )
+    .onclick = () => {
+
+      /*
+        window.prompt() is unreliable inside
+        mobile webviews / installed PWAs (it can
+        silently no-op), so rename is done with
+        an inline text input instead.
+      */
+
+      const titleEl =
+        document.getElementById(
+          'analysisTitle'
+        );
+
+      if(
+        !titleEl ||
+        document.getElementById(
+          'analysisTitleInput'
+        )
+      ){
+
+        return;
+
+      }
+
+      const input =
+        document.createElement(
+          'input'
+        );
+
+      input.type = 'text';
+      input.id = 'analysisTitleInput';
+      input.className = 'analysisTitleInput';
+      input.placeholder = 'Song title';
+      input.value = analysis.title || '';
+      input.maxLength = 120;
+
+      titleEl.replaceWith(input);
+
+      input.focus();
+      input.select();
+
+      const commit =
+        () => {
+
+          analysis.title =
+            input.value.trim();
+
+          const newTitleEl =
+            document.createElement(
+              'h3'
+            );
+
+          newTitleEl.id = 'analysisTitle';
+
+          newTitleEl.className =
+            'analysisTitle' +
+            (
+              analysis.title
+                ? ''
+                : ' untitled'
+            );
+
+          newTitleEl.textContent =
+            analysis.title ||
+            'Untitled Song — tap to rename';
+
+          input.replaceWith(
+            newTitleEl
+          );
+
+        };
+
+      input.addEventListener(
+        'keydown',
+        event => {
+
+          if(event.key === 'Enter'){
+
+            event.preventDefault();
+            input.blur();
+
+          }
+
+          if(event.key === 'Escape'){
+
+            event.preventDefault();
+
+            input.value =
+              analysis.title || '';
+
+            input.blur();
+
+          }
+
+        }
+      );
+
+      input.addEventListener(
+        'blur',
+        commit,
+        { once:true }
+      );
+
+    };
+
+
+  document
+    .getElementById(
       'saveAnalysisBtn'
     )
     .onclick = () => {
 
       const title =
-        prompt(
-          'Song title:',
-          'Analyzed Song'
-        );
-
-
-      if(!title){
-
-        return;
-
-      }
+        (analysis.title || '').trim() ||
+        'Untitled Song';
 
 
       const song =
@@ -2811,17 +3644,8 @@ function renderAnalysisResult(
     .onclick = () => {
 
       const title =
-        prompt(
-          'Song title:',
-          'Analyzed Song'
-        );
-
-
-      if(!title){
-
-        return;
-
-      }
+        (analysis.title || '').trim() ||
+        'Untitled Song';
 
 
       const song = {
@@ -2852,6 +3676,7 @@ function renderAnalysisResult(
       openSong(song);
 
     };
+
 
 }
 
@@ -3005,10 +3830,12 @@ function runAnalyzer(){
 
 
   const text =
-    (
-      input?.value ||
-      ''
-    ).trim();
+    decodeHtmlEntities(
+      (
+        input?.value ||
+        ''
+      ).trim()
+    );
 
 
   if(!text){
@@ -3036,6 +3863,11 @@ function runAnalyzer(){
 
     const analysis =
       analyzeFocusedSong(
+        text
+      );
+
+    analysis.title =
+      guessTitleFromText(
         text
       );
 
@@ -3235,7 +4067,7 @@ function transposeText(
   */
 
   const regex =
-    /(^|\s)([A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add)?(?:[0-9]+)?(?:[#b][0-9]+)?(?:\/[A-G](?:#|b)?)?)(?=\s|$)/gm;
+    /(^|[^A-Za-z0-9#\/])([A-G](?:#|b)?(?:(?:[Mm][Aa][Jj]|[Mm][Ii][Nn]|[Dd][Ii][Mm]|[Aa][Uu][Gg]|[Ss][Uu][Ss]|[Aa][Dd][Dd]|[Mm])[0-9]*|[0-9]+)*(?:[#b][0-9]+)*(?:\/[A-G](?:#|b)?)?)(?=[^A-Za-z0-9#\/]|$)/gm;
 
 
   return text.replace(
@@ -3279,8 +4111,19 @@ function openSong(song){
     song;
 
 
-  modal.style.display =
-    'none';
+  currentSong.originalText =
+    decodeHtmlEntities(
+      currentSong.originalText ||
+      currentSong.text ||
+      ''
+    );
+
+
+  currentSong.text =
+    currentSong.originalText;
+
+
+  modal.classList.remove('open');
 
 
   setActiveNav('lyrics');
@@ -3387,11 +4230,12 @@ function attachSectionNavBehavior(){
   }
   nav.querySelectorAll('button').forEach(button=>{
     button.addEventListener('pointerdown',event=>{
-      event.preventDefault();clearPress();button.classList.add('longPressing');
+      clearPress();button.classList.add('longPressing');
       pressTimer=setTimeout(()=>{draggingButton=button;dragStartIndex=[...nav.children].indexOf(button);button.classList.remove('longPressing');button.classList.add('dragging');},500);
     });
     button.addEventListener('pointermove',event=>{
       if(!draggingButton)return;
+      event.preventDefault();
       const buttons=[...nav.querySelectorAll('button')];
       const target=buttons.find(targetButton=>{if(targetButton===draggingButton)return false;const rect=targetButton.getBoundingClientRect();return event.clientX>=rect.left&&event.clientX<=rect.right;});
       if(!target)return;
@@ -3414,12 +4258,16 @@ function renderSongViewer(){
   const displayedText=transposeText(song.originalText||song.text||'',amount);
   song.text=displayedText;
   const sections=getViewerSections(song,displayedText);
+  const keyInfo=detectKeyFromChords(extractChordTokens(displayedText));
   screen.innerHTML=`
     <div class="songPage">
-      <div class="songFixedTitle"><button class="backBtn" id="backToLyrics">← Lyrics</button><h1>${esc(song.title||'Untitled Song')}</h1></div>
       <div class="songFixedHeader">
-        <div class="songSectionNav" id="songSectionNav" aria-label="Song sections">
-          ${sections.map((section,index)=>`<button type="button" data-section-index="${index}" class="${index===0?'active':''}">${esc(section.name)}</button>`).join('')}
+        <div class="songHeaderTop">
+          <button class="songBackBtn" id="songBackBtn" type="button" aria-label="Back to Lyrics">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+          </button>
+          <h1 class="songHeaderTitle">${esc(song.title||'Untitled Song')}</h1>
+          ${keyInfo?`<div class="keyBadge songHeaderKey">Key: ${esc(keyInfo.label)}</div>`:''}
         </div>
       </div>
       <div class="songToolbar">
@@ -3432,7 +4280,7 @@ function renderSongViewer(){
           <div class="autoScrollGroup">
             <div class="asToggleWrap" id="asToggleWrap">
               <button type="button" class="asArrowBtn asArrowUp" id="asArrowUp" aria-label="Increase scroll speed">⌃</button>
-              <button class="toolbarBtn asToggleBtn${autoScrollActive?' primary':''}" id="asToggle">${autoScrollActive?'⏸':'▶'}</button>
+              <button class="toolbarBtn asToggleBtn${autoScrollActive?' primary':''}" id="asToggle" aria-label="${autoScrollActive?'Pause auto-scroll':'Start auto-scroll'}">${autoScrollIconHTML()}</button>
               <button type="button" class="asArrowBtn asArrowDown" id="asArrowDown" aria-label="Decrease scroll speed">⌄</button>
             </div>
           </div>
@@ -3443,12 +4291,26 @@ function renderSongViewer(){
           <button class="toolbarBtn" id="editBtn">Edit Song</button>
           <button class="toolbarBtn primary" id="saveBtn">Save</button>
         </div>
+        <div class="toolbarRow">
+          <div class="viewModeGroup" id="viewModeGroup">
+            <button type="button" class="viewModeBtn${showChords?' active':''}" data-mode="chords">♪ Chords</button>
+            <button type="button" class="viewModeBtn${showChords?'':' active'}" data-mode="lyrics">▤ Lyrics</button>
+          </div>
+        </div>
       </div>
-      <div class="lyricsView" id="lyricsText" style="font-size:${song.fontSize}px;"><div class="songStructure">
+      <div class="lyricsView" id="lyricsText" style="font-size:${song.fontSize}px;"><div class="songStructure${showChords?'':' chordsHidden'}" id="songStructure">
         ${sections.map((section,index)=>`<div class="songSection" id="section-${index}" data-section-index="${index}"><div class="songSectionName">${esc(section.name)}</div>${section.lines.filter(line=>line.trim()!=='').map(line=>isChordOnlyLine(line)?`<div class="songLine chordLine">${esc(line)}</div>`:`<div class="songLine lyricLine">${formatViewerLine(line)}</div>`).join('')}</div>`).join('')}
       </div></div>
     </div>`;
-  document.getElementById('backToLyrics').onclick=()=>{stopAutoScroll();renderLyrics();};
+  document.getElementById('songSectionOverlay').innerHTML = `
+    <div class="songSectionFloatBar">
+      <div class="songSectionNav" id="songSectionNav" aria-label="Song sections">
+        ${sections.map((section,index)=>`<button type="button" data-section-index="${index}" class="${index===0?'active':''}">${esc(section.name)}</button>`).join('')}
+      </div>
+    </div>
+  `;
+  updateLyricsNavIndicator();
+  document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();currentSong=null;renderLyrics();};
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;renderSongViewer();};
   document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;renderSongViewer();};
   document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;renderSongViewer();};
@@ -3457,6 +4319,18 @@ function renderSongViewer(){
   attachAutoScrollControls();
   document.getElementById('editBtn').onclick=()=>{stopAutoScroll();editCurrentSong();};
   document.getElementById('saveBtn').onclick=saveCurrentSong;
+  document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(btn=>{
+    btn.onclick=()=>{
+      showChords=(btn.dataset.mode==='chords');
+      document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(b=>{
+        b.classList.toggle('active',b.dataset.mode===btn.dataset.mode);
+      });
+      const structureEl=document.getElementById('songStructure');
+      if(structureEl){
+        structureEl.classList.toggle('chordsHidden',!showChords);
+      }
+    };
+  });
   attachSectionNavBehavior();
 }
 
@@ -3491,6 +4365,12 @@ function autoScrollStep(now){
   autoScrollRAF=requestAnimationFrame(autoScrollStep);
 }
 
+function autoScrollIconHTML(){
+  return autoScrollActive
+    ? '<span class="asPauseIcon" aria-hidden="true"><i></i><i></i></span>'
+    : '<span class="asPlayIcon" aria-hidden="true"></span>';
+}
+
 function refreshAutoScrollToggleLabel(){
   const wrap=document.getElementById('asToggleWrap');
   const toggleBtn=document.getElementById('asToggle');
@@ -3498,7 +4378,7 @@ function refreshAutoScrollToggleLabel(){
   if(wrap&&wrap.classList.contains('speedMode')){
     toggleBtn.textContent=String(autoScrollSpeedLevel);
   }else{
-    toggleBtn.textContent=autoScrollActive?'⏸':'▶';
+    toggleBtn.innerHTML=autoScrollIconHTML();
   }
 }
 
@@ -3606,7 +4486,7 @@ function formatViewerLine(
 
 
   const chordRegex =
-    /(^|\s)([A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add)?(?:[0-9]+)?(?:[#b][0-9]+)?(?:\/[A-G](?:#|b)?)?)(?=\s|$)/g;
+    /(^|[^A-Za-z0-9#\/])([A-G](?:#|b)?(?:(?:[Mm][Aa][Jj]|[Mm][Ii][Nn]|[Dd][Ii][Mm]|[Aa][Uu][Gg]|[Ss][Uu][Ss]|[Aa][Dd][Dd]|[Mm])[0-9]*|[0-9]+)*(?:[#b][0-9]+)*(?:\/[A-G](?:#|b)?)?)(?=[^A-Za-z0-9#\/]|$)/g;
 
 
   html =
@@ -4218,318 +5098,6 @@ function saveEditorChanges(){
 
 
 /* =========================================================
-   LONG PRESS SONG ACTIONS
-========================================================= */
-
-function showSongActions(
-  songId,
-  anchorEl
-){
-
-  const existing =
-    document.getElementById(
-      'songActionsModal'
-    );
-
-
-  if(existing){
-
-    existing.remove();
-
-  }
-
-
-  const menu =
-    document.createElement(
-      'div'
-    );
-
-
-  menu.id =
-    'songActionsModal';
-
-
-  menu.style.cssText = `
-
-    position:fixed;
-    z-index:600;
-
-    width:190px;
-
-    background:#18181b;
-    border:1px solid #303036;
-    border-radius:14px;
-
-    padding:8px;
-
-    box-shadow:0 14px 34px rgba(0,0,0,.55);
-
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-
-    opacity:0;
-
-  `;
-
-
-  menu.innerHTML = `
-
-    <div style="
-      color:#85858c;
-      font-size:11px;
-      font-weight:800;
-      text-transform:uppercase;
-      letter-spacing:.06em;
-      padding:2px 4px 2px;
-    ">
-      Song options
-    </div>
-
-
-    <button
-      id="mergeSongAction"
-      class="toolbarBtn"
-      style="text-align:left;"
-    >
-      Merge
-    </button>
-
-
-    <button
-      id="deleteSongAction"
-      class="toolbarBtn"
-      style="
-        text-align:left;
-        background:#3a2020;
-        color:#ff8b8b;
-      "
-    >
-      Delete
-    </button>
-
-
-    <button
-      id="cancelSongAction"
-      class="toolbarBtn"
-      style="text-align:left;"
-    >
-      Cancel
-    </button>
-
-  `;
-
-
-  document.body.appendChild(
-    menu
-  );
-
-
-  /*
-    Position the popover next to the card that was
-    pressed, instead of a full-screen dimmed sheet,
-    so the rest of the library stays visible and
-    tappable.
-  */
-
-  const rect =
-    anchorEl?.getBoundingClientRect?.() ||
-    {
-      left:16,
-      right:216,
-      top:80,
-      bottom:80
-    };
-
-
-  const menuWidth = 190;
-
-  let left =
-    Math.min(
-      rect.left,
-      window.innerWidth - menuWidth - 12
-    );
-
-  left =
-    Math.max(
-      12,
-      left
-    );
-
-
-  let top =
-    rect.bottom + 8;
-
-
-  menu.style.left =
-    left + 'px';
-
-  menu.style.top =
-    top + 'px';
-
-
-  requestAnimationFrame(
-    () => {
-
-      const menuRect =
-        menu.getBoundingClientRect();
-
-
-      if(
-        menuRect.bottom >
-        window.innerHeight - 12
-      ){
-
-        menu.style.top =
-          Math.max(
-            12,
-            rect.top - menuRect.height - 8
-          ) + 'px';
-
-      }
-
-
-      menu.style.opacity =
-        '1';
-
-    }
-  );
-
-
-  function closeMenu(){
-
-    menu.remove();
-
-    document.removeEventListener(
-      'pointerdown',
-      onOutsideClick,
-      true
-    );
-
-  }
-
-
-  function onOutsideClick(
-    event
-  ){
-
-    if(
-      !menu.contains(
-        event.target
-      )
-    ){
-
-      closeMenu();
-
-    }
-
-  }
-
-
-  /*
-    Deferred so the pointerdown that opened this
-    popover doesn't immediately close it again.
-  */
-
-  setTimeout(
-    () => {
-
-      document.addEventListener(
-        'pointerdown',
-        onOutsideClick,
-        true
-      );
-
-    },
-    0
-  );
-
-
-  document
-    .getElementById(
-      'cancelSongAction'
-    )
-    .onclick = () => {
-
-      closeMenu();
-
-    };
-
-
-  document
-    .getElementById(
-      'deleteSongAction'
-    )
-    .onclick = () => {
-
-      const song =
-        getSongs().find(
-          item =>
-            item.id ===
-            songId
-        );
-
-
-      if(!song){
-
-        return;
-
-      }
-
-
-      const confirmed =
-        confirm(
-          `Delete "${song.title}" from your library?`
-        );
-
-
-      if(!confirmed){
-
-        return;
-
-      }
-
-
-      const remaining =
-        getSongs().filter(
-          item =>
-            item.id !==
-            songId
-        );
-
-
-      writeSongs(
-        remaining
-      );
-
-
-      closeMenu();
-
-
-      renderLibrary();
-
-    };
-
-
-  document
-    .getElementById(
-      'mergeSongAction'
-    )
-    .onclick = () => {
-
-      closeMenu();
-
-
-      alert(
-        'Merge is ready. We will connect the song merge function next.'
-      );
-
-    };
-
-}
-
-
-/* =========================================================
    LIBRARY
 ========================================================= */
 
@@ -4540,6 +5108,14 @@ function renderLibrary(){
 
   const list =
     getSongs();
+
+
+  const selectMode =
+    librarySelectedIds.size > 0;
+
+
+  const selectedCount =
+    librarySelectedIds.size;
 
 
   screen.innerHTML = `
@@ -4578,10 +5154,14 @@ function renderLibrary(){
         ? list.map(song => `
 
           <div
-            class="songCard"
+            class="songCard${selectMode?' selectable':''}${librarySelectedIds.has(song.id)?' selected':''}"
             data-song-card="${esc(song.id)}"
             style="cursor:pointer;"
           >
+
+            <div class="songCheck" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M5 13l4 4 10-10"/></svg>
+            </div>
 
             <div class="songIcon">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -4645,11 +5225,179 @@ function renderLibrary(){
 
 
   document
+    .getElementById('libraryOverlay')
+    .innerHTML =
+      selectMode
+      ? `
+        <div class="librarySelectBar" id="librarySelectBar">
+
+          <button
+            class="toolbarBtn"
+            id="librarySelectCancel"
+            type="button"
+            aria-label="Cancel selection"
+          >
+            ✕
+          </button>
+
+          <div class="librarySelectCount">
+            ${selectedCount} selected
+          </div>
+
+          ${
+            selectedCount === 1
+            ? `
+              <button class="toolbarBtn" id="librarySelectRename" type="button">Rename</button>
+              <button class="toolbarBtn" id="librarySelectDelete" type="button" style="background:#3a2020;color:#ff8b8b;">Delete</button>
+            `
+            : ''
+          }
+
+          ${
+            selectedCount >= 2 && selectedCount <= 10
+            ? `
+              <button class="toolbarBtn primary" id="librarySelectMerge" type="button">Merge</button>
+              <button class="toolbarBtn" id="librarySelectDeleteMulti" type="button" style="background:#3a2020;color:#ff8b8b;">Delete</button>
+            `
+            : ''
+          }
+
+        </div>
+      `
+      : '';
+
+
+  document
     .getElementById(
       'openSearch'
     )
     .onclick =
       () => openSearch('all');
+
+
+  const cancelBtn =
+    document.getElementById(
+      'librarySelectCancel'
+    );
+
+  if(cancelBtn){
+
+    cancelBtn.onclick =
+      exitLibrarySelectMode;
+
+  }
+
+
+  const renameBtn =
+    document.getElementById(
+      'librarySelectRename'
+    );
+
+  if(renameBtn){
+
+    renameBtn.onclick = () => {
+
+      const [songId] =
+        [...librarySelectedIds];
+
+      renameSongById(songId);
+
+    };
+
+  }
+
+
+  const deleteBtn =
+    document.getElementById(
+      'librarySelectDelete'
+    );
+
+  if(deleteBtn){
+
+    deleteBtn.onclick = () => {
+
+      const [songId] =
+        [...librarySelectedIds];
+
+      const song =
+        getSongs().find(
+          item => item.id === songId
+        );
+
+      if(!song)return;
+
+      const confirmed =
+        confirm(
+          `Delete "${song.title}" from your library?`
+        );
+
+      if(!confirmed)return;
+
+      writeSongs(
+        getSongs().filter(
+          item => item.id !== songId
+        )
+      );
+
+      librarySelectedIds.clear();
+
+      renderLibrary();
+
+    };
+
+  }
+
+
+  const mergeBtn =
+    document.getElementById(
+      'librarySelectMerge'
+    );
+
+  if(mergeBtn){
+
+    mergeBtn.onclick = () => {
+
+      mergeSongsByIds(
+        [...librarySelectedIds]
+      );
+
+    };
+
+  }
+
+
+  const deleteMultiBtn =
+    document.getElementById(
+      'librarySelectDeleteMulti'
+    );
+
+  if(deleteMultiBtn){
+
+    deleteMultiBtn.onclick = () => {
+
+      const ids =
+        [...librarySelectedIds];
+
+      const confirmed =
+        confirm(
+          `Delete ${ids.length} songs from your library?`
+        );
+
+      if(!confirmed)return;
+
+      writeSongs(
+        getSongs().filter(
+          item => !ids.includes(item.id)
+        )
+      );
+
+      librarySelectedIds.clear();
+
+      renderLibrary();
+
+    };
+
+  }
 
 
   screen
@@ -4689,9 +5437,25 @@ function renderLibrary(){
       }
 
 
+      /*
+        Kill the browser/OS long-press popup (text-selection
+        callout, right-click-style context menu) so a long
+        press only ever triggers our own select mode.
+      */
+
+      card.addEventListener(
+        'contextmenu',
+        event => {
+
+          event.preventDefault();
+
+        }
+      );
+
+
       card.addEventListener(
         'click',
-        event => {
+        () => {
 
           if(longPressed){
 
@@ -4703,11 +5467,11 @@ function renderLibrary(){
           }
 
 
-          if(
-            event.target.closest(
-              '.songAction'
-            )
-          ){
+          if(selectMode){
+
+            toggleLibrarySelection(
+              songId
+            );
 
             return;
 
@@ -4722,18 +5486,7 @@ function renderLibrary(){
 
       card.addEventListener(
         'pointerdown',
-        event => {
-
-          if(
-            event.target.closest(
-              '.songAction'
-            )
-          ){
-
-            return;
-
-          }
-
+        () => {
 
           longPressed =
             false;
@@ -4747,13 +5500,12 @@ function renderLibrary(){
                   true;
 
 
-                showSongActions(
-                  songId,
-                  card
+                toggleLibrarySelection(
+                  songId
                 );
 
               },
-              650
+              550
             );
 
         }
@@ -4800,8 +5552,144 @@ function renderLibrary(){
 }
 
 
+/*
+  Renaming a single saved song, used both from the library's
+  select-mode "Rename" action.
+*/
+
+function renameSongById(songId){
+
+  const songs =
+    getSongs();
+
+  const song =
+    songs.find(
+      item => item.id === songId
+    );
+
+  if(!song)return;
+
+
+  const nextTitle =
+    prompt(
+      'Song title:',
+      song.title || ''
+    );
+
+  if(nextTitle === null)return;
+
+
+  const trimmed =
+    nextTitle.trim();
+
+  if(!trimmed)return;
+
+
+  song.title =
+    trimmed;
+
+  writeSongs(songs);
+
+
+  librarySelectedIds.clear();
+
+  renderLibrary();
+
+}
+
+
+/*
+  Merge 2–10 selected songs into a single new saved song,
+  combining their lyrics/chords in library order. Originals
+  are left untouched so nothing is lost if the merge isn't
+  what the user wanted.
+*/
+
+function mergeSongsByIds(ids){
+
+  const songs =
+    getSongs();
+
+  const ordered =
+    songs.filter(
+      song => ids.includes(song.id)
+    );
+
+  if(ordered.length < 2)return;
+
+
+  const suggestedTitle =
+    ordered
+      .map(song => song.title)
+      .join(' + ')
+      .slice(0,120);
+
+  const nextTitle =
+    prompt(
+      'Merged song title:',
+      suggestedTitle
+    );
+
+  if(nextTitle === null)return;
+
+
+  const title =
+    nextTitle.trim() ||
+    suggestedTitle;
+
+  const combinedText =
+    ordered
+      .map(song => song.originalText || song.text || '')
+      .join('\n\n');
+
+  const merged =
+    saveSong(
+      title,
+      combinedText
+    );
+
+
+  librarySelectedIds.clear();
+
+  alert(
+    `Merged ${ordered.length} songs into "${merged.title}".`
+  );
+
+  renderLibrary();
+
+}
+
+
+function toggleLibrarySelection(songId){
+
+  if(librarySelectedIds.has(songId)){
+
+    librarySelectedIds.delete(songId);
+
+  }else{
+
+    if(librarySelectedIds.size >= 10)return;
+
+    librarySelectedIds.add(songId);
+
+  }
+
+  renderLibrary();
+
+}
+
+
+function exitLibrarySelectMode(){
+
+  librarySelectedIds.clear();
+
+  renderLibrary();
+
+}
+
+
 /* =========================================================
-   SEARCH
+   SEARCH — single bar, behavior depends on the active tab
 ========================================================= */
 
 function openSearch(
@@ -4812,8 +5700,7 @@ function openSearch(
     selectedSource;
 
 
-  modal.style.display =
-    'flex';
+  modal.classList.add('open');
 
 
   document
@@ -4921,14 +5808,16 @@ function renderResults(){
         }
 
 
-        <div class="driveStatus">
-
-          🔐 Google Drive UI is ready.
-
-          Private Drive search can be connected
-          with Google OAuth later.
-
-        </div>
+        ${
+          source === 'drive'
+          ? `
+            <div class="driveStatus">
+              🔐 Google Drive isn't connected yet. Once connected,
+              Search will look up matching songs in your Drive.
+            </div>
+          `
+          : ''
+        }
 
       </div>
 
@@ -4942,7 +5831,6 @@ function renderResults(){
   ====================================================== */
 
   if(
-    source === 'all' ||
     source === 'ug'
   ){
 
@@ -4957,50 +5845,10 @@ function renderResults(){
 
         <div class="resultMeta">
 
-          ${
-            searchText
-              ? `Search for “${esc(searchText)}”`
-              : 'Search by song title'
-          }
-
-        </div>
-
-
-        <div class="resultActions">
-
-          <button
-            class="smallBtn toolbarBtn primary"
-            id="ugSearchWeb"
-          >
-            Search Ultimate Guitar
-          </button>
-
-        </div>
-
-
-        <div class="hint">
-
-          Paste a direct Ultimate Guitar
-          chord-page URL below to import it.
-
-        </div>
-
-
-        <div class="searchBox">
-
-          <input
-            class="searchInput"
-            id="ugUrl"
-            placeholder="https://tabs.ultimate-guitar.com/..."
-          >
-
-
-          <button
-            class="goBtn"
-            id="ugLoad"
-          >
-            Load
-          </button>
+          Type a song title and tap Search to look it up on
+          Ultimate Guitar, or paste a direct chord-page URL
+          to import it — lyrics and chords are detected
+          automatically.
 
         </div>
 
@@ -5049,65 +5897,103 @@ function renderResults(){
 
     });
 
+}
 
-  const webButton =
-    document.getElementById(
-      'ugSearchWeb'
+
+/* =========================================================
+   TOP SEARCH BAR — one input, behavior depends on the
+   active source tab (All / Google Drive / Ultimate Guitar)
+========================================================= */
+
+function looksLikeUrl(value){
+
+  return /^https?:\/\//i.test(
+    value.trim()
+  );
+
+}
+
+
+function handleTopSearch(){
+
+  const value =
+    query.value.trim();
+
+
+  if(source === 'ug'){
+
+    if(!value){
+
+      renderResults();
+
+      return;
+
+    }
+
+
+    if(looksLikeUrl(value)){
+
+      /*
+        Make sure #ugResult exists in the DOM before we try
+        to write status/progress into it.
+      */
+
+      renderResults();
+
+
+      importFromUG(value);
+
+
+      return;
+
+    }
+
+
+    /*
+      No scraping/search API for Ultimate Guitar's catalog —
+      only a direct-URL importer (/api/import) exists. So a
+      plain title search opens UG's own search page; the user
+      copies the chord-page link back here to import it, which
+      auto-detects the lyrics and chords.
+    */
+
+    window.open(
+
+      'https://www.ultimate-guitar.com/search.php?search_type=title&value=' +
+      encodeURIComponent(value),
+
+      '_blank'
+
     );
 
 
-  if(webButton){
-
-    webButton.onclick =
-      () => {
-
-        const value =
-          query.value.trim();
+    renderResults();
 
 
-        window.open(
-
-          'https://www.ultimate-guitar.com/search.php?search_type=title&value=' +
-          encodeURIComponent(
-            value
-          ),
-
-          '_blank'
-
-        );
-
-      };
+    return;
 
   }
 
 
-  const loadButton =
-    document.getElementById(
-      'ugLoad'
-    );
+  /*
+    'all' and 'drive' both just filter/search — Drive search
+    itself is a placeholder until Drive OAuth is connected.
+  */
 
-
-  if(loadButton){
-
-    loadButton.onclick =
-      loadUG;
-
-  }
+  renderResults();
 
 }
 
 
 /* =========================================================
    ULTIMATE GUITAR IMPORT
+   Given a direct chord-page URL, fetches the page through
+   the backend importer, then automatically detects the
+   song's lyrics and chords via the same analyzer used for
+   pasted-in songs, and saves it straight to the Library.
 ========================================================= */
 
-async function loadUG(){
-
-  const input =
-    document.getElementById(
-      'ugUrl'
-    );
-
+async function importFromUG(url){
 
   const box =
     document.getElementById(
@@ -5115,17 +6001,7 @@ async function loadUG(){
     );
 
 
-  const url =
-    (
-      input?.value ||
-      ''
-    ).trim();
-
-
-  if(!url){
-
-    box.innerHTML =
-      '<div class="hint">Paste an Ultimate Guitar URL first.</div>';
+  if(!box){
 
     return;
 
@@ -5154,7 +6030,10 @@ async function loadUG(){
 
     box.innerHTML =
       '<div class="hint">' +
-      esc(error.message) +
+      esc(
+        error.message ||
+        "That doesn't look like a valid URL."
+      ) +
       '</div>';
 
     return;
@@ -5239,11 +6118,14 @@ async function loadUG(){
 
 
     const importedText =
-      data.text || '';
+      decodeHtmlEntities(
+        data.text || ''
+      );
 
 
     /*
-      Immediately analyze the imported song.
+      Immediately analyze the imported song — this is what
+      detects the section structure, lyrics, and chords.
     */
 
     const analysis =
@@ -5261,23 +6143,12 @@ async function loadUG(){
       );
 
 
-    localStorage.setItem(
-      'worshipChordsSourceUrl',
-      data.sourceUrl || url
-    );
-
-
-    localStorage.setItem(
-      'worshipChordsImportedText',
-      importedText
-    );
-
-
     box.innerHTML = `
 
       <div class="hint">
 
-        ✅ Song imported and saved.
+        ✅ "${esc(song.title)}" imported —
+        lyrics and chords detected automatically.
 
       </div>
 
@@ -5286,17 +6157,9 @@ async function loadUG(){
 
         <button
           class="smallBtn toolbarBtn primary"
-          id="analyzeLoaded"
+          id="openImportedSong"
         >
-          Analyze Song
-        </button>
-
-
-        <button
-          class="smallBtn toolbarBtn"
-          id="openLoaded"
-        >
-          Open Lyrics
+          Open Song
         </button>
 
       </div>
@@ -5306,32 +6169,21 @@ async function loadUG(){
 
     document
       .getElementById(
-        'openLoaded'
+        'openImportedSong'
       )
       .onclick =
         () => openSong(song);
 
 
-    document
-      .getElementById(
-        'analyzeLoaded'
-      )
-      .onclick =
-        () =>
-          renderAnalyzer(
-            importedText
-          );
-
   }catch(error){
-
-    console.error(error);
-
 
     box.innerHTML =
       '<div class="hint">⚠️ ' +
       esc(
+
         error.message ||
-        'Importer failed.'
+        'Something went wrong importing this song.'
+
       ) +
       '</div>';
 
@@ -5341,46 +6193,46 @@ async function loadUG(){
 
 
 /* =========================================================
-   SEARCH EVENTS
+   GLOBAL BINDINGS / INIT
 ========================================================= */
 
-query.addEventListener(
-  'input',
-  renderResults
-);
-
-
 document
-  .getElementById(
-    'runSearch'
-  )
+  .getElementById('closeSearch')
   .onclick =
-    renderResults;
+    () => modal.classList.remove('open');
 
 
-document
-  .getElementById(
-    'closeSearch'
-  )
-  .onclick = () => {
-
-    modal.style.display =
-      'none';
-
-  };
-
+/* Clicking the dimmed backdrop (not the sheet itself) closes it. */
 
 modal.addEventListener(
   'click',
   event => {
 
-    if(
-      event.target ===
-      modal
-    ){
+    if(event.target === modal){
 
-      modal.style.display =
-        'none';
+      modal.classList.remove('open');
+
+    }
+
+  }
+);
+
+
+document
+  .getElementById('runSearch')
+  .onclick =
+    handleTopSearch;
+
+
+query.addEventListener(
+  'keydown',
+  event => {
+
+    if(event.key === 'Enter'){
+
+      event.preventDefault();
+
+      handleTopSearch();
 
     }
 
@@ -5396,96 +6248,64 @@ document
 
     button.onclick = () => {
 
-      openSearch(
-        button.dataset.source
-      );
+      source =
+        button.dataset.source;
+
+      document
+        .querySelectorAll(
+          '.sourceTabs button'
+        )
+        .forEach(tab => {
+
+          tab.classList.toggle(
+            'active',
+            tab === button
+          );
+
+        });
+
+      renderResults();
 
     };
 
   });
 
 
-/* =========================================================
-   MAIN NAVIGATION
-========================================================= */
-
 document
   .querySelectorAll(
-    '.nav button'
+    '.nav button[data-screen]'
   )
   .forEach(button => {
 
-    button.addEventListener(
-      'click',
-      () => {
+    button.onclick = () => {
 
-        if(typeof stopAutoScroll==='function')stopAutoScroll();
+      const target =
+        button.dataset.screen;
 
-        const screenName =
-          button.dataset.screen;
+      if(target === 'home'){
 
+        renderHome();
 
-        if(
-          screenName ===
-          'home'
-        ){
+      }else if(target === 'lyrics'){
 
-          renderHome();
+        currentSong
+          ? renderSongViewer()
+          : renderLyrics();
 
-        }
+      }else if(target === 'library'){
 
+        renderLibrary();
 
-        else if(
-          screenName ===
-          'lyrics'
-        ){
+      }else if(target === 'profile'){
 
-          renderLyrics();
-
-        }
-
-
-        else if(
-          screenName ===
-          'library'
-        ){
-
-          renderLibrary();
-
-        }
-
-
-        else if(
-          screenName ===
-          'profile'
-        ){
-
-          setActiveNav('profile');
-
-
-          screen.innerHTML = `
-
-            <div class="placeholder">
-
-              Profile
-              <br>
-              — ready to connect —
-
-            </div>
-
-          `;
-
-        }
+        renderProfile();
 
       }
-    );
+
+    };
 
   });
 
-
-/* =========================================================
-   INITIAL SCREEN
-========================================================= */
 
 renderHome();
 
