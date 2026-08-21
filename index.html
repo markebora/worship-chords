@@ -184,7 +184,7 @@ button{
   width:calc(100% - 24px);
   max-width:620px;
 
-  height:70px;
+  height:60px;
 
   padding:5px;
 
@@ -199,7 +199,7 @@ button{
 
   border:1px solid rgba(255,255,255,.12);
 
-  border-radius:22px;
+  border-radius:20px;
 
   backdrop-filter:blur(24px);
   -webkit-backdrop-filter:blur(24px);
@@ -214,26 +214,21 @@ button{
 
   min-width:0;
 
-  height:58px;
+  height:48px;
 
   border:0;
-  border-radius:17px;
+  border-radius:15px;
 
   background:transparent;
 
   color:rgba(255,255,255,.38);
 
-  font:600 11px inherit;
-
   cursor:pointer;
 
   display:flex;
-  flex-direction:column;
 
   align-items:center;
   justify-content:center;
-
-  gap:4px;
 
   transition:
     background .25s ease,
@@ -242,21 +237,10 @@ button{
     box-shadow .25s ease;
 }
 
-.nav button[data-screen="lyrics"]{
-  flex:1.35;
-
-  background:rgba(255,255,255,.055);
-
-  border:1px solid rgba(255,255,255,.07);
-
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.04);
-}
-
 .nav button.active{
   color:#fff;
 
-  background:rgba(255,255,255,.06);
+  background:rgba(255,255,255,.07);
 
   border:1px solid rgba(255,255,255,.09);
 
@@ -265,20 +249,9 @@ button{
     inset 0 1px 0 rgba(255,255,255,.08);
 }
 
-.nav button[data-screen="lyrics"].active{
-  background:rgba(255,255,255,.08);
-
-  border:1px solid rgba(255,255,255,.12);
-
-  box-shadow:
-    0 0 8px rgba(255,255,255,.25),
-    0 0 20px rgba(255,255,255,.12),
-    inset 0 1px 0 rgba(255,255,255,.10);
-}
-
 .nav .icon{
-  width:25px;
-  height:25px;
+  width:24px;
+  height:24px;
 
   display:flex;
 
@@ -293,14 +266,14 @@ button{
 }
 
 .nav .icon svg{
-  width:20px;
-  height:20px;
+  width:22px;
+  height:22px;
 
   fill:none;
 
   stroke:currentColor;
 
-  stroke-width:1.8;
+  stroke-width:1.6;
 
   stroke-linecap:round;
   stroke-linejoin:round;
@@ -318,17 +291,7 @@ button{
 }
 
 .nav button.active .icon svg{
-  stroke-width:2;
-}
-
-.nav button[data-screen="lyrics"] .icon svg{
-  width:24px;
-  height:24px;
-}
-
-.nav button[data-screen="lyrics"] span:last-child{
-  font-size:12px;
-  font-weight:800;
+  stroke-width:1.85;
 }
 
 .nav button:active{
@@ -874,12 +837,109 @@ button{
 
 .songToolbar{
   display:flex;
+  flex-direction:column;
+
+  gap:10px;
+
+  margin-bottom:14px;
+}
+
+.toolbarRow{
+  display:flex;
+
+  align-items:center;
+  justify-content:space-between;
 
   gap:8px;
 
   flex-wrap:wrap;
+}
 
-  margin-bottom:14px;
+.toolbarRow.secondaryRow{
+  justify-content:flex-start;
+}
+
+.transposeGroup,
+.autoScrollGroup{
+  display:flex;
+
+  align-items:center;
+
+  gap:8px;
+}
+
+.autoScrollGroup .toolbarBtn,
+.asArrowBtn{
+  touch-action:none;
+}
+
+.asToggleWrap{
+  position:relative;
+
+  display:inline-flex;
+}
+
+.asToggleBtn{
+  min-width:40px;
+
+  text-align:center;
+
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+.asArrowBtn{
+  position:absolute;
+  left:50%;
+
+  transform:translateX(-50%);
+
+  width:26px;
+  height:18px;
+
+  padding:0;
+
+  border:0;
+  background:transparent;
+
+  color:#8a8a91;
+
+  font-size:10px;
+  line-height:1;
+
+  cursor:pointer;
+
+  opacity:0;
+
+  transition:opacity .15s ease,color .15s ease;
+
+  pointer-events:none;
+}
+
+.asArrowUp{
+  top:-19px;
+}
+
+.asArrowDown{
+  bottom:-19px;
+}
+
+.asToggleWrap.speedMode .asArrowBtn{
+  opacity:1;
+
+  color:#cfcfd4;
+
+  pointer-events:auto;
+}
+
+.asArrowBtn:active{
+  color:#fff;
+}
+
+.asToggleWrap.speedMode .asToggleBtn{
+  background:#29292e;
+
+  border-color:#4a4a52;
 }
 
 .lyricsView{
@@ -966,12 +1026,14 @@ button{
 
   white-space:pre-wrap;
 
-  font:
-    15px/1.05
+  font-size:inherit;
+  font-family:
     ui-monospace,
     SFMono-Regular,
     Menlo,
     monospace;
+
+  line-height:1.05;
 }
 
 .chordLine{
@@ -1323,33 +1385,22 @@ button{
 
     width:calc(100% - 18px);
 
-    height:68px;
+    height:56px;
 
-    border-radius:22px;
+    border-radius:18px;
 
     padding:6px;
   }
 
   .nav button{
-    height:54px;
+    height:44px;
 
-    border-radius:17px;
-
-    gap:3px;
-  }
-
-  .nav button[data-screen="lyrics"]{
-    flex:2;
+    border-radius:14px;
   }
 
   .nav .icon{
-    width:25px;
-    height:25px;
-  }
-
-  .nav button[data-screen="lyrics"] .icon{
-    width:29px;
-    height:29px;
+    width:23px;
+    height:23px;
   }
 
   .lyricsActions,
@@ -1371,14 +1422,6 @@ button{
 
   .nav{
     width:calc(100% - 12px);
-  }
-
-  .nav button{
-    font-size:10px;
-  }
-
-  .nav button[data-screen="lyrics"] span:last-child{
-    font-size:11px;
   }
 
 }
@@ -1441,6 +1484,62 @@ button{
 
     <button
       data-screen="lyrics"
+      aria-label="Lyrics"
+    >
+
+      <span class="icon">
+
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+
+          <rect
+            x="3"
+            y="4"
+            width="18"
+            height="12"
+            rx="2.5"
+          />
+
+          <path d="M8 20h8"/>
+
+          <path d="M12 16v4"/>
+
+        </svg>
+
+      </span>
+
+    </button>
+
+
+    <button
+      class="active"
+      data-screen="home"
+      aria-label="Home"
+    >
+
+      <span class="icon">
+
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+
+          <path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/>
+
+          <path d="M9.5 16h5"/>
+
+        </svg>
+
+      </span>
+
+    </button>
+
+
+    <button
+      data-screen="library"
+      aria-label="Library"
     >
 
       <span class="icon">
@@ -1468,16 +1567,12 @@ button{
 
       </span>
 
-      <span>
-        Lyrics
-      </span>
-
     </button>
 
 
     <button
-      class="active"
-      data-screen="home"
+      data-screen="profile"
+      aria-label="Profile"
     >
 
       <span class="icon">
@@ -1487,80 +1582,16 @@ button{
           aria-hidden="true"
         >
 
-          <path d="M3 10.5 12 3l9 7.5"/>
-
-          <path d="M5.5 9.5V21h13V9.5"/>
-
-          <path d="M9.5 21v-6h5v6"/>
-
-        </svg>
-
-      </span>
-
-      <span>
-        Home
-      </span>
-
-    </button>
-
-
-    <button
-      data-screen="library"
-    >
-
-      <span class="icon">
-
-        <svg
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-
-          <rect
-            x="4"
-            y="4"
-            width="16"
-            height="16"
-            rx="4"
+          <circle
+            cx="12"
+            cy="8"
+            r="3.4"
           />
 
-          <path d="M8 10h8"/>
-
-          <path d="M8 14h8"/>
+          <path d="M5.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/>
 
         </svg>
 
-      </span>
-
-      <span>
-        Library
-      </span>
-
-    </button>
-
-
-    <button
-      data-screen="menu"
-    >
-
-      <span class="icon">
-
-        <svg
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-
-          <path d="M5 7h14"/>
-
-          <path d="M5 12h14"/>
-
-          <path d="M5 17h14"/>
-
-        </svg>
-
-      </span>
-
-      <span>
-        Menu
       </span>
 
     </button>
@@ -3274,27 +3305,177 @@ function renderSongViewer(){
         </div>
       </div>
       <div class="songToolbar">
-        <button class="toolbarBtn" id="transposeDown">−</button>
-        <button class="toolbarBtn" id="transposeReset">Transpose:${amount>0?'+':''}${amount}</button>
-        <button class="toolbarBtn" id="transposeUp">+</button>
-        <button class="toolbarBtn" id="fontMinus">A−</button>
-        <button class="toolbarBtn" id="fontPlus">A+</button>
-        <button class="toolbarBtn" id="editBtn">Edit Song</button>
-        <button class="toolbarBtn primary" id="saveBtn">Save</button>
+        <div class="toolbarRow">
+          <div class="transposeGroup">
+            <button class="toolbarBtn" id="transposeDown">−</button>
+            <button class="toolbarBtn" id="transposeReset">Transpose:${amount>0?'+':''}${amount}</button>
+            <button class="toolbarBtn" id="transposeUp">+</button>
+          </div>
+          <div class="autoScrollGroup">
+            <div class="asToggleWrap" id="asToggleWrap">
+              <button type="button" class="asArrowBtn asArrowUp" id="asArrowUp" aria-label="Increase scroll speed">▲</button>
+              <button class="toolbarBtn asToggleBtn${autoScrollActive?' primary':''}" id="asToggle">${autoScrollActive?'⏸':'▶'}</button>
+              <button type="button" class="asArrowBtn asArrowDown" id="asArrowDown" aria-label="Decrease scroll speed">▼</button>
+            </div>
+          </div>
+        </div>
+        <div class="toolbarRow secondaryRow">
+          <button class="toolbarBtn" id="fontMinus">A−</button>
+          <button class="toolbarBtn" id="fontPlus">A+</button>
+          <button class="toolbarBtn" id="editBtn">Edit Song</button>
+          <button class="toolbarBtn primary" id="saveBtn">Save</button>
+        </div>
       </div>
       <div class="lyricsView" id="lyricsText" style="font-size:${song.fontSize}px;"><div class="songStructure">
         ${sections.map((section,index)=>`<div class="songSection" id="section-${index}" data-section-index="${index}"><div class="songSectionName">${esc(section.name)}</div>${section.lines.filter(line=>line.trim()!=='').map(line=>isChordOnlyLine(line)?`<div class="songLine chordLine">${esc(line)}</div>`:`<div class="songLine lyricLine">${formatViewerLine(line)}</div>`).join('')}</div>`).join('')}
       </div></div>
     </div>`;
-  document.getElementById('backToLyrics').onclick=renderLyrics;
+  document.getElementById('backToLyrics').onclick=()=>{stopAutoScroll();renderLyrics();};
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;renderSongViewer();};
   document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;renderSongViewer();};
   document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;renderSongViewer();};
   document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);renderSongViewer();};
   document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);renderSongViewer();};
-  document.getElementById('editBtn').onclick=editCurrentSong;
+  attachAutoScrollControls();
+  document.getElementById('editBtn').onclick=()=>{stopAutoScroll();editCurrentSong();};
   document.getElementById('saveBtn').onclick=saveCurrentSong;
   attachSectionNavBehavior();
+}
+
+/* =========================================================
+   AUTO SCROLL
+========================================================= */
+
+let autoScrollActive=false;
+let autoScrollRAF=null;
+let autoScrollLastTime=null;
+let autoScrollSpeedLevel=2; /* 1-5 */
+const AUTO_SCROLL_MIN_LEVEL=1;
+const AUTO_SCROLL_MAX_LEVEL=5;
+
+function autoScrollPxPerSecond(){
+  return 18+autoScrollSpeedLevel*16; /* level1=34 ... level5=98 */
+}
+
+function autoScrollStep(now){
+  if(!autoScrollActive)return;
+  const toggleBtn=document.getElementById('asToggle');
+  if(!toggleBtn){stopAutoScroll();return;}
+  if(autoScrollLastTime===null)autoScrollLastTime=now;
+  const deltaSeconds=(now-autoScrollLastTime)/1000;
+  autoScrollLastTime=now;
+  window.scrollBy(0,autoScrollPxPerSecond()*deltaSeconds);
+  const scroller=document.scrollingElement||document.documentElement;
+  if(scroller.scrollTop+window.innerHeight>=scroller.scrollHeight-2){
+    stopAutoScroll();
+    return;
+  }
+  autoScrollRAF=requestAnimationFrame(autoScrollStep);
+}
+
+function refreshAutoScrollToggleLabel(){
+  const wrap=document.getElementById('asToggleWrap');
+  const toggleBtn=document.getElementById('asToggle');
+  if(!toggleBtn)return;
+  if(wrap&&wrap.classList.contains('speedMode')){
+    toggleBtn.textContent=String(autoScrollSpeedLevel);
+  }else{
+    toggleBtn.textContent=autoScrollActive?'⏸':'▶';
+  }
+}
+
+function startAutoScroll(){
+  autoScrollActive=true;
+  autoScrollLastTime=null;
+  const toggleBtn=document.getElementById('asToggle');
+  if(toggleBtn)toggleBtn.classList.add('primary');
+  refreshAutoScrollToggleLabel();
+  autoScrollRAF=requestAnimationFrame(autoScrollStep);
+}
+
+function stopAutoScroll(){
+  autoScrollActive=false;
+  autoScrollLastTime=null;
+  if(autoScrollRAF)cancelAnimationFrame(autoScrollRAF);
+  autoScrollRAF=null;
+  const toggleBtn=document.getElementById('asToggle');
+  if(toggleBtn)toggleBtn.classList.remove('primary');
+  refreshAutoScrollToggleLabel();
+}
+
+function toggleAutoScroll(){
+  if(autoScrollActive)stopAutoScroll();else startAutoScroll();
+}
+
+function setAutoScrollSpeedLevel(level){
+  autoScrollSpeedLevel=Math.max(AUTO_SCROLL_MIN_LEVEL,Math.min(AUTO_SCROLL_MAX_LEVEL,level));
+  refreshAutoScrollToggleLabel();
+}
+
+function attachAutoScrollControls(){
+  const toggleBtn=document.getElementById('asToggle');
+  const wrap=document.getElementById('asToggleWrap');
+  const upBtn=document.getElementById('asArrowUp');
+  const downBtn=document.getElementById('asArrowDown');
+  if(!toggleBtn||!wrap)return;
+
+  let pressTimer=null;
+  let longPressFired=false;
+
+  const enterSpeedMode=()=>{
+    longPressFired=true;
+    wrap.classList.add('speedMode');
+    refreshAutoScrollToggleLabel();
+  };
+
+  const exitSpeedMode=()=>{
+    wrap.classList.remove('speedMode');
+    refreshAutoScrollToggleLabel();
+  };
+
+  if(upBtn)upBtn.addEventListener('click',event=>{
+    event.stopPropagation();
+    setAutoScrollSpeedLevel(autoScrollSpeedLevel+1);
+  });
+
+  if(downBtn)downBtn.addEventListener('click',event=>{
+    event.stopPropagation();
+    setAutoScrollSpeedLevel(autoScrollSpeedLevel-1);
+  });
+
+  toggleBtn.addEventListener('pointerdown',event=>{
+    event.preventDefault();
+    longPressFired=false;
+    clearTimeout(pressTimer);
+    pressTimer=setTimeout(enterSpeedMode,450);
+  });
+
+  toggleBtn.addEventListener('pointerup',()=>{
+    clearTimeout(pressTimer);
+  });
+
+  toggleBtn.addEventListener('pointercancel',()=>{
+    clearTimeout(pressTimer);
+  });
+
+  toggleBtn.addEventListener('click',()=>{
+    /*
+      A click always fires right after pointerup, even for a
+      long press. If this click is the tail end of the same
+      press that just opened speed mode, swallow it so the
+      popup doesn't instantly close again.
+    */
+    if(longPressFired){
+      longPressFired=false;
+      return;
+    }
+    if(wrap.classList.contains('speedMode')){
+      /* Tapping the number saves the speed and closes the popup. */
+      exitSpeedMode();
+    }else{
+      toggleAutoScroll();
+    }
+  });
 }
 
 
@@ -3923,7 +4104,8 @@ function saveEditorChanges(){
 ========================================================= */
 
 function showSongActions(
-  songId
+  songId,
+  anchorEl
 ){
 
   const existing =
@@ -3939,96 +4121,209 @@ function showSongActions(
   }
 
 
-  const overlay =
+  const menu =
     document.createElement(
       'div'
     );
 
 
-  overlay.id =
+  menu.id =
     'songActionsModal';
 
 
-  overlay.style.cssText = `
+  menu.style.cssText = `
 
     position:fixed;
-    inset:0;
-
-    background:rgba(0,0,0,.68);
-
     z-index:600;
 
-    display:flex;
+    width:190px;
 
-    align-items:flex-end;
-    justify-content:center;
+    background:#18181b;
+    border:1px solid #303036;
+    border-radius:14px;
+
+    padding:8px;
+
+    box-shadow:0 14px 34px rgba(0,0,0,.55);
+
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+
+    opacity:0;
 
   `;
 
 
-  overlay.innerHTML = `
+  menu.innerHTML = `
 
     <div style="
-      width:min(920px,100%);
-      background:#18181b;
-      border:1px solid #303036;
-      border-radius:22px 22px 0 0;
-      padding:20px;
+      color:#85858c;
+      font-size:11px;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      padding:2px 4px 2px;
     ">
-
-      <div style="
-        color:#aaa;
-        font-size:13px;
-        margin-bottom:14px;
-      ">
-        Song options
-      </div>
-
-
-      <div style="
-        display:flex;
-        gap:10px;
-      ">
-
-        <button
-          id="mergeSongAction"
-          class="toolbarBtn"
-          style="flex:1;"
-        >
-          Merge
-        </button>
-
-
-        <button
-          id="cancelSongAction"
-          class="toolbarBtn"
-          style="flex:1;"
-        >
-          Cancel
-        </button>
-
-
-        <button
-          id="deleteSongAction"
-          class="toolbarBtn"
-          style="
-            flex:1;
-            background:#3a2020;
-            color:#ff8b8b;
-          "
-        >
-          Delete
-        </button>
-
-      </div>
-
+      Song options
     </div>
+
+
+    <button
+      id="mergeSongAction"
+      class="toolbarBtn"
+      style="text-align:left;"
+    >
+      Merge
+    </button>
+
+
+    <button
+      id="deleteSongAction"
+      class="toolbarBtn"
+      style="
+        text-align:left;
+        background:#3a2020;
+        color:#ff8b8b;
+      "
+    >
+      Delete
+    </button>
+
+
+    <button
+      id="cancelSongAction"
+      class="toolbarBtn"
+      style="text-align:left;"
+    >
+      Cancel
+    </button>
 
   `;
 
 
   document.body.appendChild(
-    overlay
+    menu
+  );
+
+
+  /*
+    Position the popover next to the card that was
+    pressed, instead of a full-screen dimmed sheet,
+    so the rest of the library stays visible and
+    tappable.
+  */
+
+  const rect =
+    anchorEl?.getBoundingClientRect?.() ||
+    {
+      left:16,
+      right:216,
+      top:80,
+      bottom:80
+    };
+
+
+  const menuWidth = 190;
+
+  let left =
+    Math.min(
+      rect.left,
+      window.innerWidth - menuWidth - 12
+    );
+
+  left =
+    Math.max(
+      12,
+      left
+    );
+
+
+  let top =
+    rect.bottom + 8;
+
+
+  menu.style.left =
+    left + 'px';
+
+  menu.style.top =
+    top + 'px';
+
+
+  requestAnimationFrame(
+    () => {
+
+      const menuRect =
+        menu.getBoundingClientRect();
+
+
+      if(
+        menuRect.bottom >
+        window.innerHeight - 12
+      ){
+
+        menu.style.top =
+          Math.max(
+            12,
+            rect.top - menuRect.height - 8
+          ) + 'px';
+
+      }
+
+
+      menu.style.opacity =
+        '1';
+
+    }
+  );
+
+
+  function closeMenu(){
+
+    menu.remove();
+
+    document.removeEventListener(
+      'pointerdown',
+      onOutsideClick,
+      true
+    );
+
+  }
+
+
+  function onOutsideClick(
+    event
+  ){
+
+    if(
+      !menu.contains(
+        event.target
+      )
+    ){
+
+      closeMenu();
+
+    }
+
+  }
+
+
+  /*
+    Deferred so the pointerdown that opened this
+    popover doesn't immediately close it again.
+  */
+
+  setTimeout(
+    () => {
+
+      document.addEventListener(
+        'pointerdown',
+        onOutsideClick,
+        true
+      );
+
+    },
+    0
   );
 
 
@@ -4038,7 +4333,7 @@ function showSongActions(
     )
     .onclick = () => {
 
-      overlay.remove();
+      closeMenu();
 
     };
 
@@ -4090,7 +4385,7 @@ function showSongActions(
       );
 
 
-      overlay.remove();
+      closeMenu();
 
 
       renderLibrary();
@@ -4104,7 +4399,7 @@ function showSongActions(
     )
     .onclick = () => {
 
-      overlay.remove();
+      closeMenu();
 
 
       alert(
@@ -4112,23 +4407,6 @@ function showSongActions(
       );
 
     };
-
-
-  overlay.addEventListener(
-    'click',
-    event => {
-
-      if(
-        event.target ===
-        overlay
-      ){
-
-        overlay.remove();
-
-      }
-
-    }
-  );
 
 }
 
@@ -4343,7 +4621,8 @@ function renderLibrary(){
 
 
                 showSongActions(
-                  songId
+                  songId,
+                  card
                 );
 
               },
@@ -5013,6 +5292,8 @@ document
       'click',
       () => {
 
+        if(typeof stopAutoScroll==='function')stopAutoScroll();
+
         const screenName =
           button.dataset.screen;
 
@@ -5049,17 +5330,17 @@ document
 
         else if(
           screenName ===
-          'menu'
+          'profile'
         ){
 
-          setActiveNav('menu');
+          setActiveNav('profile');
 
 
           screen.innerHTML = `
 
             <div class="placeholder">
 
-              Menu
+              Profile
               <br>
               — ready to connect —
 
