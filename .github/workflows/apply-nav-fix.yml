@@ -1,0 +1,56 @@
+name: Apply lyrics navigation test fix
+on:
+  push:
+    branches: [test-lyrics-nav-freeze]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch index.html
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          old_css = '''.songFixedHeader{position:sticky;top:0;z-index:40;background:rgba(17,17,19,.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);margin:0 -1px 10px;padding:8px 0;border-bottom:1px solid #29292e;}'''
+          new_css = '''.songFixedHeader{position:fixed;top:0;left:50%;transform:translateX(-50%);width:min(920px,100%);z-index:300;background:rgba(17,17,19,.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);margin:0;padding:8px 16px 10px;border-bottom:1px solid #29292e;box-shadow:0 8px 24px rgba(0,0,0,.35);}'''
+          if old_css not in s:
+              raise SystemExit('Expected songFixedHeader CSS not found')
+          s = s.replace(old_css, new_css, 1)
+
+          old_nav_css = '''.songSectionNav button.active{background:#29292e;color:#fff;border-color:#4a4a52;}'''
+          new_nav_css = '''.songSectionNav button.active{background:#fff;color:#111;border-color:#fff;box-shadow:0 2px 10px rgba(255,255,255,.18);}'''
+          if old_nav_css not in s:
+              raise SystemExit('Expected section active CSS not found')
+          s = s.replace(old_nav_css, new_nav_css, 1)
+
+          old_songpage_css = '''.songPage{\n  padding:4px 0 30px;\n}'''
+          new_songpage_css = '''.songPage{\n  padding:120px 0 30px;\n}'''
+          if old_songpage_css not in s:
+              raise SystemExit('Expected songPage CSS not found')
+          s = s.replace(old_songpage_css, new_songpage_css, 1)
+
+          old_render = '''  attachSectionNavBehavior();\n}'''
+          new_render = '''  attachSectionNavBehavior();\n  updateSectionNavActive();\n}'''
+          if old_render not in s:
+              raise SystemExit('Expected renderSongViewer ending not found')
+          s = s.replace(old_render, new_render, 1)
+
+          old_behavior = '''function attachSectionNavBehavior(){\n  const nav=document.getElementById('songSectionNav');\n  if(!nav)return;\n  let pressTimer=null;\n  let draggingButton=null;\n  let dragStartIndex=-1;\n  const clearPress=()=>{clearTimeout(pressTimer);pressTimer=null;nav.querySelectorAll('button').forEach(button=>button.classList.remove('longPressing'));};\n  nav.querySelectorAll('button').forEach(button=>{\n    button.addEventListener('pointerdown',event=>{\n      event.preventDefault();clearPress();button.classList.add('longPressing');\n      pressTimer=setTimeout(()=>{draggingButton=button;dragStartIndex=[...nav.children].indexOf(button);button.classList.remove('longPressing');button.classList.add('dragging');},500);\n    });\n    button.addEventListener('pointermove',event=>{\n      if(!draggingButton)return;\n      const buttons=[...nav.querySelectorAll('button')];\n      const target=buttons.find(targetButton=>{if(targetButton===draggingButton)return false;const rect=targetButton.getBoundingClientRect();return event.clientX>=rect.left&&event.clientX<=rect.right;});\n      if(!target)return;\n      const currentIndex=[...nav.children].indexOf(draggingButton);\n      const targetIndex=[...nav.children].indexOf(target);\n      if(targetIndex>currentIndex)nav.insertBefore(draggingButton,target.nextSibling);else nav.insertBefore(draggingButton,target);\n    });\n    button.addEventListener('pointerup',()=>{\n      const wasDragging=!!draggingButton;clearPress();\n      if(wasDragging){const finalIndex=[...nav.children].indexOf(button);button.classList.remove('dragging');draggingButton=null;if(finalIndex!==dragStartIndex)reorderViewerSections(dragStartIndex,finalIndex);dragStartIndex=-1;return;}\n      const index=Number(button.dataset.sectionIndex);const target=document.getElementById('section-'+index);if(target)target.scrollIntoView({behavior:'smooth',block:'start'});\n    });\n    button.addEventListener('pointercancel',()=>{clearPress();if(draggingButton)draggingButton.classList.remove('dragging');draggingButton=null;dragStartIndex=-1;});\n  });\n}'''
+          new_behavior = '''function updateSectionNavActive(){\n  const nav=document.getElementById('songSectionNav');\n  if(!nav)return;\n  const sections=[...document.querySelectorAll('.songSection')];\n  if(!sections.length)return;\n  const navButtons=[...nav.querySelectorAll('button')];\n  let activeIndex=0;\n  const headerHeight=nav.closest('.songFixedHeader')?.getBoundingClientRect().height || 100;\n  let bestDistance=Infinity;\n  sections.forEach((section,index)=>{\n    const top=section.getBoundingClientRect().top;\n    const distance=Math.abs(top-headerHeight-8);\n    if(top-headerHeight<=24 && distance<bestDistance){activeIndex=index;bestDistance=distance;}\n  });\n  navButtons.forEach((button,index)=>button.classList.toggle('active',index===activeIndex));\n}\n\nfunction attachSectionNavBehavior(){\n  const nav=document.getElementById('songSectionNav');\n  if(!nav)return;\n  let pressTimer=null;\n  let draggingButton=null;\n  let dragStartIndex=-1;\n  const clearPress=()=>{clearTimeout(pressTimer);pressTimer=null;nav.querySelectorAll('button').forEach(button=>button.classList.remove('longPressing'));};\n  nav.querySelectorAll('button').forEach(button=>{\n    button.addEventListener('pointerdown',event=>{\n      event.preventDefault();clearPress();button.classList.add('longPressing');\n      pressTimer=setTimeout(()=>{draggingButton=button;dragStartIndex=[...nav.children].indexOf(button);button.classList.remove('longPressing');button.classList.add('dragging');},500);\n    });\n    button.addEventListener('pointermove',event=>{\n      if(!draggingButton)return;\n      const buttons=[...nav.querySelectorAll('button')];\n      const target=buttons.find(targetButton=>{if(targetButton===draggingButton)return false;const rect=targetButton.getBoundingClientRect();return event.clientX>=rect.left&&event.clientX<=rect.right;});\n      if(!target)return;\n      const currentIndex=[...nav.children].indexOf(draggingButton);\n      const targetIndex=[...nav.children].indexOf(target);\n      if(targetIndex>currentIndex)nav.insertBefore(draggingButton,target.nextSibling);else nav.insertBefore(draggingButton,target);\n    });\n    button.addEventListener('pointerup',()=>{\n      const wasDragging=!!draggingButton;clearPress();\n      if(wasDragging){const finalIndex=[...nav.children].indexOf(button);button.classList.remove('dragging');draggingButton=null;if(finalIndex!==dragStartIndex)reorderViewerSections(dragStartIndex,finalIndex);dragStartIndex=-1;return;}\n      nav.querySelectorAll('button').forEach(item=>item.classList.remove('active'));\n      button.classList.add('active');\n      const index=Number(button.dataset.sectionIndex);const target=document.getElementById('section-'+index);if(target)target.scrollIntoView({behavior:'smooth',block:'start'});\n    });\n    button.addEventListener('pointercancel',()=>{clearPress();if(draggingButton)draggingButton.classList.remove('dragging');draggingButton=null;dragStartIndex=-1;});\n  });\n  window.addEventListener('scroll',updateSectionNavActive,{passive:true});\n}\n'''
+          if old_behavior not in s:
+              raise SystemExit('Expected section nav behavior not found')
+          s = s.replace(old_behavior, new_behavior, 1)
+
+          p.write_text(s, encoding='utf-8')
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Fix frozen lyrics navigation active state"
+          git push
