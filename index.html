@@ -2152,7 +2152,7 @@ function parseSections(text){
 
 
   const sectionPattern =
-    /^\s*(intro|verse(?:\s*\d+)?|pre[- ]?chorus|chorus|refrain|bridge|interlude|instrumental|outro|ending|tag|hook|solo)(?:\s*\d+)?\s*:?\s*$/i;
+    /^\s*\[?\s*(intro|verse(?:\s*\d+)?|pre[- ]?chorus|chorus|refrain|bridge|interlude|instrumental|outro|ending|tag|hook|solo)(?:\s*\d+)?\s*:?\s*\]?\s*$/i;
 
 
   lines.forEach(line => {
@@ -2184,10 +2184,11 @@ function parseSections(text){
       current = {
 
         name:
-          clean.replace(
-            /:$/,
-            ''
-          ),
+          clean
+            .replace(/^\[\s*/, '')
+            .replace(/\s*\]$/, '')
+            .replace(/:$/, '')
+            .trim(),
 
         lines:[]
 
