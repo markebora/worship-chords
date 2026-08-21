@@ -906,28 +906,19 @@ button{
 
   text-align:left;
 }
-  overflow:auto;
-
-  font:
-    15px/1.75
-    ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    monospace;
-}
 
 
 /* =========================================================
    STRUCTURED SONG DISPLAY
 ========================================================= */
 
-.songFixedHeader{position:sticky;top:0;z-index:40;background:rgba(17,17,19,.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);margin:0 -1px 10px;padding:8px 0;border-bottom:1px solid #29292e;}
-.songFixedTitle{display:flex;align-items:center;gap:10px;min-width:0;padding:0 2px 8px;}
+.songFixedTitle{display:flex;align-items:center;gap:10px;min-width:0;margin-bottom:14px;}
 .songFixedTitle h1{margin:0;flex:1;min-width:0;font-size:22px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.songFixedHeader{position:sticky;top:0;z-index:40;background:rgba(17,17,19,.96);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);margin:0 -1px 14px;padding:8px 0;border-bottom:1px solid #29292e;}
 .songSectionNav{display:flex;gap:7px;overflow-x:auto;padding:0 1px 3px;scrollbar-width:none;touch-action:pan-x;}
 .songSectionNav::-webkit-scrollbar{display:none;}
 .songSectionNav button{flex:0 0 auto;border:1px solid #303036;background:#18181b;color:#a7a7ad;border-radius:10px;padding:8px 11px;font-size:11px;font-weight:800;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;}
-.songSectionNav button.active{background:#29292e;color:#fff;border-color:#4a4a52;}
+.songSectionNav button.active{background:#fff;color:#111;border-color:#fff;}
 .songSectionNav button.longPressing{transform:scale(.96);background:#303036;}
 .songSectionNav button.dragging{opacity:.45;}
 
@@ -944,6 +935,8 @@ button{
   border-bottom:1px solid #25252a;
 
   padding-bottom:4px;
+
+  scroll-margin-top:64px;
 }
 
 .songSection:last-child{
@@ -3221,6 +3214,28 @@ function attachSectionNavBehavior(){
   let draggingButton=null;
   let dragStartIndex=-1;
   const clearPress=()=>{clearTimeout(pressTimer);pressTimer=null;nav.querySelectorAll('button').forEach(button=>button.classList.remove('longPressing'));};
+  const setActiveIndex=index=>{
+    nav.querySelectorAll('button').forEach(button=>{
+      button.classList.toggle('active',Number(button.dataset.sectionIndex)===index);
+    });
+  };
+  const fixedHeader=document.querySelector('.songFixedHeader');
+  const headerHeight=fixedHeader?fixedHeader.offsetHeight:0;
+  const sectionEls=[...document.querySelectorAll('.songSection')];
+  if(sectionEls.length){
+    const observer=new IntersectionObserver(entries=>{
+      entries.forEach(entry=>{
+        if(entry.isIntersecting){
+          setActiveIndex(Number(entry.target.dataset.sectionIndex));
+        }
+      });
+    },{
+      root:null,
+      rootMargin:`-${headerHeight+1}px 0px -70% 0px`,
+      threshold:0
+    });
+    sectionEls.forEach(section=>observer.observe(section));
+  }
   nav.querySelectorAll('button').forEach(button=>{
     button.addEventListener('pointerdown',event=>{
       event.preventDefault();clearPress();button.classList.add('longPressing');
@@ -3238,7 +3253,7 @@ function attachSectionNavBehavior(){
     button.addEventListener('pointerup',()=>{
       const wasDragging=!!draggingButton;clearPress();
       if(wasDragging){const finalIndex=[...nav.children].indexOf(button);button.classList.remove('dragging');draggingButton=null;if(finalIndex!==dragStartIndex)reorderViewerSections(dragStartIndex,finalIndex);dragStartIndex=-1;return;}
-      const index=Number(button.dataset.sectionIndex);const target=document.getElementById('section-'+index);if(target)target.scrollIntoView({behavior:'smooth',block:'start'});
+      const index=Number(button.dataset.sectionIndex);setActiveIndex(index);const target=document.getElementById('section-'+index);if(target)target.scrollIntoView({behavior:'smooth',block:'start'});
     });
     button.addEventListener('pointercancel',()=>{clearPress();if(draggingButton)draggingButton.classList.remove('dragging');draggingButton=null;dragStartIndex=-1;});
   });
@@ -3252,10 +3267,10 @@ function renderSongViewer(){
   const sections=getViewerSections(song,displayedText);
   screen.innerHTML=`
     <div class="songPage">
+      <div class="songFixedTitle"><button class="backBtn" id="backToLyrics">← Lyrics</button><h1>${esc(song.title||'Untitled Song')}</h1></div>
       <div class="songFixedHeader">
-        <div class="songFixedTitle"><button class="backBtn" id="backToLyrics">← Lyrics</button><h1>${esc(song.title||'Untitled Song')}</h1></div>
         <div class="songSectionNav" id="songSectionNav" aria-label="Song sections">
-          ${sections.map((section,index)=>`<button type="button" data-section-index="${index}">${esc(section.name)}</button>`).join('')}
+          ${sections.map((section,index)=>`<button type="button" data-section-index="${index}" class="${index===0?'active':''}">${esc(section.name)}</button>`).join('')}
         </div>
       </div>
       <div class="songToolbar">
