@@ -19,6 +19,28 @@ const MIME = {
   '.webp': 'image/webp'
 };
 
+const STICKY_NAV_TEST_CSS = `
+<style id="sticky-lyrics-nav-test">
+html, body, .app, #screen { overflow: visible !important; }
+.songPage { overflow: visible !important; }
+.songFixedHeader {
+  position: sticky !important;
+  top: 0 !important;
+  left: auto !important;
+  transform: none !important;
+  width: 100% !important;
+  z-index: 9999 !important;
+  background: rgba(17,17,19,.98) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+.songSectionNav button.active {
+  background: #fff !important;
+  color: #111 !important;
+  border-color: #fff !important;
+}
+</style>`;
+
 function loadImporter() {
   const source = fs.readFileSync(IMPORTER_PATH, 'utf8')
     .replace(/^\s*export\s+default\s+async\s+function\s+handler/, 'async function handler');
@@ -107,6 +129,17 @@ const server = http.createServer(async (req, res) => {
 
     const ext = path.extname(filePath).toLowerCase();
     res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+
+    if (ext === '.html') {
+      fs.readFile(filePath, 'utf8', (readErr, html) => {
+        if (readErr) {
+          return res.end('Unable to read HTML file');
+        }
+        return res.end(html.replace('</head>', STICKY_NAV_TEST_CSS + '\n</head>'));
+      });
+      return;
+    }
+
     fs.createReadStream(filePath).pipe(res);
   });
 });
