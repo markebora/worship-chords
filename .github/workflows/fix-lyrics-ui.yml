@@ -1,0 +1,382 @@
+name: Fix Lyrics UI
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-lyrics-ui:
+    if: ${{ !contains(github.event.head_commit.message, '[lyrics-ui-fixed]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch index.html
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          # 1) Tighten lyrics spacing while keeping monospace chord alignment.
+          s = s.replace('''.lyricsView{\n  background:#0e0e10;\n\n  border:1px solid #29292e;\n\n  border-radius:14px;\n\n  padding:18px 6px 18px 8px;''', '''.lyricsView{\n  background:#0e0e10;\n\n  border:1px solid #29292e;\n\n  border-radius:14px;\n\n  padding:12px 6px 12px 8px;''')
+
+          s = s.replace('''.songStructure{\n  display:flex;\n\n  flex-direction:column;\n\n  gap:10px;\n}''', '''.songStructure{\n  display:flex;\n\n  flex-direction:column;\n\n  gap:4px;\n}''')
+
+          s = s.replace('''.songSection{\n  border-bottom:1px solid #25252a;\n\n  padding-bottom:8px;\n}''', '''.songSection{\n  border-bottom:1px solid #25252a;\n\n  padding-bottom:4px;\n}''')
+
+          s = s.replace('''.songSectionName{\n  margin-bottom:6px;''', '''.songSectionName{\n  margin-bottom:3px;''')
+
+          s = s.replace('''  font:\n    15px/1.2\n    ui-monospace,''', '''  font:\n    15px/1.05\n    ui-monospace,''')
+          s = s.replace('''  line-height:1.2;\n\n  white-space:pre-wrap;\n}\n\n.lyricLine{''', '''  line-height:1.05;\n\n  white-space:pre-wrap;\n}\n\n.lyricLine{''')
+          s = s.replace('''.lyricLine{\n  color:#f1f1f1;\n\n  min-height:0;\n\n  margin:0;\n\n  padding:0;\n\n  line-height:1.2;\n}''', '''.lyricLine{\n  color:#f1f1f1;\n\n  min-height:0;\n\n  margin:0;\n\n  padding:0;\n\n  line-height:1.05;\n}''')
+
+          # 2) Add a sticky song title/section navigation bar and drag styling.
+          marker = '''/* =========================================================\n   STRUCTURED SONG DISPLAY\n========================================================= */'''
+          css = '''/* =========================================================\n   STRUCTURED SONG DISPLAY\n========================================================= */\n\n.songFixedHeader{\n  position:sticky;\n  top:0;\n  z-index:40;\n  background:rgba(17,17,19,.96);\n  backdrop-filter:blur(16px);\n  -webkit-backdrop-filter:blur(16px);\n  margin:0 -1px 10px;\n  padding:8px 0 8px;\n  border-bottom:1px solid #29292e;\n}\n\n.songFixedTitle{\n  display:flex;\n  align-items:center;\n  gap:10px;\n  min-width:0;\n  padding:0 2px 8px;\n}\n\n.songFixedTitle h1{\n  margin:0;\n  flex:1;\n  min-width:0;\n  font-size:22px;\n  line-height:1.15;\n  white-space:nowrap;\n  overflow:hidden;\n  text-overflow:ellipsis;\n}\n\n.songSectionNav{\n  display:flex;\n  gap:7px;\n  overflow-x:auto;\n  padding:0 1px 3px;\n  scrollbar-width:none;\n  touch-action:pan-x;\n}\n\n.songSectionNav::-webkit-scrollbar{\n  display:none;\n}\n\n.songSectionNav button{\n  flex:0 0 auto;\n  border:1px solid #303036;\n  background:#18181b;\n  color:#a7a7ad;\n  border-radius:10px;\n  padding:8px 11px;\n  font-size:11px;\n  font-weight:800;\n  cursor:pointer;\n  user-select:none;\n  -webkit-user-select:none;\n  touch-action:none;\n  transition:transform .15s ease,background .15s ease,border-color .15s ease,opacity .15s ease;\n}\n\n.songSectionNav button.active{\n  background:#29292e;\n  color:#fff;\n  border-color:#4a4a52;\n}\n\n.songSectionNav button.longPressing{\n  transform:scale(.96);\n  background:#303036;\n}\n\n.songSectionNav button.dragging{\n  opacity:.45;\n  transform:scale(.96);\n}\n\n.songSection.dragTarget{\n  outline:1px dashed #72b7ff;\n  outline-offset:3px;\n}\n'''
+          if marker in s and '.songFixedHeader{' not in s:
+              s = s.replace(marker, css, 1)
+
+          # 3) Add duplicate-section action in the editor.
+          old_tools = '''          <button\n            class="sectionTool"\n            type="button"\n            onclick="moveEditorSection(this,1)"\n          >\n            ↓\n          </button>'''
+          new_tools = old_tools + '''\n\n\n          <button\n            class="sectionTool"\n            type="button"\n            title="Duplicate section"\n            onclick="duplicateEditorSection(this)"\n          >\n            ⧉\n          </button>'''
+          s = s.replace(old_tools, new_tools, 1)
+
+          # 4) Replace the viewer body with sticky section navigation and reorder support.
+          start = s.index('function renderSongViewer(){')
+          end = s.index('\n\nfunction formatViewerLine(', start)
+          new_viewer = r'''function getViewerSections(song, displayedText){
+
+  const parsed = parseSections(displayedText);
+
+  const normalized = parsed.map((section, index) => ({
+    ...section,
+    _id: String(index) + '|' + String(section.name || 'Section').trim().toLowerCase()
+  }));
+
+  const savedOrder = Array.isArray(song.sectionOrder)
+    ? song.sectionOrder
+    : [];
+
+  if(!savedOrder.length){
+    song.sectionOrder = normalized.map(section => section._id);
+    return normalized;
+  }
+
+  const byId = new Map(normalized.map(section => [section._id, section]));
+  const ordered = [];
+
+  savedOrder.forEach(id => {
+    const section = byId.get(id);
+    if(section){
+      ordered.push(section);
+      byId.delete(id);
+    }
+  });
+
+  normalized.forEach(section => {
+    if(byId.has(section._id)){
+      ordered.push(section);
+    }
+  });
+
+  song.sectionOrder = ordered.map(section => section._id);
+  return ordered;
+}
+
+
+function persistSectionOrder(){
+  if(!currentSong){
+    return;
+  }
+
+  const songs = getSongs();
+  const index = songs.findIndex(item => item.id === currentSong.id);
+
+  if(index !== -1){
+    songs[index] = currentSong;
+    writeSongs(songs.slice(0,200));
+  }
+}
+
+
+function reorderViewerSections(fromIndex, toIndex){
+  if(!currentSong || fromIndex === toIndex){
+    return;
+  }
+
+  const amount = currentSong.transposeSteps || 0;
+  const displayedText = transposeText(
+    currentSong.originalText || currentSong.text || '',
+    amount
+  );
+  const sections = getViewerSections(currentSong, displayedText);
+
+  if(
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= sections.length ||
+    toIndex >= sections.length
+  ){
+    return;
+  }
+
+  const moved = sections.splice(fromIndex, 1)[0];
+  sections.splice(toIndex, 0, moved);
+  currentSong.sectionOrder = sections.map(section => section._id);
+  persistSectionOrder();
+  renderSongViewer();
+}
+
+
+function attachSectionNavBehavior(sections){
+  const nav = document.getElementById('songSectionNav');
+  if(!nav){
+    return;
+  }
+
+  let pressTimer = null;
+  let draggingIndex = -1;
+  let didDrag = false;
+
+  const clearPress = () => {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+    nav.querySelectorAll('button').forEach(button => {
+      button.classList.remove('longPressing');
+    });
+  };
+
+  nav.querySelectorAll('button').forEach((button, index) => {
+    button.addEventListener('pointerdown', event => {
+      event.preventDefault();
+      didDrag = false;
+      clearTimeout(pressTimer);
+      button.classList.add('longPressing');
+
+      pressTimer = setTimeout(() => {
+        draggingIndex = index;
+        button.classList.remove('longPressing');
+        button.classList.add('dragging');
+        nav.dataset.dragging = 'true';
+      }, 500);
+    });
+
+    button.addEventListener('pointermove', event => {
+      if(draggingIndex < 0){
+        return;
+      }
+
+      didDrag = true;
+      const buttons = [...nav.querySelectorAll('button')];
+      const target = buttons.findIndex(targetButton => {
+        const rect = targetButton.getBoundingClientRect();
+        return event.clientX >= rect.left && event.clientX <= rect.right;
+      });
+
+      if(target >= 0 && target !== draggingIndex){
+        const moving = buttons[draggingIndex];
+        if(target > draggingIndex){
+          nav.insertBefore(moving, buttons[target].nextSibling);
+        }else{
+          nav.insertBefore(moving, buttons[target]);
+        }
+        draggingIndex = target;
+      }
+    });
+
+    button.addEventListener('pointerup', event => {
+      const wasDragging = draggingIndex >= 0;
+      clearPress();
+
+      if(wasDragging){
+        const finalIndex = [...nav.querySelectorAll('button')].indexOf(button);
+        reorderViewerSections(index, finalIndex);
+        draggingIndex = -1;
+        nav.dataset.dragging = 'false';
+        return;
+      }
+
+      if(!didDrag){
+        const target = document.getElementById('section-' + index);
+        if(target){
+          target.scrollIntoView({behavior:'smooth', block:'start'});
+        }
+      }
+
+      draggingIndex = -1;
+      nav.dataset.dragging = 'false';
+    });
+
+    button.addEventListener('pointercancel', () => {
+      clearPress();
+      draggingIndex = -1;
+      nav.dataset.dragging = 'false';
+    });
+
+    button.addEventListener('pointerleave', () => {
+      if(draggingIndex < 0){
+        clearPress();
+      }
+    });
+  });
+}
+
+
+function renderSongViewer(){
+
+  const song = currentSong;
+  const amount = song.transposeSteps || 0;
+
+  const displayedText = transposeText(
+    song.originalText || song.text || '',
+    amount
+  );
+
+  song.text = displayedText;
+
+  const sections = getViewerSections(song, displayedText);
+
+  screen.innerHTML = `
+
+    <div class="songPage">
+
+      <div class="songFixedHeader">
+
+        <div class="songFixedTitle">
+          <button class="backBtn" id="backToLyrics">← Lyrics</button>
+          <h1>${esc(song.title || 'Untitled Song')}</h1>
+        </div>
+
+        <div class="songSectionNav" id="songSectionNav" aria-label="Song sections">
+          ${sections.map((section,index) => `
+            <button type="button" data-section-index="${index}">
+              ${esc(section.name)}
+            </button>
+          `).join('')}
+        </div>
+
+      </div>
+
+      <div class="songToolbar">
+
+        <button class="toolbarBtn" id="transposeDown">−</button>
+
+        <button class="toolbarBtn" id="transposeReset">
+          Transpose:${amount > 0 ? '+' : ''}${amount}
+        </button>
+
+        <button class="toolbarBtn" id="transposeUp">+</button>
+        <button class="toolbarBtn" id="fontMinus">A−</button>
+        <button class="toolbarBtn" id="fontPlus">A+</button>
+        <button class="toolbarBtn" id="editBtn">Edit Song</button>
+        <button class="toolbarBtn primary" id="saveBtn">Save</button>
+
+      </div>
+
+      <div class="lyricsView" id="lyricsText" style="font-size:${song.fontSize}px;">
+        <div class="songStructure">
+          ${sections.map((section,index) => `
+            <div class="songSection" id="section-${index}" data-section-index="${index}">
+
+              <div class="songSectionName">${esc(section.name)}</div>
+
+              ${section.lines
+                .filter(line => line.trim() !== '')
+                .map(line => {
+                  if(isChordOnlyLine(line)){
+                    return `<div class="songLine chordLine">${esc(line)}</div>`;
+                  }
+                  return `<div class="songLine lyricLine">${formatViewerLine(line)}</div>`;
+                })
+                .join('')}
+
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+    </div>
+
+  `;
+
+  document.getElementById('backToLyrics').onclick = renderLyrics;
+
+  document.getElementById('transposeDown').onclick = () => {
+    song.transposeSteps--;
+    renderSongViewer();
+  };
+
+  document.getElementById('transposeUp').onclick = () => {
+    song.transposeSteps++;
+    renderSongViewer();
+  };
+
+  document.getElementById('transposeReset').onclick = () => {
+    song.transposeSteps = 0;
+    renderSongViewer();
+  };
+
+  document.getElementById('fontMinus').onclick = () => {
+    song.fontSize = Math.max(11, song.fontSize - 1);
+    renderSongViewer();
+  };
+
+  document.getElementById('fontPlus').onclick = () => {
+    song.fontSize = Math.min(30, song.fontSize + 1);
+    renderSongViewer();
+  };
+
+  document.getElementById('editBtn').onclick = editCurrentSong;
+  document.getElementById('saveBtn').onclick = saveCurrentSong;
+
+  attachSectionNavBehavior(sections);
+}
+'''
+          s = s[:start] + new_viewer + s[end:]
+
+          # 5) Add duplicate function to editor.
+          marker = '''function moveEditorSection(\n  button,\n  direction\n){'''
+          duplicate = r'''function duplicateEditorSection(button){
+
+  const section = button.closest('[data-editor-section]');
+  if(!section){
+    return;
+  }
+
+  const clone = section.cloneNode(true);
+  const typeInput = clone.querySelector('.sectionType');
+  if(typeInput){
+    typeInput.value = typeInput.value || 'Section';
+  }
+
+  section.parentElement.insertBefore(clone, section.nextSibling);
+}
+
+
+'''
+          if 'function duplicateEditorSection(button)' not in s:
+              s = s.replace(marker, duplicate + marker, 1)
+
+          # Ensure editor duplication preserves content and Analyze can re-separate it.
+          old_save = '''      output.push(\n        name || 'Section'\n      );\n\n\n      output.push(\n        text\n      );'''
+          new_save = '''      output.push(\n        name || 'Section'\n      );\n\n\n      output.push(\n        text\n      );'''
+          s = s.replace(old_save, new_save, 1)
+
+          # Reset section order after editing so the saved editor order becomes authoritative.
+          s = s.replace('''  currentSong.analysis =\n    analyzeFocusedSong(\n      text\n    );''', '''  currentSong.analysis =\n    analyzeFocusedSong(\n      text\n    );\n\n  currentSong.sectionOrder =\n    parseSections(text).map((section,index) =>\n      String(index) + '|' + String(section.name || 'Section').trim().toLowerCase()\n    );''', 1)
+
+          p.write_text(s, encoding='utf-8')
+          PY
+
+      - name: Commit patched index
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix lyrics spacing and movable song sections [lyrics-ui-fixed]"
+          git push
