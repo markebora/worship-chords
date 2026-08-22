@@ -3623,6 +3623,62 @@ function silentlyRefreshGoogleToken(){
 }
 
 
+/*
+  Being "signed in" (a saved profile) and having a live Drive
+  connection (an access token) are two different things — the
+  token resets on every reload and gets silently refreshed in
+  the background, which can lag or occasionally fail quietly.
+  Any Drive action calls this first so it self-heals instead
+  of surfacing "sign in" to someone who already has.
+*/
+
+async function ensureGoogleAccessToken(){
+
+  if(googleAccessToken){
+
+    return true;
+
+  }
+
+  const clientId =
+    getSettings().googleClientId.trim();
+
+  if(!clientId){
+
+    return false;
+
+  }
+
+  try{
+
+    await loadGoogleScript();
+
+  }catch(error){
+
+    return false;
+
+  }
+
+  if(!googleTokenClient){
+
+    googleTokenClient =
+      google.accounts.oauth2.initTokenClient({
+
+        client_id: clientId,
+
+        scope: GOOGLE_DRIVE_SCOPE,
+
+        callback: () => {}
+
+      });
+
+  }
+
+  return await silentlyRefreshGoogleToken();
+
+}
+
+
 async function ensureDriveLibraryFile(){
 
   if(driveLibraryFileId){
@@ -3754,7 +3810,13 @@ async function driveUploadLibrary(fileId, state){
 
 async function uploadNewSongToDrive(song){
 
-  if(!getGoogleUser() || !googleAccessToken){
+  if(!getGoogleUser()){
+
+    return;
+
+  }
+
+  if(!(await ensureGoogleAccessToken())){
 
     return;
 
@@ -3817,7 +3879,13 @@ async function uploadNewSongToDrive(song){
 
 async function pullNewSongsFromDrive(){
 
-  if(!getGoogleUser() || !googleAccessToken){
+  if(!getGoogleUser()){
+
+    return;
+
+  }
+
+  if(!(await ensureGoogleAccessToken())){
 
     return;
 
@@ -3890,10 +3958,21 @@ async function pullNewSongsFromDrive(){
 
 async function syncOneSong(localSong){
 
-  if(!getGoogleUser() || !googleAccessToken){
+  if(!getGoogleUser()){
 
     alert(
       'Sign in with Google first (Profile → Account).'
+    );
+
+    return null;
+
+  }
+
+  if(!(await ensureGoogleAccessToken())){
+
+    alert(
+      'Couldn\'t reconnect to Google automatically — ' +
+      'tap Sign In again in Profile → Account, then try Sync.'
     );
 
     return null;
