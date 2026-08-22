@@ -16,6 +16,14 @@
 
 <title>Worship Chords</title>
 
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Disciples">
+
 
 <style>
 
@@ -1588,6 +1596,34 @@ button{
 .songCheckNumber{font-size:11px;font-weight:800;color:#111;line-height:1;animation:songCheckPop .16s ease;}
 @keyframes songCheckPop{from{transform:scale(.4);opacity:0;}to{transform:scale(1);opacity:1;}}
 
+.songSyncBtn{
+  flex:0 0 auto;
+
+  width:34px;
+  height:34px;
+
+  margin-left:6px;
+
+  border-radius:10px;
+
+  border:1px solid #303036;
+  background:#1a1a1d;
+
+  color:#a7a7ad;
+
+  font-size:16px;
+
+  display:grid;
+  place-items:center;
+
+  cursor:pointer;
+}
+
+.songSyncBtn:active{
+  background:#232327;
+  color:#eee;
+}
+
 .librarySelectBar{position:fixed;bottom:82px;left:50%;width:calc(100% - 24px);max-width:620px;z-index:99;display:flex;align-items:center;gap:8px;padding:10px;background:rgba(28,28,32,.92);border:1px solid rgba(255,255,255,.12);border-radius:17px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 10px 30px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.06);transform:translateX(-50%);animation:librarySelectBarIn .22s cubic-bezier(.2,.7,.3,1) both;}
 @keyframes librarySelectBarIn{
   from{opacity:0;transform:translateX(-50%) translateY(16px);}
@@ -2738,12 +2774,20 @@ function getSongs(){
 
 function writeSongs(songs){
 
+  /*
+    No automatic Drive push here on purpose — a save, rename,
+    or delete on one phone should never silently overwrite
+    someone else's in-progress edits (different key/transpose,
+    etc.) on the same song. Brand-new songs are auto-uploaded
+    explicitly from saveCurrentSong(); everything else only
+    reaches Drive when someone taps that song's Sync button,
+    or Profile → Sync Now.
+  */
+
   localStorage.setItem(
     'worshipChordsSongs',
     JSON.stringify(songs)
   );
-
-  scheduleDriveSync();
 
 }
 
@@ -3185,12 +3229,12 @@ async function googleSignIn(){
         renderProfile();
 
         /*
-          First sync after sign-in: pull whatever's already in
-          Drive (from the other 7 people), merge with what's
-          local, and push the merged result back.
+          After signing in, pull in any songs already in Drive
+          that aren't in this Library yet (additive only — this
+          never overwrites a song already saved here).
         */
 
-        performDriveSync();
+        pullNewSongsFromDrive();
 
       }
 
@@ -3228,19 +3272,19 @@ function googleSignOut(){
    GOOGLE DRIVE SYNC
    One shared JSON file (in the signed-in account's Drive)
    holds the whole library plus a short "recently deleted"
-   list (tombstones), so a delete on one phone doesn't
-   silently reappear from another phone's copy. Every local
-   Library change schedules a debounced sync: pull → merge
-   (newest edit per song wins; tombstoned songs stay deleted)
-   → push → also update what's stored locally, so every
-   device converges on the same list.
+   list (tombstones). Nothing syncs automatically except a
+   brand-new song being saved — everything else (a changed
+   key, an edited line, a rename, a delete) stays local until
+   someone deliberately taps that song's Sync button, or
+   Profile → Sync Now for the whole library. That way one
+   person's in-progress edits never jump onto everyone else's
+   copy uninvited.
 ========================================================= */
 
 const DRIVE_LIBRARY_FILENAME =
   'disciples-library.json';
 
 let driveLibraryFileId = null;
-let driveSyncTimer = null;
 let driveSyncInFlight = false;
 let driveSyncQueued = false;
 
@@ -3702,27 +3746,287 @@ async function driveUploadLibrary(fileId, state){
 }
 
 
-function scheduleDriveSync(){
+/*
+  Auto-upload path — used only right after a brand-new song
+  is saved. Adds it to the shared Drive file without touching
+  any other song already in there.
+*/
 
-  if(!getGoogleUser()){
+async function uploadNewSongToDrive(song){
+
+  if(!getGoogleUser() || !googleAccessToken){
 
     return;
 
   }
 
-  if(driveSyncTimer){
+  try{
 
-    clearTimeout(driveSyncTimer);
+    const fileId =
+      await ensureDriveLibraryFile();
+
+    const remote =
+      await driveDownloadLibrary(fileId);
+
+    const alreadyThere =
+      remote.songs.some(
+        item => item.id === song.id
+      );
+
+    if(!alreadyThere){
+
+      remote.songs.unshift(song);
+
+      await driveUploadLibrary(
+        fileId,
+        {
+
+          songs: remote.songs.slice(0,200),
+
+          tombstones: remote.tombstones
+
+        }
+      );
+
+    }
+
+    setSyncStatus(
+      'synced',
+      new Date().toISOString()
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    setSyncStatus('error');
 
   }
 
-  driveSyncTimer = setTimeout(
-    performDriveSync,
-    1500
-  );
+}
+
+
+/*
+  Additive-only pull — used on sign-in and app open. Brings in
+  any song that exists in Drive but not locally yet (so new
+  songs from teammates show up), but never overwrites a song
+  that's already in the local Library. That's what keeps a
+  quiet app-open or sign-in from clobbering someone's in-
+  progress key change on a song they already have.
+*/
+
+async function pullNewSongsFromDrive(){
+
+  if(!getGoogleUser() || !googleAccessToken){
+
+    return;
+
+  }
+
+  try{
+
+    const fileId =
+      await ensureDriveLibraryFile();
+
+    const remote =
+      await driveDownloadLibrary(fileId);
+
+    const localSongs =
+      getSongs();
+
+    const localIds =
+      new Set(
+        localSongs.map(item => item.id)
+      );
+
+    const newOnes =
+      remote.songs.filter(
+        item => item && item.id && !localIds.has(item.id)
+      );
+
+    if(newOnes.length){
+
+      localStorage.setItem(
+        'worshipChordsSongs',
+        JSON.stringify(
+          [...newOnes, ...localSongs].slice(0,200)
+        )
+      );
+
+      if(
+        document.getElementById('screen') &&
+        screen.querySelector('.librarySection')
+      ){
+
+        renderLibrary();
+
+      }
+
+    }
+
+    setSyncStatus(
+      'synced',
+      new Date().toISOString()
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    setSyncStatus('error');
+
+  }
 
 }
 
+
+/*
+  Manual, per-song reconcile — the Sync button on an individual
+  song. Whichever side (this device or Drive) was edited more
+  recently wins for THIS song only; nothing else in the Library
+  is touched. Returns 'kept-local', 'took-remote', or
+  'uploaded' so the caller can tell the user what happened.
+*/
+
+async function syncOneSong(localSong){
+
+  if(!getGoogleUser() || !googleAccessToken){
+
+    alert(
+      'Sign in with Google first (Profile → Account).'
+    );
+
+    return null;
+
+  }
+
+  try{
+
+    const fileId =
+      await ensureDriveLibraryFile();
+
+    const remote =
+      await driveDownloadLibrary(fileId);
+
+    const remoteIndex =
+      remote.songs.findIndex(
+        item => item.id === localSong.id
+      );
+
+    const remoteSong =
+      remoteIndex === -1
+        ? null
+        : remote.songs[remoteIndex];
+
+    let resultSong;
+    let outcome;
+
+    if(!remoteSong){
+
+      resultSong = localSong;
+      outcome = 'uploaded';
+
+      remote.songs.unshift(resultSong);
+
+    }else{
+
+      const localTime =
+        new Date(
+          localSong.updatedAt ||
+          localSong.savedAt ||
+          0
+        );
+
+      const remoteTime =
+        new Date(
+          remoteSong.updatedAt ||
+          remoteSong.savedAt ||
+          0
+        );
+
+      if(localTime >= remoteTime){
+
+        resultSong = localSong;
+        outcome = 'kept-local';
+
+      }else{
+
+        resultSong = remoteSong;
+        outcome = 'took-remote';
+
+      }
+
+      remote.songs[remoteIndex] =
+        resultSong;
+
+    }
+
+    await driveUploadLibrary(
+      fileId,
+      {
+
+        songs: remote.songs.slice(0,200),
+
+        tombstones: remote.tombstones
+
+      }
+    );
+
+
+    const localSongs =
+      getSongs();
+
+    const localIndex =
+      localSongs.findIndex(
+        item => item.id === localSong.id
+      );
+
+    if(localIndex === -1){
+
+      localSongs.unshift(resultSong);
+
+    }else{
+
+      localSongs[localIndex] =
+        resultSong;
+
+    }
+
+    localStorage.setItem(
+      'worshipChordsSongs',
+      JSON.stringify(localSongs.slice(0,200))
+    );
+
+    setSyncStatus(
+      'synced',
+      new Date().toISOString()
+    );
+
+    return { outcome, song: resultSong };
+
+  }catch(error){
+
+    console.error(error);
+
+    setSyncStatus('error');
+
+    alert(
+      'Sync failed — check your connection and try again.'
+    );
+
+    return null;
+
+  }
+
+}
+
+
+/*
+  Whole-library manual reconcile — Profile → Sync Now. Pulls,
+  merges every song by most-recent-edit, applies deletes via
+  tombstones, and pushes the result back. Purely opt-in: only
+  runs when the person taps the button.
+*/
 
 async function performDriveSync(){
 
@@ -6375,6 +6679,7 @@ function renderSongViewer(){
             <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
               <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
               <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
+              <button class="songMenuItem" type="button" id="menuSyncBtn" role="menuitem">Sync This Song</button>
               <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
               <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
             </div>
@@ -6509,6 +6814,7 @@ function renderMergedSongViewer(){
             <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
               <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
               <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
+              <button class="songMenuItem" type="button" id="menuSyncBtn" role="menuitem">Sync This Song</button>
               <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
               <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
             </div>
@@ -6815,7 +7121,11 @@ function saveCurrentSong(){
     new Date().toISOString();
 
 
-  if(index === -1){
+  const isNewSong =
+    index === -1;
+
+
+  if(isNewSong){
 
     /*
       This is a preview/new song.
@@ -6858,6 +7168,22 @@ function saveCurrentSong(){
   writeSongs(
     songs.slice(0,200)
   );
+
+
+  /*
+    Only a brand-new song auto-reaches Drive — that's what
+    makes it visible in everyone's Library. Re-saving an
+    existing song (a new key, an edited line, etc.) stays
+    local until that song's own Sync button is tapped, so one
+    person's in-progress changes don't jump onto everyone
+    else's copy uninvited.
+  */
+
+  if(isNewSong){
+
+    uploadNewSongToDrive(currentSong);
+
+  }
 
 
   alert(
@@ -6950,6 +7276,63 @@ function attachSongMenuControls(){
       closeSongMenu();
 
       saveCurrentSong();
+
+    };
+
+
+  document
+    .getElementById(
+      'menuSyncBtn'
+    )
+    .onclick = async () => {
+
+      closeSongMenu();
+
+      if(
+        !currentSong ||
+        String(currentSong.id).startsWith('preview-')
+      ){
+
+        alert(
+          'Save this song first, then Sync it.'
+        );
+
+        return;
+
+      }
+
+      const result =
+        await syncOneSong(currentSong);
+
+      if(!result){
+
+        return;
+
+      }
+
+      if(result.outcome === 'took-remote'){
+
+        currentSong = result.song;
+
+        alert(
+          'Synced — updated to the shared version from Drive.'
+        );
+
+        renderSongViewer();
+
+      }else if(result.outcome === 'uploaded'){
+
+        alert(
+          'Synced — added to Drive for everyone.'
+        );
+
+      }else{
+
+        alert(
+          'Synced — your version is now the shared one.'
+        );
+
+      }
 
     };
 
@@ -8362,6 +8745,19 @@ function renderLibrary(){
 
             </div>
 
+            ${
+              !selectMode && getGoogleUser()
+              ? `
+                <button
+                  class="songSyncBtn"
+                  type="button"
+                  data-sync-song="${esc(song.id)}"
+                  title="Sync this song with Drive"
+                >⟳</button>
+              `
+              : ''
+            }
+
           </div>
 
         `).join('')
@@ -8707,6 +9103,82 @@ function renderLibrary(){
           clearTimeout(
             pressTimer
           );
+
+        }
+      );
+
+    });
+
+
+  screen
+    .querySelectorAll(
+      '[data-sync-song]'
+    )
+    .forEach(btn => {
+
+      btn.addEventListener(
+        'pointerdown',
+        event => {
+
+          event.stopPropagation();
+
+        }
+      );
+
+      btn.addEventListener(
+        'click',
+        async event => {
+
+          event.stopPropagation();
+
+          const songId =
+            btn.dataset.syncSong;
+
+          const song =
+            list.find(
+              item => item.id === songId
+            );
+
+          if(!song){
+
+            return;
+
+          }
+
+          btn.textContent = '…';
+
+          const result =
+            await syncOneSong(song);
+
+          btn.textContent = '⟳';
+
+          if(!result){
+
+            return;
+
+          }
+
+          if(result.outcome === 'took-remote'){
+
+            alert(
+              `"${song.title}" updated to the shared version from Drive.`
+            );
+
+            renderLibrary();
+
+          }else if(result.outcome === 'uploaded'){
+
+            alert(
+              `"${song.title}" added to Drive for everyone.`
+            );
+
+          }else{
+
+            alert(
+              `"${song.title}" — your version is now the shared one.`
+            );
+
+          }
 
         }
       );
@@ -9660,10 +10132,11 @@ renderHome();
 
 /*
   If we already have a Google account on file, try to pick the
-  session back up quietly (no popup) and pull any changes made
-  by the other people using this Library. If the silent grab
-  fails — say, the browser blocked it — nothing breaks; signing
-  in again from Profile or tapping "Sync Now" covers it.
+  session back up quietly (no popup) and pull in any brand-new
+  songs the other people have saved — never overwrites a song
+  already in this Library. If the silent grab fails — say, the
+  browser blocked it — nothing breaks; signing in again from
+  Profile covers it.
 */
 
 async function initGoogleSyncOnLoad(){
@@ -9714,7 +10187,7 @@ async function initGoogleSyncOnLoad(){
         googleAccessToken =
           response.access_token;
 
-        performDriveSync();
+        pullNewSongsFromDrive();
 
       }
 
@@ -9728,6 +10201,35 @@ async function initGoogleSyncOnLoad(){
 
 
 initGoogleSyncOnLoad();
+
+
+/*
+  Register the service worker so Chrome/Android offers
+  "Install app" / "Add to Home Screen" and the app can open
+  even with a spotty connection. It only caches the app shell
+  (this HTML file) — Drive sync, imports, and search still go
+  over the network like normal, so nothing here changes app
+  behavior when you're online.
+*/
+
+if('serviceWorker' in navigator){
+
+  window.addEventListener('load', () => {
+
+    navigator.serviceWorker
+      .register('/sw.js')
+      .catch(error => {
+
+        console.error(
+          'Service worker registration failed:',
+          error
+        );
+
+      });
+
+  });
+
+}
 
 </script>
 
