@@ -948,6 +948,31 @@ button{
   margin-top:5px;
 }
 
+.ugPasteHint{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:11px;
+  padding:11px 12px;
+  background:#15201c;
+  border:1px solid #234a3a;
+  border-radius:12px;
+  animation:songCheckPop .18s ease;
+}
+
+.ugPasteHintText{
+  flex:1;
+  min-width:0;
+  font-size:12px;
+  color:#a9d9c4;
+  line-height:1.5;
+}
+
+.ugPasteBtn{
+  flex:0 0 auto;
+  white-space:nowrap;
+}
+
 .resultActions{
   display:flex;
 
@@ -1360,6 +1385,8 @@ button{
 .songCard.selected .songCheck{background:#fff;border-color:#fff;}
 .songCheck svg{width:13px;height:13px;fill:none;stroke:#111;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0;}
 .songCard.selected .songCheck svg{opacity:1;}
+.songCheckNumber{font-size:11px;font-weight:800;color:#111;line-height:1;animation:songCheckPop .16s ease;}
+@keyframes songCheckPop{from{transform:scale(.4);opacity:0;}to{transform:scale(1);opacity:1;}}
 
 .librarySelectBar{position:fixed;bottom:82px;left:50%;width:calc(100% - 24px);max-width:620px;z-index:99;display:flex;align-items:center;gap:8px;padding:10px;background:rgba(28,28,32,.92);border:1px solid rgba(255,255,255,.12);border-radius:17px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 10px 30px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.06);transform:translateX(-50%);animation:librarySelectBarIn .22s cubic-bezier(.2,.7,.3,1) both;}
 @keyframes librarySelectBarIn{
@@ -2286,7 +2313,17 @@ const query =
 
 let source = 'all';
 
+/*
+  True right after "Search" opens Ultimate Guitar's own search
+  page in a new tab for a plain title lookup. Drives the
+  "paste the link here" hint shown in the UG results panel, and
+  is cleared as soon as the user pastes a link back / imports /
+  switches tabs.
+*/
+let ugAwaitingPaste = false;
+
 let currentSong = null;
+
 
 /*
   Whether the song viewer shows chords above the lyrics
@@ -6438,6 +6475,10 @@ function renderLibrary(){
     librarySelectedIds.size;
 
 
+  const selectedOrder =
+    [...librarySelectedIds];
+
+
   screen.innerHTML = `
 
     <div class="libraryHead">
@@ -6479,9 +6520,11 @@ function renderLibrary(){
             style="cursor:pointer;"
           >
 
-            <div class="songCheck" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M5 13l4 4 10-10"/></svg>
-            </div>
+            <div class="songCheck" aria-hidden="true">${
+              selectedOrder.includes(song.id)
+                ? `<span class="songCheckNumber">${selectedOrder.indexOf(song.id)+1}</span>`
+                : `<svg viewBox="0 0 24 24"><path d="M5 13l4 4 10-10"/></svg>`
+            }</div>
 
             <div class="songIcon">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -6920,20 +6963,24 @@ function renameSongById(songId){
 
 /*
   Merge 2–10 selected songs into a single new saved song,
-  combining their lyrics/chords in library order. Originals
-  are left untouched so nothing is lost if the merge isn't
-  what the user wanted.
+  combining their lyrics/chords in the order they were
+  selected — whichever song was long-pressed/tapped first
+  becomes song 1, the second tapped becomes song 2, etc.
+  Originals are left untouched so nothing is lost if the merge
+  isn't what the user wanted.
 */
 
 function mergeSongsByIds(ids){
 
-  const songs =
-    getSongs();
+  const songsById =
+    new Map(
+      getSongs().map(song => [song.id, song])
+    );
 
   const ordered =
-    songs.filter(
-      song => ids.includes(song.id)
-    );
+    ids
+      .map(id => songsById.get(id))
+      .filter(Boolean);
 
   if(ordered.length < 2)return;
 
@@ -7049,6 +7096,9 @@ function openSearch(
 
   source =
     selectedSource;
+
+  ugAwaitingPaste =
+    false;
 
 
   modal.classList.add('open');
@@ -7203,6 +7253,23 @@ function renderResults(){
 
         </div>
 
+        ${
+          ugAwaitingPaste
+            ? `
+              <div class="ugPasteHint">
+                <div class="ugPasteHintText">
+                  Ultimate Guitar opened in a new tab. Find your
+                  song, copy its chord-page link, then paste it
+                  back here to import it.
+                </div>
+                <button type="button" class="toolbarBtn primary ugPasteBtn" id="ugPasteBtn">
+                  Paste link
+                </button>
+              </div>
+            `
+            : ''
+        }
+
 
         <div id="ugResult"></div>
 
@@ -7248,6 +7315,69 @@ function renderResults(){
 
     });
 
+
+  const ugPasteBtn =
+    document.getElementById(
+      'ugPasteBtn'
+    );
+
+  if(ugPasteBtn){
+
+    ugPasteBtn.onclick = async () => {
+
+      if(
+        !navigator.clipboard ||
+        !navigator.clipboard.readText
+      ){
+
+        /*
+          Clipboard read isn't available/permitted (older
+          browser, insecure context, or the user hasn't
+          granted permission) — just focus the field so a
+          manual paste (Ctrl+V, or long-press → Paste on
+          mobile) is one tap away.
+        */
+
+        query.focus();
+
+        return;
+
+      }
+
+
+      try{
+
+        const clipboardText =
+          (await navigator.clipboard.readText())
+            .trim();
+
+        if(clipboardText){
+
+          query.value =
+            clipboardText;
+
+          if(looksLikeUrl(clipboardText)){
+
+            handleTopSearch();
+
+            return;
+
+          }
+
+        }
+
+        query.focus();
+
+      }catch(error){
+
+        query.focus();
+
+      }
+
+    };
+
+  }
+
 }
 
 
@@ -7289,6 +7419,9 @@ function handleTopSearch(){
         to write status/progress into it.
       */
 
+      ugAwaitingPaste =
+        false;
+
       renderResults();
 
 
@@ -7318,7 +7451,15 @@ function handleTopSearch(){
     );
 
 
+    ugAwaitingPaste =
+      true;
+
+    query.value =
+      '';
+
     renderResults();
+
+    query.focus();
 
 
     return;
@@ -7601,6 +7742,9 @@ document
 
       source =
         button.dataset.source;
+
+      ugAwaitingPaste =
+        false;
 
       document
         .querySelectorAll(
