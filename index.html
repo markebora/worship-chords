@@ -1102,6 +1102,76 @@ button{
   gap:8px;
 }
 
+.songMenuWrap{
+  position:relative;
+
+  margin-left:auto;
+}
+
+.songMenuBtn{
+  width:40px;
+
+  font-size:18px;
+
+  line-height:1;
+
+  padding:9px 0;
+}
+
+.songMenuDropdown{
+  position:absolute;
+
+  top:calc(100% + 6px);
+  right:0;
+
+  min-width:180px;
+
+  background:#1b1b1f;
+
+  border:1px solid #303036;
+
+  border-radius:13px;
+
+  padding:6px;
+
+  display:none;
+
+  flex-direction:column;
+
+  gap:2px;
+
+  z-index:60;
+
+  box-shadow:0 14px 34px rgba(0,0,0,.55);
+}
+
+.songMenuDropdown.open{
+  display:flex;
+}
+
+.songMenuItem{
+  border:0;
+
+  background:transparent;
+
+  color:#f7f7f7;
+
+  text-align:left;
+
+  padding:11px 12px;
+
+  border-radius:9px;
+
+  font-size:13px;
+  font-weight:750;
+
+  cursor:pointer;
+}
+
+.songMenuItem:active{
+  background:#26262b;
+}
+
 .autoScrollGroup .toolbarBtn,
 .asArrowBtn{
   touch-action:none;
@@ -2018,6 +2088,8 @@ button{
 
 </div>
 
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <script>
 
@@ -4288,8 +4360,15 @@ function renderSongViewer(){
         <div class="toolbarRow secondaryRow">
           <button class="toolbarBtn" id="fontMinus">A−</button>
           <button class="toolbarBtn" id="fontPlus">A+</button>
-          <button class="toolbarBtn" id="editBtn">Edit Song</button>
-          <button class="toolbarBtn primary" id="saveBtn">Save</button>
+          <div class="songMenuWrap" id="songMenuWrap">
+            <button class="toolbarBtn songMenuBtn" id="songMenuBtn" type="button" aria-haspopup="true" aria-label="More options">⋮</button>
+            <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
+              <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
+              <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
+              <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
+              <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
+            </div>
+          </div>
         </div>
         <div class="toolbarRow">
           <div class="viewModeGroup" id="viewModeGroup">
@@ -4317,8 +4396,7 @@ function renderSongViewer(){
   document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);renderSongViewer();};
   document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);renderSongViewer();};
   attachAutoScrollControls();
-  document.getElementById('editBtn').onclick=()=>{stopAutoScroll();editCurrentSong();};
-  document.getElementById('saveBtn').onclick=saveCurrentSong;
+  attachSongMenuControls();
   document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(btn=>{
     btn.onclick=()=>{
       showChords=(btn.dataset.mode==='chords');
@@ -4589,6 +4667,496 @@ function saveCurrentSong(){
 
 
   renderSongViewer();
+
+}
+
+
+/* =========================================================
+   SONG VIEWER ⋮ MENU (Edit / Save / Export)
+========================================================= */
+
+function toggleSongMenu(){
+
+  const dropdown =
+    document.getElementById(
+      'songMenuDropdown'
+    );
+
+  if(!dropdown)return;
+
+  dropdown.classList.toggle(
+    'open'
+  );
+
+}
+
+
+function closeSongMenu(){
+
+  const dropdown =
+    document.getElementById(
+      'songMenuDropdown'
+    );
+
+  if(dropdown){
+
+    dropdown.classList.remove(
+      'open'
+    );
+
+  }
+
+}
+
+
+function attachSongMenuControls(){
+
+  const menuBtn =
+    document.getElementById(
+      'songMenuBtn'
+    );
+
+  if(!menuBtn)return;
+
+  menuBtn.onclick = event => {
+
+    event.stopPropagation();
+
+    toggleSongMenu();
+
+  };
+
+
+  document
+    .getElementById(
+      'menuEditBtn'
+    )
+    .onclick = () => {
+
+      closeSongMenu();
+
+      stopAutoScroll();
+
+      editCurrentSong();
+
+    };
+
+
+  document
+    .getElementById(
+      'menuSaveBtn'
+    )
+    .onclick = () => {
+
+      closeSongMenu();
+
+      saveCurrentSong();
+
+    };
+
+
+  document
+    .getElementById(
+      'menuExportPdfBtn'
+    )
+    .onclick = () => {
+
+      closeSongMenu();
+
+      exportCurrentSongAsPDF();
+
+    };
+
+
+  document
+    .getElementById(
+      'menuExportTxtBtn'
+    )
+    .onclick = () => {
+
+      closeSongMenu();
+
+      exportCurrentSongAsText();
+
+    };
+
+}
+
+
+/*
+  Closes the ⋮ menu on any click outside it. Bound once,
+  globally — #songMenuWrap only exists while the song viewer
+  is on screen, so this is a no-op the rest of the time.
+*/
+
+document.addEventListener(
+  'click',
+  event => {
+
+    const wrap =
+      document.getElementById(
+        'songMenuWrap'
+      );
+
+    if(
+      wrap &&
+      !wrap.contains(event.target)
+    ){
+
+      closeSongMenu();
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   EXPORT (TEXT) — saves the currently viewed song to a local
+   .txt file (chords + lyrics, respecting the current
+   transpose), named after the song title.
+========================================================= */
+
+function exportCurrentSongAsText(){
+
+  if(!currentSong)return;
+
+
+  const amount =
+    currentSong.transposeSteps || 0;
+
+  const displayedText =
+    transposeText(
+
+      currentSong.originalText ||
+      currentSong.text ||
+      '',
+
+      amount
+
+    );
+
+
+  const sections =
+    parseSections(
+      displayedText
+    );
+
+
+  const keyInfo =
+    detectKeyFromChords(
+      extractChordTokens(
+        displayedText
+      )
+    );
+
+
+  const outputLines = [];
+
+
+  outputLines.push(
+    currentSong.title ||
+    'Untitled Song'
+  );
+
+
+  if(keyInfo){
+
+    outputLines.push(
+      'Key: ' + keyInfo.label
+    );
+
+  }
+
+
+  outputLines.push('');
+
+
+  sections.forEach(section => {
+
+    outputLines.push(
+      '[' + section.name + ']'
+    );
+
+    section.lines.forEach(
+      line => outputLines.push(line)
+    );
+
+    outputLines.push('');
+
+  });
+
+
+  const text =
+    outputLines
+      .join('\n')
+      .replace(/\n{3,}/g,'\n\n')
+      .trim() +
+    '\n';
+
+
+  const filename =
+    (currentSong.title || 'untitled-song')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g,'-')
+      .replace(/(^-+|-+$)/g,'') ||
+    'song';
+
+
+  const blob =
+    new Blob(
+      [text],
+      { type:'text/plain' }
+    );
+
+  const url =
+    URL.createObjectURL(blob);
+
+  const link =
+    document.createElement('a');
+
+  link.href = url;
+  link.download = filename + '.txt';
+
+  document.body.appendChild(link);
+
+  link.click();
+
+  link.remove();
+
+  URL.revokeObjectURL(url);
+
+}
+
+
+/* =========================================================
+   EXPORT (PDF) — saves the currently viewed song to a local
+   .pdf file (chords + lyrics, respecting the current
+   transpose), named after the song title. Uses jsPDF, loaded
+   from a CDN <script> tag above.
+========================================================= */
+
+function exportCurrentSongAsPDF(){
+
+  if(!currentSong)return;
+
+
+  if(
+    !window.jspdf ||
+    !window.jspdf.jsPDF
+  ){
+
+    alert(
+      'The PDF library failed to load. Check your connection and try again.'
+    );
+
+    return;
+
+  }
+
+
+  const amount =
+    currentSong.transposeSteps || 0;
+
+  const displayedText =
+    transposeText(
+
+      currentSong.originalText ||
+      currentSong.text ||
+      '',
+
+      amount
+
+    );
+
+
+  const sections =
+    parseSections(
+      displayedText
+    );
+
+
+  const keyInfo =
+    detectKeyFromChords(
+      extractChordTokens(
+        displayedText
+      )
+    );
+
+
+  const { jsPDF } =
+    window.jspdf;
+
+  const doc =
+    new jsPDF({
+      unit:'pt',
+      format:'letter'
+    });
+
+
+  const marginLeft = 48;
+  const marginRight = 48;
+
+  const pageWidth =
+    doc.internal.pageSize.getWidth();
+
+  const pageHeight =
+    doc.internal.pageSize.getHeight();
+
+  const maxWidth =
+    pageWidth - marginLeft - marginRight;
+
+  const lineHeight = 15;
+
+  let y = 56;
+
+
+  function ensureSpace(next){
+
+    if(y + next > pageHeight - 48){
+
+      doc.addPage();
+
+      y = 56;
+
+    }
+
+  }
+
+
+  /* Title */
+
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(20);
+  doc.setTextColor(20,20,20);
+
+  doc.text(
+    currentSong.title ||
+    'Untitled Song',
+    marginLeft,
+    y
+  );
+
+  y += 26;
+
+
+  /* Key badge */
+
+  if(keyInfo){
+
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(11);
+    doc.setTextColor(100,100,105);
+
+    doc.text(
+      'Key: ' + keyInfo.label,
+      marginLeft,
+      y
+    );
+
+    y += 22;
+
+  }else{
+
+    y += 6;
+
+  }
+
+
+  /* Sections */
+
+  sections.forEach(section => {
+
+    ensureSpace(24);
+
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(11);
+    doc.setTextColor(60,60,65);
+
+    doc.text(
+      section.name.toUpperCase(),
+      marginLeft,
+      y
+    );
+
+    y += 18;
+
+
+    doc.setFont('courier','normal');
+    doc.setFontSize(11);
+
+
+    section.lines.forEach(rawLine => {
+
+      const line =
+        rawLine.length
+          ? rawLine
+          : ' ';
+
+      const isChord =
+        isChordOnlyLine(line);
+
+
+      /*
+        Monospace font keeps chord-over-lyric spacing intact
+        from the source text. Long lines wrap to the page
+        width instead of running off the edge.
+      */
+
+      const wrapped =
+        doc.splitTextToSize(
+          line,
+          maxWidth
+        );
+
+
+      wrapped.forEach(part => {
+
+        ensureSpace(lineHeight);
+
+        if(isChord){
+
+          doc.setTextColor(37,99,209);
+          doc.setFont('courier','bold');
+
+        }else{
+
+          doc.setTextColor(25,25,28);
+          doc.setFont('courier','normal');
+
+        }
+
+        doc.text(
+          part,
+          marginLeft,
+          y
+        );
+
+        y += lineHeight;
+
+      });
+
+    });
+
+
+    y += 10;
+
+  });
+
+
+  const filename =
+    (currentSong.title || 'untitled-song')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g,'-')
+      .replace(/(^-+|-+$)/g,'') ||
+    'song';
+
+
+  doc.save(
+    filename + '.pdf'
+  );
 
 }
 
