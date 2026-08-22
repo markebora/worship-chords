@@ -2774,6 +2774,33 @@ function decodeHtmlEntities(text){
 }
 
 
+/*
+  "Smart"/typographic punctuation — en dashes, em dashes, curly
+  quotes, ellipses, non-breaking spaces — round-trips fine
+  inside the app (real UTF-8 strings in memory), but breaks on
+  export: jsPDF's built-in fonts don't reliably map these
+  characters, and a plain .txt file with no encoding marker can
+  get opened by another app as the wrong character set. Either
+  way the symptom is the same mojibake — "–" turning into
+  "â€“". Normalizing to plain ASCII equivalents right before
+  writing the file sidesteps the problem entirely, since plain
+  ASCII is safe under every encoding. Only used at export time —
+  the saved song text and in-app viewer are untouched.
+*/
+
+function sanitizeForPlainExport(text){
+
+  return String(text ?? '')
+
+    .replace(/[\u2013\u2014\u2212]/g, '-')   /* – — − */
+    .replace(/[\u2018\u2019\u201A\u2032]/g, "'")  /* ‘ ’ ‚ ′ */
+    .replace(/[\u201C\u201D\u201E\u2033]/g, '"')  /* “ ” „ ″ */
+    .replace(/\u2026/g, '...')               /* … */
+    .replace(/[\u00A0\u202F]/g, ' ');        /* nbsp, narrow nbsp */
+
+}
+
+
 /* =========================================================
    STORAGE
 ========================================================= */
@@ -4555,7 +4582,7 @@ function renderProfile(){
 
             <div>
               <div class="settingsRowLabel">Import Backup</div>
-              <div class="settingsRowSub">A full library backup (.json), or a single song exported as text (.txt)</div>
+              <div class="settingsRowSub">A full library backup (.json), or a song (or merge) exported as text (.txt)</div>
             </div>
 
             <button class="toolbarBtn" id="importLibraryBtn" type="button">Import</button>
@@ -4860,24 +4887,60 @@ function renderProfile(){
         }else{
 
           const parsed =
-            parseSingleSongTextFile(raw);
+            parseSongTextFile(raw);
 
-          if(!parsed.text.trim()){
+          if(parsed.type === 'merged'){
 
-            throw new Error(
-              'No lyrics found in this file.'
+            const hasLyrics =
+              parsed.parts.some(
+                part => part.text.trim()
+              );
+
+            if(!hasLyrics){
+
+              throw new Error(
+                'No lyrics found in this file.'
+              );
+
+            }
+
+            const combinedTitle =
+              parsed.parts
+                .map(part => part.title)
+                .join(' + ')
+                .slice(0,120);
+
+            const merged =
+              saveMergedSongParts(
+                combinedTitle,
+                parsed.parts
+              );
+
+            alert(
+              'Imported ' + parsed.parts.length +
+              ' songs merged into "' + merged.title + '".'
+            );
+
+          }else{
+
+            if(!parsed.text.trim()){
+
+              throw new Error(
+                'No lyrics found in this file.'
+              );
+
+            }
+
+            saveSong(
+              parsed.title,
+              parsed.text
+            );
+
+            alert(
+              '"' + parsed.title + '" imported into your Library.'
             );
 
           }
-
-          saveSong(
-            parsed.title,
-            parsed.text
-          );
-
-          alert(
-            '"' + parsed.title + '" imported into your Library.'
-          );
 
         }
 
@@ -5839,6 +5902,108 @@ function analyzeFocusedSong(text){
 
 
 /* =========================================================
+   LYRIC CASING
+
+   Lyrics pasted from sites like Ultimate Guitar sometimes come
+   in as SHOUTING ALL CAPS. When a lyric line is entirely
+   uppercase, this converts it to normal sentence case for
+   display. Lines that are already normal/mixed case are left
+   untouched.
+
+   A small list of words always keeps a fixed casing regardless
+   of the source formatting or whether the line was all caps.
+========================================================= */
+
+const LYRIC_CASE_EXCEPTIONS = [
+  { match:/\bdiyos\b/gi, replace:'Diyos' },
+  { match:/\byahweh\b/gi, replace:'YAHWEH' },
+  { match:/\bpanginoon\b/gi, replace:'Panginoon' },
+  { match:/\blord\b/gi, replace:'Lord' },
+  { match:/\bgod\b/gi, replace:'God' },
+  { match:/\byeshua\b/gi, replace:'Yeshua' },
+  { match:/\badonai\b/gi, replace:'Adonai' },
+  { match:/\bfather\b/gi, replace:'Father' },
+  { match:/\bjesus\b/gi, replace:'Jesus' }
+];
+
+
+function isShoutingLine(text){
+
+  const letters =
+    String(text || '')
+      .replace(/[^A-Za-z]/g,'');
+
+  if(letters.length < 2){
+    return false;
+  }
+
+  return (
+    letters === letters.toUpperCase() &&
+    letters !== letters.toLowerCase()
+  );
+
+}
+
+
+function toSentenceCase(text){
+
+  let result =
+    text.toLowerCase();
+
+  /* Capitalize the first letter of the line. */
+  result =
+    result.replace(
+      /^([^A-Za-z]*)([a-z])/,
+      (match,lead,letter) => lead + letter.toUpperCase()
+    );
+
+  /* Capitalize the first letter after ., ! or ? */
+  result =
+    result.replace(
+      /([.!?]\s+)([a-z])/g,
+      (match,punct,letter) => punct + letter.toUpperCase()
+    );
+
+  return result;
+
+}
+
+
+function applyLyricCaseExceptions(text){
+
+  let result = text;
+
+  LYRIC_CASE_EXCEPTIONS.forEach(rule => {
+
+    result =
+      result.replace(
+        rule.match,
+        rule.replace
+      );
+
+  });
+
+  return result;
+
+}
+
+
+function normalizeLyricCasing(text){
+
+  if(!text) return text;
+
+  let result = text;
+
+  if(isShoutingLine(text)){
+    result = toSentenceCase(result);
+  }
+
+  return applyLyricCaseExceptions(result);
+
+}
+
+
+/* =========================================================
    RENDER ANALYSIS
 ========================================================= */
 
@@ -5855,8 +6020,14 @@ function formatAnalysisLine(line){
   }
 
 
+  const displayText =
+    line.chords.length
+      ? line.text
+      : normalizeLyricCasing(line.text);
+
+
   let html =
-    esc(line.text);
+    esc(displayText);
 
 
   line.chords
@@ -7267,8 +7438,14 @@ function formatViewerLine(
   line
 ){
 
+  const displayLine =
+    findChords(line).length
+      ? line
+      : normalizeLyricCasing(line);
+
+
   let html =
-    esc(line);
+    esc(displayLine);
 
 
   const chordRegex =
@@ -7601,19 +7778,135 @@ document.addEventListener(
 
 
 /* =========================================================
-   IMPORT (TEXT) — the inverse of the export below: turns a
-   single-song .txt file (title on line 1, an optional "Key: X"
-   line, then the lyrics/chords body) back into a title/text
-   pair the Library can save. Used by the Profile screen's
-   "Import Backup" when the chosen file isn't a JSON backup.
+   IMPORT (TEXT) — the inverse of the export below. Recognizes
+   the `Title: "X"` marker line exportCurrentSongAsText writes:
+   one marker means a single song, more than one means the file
+   is a merged song (one marker per part), so the importer can
+   rebuild it as a proper paginated merge instead of one flat
+   blob. Files exported before this marker existed (bare title
+   on line 1, no "Title:" prefix) still import fine as a single
+   song via the legacy fallback below.
 ========================================================= */
 
-function parseSingleSongTextFile(raw){
+function parseSongTextFile(raw){
 
   const text =
     String(raw || '')
       .replace(/\r\n/g,'\n')
       .replace(/^\uFEFF/,'');
+
+  const lines =
+    text.split('\n');
+
+
+  const titleLinePattern =
+    /^title\s*:\s*"(.*)"\s*$/i;
+
+  const titleLineIndexes = [];
+
+  lines.forEach((line, index) => {
+
+    if(titleLinePattern.test(line.trim())){
+
+      titleLineIndexes.push(index);
+
+    }
+
+  });
+
+
+  if(!titleLineIndexes.length){
+
+    /* Legacy format: no marker, first line is just the title. */
+
+    const legacy =
+      parseLegacySingleSongTextFile(text);
+
+    return {
+      type: 'single',
+      title: legacy.title,
+      text: legacy.text
+    };
+
+  }
+
+
+  const readPartBody = (startIndex, endIndex) => {
+
+    let index = startIndex;
+
+    while(
+      index < endIndex &&
+      lines[index].trim() === ''
+    ){
+
+      index++;
+
+    }
+
+    if(
+      index < endIndex &&
+      /^key\s*:/i.test(lines[index].trim())
+    ){
+
+      index++;
+
+    }
+
+    return lines
+      .slice(index, endIndex)
+      .join('\n')
+      .replace(/^\n+/,'')
+      .replace(/\n+$/,'');
+
+  };
+
+
+  const parts =
+    titleLineIndexes.map((lineIndex, partIndex) => {
+
+      const match =
+        lines[lineIndex]
+          .trim()
+          .match(titleLinePattern);
+
+      const title =
+        (match && match[1].trim()) ||
+        'Untitled Song';
+
+      const segmentEnd =
+        titleLineIndexes[partIndex + 1] !== undefined
+          ? titleLineIndexes[partIndex + 1]
+          : lines.length;
+
+      return {
+        title,
+        text: readPartBody(lineIndex + 1, segmentEnd)
+      };
+
+    });
+
+
+  if(parts.length === 1){
+
+    return {
+      type: 'single',
+      title: parts[0].title,
+      text: parts[0].text
+    };
+
+  }
+
+
+  return {
+    type: 'merged',
+    parts
+  };
+
+}
+
+
+function parseLegacySingleSongTextFile(text){
 
   const lines =
     text.split('\n');
@@ -7676,89 +7969,123 @@ function parseSingleSongTextFile(raw){
 /* =========================================================
    EXPORT (TEXT) — saves the currently viewed song to a local
    .txt file (chords + lyrics, respecting the current
-   transpose), named after the song title.
+   transpose), named after the song title. Each song's title is
+   written as a `Title: "X"` marker line — for a merged song,
+   every part gets its own marker, one after another, so a
+   later import can tell a merge apart from a single song just
+   by counting how many Title: lines the file has (see
+   parseSongTextFile).
 ========================================================= */
 
 function exportCurrentSongAsText(){
 
   if(!currentSong)return;
 
+  const song = currentSong;
+
+  const isMerged =
+    Array.isArray(song.mergeParts) &&
+    song.mergeParts.length > 1;
+
+  const parts =
+    isMerged
+      ? song.mergeParts
+      : [{
+
+          title:
+            song.title ||
+            'Untitled Song',
+
+          text:
+            song.originalText ||
+            song.text ||
+            ''
+
+        }];
 
   const amount =
-    currentSong.transposeSteps || 0;
-
-  const displayedText =
-    transposeText(
-
-      currentSong.originalText ||
-      currentSong.text ||
-      '',
-
-      amount
-
-    );
-
-
-  const sections =
-    parseSections(
-      displayedText
-    );
-
-
-  const keyInfo =
-    detectKeyFromChords(
-      extractChordTokens(
-        displayedText
-      )
-    );
+    song.transposeSteps || 0;
 
 
   const outputLines = [];
 
 
-  outputLines.push(
-    currentSong.title ||
-    'Untitled Song'
-  );
+  parts.forEach((part, partIndex) => {
+
+    const displayedText =
+      transposeText(
+        part.text || '',
+        amount
+      );
+
+    const sections =
+      parseSections(
+        displayedText
+      );
+
+    const keyInfo =
+      detectKeyFromChords(
+        extractChordTokens(
+          displayedText
+        )
+      );
 
 
-  if(keyInfo){
+    if(partIndex > 0){
+
+      outputLines.push('');
+
+    }
+
 
     outputLines.push(
-      'Key: ' + keyInfo.label
+      'Title: "' +
+      (part.title || 'Untitled Song') +
+      '"'
     );
 
-  }
 
+    if(keyInfo){
 
-  outputLines.push('');
+      outputLines.push(
+        'Key: ' + keyInfo.label
+      );
 
+    }
 
-  sections.forEach(section => {
-
-    outputLines.push(
-      '[' + section.name + ']'
-    );
-
-    section.lines.forEach(
-      line => outputLines.push(line)
-    );
 
     outputLines.push('');
+
+
+    sections.forEach(section => {
+
+      outputLines.push(
+        '[' + section.name + ']'
+      );
+
+      section.lines.forEach(
+        line => outputLines.push(line)
+      );
+
+      outputLines.push('');
+
+    });
 
   });
 
 
   const text =
-    outputLines
-      .join('\n')
-      .replace(/\n{3,}/g,'\n\n')
-      .trim() +
-    '\n';
+    sanitizeForPlainExport(
+      outputLines
+        .join('\n')
+        .replace(/\n{3,}/g,'\n\n')
+        .trim() +
+      '\n'
+    );
 
 
   const filename =
-    (currentSong.title || 'untitled-song')
+    (song.title || 'untitled-song')
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9]+/g,'-')
@@ -7768,8 +8095,8 @@ function exportCurrentSongAsText(){
 
   const blob =
     new Blob(
-      [text],
-      { type:'text/plain' }
+      ['\uFEFF' + text],
+      { type:'text/plain;charset=utf-8' }
     );
 
   const url =
@@ -8266,8 +8593,10 @@ function generatePdfFromOptions(){
   doc.setTextColor(20,20,20);
 
   doc.text(
-    currentSong.title ||
-    'Untitled Song',
+    sanitizeForPlainExport(
+      currentSong.title ||
+      'Untitled Song'
+    ),
     pageMargin,
     y
   );
@@ -8281,7 +8610,9 @@ function generatePdfFromOptions(){
     doc.setTextColor(100,100,105);
 
     doc.text(
-      'Key: ' + keyInfo.label,
+      sanitizeForPlainExport(
+        'Key: ' + keyInfo.label
+      ),
       pageMargin,
       y
     );
@@ -8306,7 +8637,9 @@ function generatePdfFromOptions(){
 
     const nameWrapped =
       doc.splitTextToSize(
-        (section.name || 'Section').toUpperCase(),
+        sanitizeForPlainExport(
+          (section.name || 'Section').toUpperCase()
+        ),
         columnWidth
       );
 
@@ -8339,9 +8672,11 @@ function generatePdfFromOptions(){
     lines.forEach(rawLine => {
 
       const line =
-        rawLine.length
-          ? rawLine
-          : ' ';
+        sanitizeForPlainExport(
+          rawLine.length
+            ? rawLine
+            : ' '
+        );
 
       const isChord =
         isChordOnlyLine(line);
@@ -9566,6 +9901,34 @@ function mergeSongsByIds(ids){
       text: song.originalText || song.text || ''
     }));
 
+  const merged =
+    saveMergedSongParts(
+      title,
+      parts
+    );
+
+
+  librarySelectedIds.clear();
+
+  alert(
+    `Merged ${ordered.length} songs into "${merged.title}".`
+  );
+
+  renderLibrary();
+
+}
+
+
+/*
+  Saves a set of song parts as a single merged song — used by
+  both the manual Library "Merge" action above and by importing
+  a text file that contains more than one "Title:" marker (see
+  parseSongTextFile). Tags the saved song with mergeParts so the
+  viewer opens it as a swipeable set of pages, one per part.
+*/
+
+function saveMergedSongParts(title, parts){
+
   const combinedText =
     parts
       .map(part => part.text)
@@ -9576,15 +9939,6 @@ function mergeSongsByIds(ids){
       title,
       combinedText
     );
-
-  /*
-    Tag the saved song as a merge and record each original
-    song's title/text separately. This is what lets the viewer
-    recognize a merged song and render it as a swipeable set of
-    pages (one per original song) instead of one flat lyrics
-    blob. Re-write it into storage since saveSong() only knows
-    about title/text.
-  */
 
   merged.mergeParts = parts;
   merged.activePartIndex = 0;
@@ -9602,14 +9956,7 @@ function mergeSongsByIds(ids){
 
   }
 
-
-  librarySelectedIds.clear();
-
-  alert(
-    `Merged ${ordered.length} songs into "${merged.title}".`
-  );
-
-  renderLibrary();
+  return merged;
 
 }
 
