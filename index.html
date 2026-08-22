@@ -80,6 +80,10 @@ button{
   padding:24px 22px 0;
 }
 
+.top.topHidden{
+  display:none;
+}
+
 .welcome{
   font-size:15px;
   color:#a7a7ad;
@@ -465,6 +469,202 @@ button{
   font-size:12px;
 
   line-height:1.5;
+}
+
+
+/* =========================================================
+   PROFILE
+========================================================= */
+
+.profilePage{
+  padding:4px 0 30px;
+}
+
+.profileHead{
+  display:flex;
+
+  align-items:center;
+
+  gap:14px;
+
+  padding:6px 2px 24px;
+}
+
+.profileAvatar{
+  width:56px;
+  height:56px;
+
+  flex:0 0 auto;
+
+  border-radius:50%;
+
+  background:#1a1a1d;
+  border:1px solid #303036;
+
+  display:grid;
+  place-items:center;
+
+  overflow:hidden;
+
+  font-size:19px;
+  font-weight:800;
+
+  color:#eee;
+}
+
+.profileAvatar img{
+  width:100%;
+  height:100%;
+
+  object-fit:cover;
+}
+
+.profileHeadInfo{
+  min-width:0;
+}
+
+.profileName{
+  font-size:19px;
+  font-weight:800;
+}
+
+.profileEmail{
+  margin-top:3px;
+
+  color:#85858c;
+
+  font-size:12.5px;
+
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.profileSection{
+  margin:22px 0;
+}
+
+.settingsCard{
+  border:1px solid #303036;
+
+  border-radius:14px;
+
+  background:#151517;
+
+  overflow:hidden;
+}
+
+.settingsRow{
+  display:flex;
+
+  align-items:center;
+  justify-content:space-between;
+
+  gap:12px;
+
+  padding:14px 15px;
+}
+
+.settingsRow + .settingsRow{
+  border-top:1px solid #232327;
+}
+
+.settingsRowLabel{
+  font-size:13.5px;
+  font-weight:700;
+}
+
+.settingsRowSub{
+  margin-top:3px;
+
+  color:#77777f;
+
+  font-size:11.5px;
+
+  line-height:1.5;
+}
+
+.settingsRowValue{
+  color:#a7a7ad;
+
+  font-size:13px;
+  font-weight:700;
+}
+
+.stepper{
+  display:flex;
+
+  align-items:center;
+
+  gap:2px;
+
+  flex:0 0 auto;
+}
+
+.stepperBtn{
+  width:30px;
+  height:30px;
+
+  border:1px solid #303036;
+
+  border-radius:9px;
+
+  background:#1a1a1d;
+
+  color:#eee;
+
+  font-size:15px;
+  font-weight:800;
+
+  cursor:pointer;
+}
+
+.stepperValue{
+  min-width:44px;
+
+  text-align:center;
+
+  font-size:13px;
+  font-weight:700;
+
+  color:#eee;
+}
+
+.toolbarBtn.danger{
+  background:#3a2020;
+  color:#ff8b8b;
+}
+
+.settingsCardPad{
+  padding:14px 15px;
+}
+
+.googleClientIdInput{
+  width:100%;
+
+  margin-top:10px;
+
+  padding:11px 12px;
+
+  border:1px solid #303036;
+  border-radius:10px;
+
+  background:#0f0f11;
+  color:#eee;
+
+  font-size:12.5px;
+}
+
+.profileAbout{
+  text-align:center;
+
+  margin-top:26px;
+
+  color:#5c5c63;
+
+  font-size:11.5px;
+
+  line-height:1.7;
 }
 
 
@@ -2404,6 +2604,20 @@ function setActiveNav(name){
   }
 
 
+  const top =
+    document.querySelector('.top');
+
+
+  if(top){
+
+    top.classList.toggle(
+      'topHidden',
+      name !== 'home'
+    );
+
+  }
+
+
   /*
     Both the library select-bar and the song section float-bar
     live in fixed-position overlays that sit as SIBLINGS of
@@ -2529,6 +2743,8 @@ function writeSongs(songs){
     JSON.stringify(songs)
   );
 
+  scheduleDriveSync();
+
 }
 
 
@@ -2569,6 +2785,9 @@ function saveSong(
     savedAt:
       new Date().toISOString(),
 
+    updatedAt:
+      new Date().toISOString(),
+
     kind:
       'analyzed',
 
@@ -2579,7 +2798,7 @@ function saveSong(
       0,
 
     fontSize:
-      15
+      getSettings().defaultFontSize
 
   };
 
@@ -2593,6 +2812,1000 @@ function saveSong(
 
 
   return item;
+
+}
+
+
+/* =========================================================
+   RECENTLY VIEWED
+   Separate from the Library on purpose: opening a song in
+   the lyrics viewer (search result, import, analyzer preview,
+   or a real Library song) only ever touches this list. A song
+   only enters the Library when the user taps Save.
+========================================================= */
+
+function getRecentViews(){
+
+  try{
+
+    return JSON.parse(
+      localStorage.getItem(
+        'worshipChordsRecent'
+      ) || '[]'
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    return [];
+
+  }
+
+}
+
+
+function writeRecentViews(list){
+
+  localStorage.setItem(
+    'worshipChordsRecent',
+    JSON.stringify(list)
+  );
+
+}
+
+
+function recordRecentView(song){
+
+  if(!song){
+
+    return;
+
+  }
+
+  const list =
+    getRecentViews().filter(
+      item => item.id !== song.id
+    );
+
+  list.unshift({
+
+    id: song.id,
+
+    title: song.title || 'Untitled Song',
+
+    text: song.text || '',
+
+    originalText:
+      song.originalText ||
+      song.text ||
+      '',
+
+    sourceUrl: song.sourceUrl || '',
+
+    analysis: song.analysis || null,
+
+    transposeSteps:
+      typeof song.transposeSteps === 'number'
+        ? song.transposeSteps
+        : 0,
+
+    fontSize:
+      typeof song.fontSize === 'number'
+        ? song.fontSize
+        : 15,
+
+    /*
+      Only set when this song actually lives in the Library —
+      lets the Recent card show "Saved" vs just a view date.
+    */
+    savedAt: song.savedAt || null,
+
+    viewedAt: new Date().toISOString()
+
+  });
+
+  writeRecentViews(
+    list.slice(0,20)
+  );
+
+}
+
+
+/* =========================================================
+   SETTINGS
+========================================================= */
+
+function getSettings(){
+
+  const defaults = {
+
+    defaultFontSize: 15,
+
+    autoScrollSpeed: 2,
+
+    googleClientId: ''
+
+  };
+
+  try{
+
+    return {
+
+      ...defaults,
+
+      ...JSON.parse(
+        localStorage.getItem(
+          'worshipChordsSettings'
+        ) || '{}'
+      )
+
+    };
+
+  }catch(error){
+
+    console.error(error);
+
+    return defaults;
+
+  }
+
+}
+
+
+function writeSettings(partial){
+
+  const merged = {
+
+    ...getSettings(),
+
+    ...partial
+
+  };
+
+  localStorage.setItem(
+    'worshipChordsSettings',
+    JSON.stringify(merged)
+  );
+
+  return merged;
+
+}
+
+
+/* =========================================================
+   GOOGLE ACCOUNT
+   Uses Google Identity Services (client-side OAuth — no
+   backend needed). Requires a Google OAuth Client ID, set
+   once from the Profile page and stored in Settings.
+
+   Scope is drive.file — the app can only see/create files
+   it made itself, never the rest of anyone's Drive. That's
+   enough for our one shared library file.
+========================================================= */
+
+let googleTokenClient = null;
+let googleAccessToken = null;
+
+const GOOGLE_DRIVE_SCOPE =
+  'openid email profile ' +
+  'https://www.googleapis.com/auth/drive.file';
+
+
+function getGoogleUser(){
+
+  try{
+
+    return JSON.parse(
+      localStorage.getItem(
+        'worshipChordsGoogleUser'
+      ) || 'null'
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    return null;
+
+  }
+
+}
+
+
+function setGoogleUser(user){
+
+  if(user){
+
+    localStorage.setItem(
+      'worshipChordsGoogleUser',
+      JSON.stringify(user)
+    );
+
+  }else{
+
+    localStorage.removeItem(
+      'worshipChordsGoogleUser'
+    );
+
+  }
+
+}
+
+
+function loadGoogleScript(){
+
+  return new Promise((resolve, reject) => {
+
+    if(window.google && window.google.accounts){
+
+      resolve();
+      return;
+
+    }
+
+    const existing =
+      document.getElementById(
+        'googleIdentityScript'
+      );
+
+    if(existing){
+
+      existing.addEventListener(
+        'load',
+        () => resolve()
+      );
+
+      existing.addEventListener(
+        'error',
+        () => reject(
+          new Error('Failed to load Google script.')
+        )
+      );
+
+      return;
+
+    }
+
+    const script =
+      document.createElement('script');
+
+    script.id = 'googleIdentityScript';
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+
+    script.onload = () => resolve();
+
+    script.onerror = () => reject(
+      new Error('Failed to load Google script.')
+    );
+
+    document.head.appendChild(script);
+
+  });
+
+}
+
+
+async function googleSignIn(){
+
+  const clientId =
+    getSettings().googleClientId.trim();
+
+  if(!clientId){
+
+    alert(
+      'Add your Google OAuth Client ID first ' +
+      '(Profile → Account).'
+    );
+
+    return;
+
+  }
+
+  try{
+
+    await loadGoogleScript();
+
+  }catch(error){
+
+    alert(
+      'Could not reach Google. Check your connection.'
+    );
+
+    return;
+
+  }
+
+  googleTokenClient =
+    google.accounts.oauth2.initTokenClient({
+
+      client_id: clientId,
+
+      scope: GOOGLE_DRIVE_SCOPE,
+
+      callback: async (response) => {
+
+        if(response.error){
+
+          alert(
+            'Google sign-in failed: ' +
+            response.error
+          );
+
+          return;
+
+        }
+
+        googleAccessToken =
+          response.access_token;
+
+        try{
+
+          const profileResponse =
+            await fetch(
+              'https://www.googleapis.com/oauth2/v3/userinfo',
+              {
+                headers:{
+                  Authorization:
+                    'Bearer ' + googleAccessToken
+                }
+              }
+            );
+
+          const profile =
+            await profileResponse.json();
+
+          setGoogleUser({
+
+            name: profile.name || profile.email,
+
+            email: profile.email || '',
+
+            picture: profile.picture || ''
+
+          });
+
+        }catch(error){
+
+          console.error(error);
+
+          setGoogleUser({
+
+            name: 'Google Account',
+
+            email: '',
+
+            picture: ''
+
+          });
+
+        }
+
+        renderProfile();
+
+        /*
+          First sync after sign-in: pull whatever's already in
+          Drive (from the other 7 people), merge with what's
+          local, and push the merged result back.
+        */
+
+        performDriveSync();
+
+      }
+
+    });
+
+  googleTokenClient.requestAccessToken();
+
+}
+
+
+function googleSignOut(){
+
+  if(googleAccessToken && window.google){
+
+    google.accounts.oauth2.revoke(
+      googleAccessToken,
+      () => {}
+    );
+
+  }
+
+  googleAccessToken = null;
+  googleTokenClient = null;
+  driveLibraryFileId = null;
+
+  setGoogleUser(null);
+  setSyncStatus('idle');
+
+  renderProfile();
+
+}
+
+
+/* =========================================================
+   GOOGLE DRIVE SYNC
+   One shared JSON file (in the signed-in account's Drive)
+   holds the whole library plus a short "recently deleted"
+   list (tombstones), so a delete on one phone doesn't
+   silently reappear from another phone's copy. Every local
+   Library change schedules a debounced sync: pull → merge
+   (newest edit per song wins; tombstoned songs stay deleted)
+   → push → also update what's stored locally, so every
+   device converges on the same list.
+========================================================= */
+
+const DRIVE_LIBRARY_FILENAME =
+  'disciples-library.json';
+
+let driveLibraryFileId = null;
+let driveSyncTimer = null;
+let driveSyncInFlight = false;
+let driveSyncQueued = false;
+
+
+function getTombstones(){
+
+  try{
+
+    return JSON.parse(
+      localStorage.getItem(
+        'worshipChordsTombstones'
+      ) || '[]'
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    return [];
+
+  }
+
+}
+
+
+function writeTombstones(list){
+
+  localStorage.setItem(
+    'worshipChordsTombstones',
+    JSON.stringify(list)
+  );
+
+}
+
+
+function recordDeletedSongs(ids){
+
+  if(!ids.length){
+
+    return;
+
+  }
+
+  const now =
+    new Date().toISOString();
+
+  const list =
+    getTombstones().filter(
+      item => !ids.includes(item.id)
+    );
+
+  ids.forEach(id => {
+
+    list.push({ id, deletedAt: now });
+
+  });
+
+  writeTombstones(list);
+
+}
+
+
+function setSyncStatus(status, at){
+
+  const detail = { status, at: at || null };
+
+  localStorage.setItem(
+    'worshipChordsSyncStatus',
+    JSON.stringify(detail)
+  );
+
+  const label =
+    document.getElementById('driveSyncStatus');
+
+  if(label){
+
+    label.textContent =
+      formatSyncStatus(detail);
+
+  }
+
+}
+
+
+function getSyncStatus(){
+
+  try{
+
+    return JSON.parse(
+      localStorage.getItem(
+        'worshipChordsSyncStatus'
+      ) || 'null'
+    ) || { status:'idle', at:null };
+
+  }catch(error){
+
+    return { status:'idle', at:null };
+
+  }
+
+}
+
+
+function formatSyncStatus(detail){
+
+  if(!getGoogleUser()){
+
+    return 'Not connected';
+
+  }
+
+  if(detail.status === 'syncing'){
+
+    return 'Syncing…';
+
+  }
+
+  if(detail.status === 'error'){
+
+    return 'Sync failed — will retry';
+
+  }
+
+  if(detail.status === 'synced' && detail.at){
+
+    return (
+      'Synced ' +
+      new Date(detail.at).toLocaleString()
+    );
+
+  }
+
+  return 'Not synced yet';
+
+}
+
+
+/* Merge two song lists + two tombstone lists into one. */
+
+function mergeLibraryState(
+  localSongs,
+  localTombstones,
+  remoteSongs,
+  remoteTombstones
+){
+
+  const tombstoneMap = new Map();
+
+  [...localTombstones, ...remoteTombstones].forEach(item => {
+
+    if(!item || !item.id)return;
+
+    const existing =
+      tombstoneMap.get(item.id);
+
+    if(
+      !existing ||
+      new Date(item.deletedAt) >
+      new Date(existing.deletedAt)
+    ){
+
+      tombstoneMap.set(item.id, item);
+
+    }
+
+  });
+
+
+  const songMap = new Map();
+
+  [...localSongs, ...remoteSongs].forEach(song => {
+
+    if(!song || !song.id)return;
+
+    const existing =
+      songMap.get(song.id);
+
+    const songTime =
+      new Date(
+        song.updatedAt ||
+        song.savedAt ||
+        0
+      );
+
+    const existingTime =
+      existing
+        ? new Date(
+            existing.updatedAt ||
+            existing.savedAt ||
+            0
+          )
+        : null;
+
+    if(!existing || songTime > existingTime){
+
+      songMap.set(song.id, song);
+
+    }
+
+  });
+
+
+  const mergedSongs =
+    [...songMap.values()].filter(song => {
+
+      const tomb =
+        tombstoneMap.get(song.id);
+
+      if(!tomb){
+
+        return true;
+
+      }
+
+      const songTime =
+        new Date(
+          song.updatedAt ||
+          song.savedAt ||
+          0
+        );
+
+      /*
+        Only keep it if it was edited/re-saved AFTER the
+        delete — otherwise the delete wins.
+      */
+
+      return new Date(tomb.deletedAt) < songTime;
+
+    });
+
+  mergedSongs.sort(
+    (a,b) =>
+      new Date(b.savedAt || 0) -
+      new Date(a.savedAt || 0)
+  );
+
+
+  /* Keep tombstones from growing forever — 90 days is plenty. */
+
+  const cutoff =
+    Date.now() - 90*24*60*60*1000;
+
+  const prunedTombstones =
+    [...tombstoneMap.values()].filter(
+      item =>
+        new Date(item.deletedAt).getTime() >
+        cutoff
+    );
+
+
+  return {
+
+    songs: mergedSongs.slice(0,200),
+
+    tombstones: prunedTombstones
+
+  };
+
+}
+
+
+async function driveFetch(url, options={}, isRetry=false){
+
+  const response =
+    await fetch(url, {
+
+      ...options,
+
+      headers:{
+
+        ...(options.headers || {}),
+
+        Authorization:
+          'Bearer ' + googleAccessToken
+
+      }
+
+    });
+
+  if(response.status === 401 && !isRetry){
+
+    const refreshed =
+      await silentlyRefreshGoogleToken();
+
+    if(refreshed){
+
+      return driveFetch(url, options, true);
+
+    }
+
+  }
+
+  return response;
+
+}
+
+
+function silentlyRefreshGoogleToken(){
+
+  return new Promise(resolve => {
+
+    if(!googleTokenClient){
+
+      resolve(false);
+      return;
+
+    }
+
+    const previousCallback =
+      googleTokenClient.callback;
+
+    googleTokenClient.callback = (response) => {
+
+      googleTokenClient.callback = previousCallback;
+
+      if(response.error){
+
+        resolve(false);
+        return;
+
+      }
+
+      googleAccessToken =
+        response.access_token;
+
+      resolve(true);
+
+    };
+
+    googleTokenClient.requestAccessToken({
+      prompt: ''
+    });
+
+  });
+
+}
+
+
+async function ensureDriveLibraryFile(){
+
+  if(driveLibraryFileId){
+
+    return driveLibraryFileId;
+
+  }
+
+  const query =
+    `name='${DRIVE_LIBRARY_FILENAME}' and trashed=false`;
+
+  const searchResponse =
+    await driveFetch(
+      'https://www.googleapis.com/drive/v3/files' +
+      '?q=' + encodeURIComponent(query) +
+      '&fields=files(id,name)'
+    );
+
+  const searchData =
+    await searchResponse.json();
+
+  if(searchData.files && searchData.files[0]){
+
+    driveLibraryFileId =
+      searchData.files[0].id;
+
+    return driveLibraryFileId;
+
+  }
+
+
+  /* Doesn't exist in this Drive yet — create it empty. */
+
+  const boundary =
+    'disciplesBoundary';
+
+  const metadata = {
+    name: DRIVE_LIBRARY_FILENAME,
+    mimeType: 'application/json'
+  };
+
+  const initialContent =
+    JSON.stringify({ songs:[], tombstones:[] });
+
+  const body =
+    `--${boundary}\r\n` +
+    'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+    JSON.stringify(metadata) + '\r\n' +
+    `--${boundary}\r\n` +
+    'Content-Type: application/json\r\n\r\n' +
+    initialContent + '\r\n' +
+    `--${boundary}--`;
+
+  const createResponse =
+    await driveFetch(
+      'https://www.googleapis.com/upload/drive/v3/files' +
+      '?uploadType=multipart&fields=id',
+      {
+        method:'POST',
+        headers:{
+          'Content-Type':
+            `multipart/related; boundary=${boundary}`
+        },
+        body
+      }
+    );
+
+  const createData =
+    await createResponse.json();
+
+  driveLibraryFileId =
+    createData.id;
+
+  return driveLibraryFileId;
+
+}
+
+
+async function driveDownloadLibrary(fileId){
+
+  const response =
+    await driveFetch(
+      'https://www.googleapis.com/drive/v3/files/' +
+      fileId + '?alt=media'
+    );
+
+  if(!response.ok){
+
+    return { songs:[], tombstones:[] };
+
+  }
+
+  const data =
+    await response.json().catch(() => null);
+
+  return {
+
+    songs: Array.isArray(data && data.songs) ? data.songs : [],
+
+    tombstones: Array.isArray(data && data.tombstones) ? data.tombstones : []
+
+  };
+
+}
+
+
+async function driveUploadLibrary(fileId, state){
+
+  await driveFetch(
+    'https://www.googleapis.com/upload/drive/v3/files/' +
+    fileId + '?uploadType=media',
+    {
+      method:'PATCH',
+      headers:{
+        'Content-Type':'application/json'
+      },
+      body: JSON.stringify(state)
+    }
+  );
+
+}
+
+
+function scheduleDriveSync(){
+
+  if(!getGoogleUser()){
+
+    return;
+
+  }
+
+  if(driveSyncTimer){
+
+    clearTimeout(driveSyncTimer);
+
+  }
+
+  driveSyncTimer = setTimeout(
+    performDriveSync,
+    1500
+  );
+
+}
+
+
+async function performDriveSync(){
+
+  if(!getGoogleUser() || !googleAccessToken){
+
+    return;
+
+  }
+
+  if(driveSyncInFlight){
+
+    driveSyncQueued = true;
+    return;
+
+  }
+
+  driveSyncInFlight = true;
+  setSyncStatus('syncing');
+
+  try{
+
+    const fileId =
+      await ensureDriveLibraryFile();
+
+    const remote =
+      await driveDownloadLibrary(fileId);
+
+    const merged =
+      mergeLibraryState(
+        getSongs(),
+        getTombstones(),
+        remote.songs,
+        remote.tombstones
+      );
+
+    /*
+      Write straight to localStorage (not writeSongs/
+      writeTombstones) so applying the merge doesn't itself
+      schedule another sync loop.
+    */
+
+    localStorage.setItem(
+      'worshipChordsSongs',
+      JSON.stringify(merged.songs)
+    );
+
+    writeTombstones(merged.tombstones);
+
+    await driveUploadLibrary(fileId, merged);
+
+    setSyncStatus(
+      'synced',
+      new Date().toISOString()
+    );
+
+    if(
+      document.getElementById('screen') &&
+      screen.querySelector('.librarySection')
+    ){
+
+      renderLibrary();
+
+    }
+
+  }catch(error){
+
+    console.error(error);
+
+    setSyncStatus('error');
+
+  }finally{
+
+    driveSyncInFlight = false;
+
+    if(driveSyncQueued){
+
+      driveSyncQueued = false;
+
+      performDriveSync();
+
+    }
+
+  }
 
 }
 
@@ -2684,20 +3897,586 @@ function renderHome(){
 
 
 /* =========================================================
-   PROFILE (placeholder)
+   PROFILE
 ========================================================= */
+
+function profileInitials(name){
+
+  const clean =
+    (name || '').trim();
+
+  if(!clean){
+
+    return 'G';
+
+  }
+
+  return clean
+    .split(/\s+/)
+    .slice(0,2)
+    .map(part => part[0])
+    .join('')
+    .toUpperCase();
+
+}
+
 
 function renderProfile(){
 
   setActiveNav('profile');
 
+  const settings =
+    getSettings();
+
+  const user =
+    getGoogleUser();
+
+  const songCount =
+    getSongs().length;
+
+  const recentCount =
+    getRecentViews().length;
+
+
   screen.innerHTML = `
 
-    <div class="placeholder">
-      Profile settings coming soon.
+    <div class="profilePage">
+
+      <div class="profileHead">
+
+        <div class="profileAvatar">
+          ${
+            user && user.picture
+              ? `<img src="${esc(user.picture)}" alt="">`
+              : esc(profileInitials(user && user.name))
+          }
+        </div>
+
+        <div class="profileHeadInfo">
+
+          <div class="profileName">
+            ${esc(user ? user.name : 'Guest')}
+          </div>
+
+          <div class="profileEmail">
+            ${esc(user ? user.email : 'Not signed in')}
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="profileSection">
+
+        <div class="sectionLabel">
+          Account
+        </div>
+
+        <div class="settingsCard">
+
+          ${
+            user
+            ? `
+              <div class="settingsRow">
+
+                <div>
+                  <div class="settingsRowLabel">
+                    Google Account
+                  </div>
+                  <div class="settingsRowSub">
+                    Signed in — the Library syncs with this
+                    account's Drive.
+                  </div>
+                </div>
+
+                <button class="toolbarBtn" id="googleSignOutBtn">
+                  Sign Out
+                </button>
+
+              </div>
+
+              <div class="settingsRow">
+
+                <div>
+                  <div class="settingsRowLabel">
+                    Sync
+                  </div>
+                  <div class="settingsRowSub" id="driveSyncStatus">
+                    ${esc(formatSyncStatus(getSyncStatus()))}
+                  </div>
+                </div>
+
+                <button class="toolbarBtn" id="driveSyncNowBtn">
+                  Sync Now
+                </button>
+
+              </div>
+            `
+            : `
+              <div class="settingsRow">
+
+                <div>
+                  <div class="settingsRowLabel">
+                    Sign in with Google
+                  </div>
+                  <div class="settingsRowSub">
+                    Syncs your Library to a shared Google Drive so
+                    everyone using the app sees the same songs.
+                  </div>
+                </div>
+
+                <button class="toolbarBtn primary" id="googleSignInBtn">
+                  Sign In
+                </button>
+
+              </div>
+
+              <div class="settingsCardPad">
+
+                <div class="settingsRowSub">
+                  One-time setup: paste the Google OAuth Client ID
+                  for the shared Drive we're using. Same Client ID
+                  on every device.
+                </div>
+
+                <input
+                  class="googleClientIdInput"
+                  id="googleClientIdInput"
+                  placeholder="Google OAuth Client ID"
+                  value="${esc(settings.googleClientId)}"
+                >
+
+              </div>
+            `
+          }
+
+        </div>
+
+      </div>
+
+
+      <div class="profileSection">
+
+        <div class="sectionLabel">
+          Library
+        </div>
+
+        <div class="settingsCard">
+
+          <div class="settingsRow">
+            <div class="settingsRowLabel">Saved Songs</div>
+            <div class="settingsRowValue">${songCount}</div>
+          </div>
+
+          <div class="settingsRow">
+            <div class="settingsRowLabel">Recently Viewed</div>
+            <div class="settingsRowValue">${recentCount}</div>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="profileSection">
+
+        <div class="sectionLabel">
+          Lyrics Viewer
+        </div>
+
+        <div class="settingsCard">
+
+          <div class="settingsRow">
+
+            <div>
+              <div class="settingsRowLabel">Default Font Size</div>
+              <div class="settingsRowSub">Used for newly opened songs</div>
+            </div>
+
+            <div class="stepper">
+              <button class="stepperBtn" id="fontSizeDown" type="button">–</button>
+              <span class="stepperValue" id="fontSizeValue">${settings.defaultFontSize}px</span>
+              <button class="stepperBtn" id="fontSizeUp" type="button">+</button>
+            </div>
+
+          </div>
+
+          <div class="settingsRow">
+
+            <div>
+              <div class="settingsRowLabel">Default Auto-Scroll Speed</div>
+              <div class="settingsRowSub">Level 1 (slow) – 5 (fast)</div>
+            </div>
+
+            <div class="stepper">
+              <button class="stepperBtn" id="scrollSpeedDown" type="button">–</button>
+              <span class="stepperValue" id="scrollSpeedValue">${settings.autoScrollSpeed}</span>
+              <button class="stepperBtn" id="scrollSpeedUp" type="button">+</button>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="profileSection">
+
+        <div class="sectionLabel">
+          Data
+        </div>
+
+        <div class="settingsCard">
+
+          <div class="settingsRow">
+
+            <div>
+              <div class="settingsRowLabel">Export Library</div>
+              <div class="settingsRowSub">Download all saved songs as a backup file</div>
+            </div>
+
+            <button class="toolbarBtn" id="exportLibraryBtn" type="button">Export</button>
+
+          </div>
+
+          <div class="settingsRow">
+
+            <div>
+              <div class="settingsRowLabel">Import Backup</div>
+              <div class="settingsRowSub">Merge songs from a previously exported file</div>
+            </div>
+
+            <button class="toolbarBtn" id="importLibraryBtn" type="button">Import</button>
+
+          </div>
+
+          <div class="settingsRow">
+
+            <div>
+              <div class="settingsRowLabel">Clear Recent Songs</div>
+              <div class="settingsRowSub">Doesn't touch your saved Library</div>
+            </div>
+
+            <button class="toolbarBtn danger" id="clearRecentBtn" type="button">Clear</button>
+
+          </div>
+
+          <div class="settingsRow">
+
+            <div>
+              <div class="settingsRowLabel">Clear Library</div>
+              <div class="settingsRowSub">Permanently deletes all saved songs</div>
+            </div>
+
+            <button class="toolbarBtn danger" id="clearLibraryBtn" type="button">Clear</button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <input
+        type="file"
+        id="importLibraryFile"
+        accept="application/json"
+        style="display:none;"
+      >
+
+
+      <div class="profileAbout">
+        Disciples · Soli Deo Gloria<br>
+        Version 1.0
+      </div>
+
     </div>
 
   `;
+
+
+  /* ---------- Account ---------- */
+
+  const signInBtn =
+    document.getElementById('googleSignInBtn');
+
+  if(signInBtn){
+
+    signInBtn.onclick = googleSignIn;
+
+  }
+
+  const signOutBtn =
+    document.getElementById('googleSignOutBtn');
+
+  if(signOutBtn){
+
+    signOutBtn.onclick = googleSignOut;
+
+  }
+
+  const syncNowBtn =
+    document.getElementById('driveSyncNowBtn');
+
+  if(syncNowBtn){
+
+    syncNowBtn.onclick = () => {
+
+      performDriveSync();
+
+    };
+
+  }
+
+  const clientIdInput =
+    document.getElementById('googleClientIdInput');
+
+  if(clientIdInput){
+
+    clientIdInput.addEventListener(
+      'blur',
+      () => {
+
+        writeSettings({
+          googleClientId:
+            clientIdInput.value.trim()
+        });
+
+      }
+    );
+
+  }
+
+
+  /* ---------- Lyrics viewer defaults ---------- */
+
+  document
+    .getElementById('fontSizeDown')
+    .onclick = () => {
+
+      const next =
+        Math.max(
+          12,
+          getSettings().defaultFontSize - 1
+        );
+
+      writeSettings({ defaultFontSize: next });
+
+      document.getElementById('fontSizeValue').textContent =
+        next + 'px';
+
+    };
+
+  document
+    .getElementById('fontSizeUp')
+    .onclick = () => {
+
+      const next =
+        Math.min(
+          24,
+          getSettings().defaultFontSize + 1
+        );
+
+      writeSettings({ defaultFontSize: next });
+
+      document.getElementById('fontSizeValue').textContent =
+        next + 'px';
+
+    };
+
+  document
+    .getElementById('scrollSpeedDown')
+    .onclick = () => {
+
+      const next =
+        Math.max(
+          1,
+          getSettings().autoScrollSpeed - 1
+        );
+
+      writeSettings({ autoScrollSpeed: next });
+
+      document.getElementById('scrollSpeedValue').textContent =
+        String(next);
+
+    };
+
+  document
+    .getElementById('scrollSpeedUp')
+    .onclick = () => {
+
+      const next =
+        Math.min(
+          5,
+          getSettings().autoScrollSpeed + 1
+        );
+
+      writeSettings({ autoScrollSpeed: next });
+
+      document.getElementById('scrollSpeedValue').textContent =
+        String(next);
+
+    };
+
+
+  /* ---------- Data management ---------- */
+
+  document
+    .getElementById('exportLibraryBtn')
+    .onclick = () => {
+
+      const blob =
+        new Blob(
+          [JSON.stringify(getSongs(), null, 2)],
+          { type:'application/json' }
+        );
+
+      const url =
+        URL.createObjectURL(blob);
+
+      const link =
+        document.createElement('a');
+
+      link.href = url;
+      link.download =
+        'disciples-library-backup.json';
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(url);
+
+    };
+
+  const importFile =
+    document.getElementById('importLibraryFile');
+
+  document
+    .getElementById('importLibraryBtn')
+    .onclick = () => importFile.click();
+
+  importFile.onchange = () => {
+
+    const file =
+      importFile.files[0];
+
+    if(!file){
+
+      return;
+
+    }
+
+    const reader =
+      new FileReader();
+
+    reader.onload = () => {
+
+      try{
+
+        const imported =
+          JSON.parse(
+            String(reader.result || '[]')
+          );
+
+        if(!Array.isArray(imported)){
+
+          throw new Error('Not a valid backup file.');
+
+        }
+
+        const existing =
+          getSongs();
+
+        const existingIds =
+          new Set(
+            existing.map(item => item.id)
+          );
+
+        const merged =
+          existing.concat(
+            imported.filter(
+              item =>
+                item &&
+                item.id &&
+                !existingIds.has(item.id)
+            )
+          );
+
+        writeSongs(
+          merged.slice(0,200)
+        );
+
+        alert(
+          'Backup imported into your Library.'
+        );
+
+        renderProfile();
+
+      }catch(error){
+
+        alert(
+          'That file could not be imported: ' +
+          error.message
+        );
+
+      }finally{
+
+        importFile.value = '';
+
+      }
+
+    };
+
+    reader.readAsText(file);
+
+  };
+
+  document
+    .getElementById('clearRecentBtn')
+    .onclick = () => {
+
+      if(
+        !confirm(
+          'Clear your Recently Viewed list? Your Library is not affected.'
+        )
+      ){
+
+        return;
+
+      }
+
+      writeRecentViews([]);
+
+      renderProfile();
+
+    };
+
+  document
+    .getElementById('clearLibraryBtn')
+    .onclick = () => {
+
+      if(
+        !confirm(
+          'Delete every saved song from your Library? This cannot be undone.'
+        )
+      ){
+
+        return;
+
+      }
+
+      recordDeletedSongs(
+        getSongs().map(song => song.id)
+      );
+
+      writeSongs([]);
+
+      renderProfile();
+
+    };
 
 }
 
@@ -2712,7 +4491,7 @@ function renderLyrics(){
 
 
   const songs =
-    getSongs();
+    getRecentViews();
 
 
   screen.innerHTML = `
@@ -2840,11 +4619,17 @@ function renderLyrics(){
                         ? 'Analyzed'
                         : 'Imported'
                     }
+                    ·
                     ${
                       song.savedAt
+                        ? 'Saved'
+                        : 'Not saved'
+                    }
+                    ${
+                      song.viewedAt
                         ? ' · ' +
                           new Date(
-                            song.savedAt
+                            song.viewedAt
                           ).toLocaleDateString()
                         : ''
                     }
@@ -2861,7 +4646,7 @@ function renderLyrics(){
 
           <div class="empty">
 
-            No songs saved yet.<br>
+            No recently viewed songs.<br>
             Search or import a song to get started.
 
           </div>
@@ -2901,7 +4686,7 @@ function renderLyrics(){
       card.onclick = () => {
 
         const song =
-          getSongs().find(
+          getRecentViews().find(
             item =>
               item.id ===
               card.dataset.lyricsSong
@@ -3951,7 +5736,7 @@ function renderAnalysisResult(
 
         transposeSteps:0,
 
-        fontSize:15
+        fontSize:getSettings().defaultFontSize
 
       };
 
@@ -4439,9 +6224,17 @@ function openSong(song){
   ){
 
     currentSong.fontSize =
-      15;
+      getSettings().defaultFontSize;
 
   }
+
+
+  /*
+    Track this as a recently viewed song regardless of whether
+    it's saved to the Library — that's what "Recent" means now.
+  */
+
+  recordRecentView(currentSong);
 
 
   renderSongViewer();
@@ -4821,7 +6614,7 @@ function attachMergedSwipeHandlers(){
 let autoScrollActive=false;
 let autoScrollRAF=null;
 let autoScrollLastTime=null;
-let autoScrollSpeedLevel=2; /* 1-5 */
+let autoScrollSpeedLevel=getSettings().autoScrollSpeed; /* 1-5 */
 const AUTO_SCROLL_MIN_LEVEL=1;
 const AUTO_SCROLL_MAX_LEVEL=5;
 
@@ -5016,6 +6809,10 @@ function saveCurrentSong(){
         item.id ===
         currentSong.id
     );
+
+
+  currentSong.updatedAt =
+    new Date().toISOString();
 
 
   if(index === -1){
@@ -6696,6 +8493,8 @@ function renderLibrary(){
 
       if(!confirmed)return;
 
+      recordDeletedSongs([songId]);
+
       writeSongs(
         getSongs().filter(
           item => item.id !== songId
@@ -6747,6 +8546,8 @@ function renderLibrary(){
         );
 
       if(!confirmed)return;
+
+      recordDeletedSongs(ids);
 
       writeSongs(
         getSongs().filter(
@@ -6950,6 +8751,9 @@ function renameSongById(songId){
 
   song.title =
     trimmed;
+
+  song.updatedAt =
+    new Date().toISOString();
 
   writeSongs(songs);
 
@@ -7211,12 +9015,23 @@ function renderResults(){
 
         ${
           source === 'drive'
-          ? `
-            <div class="driveStatus">
-              🔐 Google Drive isn't connected yet. Once connected,
-              Search will look up matching songs in your Drive.
-            </div>
-          `
+          ? (
+            getGoogleUser()
+            ? `
+              <div class="driveStatus">
+                ✅ Connected as ${esc(getGoogleUser().email || getGoogleUser().name)}.
+                Drive song search is coming soon — for now, use
+                Import or Analyze to bring a song in.
+              </div>
+            `
+            : `
+              <div class="driveStatus">
+                🔐 Google Drive isn't connected yet. Sign in from
+                Profile → Account, then Search will look up
+                matching songs in your Drive.
+              </div>
+            `
+          )
           : ''
         }
 
@@ -7626,13 +9441,50 @@ async function importFromUG(url){
       );
 
 
-    const song =
-      saveSong(
-        title,
+    /*
+      Don't save to the Library yet — importing is just a
+      preview. It only becomes a Library entry if the user
+      opens it and taps Save (same pattern as the "Open Lyrics"
+      preview from the Analyzer). Opening it does add it to
+      Recent Songs, though.
+    */
+
+    const song = {
+
+      id:
+        'preview-' +
+        (
+          window.crypto &&
+          crypto.randomUUID
+            ? crypto.randomUUID()
+            : String(
+                Date.now() +
+                Math.random()
+              )
+        ),
+
+      title:
+        title ||
+        'Untitled Song',
+
+      text:
         importedText,
+
+      originalText:
+        importedText,
+
+      sourceUrl:
         data.sourceUrl || url,
-        analysis
-      );
+
+      analysis,
+
+      transposeSteps:
+        0,
+
+      fontSize:
+        getSettings().defaultFontSize
+
+    };
 
 
     box.innerHTML = `
@@ -7641,6 +9493,7 @@ async function importFromUG(url){
 
         ✅ "${esc(song.title)}" imported —
         lyrics and chords detected automatically.
+        Open it and tap Save to add it to your Library.
 
       </div>
 
@@ -7803,6 +9656,78 @@ document
 
 
 renderHome();
+
+
+/*
+  If we already have a Google account on file, try to pick the
+  session back up quietly (no popup) and pull any changes made
+  by the other people using this Library. If the silent grab
+  fails — say, the browser blocked it — nothing breaks; signing
+  in again from Profile or tapping "Sync Now" covers it.
+*/
+
+async function initGoogleSyncOnLoad(){
+
+  const user =
+    getGoogleUser();
+
+  const clientId =
+    getSettings().googleClientId.trim();
+
+  if(!user || !clientId){
+
+    return;
+
+  }
+
+  try{
+
+    await loadGoogleScript();
+
+  }catch(error){
+
+    console.error(error);
+    return;
+
+  }
+
+  googleTokenClient =
+    google.accounts.oauth2.initTokenClient({
+
+      client_id: clientId,
+
+      scope: GOOGLE_DRIVE_SCOPE,
+
+      callback: (response) => {
+
+        if(response.error){
+
+          console.error(
+            'Silent Google sign-in failed:',
+            response.error
+          );
+
+          return;
+
+        }
+
+        googleAccessToken =
+          response.access_token;
+
+        performDriveSync();
+
+      }
+
+    });
+
+  googleTokenClient.requestAccessToken({
+    prompt: ''
+  });
+
+}
+
+
+initGoogleSyncOnLoad();
 
 </script>
 
