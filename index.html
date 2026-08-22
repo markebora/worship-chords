@@ -1318,6 +1318,20 @@ button{
 .songBackBtn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round;}
 .songHeaderTitle{margin:0;flex:1;min-width:0;font-size:19px;font-weight:800;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
+/* Merged song viewer: header title + subtitle, numbered page
+   indicator, transparent edge tap zones for prev/next song. */
+.songHeaderTitleWrap{flex:1;min-width:0;}
+.songHeaderTitleWrap .songHeaderTitle{margin:0;}
+.mergeSongSubtitle{margin:2px 0 0;font-size:11px;color:#85858c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mergePartPills{display:flex;gap:6px;margin-top:9px;padding:0 1px 1px;overflow-x:auto;scrollbar-width:none;}
+.mergePartPills::-webkit-scrollbar{display:none;}
+.mergePartPill{flex:0 0 auto;width:26px;height:26px;border-radius:50%;border:1px solid #303036;background:#18181b;color:#a7a7ad;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .18s ease,color .18s ease,border-color .18s ease;}
+.mergePartPill.active{background:#fff;color:#111;border-color:#fff;}
+.mergedLyricsView{touch-action:pan-y;will-change:transform;}
+.mergeTapZone{position:fixed;top:16%;bottom:18%;width:16%;max-width:90px;min-width:44px;background:transparent;border:0;padding:0;z-index:55;-webkit-tap-highlight-color:transparent;}
+.mergeTapNext{right:0;}
+.mergeTapPrev{left:0;}
+
 .songSectionFloatBar{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:620px;z-index:99;background:transparent;border:0;box-shadow:none;padding:0;}
 
 /* =========================================================
@@ -1690,6 +1704,144 @@ button{
   color:#ff8b8b;
 }
 
+/* =========================================================
+   PDF EXPORT OPTIONS
+========================================================= */
+
+.pdfOptionGroup{
+  margin-bottom:20px;
+}
+
+.pdfOptionLabel{
+  font-size:12px;
+  font-weight:800;
+  color:#85858c;
+  text-transform:uppercase;
+  letter-spacing:.03em;
+  margin-bottom:9px;
+}
+
+.pdfSectionList{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.pdfSectionRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:#171719;
+  border:1px solid #2d2d32;
+  border-radius:13px;
+  padding:10px 10px 10px 6px;
+  transition:opacity .18s ease,border-color .18s ease;
+}
+
+.pdfSectionRow.dragging{
+  opacity:.55;
+  border-color:#4d4d55;
+}
+
+.pdfSectionRow.excluded{
+  opacity:.45;
+}
+
+.pdfDragHandle{
+  flex:0 0 auto;
+  width:30px;
+  height:30px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:16px;
+  color:#6b6b72;
+  cursor:grab;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+.pdfSectionName{
+  flex:1;
+  min-width:0;
+  font-size:13px;
+  font-weight:700;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.pdfSectionToggle{
+  flex:0 0 auto;
+  border:1px solid #303036;
+  background:#1f1f24;
+  color:#c9c9cf;
+  border-radius:9px;
+  padding:6px 11px;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.pdfSectionRow.excluded .pdfSectionToggle{
+  background:#241a1a;
+  border-color:#4a2c2c;
+  color:#e3a0a0;
+}
+
+.pdfPreviewPage{
+  background:#f6f5f0;
+  color:#141414;
+  border-radius:12px;
+  padding:16px;
+  max-height:340px;
+  overflow:hidden;
+  column-gap:16px;
+  font:
+    10px/1.55
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+
+.pdfPreviewSection{
+  break-inside:avoid;
+  margin-bottom:10px;
+}
+
+.pdfPreviewSectionName{
+  font-family:helvetica,arial,sans-serif;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.04em;
+  color:#55555c;
+  margin-bottom:3px;
+}
+
+.pdfPreviewChordLine{
+  color:#2563d1;
+  font-weight:700;
+}
+
+.pdfPreviewLyricLine{
+  color:#1a1a1a;
+}
+
+.pdfPreviewEmpty{
+  font-family:helvetica,arial,sans-serif;
+  font-size:12px;
+  color:#8a8a8a;
+  column-span:all;
+}
+
+.pdfPreviewHint{
+  margin-top:8px;
+  font-size:11px;
+  color:#6b6b72;
+}
+
 .editorTextarea{
   width:100%;
 
@@ -1876,6 +2028,7 @@ button{
 
   <div id="libraryOverlay"></div>
   <div id="songSectionOverlay"></div>
+  <div id="mergeNavOverlay"></div>
 
 
   <!-- =====================================================
@@ -2148,6 +2301,17 @@ let showChords = true;
 */
 let librarySelectedIds = new Set();
 
+/*
+  PDF export options state: working copy of the current song's
+  sections (draggable order + per-section include/exclude),
+  plus the chosen column count and whether chords are included.
+  Rebuilt fresh from the song each time the export screen opens;
+  the column/chords choices persist across opens in a session.
+*/
+let pdfExportSections = [];
+let pdfExportColumns = 1;
+let pdfExportIncludeChords = true;
+
 
 /*
   Whenever a song is open (currentSong is set), the Lyrics tab
@@ -2232,6 +2396,16 @@ function setActiveNav(name){
   if(songSectionOverlay){
 
     songSectionOverlay.innerHTML = '';
+
+  }
+
+
+  const mergeNavOverlay =
+    document.getElementById('mergeNavOverlay');
+
+  if(mergeNavOverlay){
+
+    mergeNavOverlay.innerHTML = '';
 
   }
 
@@ -4260,13 +4434,15 @@ function persistSectionOrder(){
 
 function reorderViewerSections(fromIndex,toIndex){
   if(!currentSong||fromIndex===toIndex)return;
+  const isMerged=Array.isArray(currentSong.mergeParts)&&currentSong.mergeParts.length>1;
+  const target=isMerged?currentSong.mergeParts[clampMergedPartIndex(currentSong)]:currentSong;
   const amount=currentSong.transposeSteps||0;
-  const displayedText=transposeText(currentSong.originalText||currentSong.text||'',amount);
-  const sections=getViewerSections(currentSong,displayedText);
+  const displayedText=transposeText(target.originalText||target.text||'',amount);
+  const sections=getViewerSections(target,displayedText);
   if(fromIndex<0||toIndex<0||fromIndex>=sections.length||toIndex>=sections.length)return;
   const moved=sections.splice(fromIndex,1)[0];
   sections.splice(toIndex,0,moved);
-  currentSong.sectionOrder=sections.map(section=>section._id);
+  target.sectionOrder=sections.map(section=>section._id);
   persistSectionOrder();
   renderSongViewer();
 }
@@ -4326,6 +4502,10 @@ function attachSectionNavBehavior(){
 
 function renderSongViewer(){
   const song=currentSong;
+  if(song && Array.isArray(song.mergeParts) && song.mergeParts.length>1){
+    renderMergedSongViewer();
+    return;
+  }
   const amount=song.transposeSteps||0;
   const displayedText=transposeText(song.originalText||song.text||'',amount);
   song.text=displayedText;
@@ -4410,6 +4590,191 @@ function renderSongViewer(){
     };
   });
   attachSectionNavBehavior();
+}
+
+/* =========================================================
+   MERGED SONG VIEWER
+   Renders a merged song (created via mergeSongsByIds) as a
+   set of pages — one full lyrics page per original song —
+   that the user can flip through by swiping left/right,
+   tapping the transparent zones on either edge of the screen,
+   or tapping a numbered pill in the header. Only songs with
+   song.mergeParts (length>1) use this path; a plain song keeps
+   using the normal renderSongViewer() rendering untouched.
+========================================================= */
+
+function clampMergedPartIndex(song){
+  const total=song.mergeParts.length;
+  let index=song.activePartIndex||0;
+  if(index<0)index=0;
+  if(index>total-1)index=total-1;
+  song.activePartIndex=index;
+  return index;
+}
+
+function goToMergedPartIndex(index){
+  const song=currentSong;
+  if(!song||!Array.isArray(song.mergeParts))return;
+  const total=song.mergeParts.length;
+  const clamped=Math.max(0,Math.min(total-1,index));
+  if(clamped===(song.activePartIndex||0))return;
+  stopAutoScroll();
+  song.activePartIndex=clamped;
+  renderSongViewer();
+  window.scrollTo(0,0);
+}
+
+function goToMergedPart(delta){
+  const song=currentSong;
+  if(!song||!Array.isArray(song.mergeParts))return;
+  goToMergedPartIndex((song.activePartIndex||0)+delta);
+}
+
+function renderMergedSongViewer(){
+  const song=currentSong;
+  const activeIndex=clampMergedPartIndex(song);
+  const total=song.mergeParts.length;
+  const part=song.mergeParts[activeIndex];
+  const amount=song.transposeSteps||0;
+  const displayedText=transposeText(part.text||'',amount);
+  const sections=getViewerSections(part,displayedText);
+  const keyInfo=detectKeyFromChords(extractChordTokens(displayedText));
+  screen.innerHTML=`
+    <div class="songPage mergedSongPage">
+      <div class="songFixedHeader">
+        <div class="songHeaderTop">
+          <button class="songBackBtn" id="songBackBtn" type="button" aria-label="Back to Lyrics">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+          </button>
+          <div class="songHeaderTitleWrap">
+            <h1 class="songHeaderTitle">${esc(part.title||'Untitled Song')}</h1>
+            <div class="mergeSongSubtitle">Song ${activeIndex+1} of ${total} — ${esc(song.title||'Merged Song')}</div>
+          </div>
+          ${keyInfo?`<div class="keyBadge songHeaderKey">Key: ${esc(keyInfo.label)}</div>`:''}
+        </div>
+        <div class="mergePartPills" id="mergePartPills" aria-label="Songs in this merge">
+          ${song.mergeParts.map((mergePart,index)=>`<button type="button" class="mergePartPill${index===activeIndex?' active':''}" data-part-index="${index}" aria-label="Song ${index+1}: ${esc(mergePart.title)}">${index+1}</button>`).join('')}
+        </div>
+      </div>
+      <div class="songToolbar">
+        <div class="toolbarRow">
+          <div class="transposeGroup">
+            <button class="toolbarBtn" id="transposeDown">−</button>
+            <button class="toolbarBtn" id="transposeReset">Transpose:${amount>0?'+':''}${amount}</button>
+            <button class="toolbarBtn" id="transposeUp">+</button>
+          </div>
+          <div class="autoScrollGroup">
+            <div class="asToggleWrap" id="asToggleWrap">
+              <button type="button" class="asArrowBtn asArrowUp" id="asArrowUp" aria-label="Increase scroll speed">⌃</button>
+              <button class="toolbarBtn asToggleBtn${autoScrollActive?' primary':''}" id="asToggle" aria-label="${autoScrollActive?'Pause auto-scroll':'Start auto-scroll'}">${autoScrollIconHTML()}</button>
+              <button type="button" class="asArrowBtn asArrowDown" id="asArrowDown" aria-label="Decrease scroll speed">⌄</button>
+            </div>
+          </div>
+        </div>
+        <div class="toolbarRow secondaryRow">
+          <button class="toolbarBtn" id="fontMinus">A−</button>
+          <button class="toolbarBtn" id="fontPlus">A+</button>
+          <div class="songMenuWrap" id="songMenuWrap">
+            <button class="toolbarBtn songMenuBtn" id="songMenuBtn" type="button" aria-haspopup="true" aria-label="More options">⋮</button>
+            <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
+              <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
+              <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
+              <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
+              <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
+            </div>
+          </div>
+        </div>
+        <div class="toolbarRow">
+          <div class="viewModeGroup" id="viewModeGroup">
+            <button type="button" class="viewModeBtn${showChords?' active':''}" data-mode="chords">♪ Chords</button>
+            <button type="button" class="viewModeBtn${showChords?'':' active'}" data-mode="lyrics">▤ Lyrics</button>
+          </div>
+        </div>
+      </div>
+      <div class="lyricsView mergedLyricsView" id="lyricsText" style="font-size:${song.fontSize}px;"><div class="songStructure${showChords?'':' chordsHidden'}" id="songStructure">
+        ${sections.map((section,index)=>`<div class="songSection" id="section-${index}" data-section-index="${index}"><div class="songSectionName">${esc(section.name)}</div>${section.lines.filter(line=>line.trim()!=='').map(line=>isChordOnlyLine(line)?`<div class="songLine chordLine">${esc(line)}</div>`:`<div class="songLine lyricLine">${formatViewerLine(line)}</div>`).join('')}</div>`).join('')}
+      </div></div>
+    </div>`;
+  document.getElementById('songSectionOverlay').innerHTML = `
+    <div class="songSectionFloatBar">
+      <div class="songSectionNav" id="songSectionNav" aria-label="Song sections">
+        ${sections.map((section,index)=>`<button type="button" data-section-index="${index}" class="${index===0?'active':''}">${esc(section.name)}</button>`).join('')}
+      </div>
+    </div>
+  `;
+  document.getElementById('mergeNavOverlay').innerHTML = `
+    ${activeIndex>0?'<button type="button" class="mergeTapZone mergeTapPrev" id="mergeTapPrev" aria-label="Previous song"></button>':''}
+    ${activeIndex<total-1?'<button type="button" class="mergeTapZone mergeTapNext" id="mergeTapNext" aria-label="Next song"></button>':''}
+  `;
+  updateLyricsNavIndicator();
+  document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();currentSong=null;renderLyrics();};
+  document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;renderSongViewer();};
+  document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;renderSongViewer();};
+  document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;renderSongViewer();};
+  document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);renderSongViewer();};
+  document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);renderSongViewer();};
+  attachAutoScrollControls();
+  attachSongMenuControls();
+  document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(btn=>{
+    btn.onclick=()=>{
+      showChords=(btn.dataset.mode==='chords');
+      document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(b=>{
+        b.classList.toggle('active',b.dataset.mode===btn.dataset.mode);
+      });
+      const structureEl=document.getElementById('songStructure');
+      if(structureEl){
+        structureEl.classList.toggle('chordsHidden',!showChords);
+      }
+    };
+  });
+  attachSectionNavBehavior();
+  document.querySelectorAll('#mergePartPills .mergePartPill').forEach(pill=>{
+    pill.onclick=()=>goToMergedPartIndex(Number(pill.dataset.partIndex));
+  });
+  const nextBtn=document.getElementById('mergeTapNext');
+  if(nextBtn)nextBtn.onclick=()=>goToMergedPart(1);
+  const prevBtn=document.getElementById('mergeTapPrev');
+  if(prevBtn)prevBtn.onclick=()=>goToMergedPart(-1);
+  attachMergedSwipeHandlers();
+}
+
+function attachMergedSwipeHandlers(){
+  const el=document.getElementById('lyricsText');
+  if(!el)return;
+  let startX=0,startY=0,tracking=false,horizontal=false;
+  el.addEventListener('touchstart',event=>{
+    if(event.touches.length!==1)return;
+    startX=event.touches[0].clientX;
+    startY=event.touches[0].clientY;
+    tracking=true;
+    horizontal=false;
+  },{passive:true});
+  el.addEventListener('touchmove',event=>{
+    if(!tracking)return;
+    const dx=event.touches[0].clientX-startX;
+    const dy=event.touches[0].clientY-startY;
+    if(!horizontal&&Math.abs(dx)>16&&Math.abs(dx)>Math.abs(dy)*1.3){
+      horizontal=true;
+    }
+    if(horizontal){
+      event.preventDefault();
+      el.style.transform=`translateX(${dx}px)`;
+    }
+  },{passive:false});
+  const finishSwipe=event=>{
+    if(!tracking)return;
+    tracking=false;
+    if(horizontal){
+      const touch=event.changedTouches?event.changedTouches[0]:null;
+      const dx=touch?touch.clientX-startX:0;
+      el.style.transform='';
+      if(dx<-60)goToMergedPart(1);
+      else if(dx>60)goToMergedPart(-1);
+    }
+    horizontal=false;
+  };
+  el.addEventListener('touchend',finishSwipe);
+  el.addEventListener('touchcancel',finishSwipe);
 }
 
 /* =========================================================
@@ -4763,7 +5128,7 @@ function attachSongMenuControls(){
 
       closeSongMenu();
 
-      exportCurrentSongAsPDF();
+      openPdfExportOptions();
 
     };
 
@@ -4931,30 +5296,16 @@ function exportCurrentSongAsText(){
 
 
 /* =========================================================
-   EXPORT (PDF) — saves the currently viewed song to a local
-   .pdf file (chords + lyrics, respecting the current
-   transpose), named after the song title. Uses jsPDF, loaded
+   EXPORT (PDF) — lets the user configure the export before
+   generating it: how many columns to lay the lyrics out in,
+   whether to include chords, and the order/inclusion of each
+   section (drag to reorder, tap to hide). Uses jsPDF, loaded
    from a CDN <script> tag above.
 ========================================================= */
 
-function exportCurrentSongAsPDF(){
+function openPdfExportOptions(){
 
   if(!currentSong)return;
-
-
-  if(
-    !window.jspdf ||
-    !window.jspdf.jsPDF
-  ){
-
-    alert(
-      'The PDF library failed to load. Check your connection and try again.'
-    );
-
-    return;
-
-  }
-
 
   const amount =
     currentSong.transposeSteps || 0;
@@ -4970,12 +5321,373 @@ function exportCurrentSongAsPDF(){
 
     );
 
-
-  const sections =
+  const parsed =
     parseSections(
       displayedText
     );
 
+  pdfExportSections =
+    parsed.map((section,index) => ({
+
+      ...section,
+
+      _id:
+        String(index) + '|' +
+        String(section.name || 'Section').trim().toLowerCase(),
+
+      excluded:
+        false
+
+    }));
+
+  if(![1,2,3].includes(pdfExportColumns)){
+
+    pdfExportColumns = 1;
+
+  }
+
+  renderPdfExportOptions();
+
+}
+
+
+function renderPdfSectionRowsHTML(){
+
+  return pdfExportSections
+    .map(section => `
+      <div class="pdfSectionRow${section.excluded?' excluded':''}" data-section-id="${section._id}">
+        <span class="pdfDragHandle" aria-label="Drag to reorder">⠿</span>
+        <span class="pdfSectionName">${esc(section.name || 'Section')}</span>
+        <button type="button" class="pdfSectionToggle" data-section-id="${section._id}" aria-label="${section.excluded?'Include this section':'Exclude this section'}">${section.excluded?'Hidden':'Shown'}</button>
+      </div>
+    `)
+    .join('');
+
+}
+
+
+function renderPdfPreviewHTML(){
+
+  return pdfExportSections
+    .filter(section => !section.excluded)
+    .map(section => {
+
+      const lines =
+        section.lines
+          .filter(line => line.trim() !== '')
+          .filter(line => pdfExportIncludeChords || !isChordOnlyLine(line));
+
+      return `
+        <div class="pdfPreviewSection">
+          <div class="pdfPreviewSectionName">${esc(section.name || 'Section')}</div>
+          ${lines.map(line => isChordOnlyLine(line)
+            ? `<div class="pdfPreviewChordLine">${esc(line)}</div>`
+            : `<div class="pdfPreviewLyricLine">${esc(line)}</div>`
+          ).join('')}
+        </div>
+      `;
+
+    })
+    .join('') ||
+    '<div class="pdfPreviewEmpty">No sections selected — tap "Hidden" on a section below to include it.</div>';
+
+}
+
+
+function updatePdfExportPreview(){
+
+  const page =
+    document.getElementById('pdfPreviewPage');
+
+  if(!page)return;
+
+  page.style.columnCount =
+    String(pdfExportColumns);
+
+  page.innerHTML =
+    renderPdfPreviewHTML();
+
+}
+
+
+function renderPdfExportOptions(){
+
+  setActiveNav('lyrics');
+
+  screen.innerHTML = `
+
+    <div class="editorPage pdfExportPage">
+
+      <div class="songTop">
+
+        <button class="backBtn" id="pdfExportBack">← Song</button>
+
+        <div class="songHeading">
+          <h1>Export as PDF</h1>
+          <p>${esc(currentSong.title || 'Untitled Song')}</p>
+        </div>
+
+      </div>
+
+      <div class="editorActions">
+        <button class="toolbarBtn primary" id="pdfExportGo">Export PDF</button>
+      </div>
+
+      <div class="pdfOptionGroup">
+        <div class="pdfOptionLabel">Layout</div>
+        <div class="viewModeGroup pdfColumnsGroup" id="pdfColumnsGroup">
+          <button type="button" class="viewModeBtn${pdfExportColumns===1?' active':''}" data-columns="1">1 Column</button>
+          <button type="button" class="viewModeBtn${pdfExportColumns===2?' active':''}" data-columns="2">2 Columns</button>
+          <button type="button" class="viewModeBtn${pdfExportColumns===3?' active':''}" data-columns="3">3 Columns</button>
+        </div>
+      </div>
+
+      <div class="pdfOptionGroup">
+        <div class="pdfOptionLabel">Content</div>
+        <div class="viewModeGroup" id="pdfChordsGroup">
+          <button type="button" class="viewModeBtn${pdfExportIncludeChords?' active':''}" data-chords="1">♪ Chords + Lyrics</button>
+          <button type="button" class="viewModeBtn${pdfExportIncludeChords?'':' active'}" data-chords="0">▤ Lyrics Only</button>
+        </div>
+      </div>
+
+      <div class="pdfOptionGroup">
+        <div class="pdfOptionLabel">Sections — drag ⠿ to reorder, tap to show/hide</div>
+        <div class="pdfSectionList" id="pdfSectionList">
+          ${renderPdfSectionRowsHTML()}
+        </div>
+      </div>
+
+      <div class="pdfOptionGroup">
+        <div class="pdfOptionLabel">Preview</div>
+        <div class="pdfPreviewPage" id="pdfPreviewPage" style="column-count:${pdfExportColumns};">
+          ${renderPdfPreviewHTML()}
+        </div>
+        <div class="pdfPreviewHint">Preview approximates the column layout — the actual PDF may span multiple pages.</div>
+      </div>
+
+    </div>
+
+  `;
+
+  document.getElementById('pdfExportBack').onclick = () => {
+    renderSongViewer();
+  };
+
+  document.getElementById('pdfExportGo').onclick = () => {
+    generatePdfFromOptions();
+  };
+
+  document.querySelectorAll('#pdfColumnsGroup .viewModeBtn').forEach(btn => {
+    btn.onclick = () => {
+      pdfExportColumns = Number(btn.dataset.columns);
+      document.querySelectorAll('#pdfColumnsGroup .viewModeBtn').forEach(b => {
+        b.classList.toggle('active', b === btn);
+      });
+      updatePdfExportPreview();
+    };
+  });
+
+  document.querySelectorAll('#pdfChordsGroup .viewModeBtn').forEach(btn => {
+    btn.onclick = () => {
+      pdfExportIncludeChords = (btn.dataset.chords === '1');
+      document.querySelectorAll('#pdfChordsGroup .viewModeBtn').forEach(b => {
+        b.classList.toggle('active', b === btn);
+      });
+      updatePdfExportPreview();
+    };
+  });
+
+  document.querySelectorAll('.pdfSectionToggle').forEach(btn => {
+    btn.onclick = () => {
+      const section =
+        pdfExportSections.find(item => item._id === btn.dataset.sectionId);
+
+      if(!section)return;
+
+      section.excluded = !section.excluded;
+
+      const row =
+        btn.closest('.pdfSectionRow');
+
+      if(row)row.classList.toggle('excluded', section.excluded);
+
+      btn.textContent = section.excluded ? 'Hidden' : 'Shown';
+      btn.setAttribute('aria-label', section.excluded ? 'Include this section' : 'Exclude this section');
+
+      updatePdfExportPreview();
+    };
+  });
+
+  attachPdfSectionDragging();
+
+}
+
+
+/*
+  Drag-to-reorder for the section list on the PDF export
+  screen. Dragging starts from the ⠿ handle (no long-press
+  needed, since reordering is the primary action here), and
+  pointermove/pointerup are tracked on the document so the drag
+  keeps working even if the finger moves off the row.
+*/
+
+function attachPdfSectionDragging(){
+
+  const list =
+    document.getElementById('pdfSectionList');
+
+  if(!list)return;
+
+  let draggingRow = null;
+  let dragStartIndex = -1;
+
+  const onMove = event => {
+
+    if(!draggingRow)return;
+
+    event.preventDefault();
+
+    const rows =
+      [...list.querySelectorAll('.pdfSectionRow')];
+
+    const target =
+      rows.find(row => {
+
+        if(row === draggingRow)return false;
+
+        const rect =
+          row.getBoundingClientRect();
+
+        return (
+          event.clientY >= rect.top &&
+          event.clientY <= rect.bottom
+        );
+
+      });
+
+    if(!target)return;
+
+    const currentIndex =
+      [...list.children].indexOf(draggingRow);
+
+    const targetIndex =
+      [...list.children].indexOf(target);
+
+    if(targetIndex > currentIndex){
+      list.insertBefore(draggingRow, target.nextSibling);
+    }else{
+      list.insertBefore(draggingRow, target);
+    }
+
+  };
+
+  const onUp = () => {
+
+    if(!draggingRow)return;
+
+    draggingRow.classList.remove('dragging');
+
+    const finalIndex =
+      [...list.children].indexOf(draggingRow);
+
+    if(finalIndex !== dragStartIndex){
+
+      const moved =
+        pdfExportSections.splice(dragStartIndex, 1)[0];
+
+      pdfExportSections.splice(finalIndex, 0, moved);
+
+      updatePdfExportPreview();
+
+    }
+
+    draggingRow = null;
+    dragStartIndex = -1;
+
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+
+  };
+
+  list.querySelectorAll('.pdfSectionRow').forEach(row => {
+
+    const handle =
+      row.querySelector('.pdfDragHandle');
+
+    if(!handle)return;
+
+    handle.addEventListener('pointerdown', event => {
+
+      event.preventDefault();
+
+      draggingRow = row;
+
+      dragStartIndex =
+        [...list.children].indexOf(row);
+
+      row.classList.add('dragging');
+
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+
+    });
+
+  });
+
+}
+
+
+/*
+  Generates the actual PDF from the current export options:
+  section order/inclusion, column count, and whether chords are
+  included. Lays text out in N columns per page, wrapping to a
+  new column (or a new page, once columns run out) as content
+  overflows.
+*/
+
+function generatePdfFromOptions(){
+
+  if(!currentSong)return;
+
+  if(
+    !window.jspdf ||
+    !window.jspdf.jsPDF
+  ){
+
+    alert(
+      'The PDF library failed to load. Check your connection and try again.'
+    );
+
+    return;
+
+  }
+
+  const sectionsToExport =
+    pdfExportSections.filter(section => !section.excluded);
+
+  if(!sectionsToExport.length){
+
+    alert(
+      'Select at least one section to export.'
+    );
+
+    return;
+
+  }
+
+  const amount =
+    currentSong.transposeSteps || 0;
+
+  const displayedText =
+    transposeText(
+
+      currentSong.originalText ||
+      currentSong.text ||
+      '',
+
+      amount
+
+    );
 
   const keyInfo =
     detectKeyFromChords(
@@ -4983,7 +5695,6 @@ function exportCurrentSongAsPDF(){
         displayedText
       )
     );
-
 
   const { jsPDF } =
     window.jspdf;
@@ -4994,9 +5705,9 @@ function exportCurrentSongAsPDF(){
       format:'letter'
     });
 
-
-  const marginLeft = 48;
-  const marginRight = 48;
+  const columns = pdfExportColumns;
+  const pageMargin = 40;
+  const columnGap = 18;
 
   const pageWidth =
     doc.internal.pageSize.getWidth();
@@ -5004,28 +5715,54 @@ function exportCurrentSongAsPDF(){
   const pageHeight =
     doc.internal.pageSize.getHeight();
 
-  const maxWidth =
-    pageWidth - marginLeft - marginRight;
+  const contentWidth =
+    pageWidth - pageMargin * 2;
 
-  const lineHeight = 15;
+  const columnWidth =
+    (contentWidth - columnGap * (columns - 1)) / columns;
 
-  let y = 56;
+  const fontSize =
+    columns === 1 ? 11 : columns === 2 ? 9.5 : 8.5;
 
+  const lineHeight =
+    columns === 1 ? 15 : 13;
 
-  function ensureSpace(next){
+  const bottomLimit =
+    pageHeight - 40;
 
-    if(y + next > pageHeight - 48){
+  let columnIndex = 0;
+  let pageTopY = 56;
+  let x = pageMargin;
+  let y = pageTopY;
 
-      doc.addPage();
-
-      y = 56;
-
-    }
-
+  function resetColumnPosition(){
+    x = pageMargin + columnIndex * (columnWidth + columnGap);
+    y = pageTopY;
   }
 
+  function newPage(){
+    doc.addPage();
+    columnIndex = 0;
+    pageTopY = 56;
+    resetColumnPosition();
+  }
 
-  /* Title */
+  function nextColumn(){
+    columnIndex++;
+    if(columnIndex >= columns){
+      newPage();
+    }else{
+      resetColumnPosition();
+    }
+  }
+
+  function ensureSpace(next){
+    if(y + next > bottomLimit){
+      nextColumn();
+    }
+  }
+
+  /* Title (full width, first page only) */
 
   doc.setFont('helvetica','bold');
   doc.setFontSize(20);
@@ -5034,14 +5771,11 @@ function exportCurrentSongAsPDF(){
   doc.text(
     currentSong.title ||
     'Untitled Song',
-    marginLeft,
+    pageMargin,
     y
   );
 
   y += 26;
-
-
-  /* Key badge */
 
   if(keyInfo){
 
@@ -5051,7 +5785,7 @@ function exportCurrentSongAsPDF(){
 
     doc.text(
       'Key: ' + keyInfo.label,
-      marginLeft,
+      pageMargin,
       y
     );
 
@@ -5063,31 +5797,49 @@ function exportCurrentSongAsPDF(){
 
   }
 
+  pageTopY = y;
+  resetColumnPosition();
 
-  /* Sections */
+  /* Sections, laid out into columns */
 
-  sections.forEach(section => {
-
-    ensureSpace(24);
+  sectionsToExport.forEach(section => {
 
     doc.setFont('helvetica','bold');
-    doc.setFontSize(11);
-    doc.setTextColor(60,60,65);
+    doc.setFontSize(fontSize + 1);
 
-    doc.text(
-      section.name.toUpperCase(),
-      marginLeft,
-      y
-    );
+    const nameWrapped =
+      doc.splitTextToSize(
+        (section.name || 'Section').toUpperCase(),
+        columnWidth
+      );
 
-    y += 18;
+    nameWrapped.forEach(line => {
 
+      ensureSpace(lineHeight);
+
+      doc.setTextColor(60,60,65);
+
+      doc.text(
+        line,
+        x,
+        y
+      );
+
+      y += lineHeight;
+
+    });
+
+    y += 2;
 
     doc.setFont('courier','normal');
-    doc.setFontSize(11);
+    doc.setFontSize(fontSize);
 
+    const lines =
+      section.lines
+        .filter(line => line.trim() !== '')
+        .filter(line => pdfExportIncludeChords || !isChordOnlyLine(line));
 
-    section.lines.forEach(rawLine => {
+    lines.forEach(rawLine => {
 
       const line =
         rawLine.length
@@ -5097,19 +5849,11 @@ function exportCurrentSongAsPDF(){
       const isChord =
         isChordOnlyLine(line);
 
-
-      /*
-        Monospace font keeps chord-over-lyric spacing intact
-        from the source text. Long lines wrap to the page
-        width instead of running off the edge.
-      */
-
       const wrapped =
         doc.splitTextToSize(
           line,
-          maxWidth
+          columnWidth
         );
-
 
       wrapped.forEach(part => {
 
@@ -5129,7 +5873,7 @@ function exportCurrentSongAsPDF(){
 
         doc.text(
           part,
-          marginLeft,
+          x,
           y
         );
 
@@ -5139,11 +5883,9 @@ function exportCurrentSongAsPDF(){
 
     });
 
-
-    y += 10;
+    y += columns === 1 ? 10 : 8;
 
   });
-
 
   const filename =
     (currentSong.title || 'untitled-song')
@@ -5153,12 +5895,13 @@ function exportCurrentSongAsPDF(){
       .replace(/(^-+|-+$)/g,'') ||
     'song';
 
-
   doc.save(
     filename + '.pdf'
   );
 
 }
+
+
 
 
 /* =========================================================
@@ -5658,6 +6401,15 @@ function saveEditorChanges(){
     parseSections(text).map((section,index) =>
       String(index) + '|' + String(section.name || 'Section').trim().toLowerCase()
     );
+
+
+  if(currentSong.mergeParts){
+
+    delete currentSong.mergeParts;
+
+    delete currentSong.activePartIndex;
+
+  }
 
 
   saveCurrentSong();
@@ -6205,9 +6957,15 @@ function mergeSongsByIds(ids){
     nextTitle.trim() ||
     suggestedTitle;
 
+  const parts =
+    ordered.map(song => ({
+      title: song.title || 'Untitled Song',
+      text: song.originalText || song.text || ''
+    }));
+
   const combinedText =
-    ordered
-      .map(song => song.originalText || song.text || '')
+    parts
+      .map(part => part.text)
       .join('\n\n');
 
   const merged =
@@ -6215,6 +6973,31 @@ function mergeSongsByIds(ids){
       title,
       combinedText
     );
+
+  /*
+    Tag the saved song as a merge and record each original
+    song's title/text separately. This is what lets the viewer
+    recognize a merged song and render it as a swipeable set of
+    pages (one per original song) instead of one flat lyrics
+    blob. Re-write it into storage since saveSong() only knows
+    about title/text.
+  */
+
+  merged.mergeParts = parts;
+  merged.activePartIndex = 0;
+
+  const allSongs = getSongs();
+
+  const mergedIndex =
+    allSongs.findIndex(item => item.id === merged.id);
+
+  if(mergedIndex !== -1){
+
+    allSongs[mergedIndex] = merged;
+
+    writeSongs(allSongs.slice(0,200));
+
+  }
 
 
   librarySelectedIds.clear();
