@@ -1561,11 +1561,27 @@ button{
 .mergePartPill{flex:0 0 auto;width:26px;height:26px;border-radius:50%;border:1px solid #303036;background:#18181b;color:#a7a7ad;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .18s ease,color .18s ease,border-color .18s ease;}
 .mergePartPill.active{background:#fff;color:#111;border-color:#fff;}
 .mergedLyricsView{touch-action:pan-y;will-change:transform;}
-.mergeTapZone{position:fixed;top:16%;bottom:18%;width:16%;max-width:90px;min-width:44px;background:transparent;border:0;padding:0;z-index:55;-webkit-tap-highlight-color:transparent;}
+.mergeTapZone{position:fixed;top:16%;bottom:18%;width:44px;background:transparent;border:0;padding:0;z-index:55;-webkit-tap-highlight-color:transparent;}
 .mergeTapNext{right:0;}
 .mergeTapPrev{left:0;}
 
 .songSectionFloatBar{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:620px;z-index:99;background:transparent;border:0;box-shadow:none;padding:0;}
+
+.autoScrollFab{
+  position:fixed;
+  right:14px;
+  bottom:170px;
+  z-index:97;
+  display:flex;
+  align-items:center;
+  background:rgba(24,24,27,.92);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:18px;
+  padding:5px;
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  box-shadow:0 8px 22px rgba(0,0,0,.45);
+}
 
 /* =========================================================
    ANALYSIS TITLE + RENAME
@@ -2292,6 +2308,7 @@ button{
   <div id="libraryOverlay"></div>
   <div id="songSectionOverlay"></div>
   <div id="mergeNavOverlay"></div>
+  <div id="autoScrollOverlay"></div>
 
 
   <!-- =====================================================
@@ -2693,6 +2710,16 @@ function setActiveNav(name){
   if(mergeNavOverlay){
 
     mergeNavOverlay.innerHTML = '';
+
+  }
+
+
+  const autoScrollOverlay =
+    document.getElementById('autoScrollOverlay');
+
+  if(autoScrollOverlay){
+
+    autoScrollOverlay.innerHTML = '';
 
   }
 
@@ -4528,7 +4555,7 @@ function renderProfile(){
 
             <div>
               <div class="settingsRowLabel">Import Backup</div>
-              <div class="settingsRowSub">Merge songs from a previously exported file</div>
+              <div class="settingsRowSub">A full library backup (.json), or a single song exported as text (.txt)</div>
             </div>
 
             <button class="toolbarBtn" id="importLibraryBtn" type="button">Import</button>
@@ -4565,7 +4592,7 @@ function renderProfile(){
       <input
         type="file"
         id="importLibraryFile"
-        accept="application/json"
+        accept="application/json,.json,text/plain,.txt"
         style="display:none;"
       >
 
@@ -4757,44 +4784,102 @@ function renderProfile(){
 
     reader.onload = () => {
 
+      const raw =
+        String(reader.result || '');
+
+
+      /*
+        Figure out what kind of file this is by its content,
+        not its extension — a renamed or re-saved file should
+        still work. A JSON array is a full library backup
+        (Export, above). Valid JSON that ISN'T an array is a
+        JSON file, just not one of ours. Anything else is
+        treated as a single song exported as plain text
+        (Export as Text, from a song's ⋮ menu).
+      */
+
+      let backupSongs = null;
+      let wasValidJson = false;
+
       try{
 
-        const imported =
-          JSON.parse(
-            String(reader.result || '[]')
-          );
+        const candidate =
+          JSON.parse(raw);
 
-        if(!Array.isArray(imported)){
+        wasValidJson = true;
 
-          throw new Error('Not a valid backup file.');
+        if(Array.isArray(candidate)){
+
+          backupSongs = candidate;
 
         }
 
-        const existing =
-          getSongs();
+      }catch(error){
 
-        const existingIds =
-          new Set(
-            existing.map(item => item.id)
+        wasValidJson = false;
+
+      }
+
+
+      try{
+
+        if(backupSongs){
+
+          const existing =
+            getSongs();
+
+          const existingIds =
+            new Set(
+              existing.map(item => item.id)
+            );
+
+          const merged =
+            existing.concat(
+              backupSongs.filter(
+                item =>
+                  item &&
+                  item.id &&
+                  !existingIds.has(item.id)
+              )
+            );
+
+          writeSongs(
+            merged.slice(0,200)
           );
 
-        const merged =
-          existing.concat(
-            imported.filter(
-              item =>
-                item &&
-                item.id &&
-                !existingIds.has(item.id)
-            )
+          alert(
+            'Backup imported into your Library.'
           );
 
-        writeSongs(
-          merged.slice(0,200)
-        );
+        }else if(wasValidJson){
 
-        alert(
-          'Backup imported into your Library.'
-        );
+          throw new Error(
+            'This JSON file is not a valid library backup.'
+          );
+
+        }else{
+
+          const parsed =
+            parseSingleSongTextFile(raw);
+
+          if(!parsed.text.trim()){
+
+            throw new Error(
+              'No lyrics found in this file.'
+            );
+
+          }
+
+          saveSong(
+            parsed.title,
+            parsed.text
+          );
+
+          alert(
+            '"' + parsed.title + '" imported into your Library.'
+          );
+
+        }
 
         renderProfile();
 
@@ -6742,13 +6827,6 @@ function renderSongViewer(){
             <button class="toolbarBtn" id="transposeReset">Transpose:${amount>0?'+':''}${amount}</button>
             <button class="toolbarBtn" id="transposeUp">+</button>
           </div>
-          <div class="autoScrollGroup">
-            <div class="asToggleWrap" id="asToggleWrap">
-              <button type="button" class="asArrowBtn asArrowUp" id="asArrowUp" aria-label="Increase scroll speed">⌃</button>
-              <button class="toolbarBtn asToggleBtn${autoScrollActive?' primary':''}" id="asToggle" aria-label="${autoScrollActive?'Pause auto-scroll':'Start auto-scroll'}">${autoScrollIconHTML()}</button>
-              <button type="button" class="asArrowBtn asArrowDown" id="asArrowDown" aria-label="Decrease scroll speed">⌄</button>
-            </div>
-          </div>
         </div>
         <div class="toolbarRow secondaryRow">
           <button class="toolbarBtn" id="fontMinus">A−</button>
@@ -6782,6 +6860,7 @@ function renderSongViewer(){
       </div>
     </div>
   `;
+  renderAutoScrollFab();
   updateLyricsNavIndicator();
   document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();currentSong=null;renderLyrics();};
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;renderSongViewer();};
@@ -6789,7 +6868,6 @@ function renderSongViewer(){
   document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;renderSongViewer();};
   document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);renderSongViewer();};
   document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);renderSongViewer();};
-  attachAutoScrollControls();
   attachSongMenuControls();
   document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(btn=>{
     btn.onclick=()=>{
@@ -6877,13 +6955,6 @@ function renderMergedSongViewer(){
             <button class="toolbarBtn" id="transposeReset">Transpose:${amount>0?'+':''}${amount}</button>
             <button class="toolbarBtn" id="transposeUp">+</button>
           </div>
-          <div class="autoScrollGroup">
-            <div class="asToggleWrap" id="asToggleWrap">
-              <button type="button" class="asArrowBtn asArrowUp" id="asArrowUp" aria-label="Increase scroll speed">⌃</button>
-              <button class="toolbarBtn asToggleBtn${autoScrollActive?' primary':''}" id="asToggle" aria-label="${autoScrollActive?'Pause auto-scroll':'Start auto-scroll'}">${autoScrollIconHTML()}</button>
-              <button type="button" class="asArrowBtn asArrowDown" id="asArrowDown" aria-label="Decrease scroll speed">⌄</button>
-            </div>
-          </div>
         </div>
         <div class="toolbarRow secondaryRow">
           <button class="toolbarBtn" id="fontMinus">A−</button>
@@ -6921,6 +6992,7 @@ function renderMergedSongViewer(){
     ${activeIndex>0?'<button type="button" class="mergeTapZone mergeTapPrev" id="mergeTapPrev" aria-label="Previous song"></button>':''}
     ${activeIndex<total-1?'<button type="button" class="mergeTapZone mergeTapNext" id="mergeTapNext" aria-label="Next song"></button>':''}
   `;
+  renderAutoScrollFab();
   updateLyricsNavIndicator();
   document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();currentSong=null;renderLyrics();};
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;renderSongViewer();};
@@ -6928,7 +7000,6 @@ function renderMergedSongViewer(){
   document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;renderSongViewer();};
   document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);renderSongViewer();};
   document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);renderSongViewer();};
-  attachAutoScrollControls();
   attachSongMenuControls();
   document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(btn=>{
     btn.onclick=()=>{
@@ -6957,10 +7028,38 @@ function attachMergedSwipeHandlers(){
   const el=document.getElementById('lyricsText');
   if(!el)return;
   let startX=0,startY=0,tracking=false,horizontal=false;
+
+  /*
+    The tap zones (left/right transparent edge buttons) are
+    the "border" — swiping should never start there, only
+    inside the actual lyrics content. Checking their real
+    getBoundingClientRect() (rather than duplicating the CSS
+    width as a magic number) means this stays correct even if
+    the tap-zone size changes later.
+  */
+  const withinTapZone=(x,y)=>{
+    return ['mergeTapPrev','mergeTapNext'].some(id=>{
+      const zone=document.getElementById(id);
+      if(!zone)return false;
+      const rect=zone.getBoundingClientRect();
+      return x>=rect.left&&x<=rect.right&&y>=rect.top&&y<=rect.bottom;
+    });
+  };
+
   el.addEventListener('touchstart',event=>{
     if(event.touches.length!==1)return;
-    startX=event.touches[0].clientX;
-    startY=event.touches[0].clientY;
+    const touch=event.touches[0];
+    if(withinTapZone(touch.clientX,touch.clientY)){
+      /*
+        Touch started on the edge tap-zone itself — let that
+        button handle it as a tap, don't also track it as a
+        swipe candidate.
+      */
+      tracking=false;
+      return;
+    }
+    startX=touch.clientX;
+    startY=touch.clientY;
     tracking=true;
     horizontal=false;
   },{passive:true});
@@ -6983,6 +7082,12 @@ function attachMergedSwipeHandlers(){
       const touch=event.changedTouches?event.changedTouches[0]:null;
       const dx=touch?touch.clientX-startX:0;
       el.style.transform='';
+      /*
+        Only a real drag (past the 60px threshold) navigates.
+        A plain tap/click inside the lyrics content — with
+        little or no horizontal movement — does nothing here,
+        so simply tapping to read never advances the song.
+      */
       if(dx<-60)goToMergedPart(1);
       else if(dx>60)goToMergedPart(-1);
     }
@@ -7066,6 +7171,29 @@ function toggleAutoScroll(){
 function setAutoScrollSpeedLevel(level){
   autoScrollSpeedLevel=Math.max(AUTO_SCROLL_MIN_LEVEL,Math.min(AUTO_SCROLL_MAX_LEVEL,level));
   refreshAutoScrollToggleLabel();
+}
+
+/*
+  Renders the auto-scroll control into its own fixed overlay
+  (a sibling of #screen, same reasoning as the section float
+  bar — see the comment in setActiveNav) so it stays pinned
+  on screen the whole time you're reading, instead of
+  scrolling away with the rest of the toolbar.
+*/
+
+function renderAutoScrollFab(){
+  const overlay=document.getElementById('autoScrollOverlay');
+  if(!overlay)return;
+  overlay.innerHTML=`
+    <div class="autoScrollFab">
+      <div class="asToggleWrap" id="asToggleWrap">
+        <button type="button" class="asArrowBtn asArrowUp" id="asArrowUp" aria-label="Increase scroll speed">⌃</button>
+        <button class="toolbarBtn asToggleBtn${autoScrollActive?' primary':''}" id="asToggle" aria-label="${autoScrollActive?'Pause auto-scroll':'Start auto-scroll'}">${autoScrollIconHTML()}</button>
+        <button type="button" class="asArrowBtn asArrowDown" id="asArrowDown" aria-label="Decrease scroll speed">⌄</button>
+      </div>
+    </div>
+  `;
+  attachAutoScrollControls();
 }
 
 function attachAutoScrollControls(){
@@ -7470,6 +7598,79 @@ document.addEventListener(
 
   }
 );
+
+
+/* =========================================================
+   IMPORT (TEXT) — the inverse of the export below: turns a
+   single-song .txt file (title on line 1, an optional "Key: X"
+   line, then the lyrics/chords body) back into a title/text
+   pair the Library can save. Used by the Profile screen's
+   "Import Backup" when the chosen file isn't a JSON backup.
+========================================================= */
+
+function parseSingleSongTextFile(raw){
+
+  const text =
+    String(raw || '')
+      .replace(/\r\n/g,'\n')
+      .replace(/^\uFEFF/,'');
+
+  const lines =
+    text.split('\n');
+
+
+  let index = 0;
+
+  while(
+    index < lines.length &&
+    lines[index].trim() === ''
+  ){
+
+    index++;
+
+  }
+
+
+  const title =
+    (lines[index] || 'Untitled Song')
+      .trim() ||
+    'Untitled Song';
+
+  index++;
+
+
+  while(
+    index < lines.length &&
+    lines[index].trim() === ''
+  ){
+
+    index++;
+
+  }
+
+  if(
+    index < lines.length &&
+    /^key\s*:/i.test(lines[index].trim())
+  ){
+
+    index++;
+
+  }
+
+
+  const body =
+    lines
+      .slice(index)
+      .join('\n')
+      .replace(/^\n+/,'');
+
+
+  return {
+    title,
+    text: body
+  };
+
+}
 
 
 /* =========================================================
