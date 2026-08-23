@@ -24,6 +24,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Disciples">
 
+<!-- Elegant serif font for the startup splash -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
+
 
 <style>
 
@@ -2260,12 +2265,457 @@ button{
 
 }
 
+
+/* =========================================================
+   STARTUP SPLASH
+
+   Sequence: the logo mark fades in alone, centered — then
+   crossfades into the assembled "disciples" wordmark, where
+   the same mark (now smaller) plus a small stem that grows in
+   beside it reads as the lowercase "d", with "isciples"
+   completing the word and a soft glow settling underneath.
+   The tagline fades in last, below the wordmark.
+========================================================= */
+
+#startupSplash{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:26px;
+
+  background:#0b0b0c;
+
+  opacity:1;
+  transition:opacity 0.9s ease;
+}
+
+#startupSplash.splashHidden{
+  opacity:0;
+  pointer-events:none;
+}
+
+#startupSplash .splashStage{
+  position:relative;
+  width:min(78vw, 320px);
+  height:104px;
+}
+
+/* Stage A — the mark alone, big, centered */
+
+#startupSplash .splashIconBig{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  opacity:0;
+  animation:
+    splashFadeIn 0.6s ease forwards,
+    splashFadeOut 0.45s ease forwards 1.05s;
+}
+
+#startupSplash .splashIconBig img{
+  width:92px;
+  height:92px;
+  border-radius:50%;
+}
+
+/* Stage B — the assembled "disciples" wordmark */
+
+#startupSplash .splashWordmark{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  opacity:0;
+  animation:splashFadeIn 0.5s ease forwards 1.25s;
+}
+
+#startupSplash .splashMark{
+  position:relative;
+  display:inline-flex;
+  align-items:flex-end;
+  justify-content:center;
+
+  width:42px;
+  height:42px;
+
+  margin-right:2px;
+}
+
+#startupSplash .splashMark img{
+  position:relative;
+  z-index:2;
+  width:100%;
+  height:100%;
+  border-radius:50%;
+  display:block;
+}
+
+#startupSplash .splashStem{
+  position:absolute;
+  right:2px;
+  bottom:50%;
+  z-index:1;
+
+  width:7px;
+  height:0;
+
+  background:#f7f7f7;
+  border-radius:5px 5px 0 0;
+
+  animation:splashStemGrow 0.45s cubic-bezier(.22,.8,.36,1) forwards 1.3s;
+}
+
+#startupSplash .splashRest{
+  font-family:inherit;
+  font-weight:800;
+  letter-spacing:-0.01em;
+  font-size:clamp(34px, 9vw, 46px);
+  color:#f7f7f7;
+  line-height:1;
+}
+
+#startupSplash .splashWordmark::after{
+  content:'';
+  position:absolute;
+  left:50%;
+  bottom:6px;
+  transform:translateX(-50%);
+
+  width:64%;
+  height:16px;
+
+  background:radial-gradient(ellipse at center, rgba(247,247,247,0.38), transparent 72%);
+  filter:blur(3px);
+
+  opacity:0;
+  animation:splashFadeIn 0.6s ease forwards 1.75s;
+
+  pointer-events:none;
+}
+
+@keyframes splashFadeIn{
+  from{ opacity:0; transform:scale(0.94); }
+  to{ opacity:1; transform:scale(1); }
+}
+
+@keyframes splashFadeOut{
+  to{ opacity:0; transform:scale(1.06); }
+}
+
+@keyframes splashStemGrow{
+  from{ height:0; }
+  to{ height:48px; }
+}
+
+#startupSplash .splashText{
+  font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-style:italic;
+  font-weight:500;
+
+  font-size:clamp(20px, 5.5vw, 30px);
+  letter-spacing:0.04em;
+  line-height:1.5;
+
+  color:#f2e9d8;
+  text-align:center;
+
+  padding:0 32px;
+
+  opacity:0;
+  transform:translateY(6px);
+  animation:splashTextIn 1.2s ease forwards 1.95s;
+}
+
+@keyframes splashTextIn{
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+
+/* =========================================================
+   TOASTS
+========================================================= */
+
+#toastStack{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:calc(84px + env(safe-area-inset-bottom, 0px));
+  z-index:2000;
+
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+
+  pointer-events:none;
+  padding:0 16px;
+}
+
+.toast{
+  max-width:420px;
+  width:100%;
+
+  background:#1d1d21;
+  border:1px solid #2f2f35;
+  border-radius:12px;
+  padding:12px 16px;
+
+  font-size:13.5px;
+  line-height:1.4;
+  color:#f2f2f4;
+
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+
+  opacity:0;
+  transform:translateY(10px);
+  transition:opacity .25s ease, transform .25s ease;
+}
+
+.toast.toastShow{
+  opacity:1;
+  transform:translateY(0);
+}
+
+.toast.toastError{
+  border-color:#4a2323;
+  background:#231616;
+  color:#ffb4b4;
+}
+
+.toast.toastSuccess{
+  border-color:#20402a;
+  background:#132018;
+  color:#9be8ae;
+}
+
+
+/* =========================================================
+   CONFIRM DIALOG
+========================================================= */
+
+.confirmBack{
+  position:fixed;
+  inset:0;
+  z-index:2100;
+
+  background:rgba(0,0,0,0);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+
+  transition:
+    opacity .2s ease,
+    background .2s ease,
+    visibility 0s linear .2s;
+}
+
+.confirmBack.open{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  background:rgba(0,0,0,.68);
+
+  transition:
+    opacity .2s ease,
+    background .2s ease,
+    visibility 0s linear 0s;
+}
+
+.confirmBox{
+  width:min(360px,100%);
+  background:#151518;
+  border:1px solid #2d2d32;
+  border-radius:16px;
+  padding:20px;
+
+  transform:translateY(10px) scale(.98);
+  transition:transform .2s ease;
+}
+
+.confirmBack.open .confirmBox{
+  transform:translateY(0) scale(1);
+}
+
+.confirmMessage{
+  font-size:14.5px;
+  line-height:1.5;
+  color:#f2f2f4;
+  margin:0 0 18px;
+}
+
+.confirmInput{
+  width:100%;
+  background:#0f0f11;
+  border:1px solid #2d2d32;
+  border-radius:10px;
+  color:#f7f7f7;
+  font-size:15px;
+  padding:11px 12px;
+  margin:-4px 0 16px;
+}
+
+.confirmInput:focus{
+  outline:2px solid #4c8bf5;
+  outline-offset:-1px;
+}
+
+.confirmBtnRow{
+  display:flex;
+  gap:8px;
+  justify-content:flex-end;
+}
+
+
+/* =========================================================
+   FAVORITES
+========================================================= */
+
+.favoriteBtn{
+  background:none;
+  border:0;
+  padding:6px;
+  margin:0;
+  color:#5a5a62;
+  cursor:pointer;
+  line-height:1;
+  flex-shrink:0;
+}
+
+.favoriteBtn svg{
+  width:20px;
+  height:20px;
+  display:block;
+}
+
+.favoriteBtn.active{
+  color:#f7c948;
+}
+
+
+/* =========================================================
+   SETLISTS
+========================================================= */
+
+.libraryTabs{
+  display:flex;
+  gap:6px;
+  padding:0 16px 12px;
+}
+
+.libraryTab{
+  flex:1;
+  border:1px solid #2d2d32;
+  background:#151518;
+  color:#a7a7ae;
+  border-radius:999px;
+  padding:8px 0;
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.libraryTab.active{
+  background:#fff;
+  color:#111;
+  border-color:#fff;
+}
+
+.setlistCard{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  background:#151518;
+  border:1px solid #2d2d32;
+  border-radius:14px;
+  padding:14px;
+  margin:0 16px 10px;
+  cursor:pointer;
+}
+
+.setlistCardTitle{
+  font-weight:700;
+  font-size:15px;
+}
+
+.setlistCardMeta{
+  font-size:12.5px;
+  color:#8a8a92;
+  margin-top:2px;
+}
+
+.setlistSongRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:#151518;
+  border:1px solid #2d2d32;
+  border-radius:12px;
+  padding:10px 12px;
+  margin:0 16px 8px;
+}
+
+.setlistSongTitle{
+  flex:1;
+  font-size:14px;
+  font-weight:600;
+}
+
+.setlistOrderBtn{
+  background:#1e1e22;
+  border:1px solid #2d2d32;
+  color:#e8e8ea;
+  border-radius:8px;
+  width:28px;
+  height:28px;
+  font-size:14px;
+  cursor:pointer;
+}
+
 </style>
 
 </head>
 
 
 <body>
+
+<div id="startupSplash">
+
+  <div class="splashStage">
+
+    <div class="splashIconBig">
+      <img src="/icons/icon-512.png" alt="">
+    </div>
+
+    <div class="splashWordmark">
+      <span class="splashMark">
+        <img src="/icons/icon-512.png" alt="">
+        <span class="splashStem"></span>
+      </span><span class="splashRest">isciples</span>
+    </div>
+
+  </div>
+
+  <div class="splashText">—Jesus, Our Lord and Saviour—</div>
+
+</div>
 
 <div class="app">
 
@@ -2309,6 +2759,8 @@ button{
   <div id="songSectionOverlay"></div>
   <div id="mergeNavOverlay"></div>
   <div id="autoScrollOverlay"></div>
+  <div id="toastStack" aria-live="polite"></div>
+  <div id="confirmOverlay"></div>
 
 
   <!-- =====================================================
@@ -2540,6 +2992,216 @@ const query =
   document.getElementById('libraryQuery');
 
 
+/* =========================================================
+   TOASTS + CONFIRM DIALOG
+
+   Lightweight in-app replacements for the browser's native
+   alert()/confirm(), which look and feel out of place once the
+   app is wrapped as a native shell. showToast() is fire-and-
+   forget; showConfirmDialog() returns a Promise<boolean> so
+   call sites just `await` it instead of using confirm().
+========================================================= */
+
+function showToast(message, type){
+
+  const stack =
+    document.getElementById('toastStack');
+
+  if(!stack){
+    return;
+  }
+
+  const toast =
+    document.createElement('div');
+
+  toast.className =
+    'toast' +
+    (type === 'error' ? ' toastError' : '') +
+    (type === 'success' ? ' toastSuccess' : '');
+
+  toast.textContent =
+    String(message == null ? '' : message);
+
+  stack.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add('toastShow');
+  });
+
+  setTimeout(() => {
+
+    toast.classList.remove('toastShow');
+
+    setTimeout(() => {
+      toast.remove();
+    }, 250);
+
+  }, 3200);
+
+}
+
+
+function showConfirmDialog(message, options){
+
+  const opts =
+    options || {};
+
+  const confirmLabel =
+    opts.confirmLabel || 'Confirm';
+
+  const cancelLabel =
+    opts.cancelLabel || 'Cancel';
+
+  const danger =
+    !!opts.danger;
+
+  return new Promise((resolve) => {
+
+    const host =
+      document.getElementById('confirmOverlay');
+
+    if(!host){
+      resolve(window.confirm(message));
+      return;
+    }
+
+    host.innerHTML = `
+
+      <div class="confirmBack" id="confirmBack">
+        <div class="confirmBox">
+
+          <p class="confirmMessage">${esc(String(message == null ? '' : message))}</p>
+
+          <div class="confirmBtnRow">
+            <button class="toolbarBtn" id="confirmCancelBtn" type="button">${esc(cancelLabel)}</button>
+            <button class="toolbarBtn${danger ? ' danger' : ' primary'}" id="confirmOkBtn" type="button">${esc(confirmLabel)}</button>
+          </div>
+
+        </div>
+      </div>
+
+    `;
+
+    const back =
+      document.getElementById('confirmBack');
+
+    const finish = (result) => {
+      back.classList.remove('open');
+      setTimeout(() => { host.innerHTML = ''; }, 200);
+      resolve(result);
+    };
+
+    document.getElementById('confirmCancelBtn').onclick = () => finish(false);
+    document.getElementById('confirmOkBtn').onclick = () => finish(true);
+
+    back.onclick = (event) => {
+      if(event.target === back){
+        finish(false);
+      }
+    };
+
+    requestAnimationFrame(() => {
+      back.classList.add('open');
+    });
+
+  });
+
+}
+
+
+/*
+  Replacement for window.prompt(), which — per the note on the
+  older analysis rename flow — is unreliable inside mobile
+  webviews and installed PWAs (it can silently no-op). Returns
+  Promise<string|null>: null if cancelled, otherwise the
+  trimmed text (which may be an empty string).
+*/
+
+function showPromptDialog(message, defaultValue, options){
+
+  const opts =
+    options || {};
+
+  const confirmLabel =
+    opts.confirmLabel || 'OK';
+
+  const cancelLabel =
+    opts.cancelLabel || 'Cancel';
+
+  return new Promise((resolve) => {
+
+    const host =
+      document.getElementById('confirmOverlay');
+
+    if(!host){
+      resolve(window.prompt(message, defaultValue || ''));
+      return;
+    }
+
+    host.innerHTML = `
+
+      <div class="confirmBack" id="confirmBack">
+        <div class="confirmBox">
+
+          <p class="confirmMessage">${esc(String(message == null ? '' : message))}</p>
+
+          <input
+            class="confirmInput"
+            id="confirmPromptInput"
+            type="text"
+            value="${esc(defaultValue || '')}"
+          >
+
+          <div class="confirmBtnRow">
+            <button class="toolbarBtn" id="confirmCancelBtn" type="button">${esc(cancelLabel)}</button>
+            <button class="toolbarBtn primary" id="confirmOkBtn" type="button">${esc(confirmLabel)}</button>
+          </div>
+
+        </div>
+      </div>
+
+    `;
+
+    const back =
+      document.getElementById('confirmBack');
+
+    const input =
+      document.getElementById('confirmPromptInput');
+
+    const finish = (result) => {
+      back.classList.remove('open');
+      setTimeout(() => { host.innerHTML = ''; }, 200);
+      resolve(result);
+    };
+
+    document.getElementById('confirmCancelBtn').onclick = () => finish(null);
+    document.getElementById('confirmOkBtn').onclick = () => finish(input.value.trim());
+
+    input.onkeydown = (event) => {
+      if(event.key === 'Enter'){
+        finish(input.value.trim());
+      }else if(event.key === 'Escape'){
+        finish(null);
+      }
+    };
+
+    back.onclick = (event) => {
+      if(event.target === back){
+        finish(null);
+      }
+    };
+
+    requestAnimationFrame(() => {
+      back.classList.add('open');
+      input.focus();
+      input.select();
+    });
+
+  });
+
+}
+
+
 /*
   Replays a soft fade/slide-in animation on #screen every time
   its content is swapped out, so navigating between tabs/pages
@@ -2590,6 +3252,19 @@ let showChords = true;
   the Library's long-press select mode (Rename/Delete/Merge).
 */
 let librarySelectedIds = new Set();
+
+/*
+  Which top-level tab the Library screen is showing:
+  'songs' (the normal saved-songs list) or 'setlists'.
+*/
+let libraryTab = 'songs';
+
+/*
+  When true, the Songs tab only shows songs with favorite:true.
+  Session-level, like showChords — not persisted.
+*/
+let libraryFavoritesOnly = false;
+
 
 /*
   PDF export options state: working copy of the current song's
@@ -2805,6 +3480,17 @@ function sanitizeForPlainExport(text){
    STORAGE
 ========================================================= */
 
+/*
+  Local storage keeps the library small enough to stay fast and
+  fit comfortably under a browser's per-origin storage limit.
+  500 songs is a generous ceiling for a church's working set —
+  well past what most congregations keep on rotation — and the
+  Export Library backup (Profile → Data) plus Drive sync are the
+  real safety net if a library ever needs to grow past this.
+*/
+const MAX_SONGS = 500;
+
+
 function getSongs(){
 
   try{
@@ -2840,10 +3526,256 @@ function writeSongs(songs){
 
   localStorage.setItem(
     'worshipChordsSongs',
-    JSON.stringify(songs)
+    JSON.stringify(songs.slice(0, MAX_SONGS))
   );
 
 }
+
+
+/* =========================================================
+   FAVORITES
+========================================================= */
+
+function toggleFavorite(songId){
+
+  const songs =
+    getSongs();
+
+  const song =
+    songs.find(
+      item => item.id === songId
+    );
+
+  if(!song)return;
+
+  song.favorite = !song.favorite;
+
+  writeSongs(songs);
+
+  showToast(
+    song.favorite
+      ? `"${song.title}" added to Favorites.`
+      : `"${song.title}" removed from Favorites.`
+  );
+
+}
+
+
+/* =========================================================
+   SETLISTS
+
+   A setlist is just a named, ordered list of song IDs — the
+   songs themselves still live only in the main Library. Deleting
+   a setlist never touches the songs in it; deleting a song
+   just leaves a dangling ID that setlist views quietly skip.
+========================================================= */
+
+function getSetlists(){
+
+  try{
+
+    return JSON.parse(
+      localStorage.getItem(
+        'worshipChordsSetlists'
+      ) || '[]'
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    return [];
+
+  }
+
+}
+
+
+function writeSetlists(setlists){
+
+  localStorage.setItem(
+    'worshipChordsSetlists',
+    JSON.stringify(setlists.slice(0, MAX_SONGS))
+  );
+
+}
+
+
+async function createSetlist(){
+
+  const name =
+    await showPromptDialog(
+      'Setlist name:',
+      ''
+    );
+
+  if(name === null)return null;
+
+  const trimmed =
+    name.trim();
+
+  if(!trimmed)return null;
+
+  const setlists =
+    getSetlists();
+
+  const newSetlist = {
+    id:
+      (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : String(Date.now()) + Math.random().toString(16).slice(2),
+    name: trimmed,
+    songIds: [],
+    createdAt: new Date().toISOString()
+  };
+
+  setlists.unshift(newSetlist);
+
+  writeSetlists(setlists);
+
+  return newSetlist.id;
+
+}
+
+
+async function renameSetlist(setlistId){
+
+  const setlists =
+    getSetlists();
+
+  const setlist =
+    setlists.find(item => item.id === setlistId);
+
+  if(!setlist)return;
+
+  const name =
+    await showPromptDialog(
+      'Setlist name:',
+      setlist.name || ''
+    );
+
+  if(name === null)return;
+
+  const trimmed =
+    name.trim();
+
+  if(!trimmed)return;
+
+  setlist.name = trimmed;
+
+  writeSetlists(setlists);
+
+  renderSetlistDetail(setlistId);
+
+}
+
+
+async function deleteSetlist(setlistId){
+
+  const setlists =
+    getSetlists();
+
+  const setlist =
+    setlists.find(item => item.id === setlistId);
+
+  if(!setlist)return;
+
+  const confirmed =
+    await showConfirmDialog(
+      `Delete the setlist "${setlist.name}"? The songs in it stay in your Library.`,
+      { confirmLabel:'Delete', danger:true }
+    );
+
+  if(!confirmed)return;
+
+  writeSetlists(
+    setlists.filter(item => item.id !== setlistId)
+  );
+
+  showToast(`"${setlist.name}" deleted.`);
+
+  renderLibrary();
+
+}
+
+
+function addSongToSetlist(setlistId, songId){
+
+  const setlists =
+    getSetlists();
+
+  const setlist =
+    setlists.find(item => item.id === setlistId);
+
+  if(!setlist)return;
+
+  if(setlist.songIds.includes(songId)){
+
+    showToast('Already in that setlist.');
+    return;
+
+  }
+
+  setlist.songIds.push(songId);
+
+  writeSetlists(setlists);
+
+  showToast(`Added to "${setlist.name}".`, 'success');
+
+}
+
+
+function removeSongFromSetlist(setlistId, songId){
+
+  const setlists =
+    getSetlists();
+
+  const setlist =
+    setlists.find(item => item.id === setlistId);
+
+  if(!setlist)return;
+
+  setlist.songIds =
+    setlist.songIds.filter(id => id !== songId);
+
+  writeSetlists(setlists);
+
+  renderSetlistDetail(setlistId);
+
+}
+
+
+function moveSongInSetlist(setlistId, songId, direction){
+
+  const setlists =
+    getSetlists();
+
+  const setlist =
+    setlists.find(item => item.id === setlistId);
+
+  if(!setlist)return;
+
+  const index =
+    setlist.songIds.indexOf(songId);
+
+  if(index === -1)return;
+
+  const nextIndex =
+    index + direction;
+
+  if(nextIndex < 0 || nextIndex >= setlist.songIds.length)return;
+
+  const ids = setlist.songIds;
+  const temp = ids[index];
+  ids[index] = ids[nextIndex];
+  ids[nextIndex] = temp;
+
+  writeSetlists(setlists);
+
+  renderSetlistDetail(setlistId);
+
+}
+
 
 
 function saveSong(
@@ -2905,7 +3837,7 @@ function saveSong(
 
 
   writeSongs(
-    songs.slice(0,200)
+    songs.slice(0,MAX_SONGS)
   );
 
 
@@ -3090,6 +4022,126 @@ const GOOGLE_DRIVE_SCOPE =
   'https://www.googleapis.com/auth/drive.file';
 
 
+/*
+  True when running inside the wrapped Android app (Capacitor)
+  rather than a normal mobile browser tab. Google blocks its web
+  sign-in popup inside embedded webviews like this one, so the
+  native app needs a different sign-in path — see
+  googleSignInNative() below.
+*/
+function isNativeApp(){
+
+  return !!(
+    window.Capacitor &&
+    window.Capacitor.isNativePlatform &&
+    window.Capacitor.isNativePlatform()
+  );
+
+}
+
+
+/*
+  Native sign-in via the Capacitor Google Auth plugin (real
+  Android account picker — not the web popup, so it isn't
+  blocked). silent=true is used for background token refresh:
+  it still resolves quietly if the person already granted
+  access before, without popping any UI.
+
+  Requires the @codetrix-studio/capacitor-google-auth plugin to
+  be installed in the Android project and an Android-type OAuth
+  Client ID configured — see BUILD_APK.md for the exact setup
+  steps, since those need your own Google Cloud Console access
+  and can't be done from here.
+*/
+async function googleSignInNative(silent){
+
+  const plugin =
+    window.Capacitor &&
+    window.Capacitor.Plugins &&
+    window.Capacitor.Plugins.GoogleAuth;
+
+  if(!plugin){
+
+    if(!silent){
+
+      showToast(
+        'Google Sign-In isn\'t set up in this build yet. ' +
+        'See BUILD_APK.md for the native setup steps.',
+        'error'
+      );
+
+    }
+
+    return false;
+
+  }
+
+  try{
+
+    const result =
+      await plugin.signIn();
+
+    googleAccessToken =
+      (result.authentication && result.authentication.accessToken) ||
+      result.accessToken ||
+      null;
+
+    if(!googleAccessToken){
+
+      if(!silent){
+
+        showToast(
+          'Google sign-in did not return an access token.',
+          'error'
+        );
+
+      }
+
+      return false;
+
+    }
+
+    setGoogleUser({
+
+      name: result.name || result.email || 'Google Account',
+
+      email: result.email || '',
+
+      picture: result.imageUrl || ''
+
+    });
+
+    if(!silent){
+
+      renderProfile();
+
+      pullNewSongsFromDrive();
+
+    }
+
+    return true;
+
+  }catch(error){
+
+    console.error(error);
+
+    if(!silent){
+
+      showToast(
+        'Google sign-in failed: ' +
+        (error && error.message ? error.message : 'unknown error'),
+        'error'
+      );
+
+    }
+
+    return false;
+
+  }
+
+}
+
+
 function getGoogleUser(){
 
   try{
@@ -3187,14 +4239,23 @@ function loadGoogleScript(){
 
 async function googleSignIn(){
 
+  if(isNativeApp()){
+
+    await googleSignInNative(false);
+
+    return;
+
+  }
+
   const clientId =
     getSettings().googleClientId.trim();
 
   if(!clientId){
 
-    alert(
+    showToast(
       'Add your Google OAuth Client ID first ' +
-      '(Profile → Account).'
+      '(Profile → Account).',
+      'error'
     );
 
     return;
@@ -3207,8 +4268,9 @@ async function googleSignIn(){
 
   }catch(error){
 
-    alert(
-      'Could not reach Google. Check your connection.'
+    showToast(
+      'Could not reach Google. Check your connection.',
+      'error'
     );
 
     return;
@@ -3226,9 +4288,10 @@ async function googleSignIn(){
 
         if(response.error){
 
-          alert(
+          showToast(
             'Google sign-in failed: ' +
-            response.error
+            response.error,
+            'error'
           );
 
           return;
@@ -3301,7 +4364,20 @@ async function googleSignIn(){
 
 function googleSignOut(){
 
-  if(googleAccessToken && window.google){
+  if(isNativeApp()){
+
+    const plugin =
+      window.Capacitor &&
+      window.Capacitor.Plugins &&
+      window.Capacitor.Plugins.GoogleAuth;
+
+    if(plugin){
+
+      plugin.signOut().catch(() => {});
+
+    }
+
+  }else if(googleAccessToken && window.google){
 
     google.accounts.oauth2.revoke(
       googleAccessToken,
@@ -3591,7 +4667,7 @@ function mergeLibraryState(
 
   return {
 
-    songs: mergedSongs.slice(0,200),
+    songs: mergedSongs.slice(0,MAX_SONGS),
 
     tombstones: prunedTombstones
 
@@ -3691,6 +4767,12 @@ async function ensureGoogleAccessToken(){
   if(googleAccessToken){
 
     return true;
+
+  }
+
+  if(isNativeApp()){
+
+    return await googleSignInNative(true);
 
   }
 
@@ -3897,7 +4979,7 @@ async function uploadNewSongToDrive(song){
         fileId,
         {
 
-          songs: remote.songs.slice(0,200),
+          songs: remote.songs.slice(0,MAX_SONGS),
 
           tombstones: remote.tombstones
 
@@ -3971,7 +5053,7 @@ async function pullNewSongsFromDrive(){
       localStorage.setItem(
         'worshipChordsSongs',
         JSON.stringify(
-          [...newOnes, ...localSongs].slice(0,200)
+          [...newOnes, ...localSongs].slice(0,MAX_SONGS)
         )
       );
 
@@ -4014,8 +5096,9 @@ async function syncOneSong(localSong){
 
   if(!getGoogleUser()){
 
-    alert(
-      'Sign in with Google first (Profile → Account).'
+    showToast(
+      'Sign in with Google first (Profile → Account).',
+      'error'
     );
 
     return null;
@@ -4024,9 +5107,10 @@ async function syncOneSong(localSong){
 
   if(!(await ensureGoogleAccessToken())){
 
-    alert(
+    showToast(
       'Couldn\'t reconnect to Google automatically — ' +
-      'tap Sign In again in Profile → Account, then try Sync.'
+      'tap Sign In again in Profile → Account, then try Sync.',
+      'error'
     );
 
     return null;
@@ -4098,7 +5182,7 @@ async function syncOneSong(localSong){
       fileId,
       {
 
-        songs: remote.songs.slice(0,200),
+        songs: remote.songs.slice(0,MAX_SONGS),
 
         tombstones: remote.tombstones
 
@@ -4127,7 +5211,7 @@ async function syncOneSong(localSong){
 
     localStorage.setItem(
       'worshipChordsSongs',
-      JSON.stringify(localSongs.slice(0,200))
+      JSON.stringify(localSongs.slice(0,MAX_SONGS))
     );
 
     setSyncStatus(
@@ -4143,8 +5227,9 @@ async function syncOneSong(localSong){
 
     setSyncStatus('error');
 
-    alert(
-      'Sync failed — check your connection and try again.'
+    showToast(
+      'Sync failed — check your connection and try again.',
+      'error'
     );
 
     return null;
@@ -4871,11 +5956,12 @@ function renderProfile(){
             );
 
           writeSongs(
-            merged.slice(0,200)
+            merged.slice(0,MAX_SONGS)
           );
 
-          alert(
-            'Backup imported into your Library.'
+          showToast(
+            'Backup imported into your Library.',
+            'success'
           );
 
         }else if(wasValidJson){
@@ -4916,9 +6002,10 @@ function renderProfile(){
                 parsed.parts
               );
 
-            alert(
+            showToast(
               'Imported ' + parsed.parts.length +
-              ' songs merged into "' + merged.title + '".'
+              ' songs merged into "' + merged.title + '".',
+              'success'
             );
 
           }else{
@@ -4936,8 +6023,9 @@ function renderProfile(){
               parsed.text
             );
 
-            alert(
-              '"' + parsed.title + '" imported into your Library.'
+            showToast(
+              '"' + parsed.title + '" imported into your Library.',
+              'success'
             );
 
           }
@@ -4948,9 +6036,10 @@ function renderProfile(){
 
       }catch(error){
 
-        alert(
+        showToast(
           'That file could not be imported: ' +
-          error.message
+          error.message,
+          'error'
         );
 
       }finally{
@@ -4967,13 +6056,15 @@ function renderProfile(){
 
   document
     .getElementById('clearRecentBtn')
-    .onclick = () => {
+    .onclick = async () => {
 
-      if(
-        !confirm(
-          'Clear your Recently Viewed list? Your Library is not affected.'
-        )
-      ){
+      const confirmed =
+        await showConfirmDialog(
+          'Clear your Recently Viewed list? Your Library is not affected.',
+          { confirmLabel:'Clear', danger:true }
+        );
+
+      if(!confirmed){
 
         return;
 
@@ -4987,13 +6078,15 @@ function renderProfile(){
 
   document
     .getElementById('clearLibraryBtn')
-    .onclick = () => {
+    .onclick = async () => {
 
-      if(
-        !confirm(
-          'Delete every saved song from your Library? This cannot be undone.'
-        )
-      ){
+      const confirmed =
+        await showConfirmDialog(
+          'Delete every saved song from your Library? This cannot be undone.',
+          { confirmLabel:'Delete All', danger:true }
+        );
+
+      if(!confirmed){
 
         return;
 
@@ -6334,8 +7427,9 @@ function renderAnalysisResult(
         song;
 
 
-      alert(
-        'Analyzed song saved to Library.'
+      showToast(
+        'Analyzed song saved to Library.',
+        'success'
       );
 
 
@@ -6898,7 +7992,7 @@ function persistSectionOrder(){
   if(!currentSong)return;
   const songs=getSongs();
   const index=songs.findIndex(item=>item.id===currentSong.id);
-  if(index!==-1){songs[index]=currentSong;writeSongs(songs.slice(0,200));}
+  if(index!==-1){songs[index]=currentSong;writeSongs(songs.slice(0,MAX_SONGS));}
 }
 
 function reorderViewerSections(fromIndex,toIndex){
@@ -6988,6 +8082,9 @@ function renderSongViewer(){
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
           </button>
           <h1 class="songHeaderTitle">${esc(song.title||'Untitled Song')}</h1>
+          <button class="favoriteBtn${song.favorite?' active':''}" id="songFavoriteBtn" type="button" aria-label="${song.favorite?'Remove from favorites':'Add to favorites'}">
+            <svg viewBox="0 0 24 24" fill="${song.favorite?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M12 17.3 6.2 20.6l1.1-6.6-4.8-4.7 6.6-1 3-6 3 6 6.6 1-4.8 4.7 1.1 6.6z"/></svg>
+          </button>
           ${keyInfo?`<div class="keyBadge songHeaderKey">Key: ${esc(keyInfo.label)}</div>`:''}
         </div>
       </div>
@@ -7007,6 +8104,7 @@ function renderSongViewer(){
             <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
               <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
               <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
+              <button class="songMenuItem" type="button" id="menuAddToSetlistBtn" role="menuitem">Add to Setlist</button>
               <button class="songMenuItem" type="button" id="menuSyncBtn" role="menuitem">Sync This Song</button>
               <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
               <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
@@ -7034,6 +8132,7 @@ function renderSongViewer(){
   renderAutoScrollFab();
   updateLyricsNavIndicator();
   document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();currentSong=null;renderLyrics();};
+  const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;renderSongViewer();};
   document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;renderSongViewer();};
   document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;renderSongViewer();};
@@ -7135,6 +8234,7 @@ function renderMergedSongViewer(){
             <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
               <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
               <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
+              <button class="songMenuItem" type="button" id="menuAddToSetlistBtn" role="menuitem">Add to Setlist</button>
               <button class="songMenuItem" type="button" id="menuSyncBtn" role="menuitem">Sync This Song</button>
               <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
               <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
@@ -7166,6 +8266,7 @@ function renderMergedSongViewer(){
   renderAutoScrollFab();
   updateLyricsNavIndicator();
   document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();currentSong=null;renderLyrics();};
+  const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;renderSongViewer();};
   document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;renderSongViewer();};
   document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;renderSongViewer();};
@@ -7550,7 +8651,7 @@ function saveCurrentSong(){
 
 
   writeSongs(
-    songs.slice(0,200)
+    songs.slice(0,MAX_SONGS)
   );
 
 
@@ -7570,8 +8671,9 @@ function saveCurrentSong(){
   }
 
 
-  alert(
-    'Song saved.'
+  showToast(
+    'Song saved.',
+    'success'
   );
 
 
@@ -7666,6 +8768,23 @@ function attachSongMenuControls(){
 
   document
     .getElementById(
+      'menuAddToSetlistBtn'
+    )
+    .onclick = () => {
+
+      closeSongMenu();
+
+      if(!currentSong){
+        return;
+      }
+
+      showSetlistPicker(currentSong);
+
+    };
+
+
+  document
+    .getElementById(
       'menuSyncBtn'
     )
     .onclick = async () => {
@@ -7677,8 +8796,9 @@ function attachSongMenuControls(){
         String(currentSong.id).startsWith('preview-')
       ){
 
-        alert(
-          'Save this song first, then Sync it.'
+        showToast(
+          'Save this song first, then Sync it.',
+          'error'
         );
 
         return;
@@ -7698,22 +8818,25 @@ function attachSongMenuControls(){
 
         currentSong = result.song;
 
-        alert(
-          'Synced — updated to the shared version from Drive.'
+        showToast(
+          'Synced — updated to the shared version from Drive.',
+          'success'
         );
 
         renderSongViewer();
 
       }else if(result.outcome === 'uploaded'){
 
-        alert(
-          'Synced — added to Drive for everyone.'
+        showToast(
+          'Synced — added to Drive for everyone.',
+          'success'
         );
 
       }else{
 
-        alert(
-          'Synced — your version is now the shared one.'
+        showToast(
+          'Synced — your version is now the shared one.',
+          'success'
         );
 
       }
@@ -8478,8 +9601,9 @@ function generatePdfFromOptions(){
     !window.jspdf.jsPDF
   ){
 
-    alert(
-      'The PDF library failed to load. Check your connection and try again.'
+    showToast(
+      'The PDF library failed to load. Check your connection and try again.',
+      'error'
     );
 
     return;
@@ -8491,8 +9615,9 @@ function generatePdfFromOptions(){
 
   if(!sectionsToExport.length){
 
-    alert(
-      'Select at least one section to export.'
+    showToast(
+      'Select at least one section to export.',
+      'error'
     );
 
     return;
@@ -9258,8 +10383,23 @@ function renderLibrary(){
   setActiveNav('library');
 
 
-  const list =
+  if(libraryTab === 'setlists'){
+
+    renderSetlistsTab();
+
+    return;
+
+  }
+
+
+  const allSongs =
     getSongs();
+
+
+  const list =
+    libraryFavoritesOnly
+      ? allSongs.filter(song => song.favorite)
+      : allSongs;
 
 
   const selectMode =
@@ -9297,10 +10437,27 @@ function renderLibrary(){
     </div>
 
 
+    <div class="libraryTabs">
+
+      <button type="button" class="libraryTab active" id="libraryTabSongs">Songs</button>
+      <button type="button" class="libraryTab" id="libraryTabSetlists">Setlists</button>
+
+      <button
+        type="button"
+        class="libraryTab"
+        id="libraryFavoritesToggle"
+        style="flex:0 0 auto;padding:8px 14px;${libraryFavoritesOnly ? 'background:#f7c948;color:#111;border-color:#f7c948;' : ''}"
+        aria-pressed="${libraryFavoritesOnly}"
+        title="Show favorites only"
+      >★</button>
+
+    </div>
+
+
     <div class="librarySection">
 
       <div class="sectionLabel">
-        Saved & Analyzed Songs
+        ${libraryFavoritesOnly ? 'Favorite Songs' : 'Saved & Analyzed Songs'}
       </div>
 
 
@@ -9361,6 +10518,21 @@ function renderLibrary(){
             </div>
 
             ${
+              !selectMode
+              ? `
+                <button
+                  class="favoriteBtn${song.favorite?' active':''}"
+                  type="button"
+                  data-favorite-song="${esc(song.id)}"
+                  aria-label="${song.favorite?'Remove from favorites':'Add to favorites'}"
+                >
+                  <svg viewBox="0 0 24 24" fill="${song.favorite?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M12 17.3 6.2 20.6l1.1-6.6-4.8-4.7 6.6-1 3-6 3 6 6.6 1-4.8 4.7 1.1 6.6z"/></svg>
+                </button>
+              `
+              : ''
+            }
+
+            ${
               !selectMode && getGoogleUser()
               ? `
                 <button
@@ -9381,9 +10553,11 @@ function renderLibrary(){
 
           <div class="empty">
 
-            No saved songs yet.<br>
-
-            Search, import or analyze a song.
+            ${
+              libraryFavoritesOnly
+                ? 'No favorites yet.<br>Tap the star on a song to pin it here.'
+                : 'No saved songs yet.<br>\n\n            Search, import or analyze a song.'
+            }
 
           </div>
 
@@ -9446,6 +10620,39 @@ function renderLibrary(){
       () => openSearch('all');
 
 
+  document.getElementById('libraryTabSongs').onclick = () => {
+    libraryTab = 'songs';
+    renderLibrary();
+  };
+
+  document.getElementById('libraryTabSetlists').onclick = () => {
+    libraryTab = 'setlists';
+    renderLibrary();
+  };
+
+  document.getElementById('libraryFavoritesToggle').onclick = () => {
+    libraryFavoritesOnly = !libraryFavoritesOnly;
+    renderLibrary();
+  };
+
+
+  screen
+    .querySelectorAll('[data-favorite-song]')
+    .forEach(btn => {
+
+      btn.addEventListener('pointerdown', event => {
+        event.stopPropagation();
+      });
+
+      btn.addEventListener('click', event => {
+        event.stopPropagation();
+        toggleFavorite(btn.dataset.favoriteSong);
+        renderLibrary();
+      });
+
+    });
+
+
   const cancelBtn =
     document.getElementById(
       'librarySelectCancel'
@@ -9485,7 +10692,7 @@ function renderLibrary(){
 
   if(deleteBtn){
 
-    deleteBtn.onclick = () => {
+    deleteBtn.onclick = async () => {
 
       const [songId] =
         [...librarySelectedIds];
@@ -9498,8 +10705,9 @@ function renderLibrary(){
       if(!song)return;
 
       const confirmed =
-        confirm(
-          `Delete "${song.title}" from your library?`
+        await showConfirmDialog(
+          `Delete "${song.title}" from your library?`,
+          { confirmLabel:'Delete', danger:true }
         );
 
       if(!confirmed)return;
@@ -9546,14 +10754,15 @@ function renderLibrary(){
 
   if(deleteMultiBtn){
 
-    deleteMultiBtn.onclick = () => {
+    deleteMultiBtn.onclick = async () => {
 
       const ids =
         [...librarySelectedIds];
 
       const confirmed =
-        confirm(
-          `Delete ${ids.length} songs from your library?`
+        await showConfirmDialog(
+          `Delete ${ids.length} songs from your library?`,
+          { confirmLabel:'Delete', danger:true }
         );
 
       if(!confirmed)return;
@@ -9775,22 +10984,25 @@ function renderLibrary(){
 
           if(result.outcome === 'took-remote'){
 
-            alert(
-              `"${song.title}" updated to the shared version from Drive.`
+            showToast(
+              `"${song.title}" updated to the shared version from Drive.`,
+              'success'
             );
 
             renderLibrary();
 
           }else if(result.outcome === 'uploaded'){
 
-            alert(
-              `"${song.title}" added to Drive for everyone.`
+            showToast(
+              `"${song.title}" added to Drive for everyone.`,
+              'success'
             );
 
           }else{
 
-            alert(
-              `"${song.title}" — your version is now the shared one.`
+            showToast(
+              `"${song.title}" — your version is now the shared one.`,
+              'success'
             );
 
           }
@@ -9803,12 +11015,335 @@ function renderLibrary(){
 }
 
 
+/* =========================================================
+   SETLISTS TAB
+========================================================= */
+
+function renderSetlistsTab(){
+
+  setActiveNav('library');
+
+  const setlists =
+    getSetlists();
+
+  screen.innerHTML = `
+
+    <div class="libraryHead">
+
+      <div class="libraryTitle">
+        Library
+      </div>
+
+      <button
+        class="searchBtn"
+        id="newSetlistBtn"
+        aria-label="New setlist"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 5v14"/>
+          <path d="M5 12h14"/>
+        </svg>
+      </button>
+
+    </div>
+
+
+    <div class="libraryTabs">
+
+      <button type="button" class="libraryTab" id="libraryTabSongs">Songs</button>
+      <button type="button" class="libraryTab active" id="libraryTabSetlists">Setlists</button>
+
+    </div>
+
+
+    <div class="librarySection">
+
+      <div class="sectionLabel">
+        Setlists
+      </div>
+
+      ${
+        setlists.length
+        ? setlists.map(setlist => `
+
+          <div class="setlistCard" data-setlist-card="${esc(setlist.id)}">
+
+            <div class="songIcon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 5v14"/>
+                <path d="M9 5v14"/>
+                <path d="M14 6.5v11"/>
+                <path d="M19 4.5 20.6 18.4" style="stroke-linecap:round;"/>
+              </svg>
+            </div>
+
+            <div class="songInfo">
+              <div class="setlistCardTitle">${esc(setlist.name)}</div>
+              <div class="setlistCardMeta">${setlist.songIds.length} song${setlist.songIds.length===1?'':'s'}</div>
+            </div>
+
+          </div>
+
+        `).join('')
+        : `
+          <div class="empty">
+            No setlists yet.<br>
+            Tap + to build one for an upcoming service.
+          </div>
+        `
+      }
+
+    </div>
+
+  `;
+
+
+  document.getElementById('libraryTabSongs').onclick = () => {
+    libraryTab = 'songs';
+    renderLibrary();
+  };
+
+  document.getElementById('libraryTabSetlists').onclick = () => {
+    libraryTab = 'setlists';
+    renderLibrary();
+  };
+
+  document.getElementById('newSetlistBtn').onclick = async () => {
+    const id = await createSetlist();
+    if(id){
+      renderSetlistDetail(id);
+    }
+  };
+
+  screen.querySelectorAll('[data-setlist-card]').forEach(card => {
+    card.onclick = () => {
+      renderSetlistDetail(card.dataset.setlistCard);
+    };
+  });
+
+}
+
+
+function renderSetlistDetail(setlistId){
+
+  setActiveNav('library');
+
+  const setlists =
+    getSetlists();
+
+  const setlist =
+    setlists.find(item => item.id === setlistId);
+
+  if(!setlist){
+    libraryTab = 'setlists';
+    renderLibrary();
+    return;
+  }
+
+  const allSongs =
+    getSongs();
+
+  const songsById =
+    new Map(allSongs.map(song => [song.id, song]));
+
+  const orderedSongs =
+    setlist.songIds
+      .map(id => songsById.get(id))
+      .filter(Boolean);
+
+  screen.innerHTML = `
+
+    <div class="libraryHead">
+
+      <button
+        class="searchBtn"
+        id="setlistBackBtn"
+        aria-label="Back to setlists"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+
+      <div class="libraryTitle" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        ${esc(setlist.name)}
+      </div>
+
+      <button class="searchBtn" id="setlistRenameBtn" aria-label="Rename setlist" style="font-size:13px;">✎</button>
+      <button class="searchBtn" id="setlistDeleteBtn" aria-label="Delete setlist" style="font-size:13px;color:#ff8b8b;">✕</button>
+
+    </div>
+
+
+    <div class="librarySection">
+
+      <div class="sectionLabel">
+        ${orderedSongs.length} song${orderedSongs.length===1?'':'s'}
+      </div>
+
+      ${
+        orderedSongs.length
+        ? orderedSongs.map((song,index) => `
+
+          <div class="setlistSongRow" data-setlist-song-row="${esc(song.id)}">
+
+            <button class="setlistOrderBtn" type="button" data-move-up="${esc(song.id)}" ${index===0?'disabled style="opacity:.3;"':''}>↑</button>
+            <button class="setlistOrderBtn" type="button" data-move-down="${esc(song.id)}" ${index===orderedSongs.length-1?'disabled style="opacity:.3;"':''}>↓</button>
+
+            <div class="setlistSongTitle" data-open-setlist-song="${esc(song.id)}">${esc(song.title)}</div>
+
+            <button class="setlistOrderBtn" type="button" data-remove-from-setlist="${esc(song.id)}" title="Remove from setlist" style="color:#ff8b8b;">✕</button>
+
+          </div>
+
+        `).join('')
+        : `
+          <div class="empty">
+            No songs yet.<br>
+            Open a song, tap ⋮, then "Add to Setlist".
+          </div>
+        `
+      }
+
+    </div>
+
+  `;
+
+
+  document.getElementById('setlistBackBtn').onclick = () => {
+    libraryTab = 'setlists';
+    renderLibrary();
+  };
+
+  document.getElementById('setlistRenameBtn').onclick = () => {
+    renameSetlist(setlistId);
+  };
+
+  document.getElementById('setlistDeleteBtn').onclick = () => {
+    deleteSetlist(setlistId);
+  };
+
+  screen.querySelectorAll('[data-open-setlist-song]').forEach(el => {
+    el.onclick = () => {
+      const song = songsById.get(el.dataset.openSetlistSong);
+      if(song){
+        openSong(song);
+      }
+    };
+  });
+
+  screen.querySelectorAll('[data-move-up]').forEach(btn => {
+    btn.onclick = () => {
+      moveSongInSetlist(setlistId, btn.dataset.moveUp, -1);
+    };
+  });
+
+  screen.querySelectorAll('[data-move-down]').forEach(btn => {
+    btn.onclick = () => {
+      moveSongInSetlist(setlistId, btn.dataset.moveDown, 1);
+    };
+  });
+
+  screen.querySelectorAll('[data-remove-from-setlist]').forEach(btn => {
+    btn.onclick = () => {
+      removeSongFromSetlist(setlistId, btn.dataset.removeFromSetlist);
+    };
+  });
+
+}
+
+
 /*
-  Renaming a single saved song, used both from the library's
-  select-mode "Rename" action.
+  Modal for adding the currently-open song to a setlist, reached
+  from the song viewer's ⋮ menu → "Add to Setlist". Lists existing
+  setlists to add to, plus a "+ New Setlist" option that creates
+  one and adds the song to it in the same step.
 */
 
-function renameSongById(songId){
+function showSetlistPicker(song){
+
+  const host =
+    document.getElementById('confirmOverlay');
+
+  if(!host || !song)return;
+
+  const setlists =
+    getSetlists();
+
+  host.innerHTML = `
+
+    <div class="confirmBack" id="confirmBack">
+      <div class="confirmBox">
+
+        <p class="confirmMessage">Add "${esc(song.title)}" to:</p>
+
+        ${
+          setlists.length
+          ? setlists.map(setlist => `
+              <button
+                class="toolbarBtn"
+                type="button"
+                data-pick-setlist="${esc(setlist.id)}"
+                style="width:100%;justify-content:flex-start;margin-bottom:8px;"
+              >${esc(setlist.name)} <span style="color:#8a8a92;margin-left:6px;">(${setlist.songIds.length})</span></button>
+            `).join('')
+          : `<p class="profileStatusText">You don't have any setlists yet.</p>`
+        }
+
+        <button class="toolbarBtn primary" type="button" id="pickerNewSetlistBtn" style="width:100%;margin-bottom:8px;">+ New Setlist</button>
+
+        <div class="confirmBtnRow">
+          <button class="toolbarBtn" id="pickerCancelBtn" type="button">Close</button>
+        </div>
+
+      </div>
+    </div>
+
+  `;
+
+  const back =
+    document.getElementById('confirmBack');
+
+  const close = () => {
+    back.classList.remove('open');
+    setTimeout(() => { host.innerHTML = ''; }, 200);
+  };
+
+  document.getElementById('pickerCancelBtn').onclick = close;
+
+  back.onclick = (event) => {
+    if(event.target === back){
+      close();
+    }
+  };
+
+  document.querySelectorAll('[data-pick-setlist]').forEach(btn => {
+    btn.onclick = () => {
+      addSongToSetlist(btn.dataset.pickSetlist, song.id);
+      close();
+    };
+  });
+
+  document.getElementById('pickerNewSetlistBtn').onclick = async () => {
+
+    const id = await createSetlist();
+
+    if(id){
+      addSongToSetlist(id, song.id);
+    }
+
+    close();
+
+  };
+
+  requestAnimationFrame(() => {
+    back.classList.add('open');
+  });
+
+}
+
+
+
+
+async function renameSongById(songId){
 
   const songs =
     getSongs();
@@ -9822,7 +11357,7 @@ function renameSongById(songId){
 
 
   const nextTitle =
-    prompt(
+    await showPromptDialog(
       'Song title:',
       song.title || ''
     );
@@ -9861,7 +11396,7 @@ function renameSongById(songId){
   isn't what the user wanted.
 */
 
-function mergeSongsByIds(ids){
+async function mergeSongsByIds(ids){
 
   const songsById =
     new Map(
@@ -9883,7 +11418,7 @@ function mergeSongsByIds(ids){
       .slice(0,120);
 
   const nextTitle =
-    prompt(
+    await showPromptDialog(
       'Merged song title:',
       suggestedTitle
     );
@@ -9910,8 +11445,9 @@ function mergeSongsByIds(ids){
 
   librarySelectedIds.clear();
 
-  alert(
-    `Merged ${ordered.length} songs into "${merged.title}".`
+  showToast(
+    `Merged ${ordered.length} songs into "${merged.title}".`,
+    'success'
   );
 
   renderLibrary();
@@ -9952,7 +11488,7 @@ function saveMergedSongParts(title, parts){
 
     allSongs[mergedIndex] = merged;
 
-    writeSongs(allSongs.slice(0,200));
+    writeSongs(allSongs.slice(0,MAX_SONGS));
 
   }
 
@@ -10755,6 +12291,28 @@ document
 
 
 renderHome();
+
+
+/*
+  Fade out the startup splash once the home screen has actually
+  rendered. The minimum-display timer keeps it from flashing by
+  too quickly on fast loads; the fallback removal guarantees it
+  never gets stuck on screen even if something above throws.
+*/
+
+(function hideStartupSplash(){
+
+  const splash = document.getElementById('startupSplash');
+  if(!splash) return;
+
+  const dismiss = () => {
+    splash.classList.add('splashHidden');
+    setTimeout(() => splash.remove(), 1000);
+  };
+
+  setTimeout(dismiss, 3500);
+
+})();
 
 
 /*
