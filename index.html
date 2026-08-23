@@ -2269,12 +2269,9 @@ button{
 /* =========================================================
    STARTUP SPLASH
 
-   Sequence: the logo mark fades in alone, centered — then
-   crossfades into the assembled "disciples" wordmark, where
-   the same mark (now smaller) plus a small stem that grows in
-   beside it reads as the lowercase "d", with "isciples"
-   completing the word and a soft glow settling underneath.
-   The tagline fades in last, below the wordmark.
+   Sequence: the logo fades in alone, centered — holds briefly —
+   then rises slightly as "Disciples" fades in smoothly in the
+   space that opens up below it. The tagline fades in last.
 ========================================================= */
 
 #startupSplash{
@@ -2299,122 +2296,66 @@ button{
   pointer-events:none;
 }
 
-#startupSplash .splashStage{
-  position:relative;
-  width:min(78vw, 320px);
-  height:104px;
+#startupSplash .splashCenterGroup{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:16px;
 }
 
-/* Stage A — the mark alone, big, centered */
+/*
+  The logo starts translated down by roughly half the height
+  that "Disciples" (plus its gap) will occupy once visible —
+  so with that title still at opacity:0 (but already reserving
+  its layout space in the flex column), the logo reads as
+  perfectly centered alone. Animating that offset back to 0 is
+  what makes the logo appear to rise as the title fades in.
+*/
 
-#startupSplash .splashIconBig{
-  position:absolute;
-  inset:0;
+#startupSplash .splashLogoWrap{
   display:flex;
-  align-items:center;
-  justify-content:center;
 
   opacity:0;
   animation:
-    splashFadeIn 0.6s ease forwards,
-    splashFadeOut 0.45s ease forwards 1.05s;
+    splashLogoIn 0.7s ease forwards,
+    splashLogoRise 0.6s cubic-bezier(.22,.8,.36,1) forwards 0.95s;
 }
 
-#startupSplash .splashIconBig img{
+#startupSplash .splashLogoWrap img{
   width:92px;
   height:92px;
-  border-radius:50%;
-}
-
-/* Stage B — the assembled "disciples" wordmark */
-
-#startupSplash .splashWordmark{
-  position:absolute;
-  inset:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-
-  opacity:0;
-  animation:splashFadeIn 0.5s ease forwards 1.25s;
-}
-
-#startupSplash .splashMark{
-  position:relative;
-  display:inline-flex;
-  align-items:flex-end;
-  justify-content:center;
-
-  width:42px;
-  height:42px;
-
-  margin-right:2px;
-}
-
-#startupSplash .splashMark img{
-  position:relative;
-  z-index:2;
-  width:100%;
-  height:100%;
   border-radius:50%;
   display:block;
 }
 
-#startupSplash .splashStem{
-  position:absolute;
-  right:2px;
-  bottom:50%;
-  z-index:1;
-
-  width:7px;
-  height:0;
-
-  background:#f7f7f7;
-  border-radius:5px 5px 0 0;
-
-  animation:splashStemGrow 0.45s cubic-bezier(.22,.8,.36,1) forwards 1.3s;
+@keyframes splashLogoIn{
+  from{ opacity:0; transform:translateY(31px) scale(0.94); }
+  to{ opacity:1; transform:translateY(31px) scale(1); }
 }
 
-#startupSplash .splashRest{
+@keyframes splashLogoRise{
+  from{ transform:translateY(31px) scale(1); }
+  to{ transform:translateY(0) scale(1); }
+}
+
+#startupSplash .splashTitle{
   font-family:inherit;
   font-weight:800;
   letter-spacing:-0.01em;
-  font-size:clamp(34px, 9vw, 46px);
+  font-size:clamp(30px, 8vw, 40px);
   color:#f7f7f7;
   line-height:1;
-}
-
-#startupSplash .splashWordmark::after{
-  content:'';
-  position:absolute;
-  left:50%;
-  bottom:6px;
-  transform:translateX(-50%);
-
-  width:64%;
-  height:16px;
-
-  background:radial-gradient(ellipse at center, rgba(247,247,247,0.38), transparent 72%);
-  filter:blur(3px);
 
   opacity:0;
-  animation:splashFadeIn 0.6s ease forwards 1.75s;
-
-  pointer-events:none;
+  transform:translateY(10px);
+  animation:splashTitleIn 0.6s ease forwards 1.15s;
 }
 
-@keyframes splashFadeIn{
-  from{ opacity:0; transform:scale(0.94); }
-  to{ opacity:1; transform:scale(1); }
-}
-
-@keyframes splashFadeOut{
-  to{ opacity:0; transform:scale(1.06); }
-}
-
-@keyframes splashStemGrow{
-  from{ height:0; }
-  to{ height:48px; }
+@keyframes splashTitleIn{
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
 }
 
 #startupSplash .splashText{
@@ -2433,7 +2374,7 @@ button{
 
   opacity:0;
   transform:translateY(6px);
-  animation:splashTextIn 1.2s ease forwards 1.95s;
+  animation:splashTextIn 1.2s ease forwards 1.7s;
 }
 
 @keyframes splashTextIn{
@@ -2698,18 +2639,13 @@ button{
 
 <div id="startupSplash">
 
-  <div class="splashStage">
+  <div class="splashCenterGroup">
 
-    <div class="splashIconBig">
+    <div class="splashLogoWrap">
       <img src="/icons/icon-512.png" alt="">
     </div>
 
-    <div class="splashWordmark">
-      <span class="splashMark">
-        <img src="/icons/icon-512.png" alt="">
-        <span class="splashStem"></span>
-      </span><span class="splashRest">isciples</span>
-    </div>
+    <div class="splashTitle">Disciples</div>
 
   </div>
 
@@ -12310,7 +12246,7 @@ renderHome();
     setTimeout(() => splash.remove(), 1000);
   };
 
-  setTimeout(dismiss, 3500);
+  setTimeout(dismiss, 3000);
 
 })();
 
