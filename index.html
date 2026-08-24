@@ -3878,8 +3878,30 @@ async function googleSignInNative(silent){
 
   try{
 
+    /*
+      Silent restore — called automatically whenever the app
+      needs Drive access but doesn't have a live token, e.g.
+      right after a fresh app launch — uses the plugin's
+      dedicated refresh() method. It silently reissues a token
+      from whichever account the person already signed into,
+      with no picker or prompt. signIn() is reserved for when
+      the person explicitly taps to connect their account.
+
+      This was the actual bug behind "have to log in every
+      time": the silent path was calling signIn() too, which
+      shows the account picker/consent screen — every app
+      restart looked like a fresh login instead of a quiet
+      background restore.
+    */
+
+    const canRefreshSilently =
+      silent &&
+      typeof plugin.refresh === 'function';
+
     const result =
-      await plugin.signIn();
+      canRefreshSilently
+        ? await plugin.refresh()
+        : await plugin.signIn();
 
     googleAccessToken =
       (result.authentication && result.authentication.accessToken) ||
@@ -3901,15 +3923,26 @@ async function googleSignInNative(silent){
 
     }
 
-    setGoogleUser({
+    /*
+      refresh() only returns updated tokens, not a full profile
+      — keep whatever name/email/picture is already saved from
+      the original sign-in rather than overwriting it with
+      blanks when those fields aren't present on this result.
+    */
 
-      name: result.name || result.email || 'Google Account',
+    if(result.name || result.email || result.imageUrl){
 
-      email: result.email || '',
+      setGoogleUser({
 
-      picture: result.imageUrl || ''
+        name: result.name || result.email || 'Google Account',
 
-    });
+        email: result.email || '',
+
+        picture: result.imageUrl || ''
+
+      });
+
+    }
 
     if(!silent){
 
@@ -3924,6 +3957,13 @@ async function googleSignInNative(silent){
   }catch(error){
 
     console.error(error);
+
+    /*
+      A silent refresh failing just means there's no cached
+      session to restore (never signed in yet, or the person
+      revoked access) — not worth surfacing as an error; the
+      next explicit sign-in tap will just do a normal signIn().
+    */
 
     if(!silent){
 
@@ -12148,8 +12188,8 @@ renderHome();
   session back up quietly (no popup) and pull in any brand-new
   songs the other people have saved — never overwrites a song
   already in this Library. If the silent grab fails — say, the
-  browser blocked it — nothing breaks; signing in again from
-  Profile covers it.
+  browser blocked it, or there's no cached native session — 
+  nothing breaks; signing in again from Profile covers it.
 */
 
 async function initGoogleSyncOnLoad(){
@@ -12157,10 +12197,31 @@ async function initGoogleSyncOnLoad(){
   const user =
     getGoogleUser();
 
+  if(!user){
+
+    return;
+
+  }
+
+  if(isNativeApp()){
+
+    const restored =
+      await googleSignInNative(true);
+
+    if(restored){
+
+      pullNewSongsFromDrive();
+
+    }
+
+    return;
+
+  }
+
   const clientId =
     getSettings().googleClientId.trim();
 
-  if(!user || !clientId){
+  if(!clientId){
 
     return;
 
