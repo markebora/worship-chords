@@ -554,6 +554,36 @@ button{
   margin:22px 0;
 }
 
+.profileStats{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin-bottom:22px;
+}
+
+.profileStatCard{
+  border:1px solid #303036;
+  border-radius:14px;
+  background:#18181b;
+  padding:13px 10px;
+  text-align:center;
+}
+
+.profileStatValue{
+  font-size:19px;
+  font-weight:800;
+  line-height:1.1;
+}
+
+.profileStatLabel{
+  margin-top:4px;
+  font-size:10.5px;
+  color:#85858c;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  font-weight:700;
+}
+
 .settingsCard{
   border:1px solid #303036;
 
@@ -750,6 +780,26 @@ button{
   color:#fff;
 }
 
+.lyricsActionIcon.importIcon{
+  width:34px;
+  height:34px;
+  box-sizing:border-box;
+  padding:6px;
+  border-radius:10px;
+  color:#7ea8f7;
+  background:rgba(76,139,245,.14);
+}
+
+.lyricsActionIcon.analyzeIcon{
+  width:34px;
+  height:34px;
+  box-sizing:border-box;
+  padding:6px;
+  border-radius:10px;
+  color:#e8c66a;
+  background:rgba(232,198,106,.14);
+}
+
 .lyricsActionIcon svg{
   width:100%;
   height:100%;
@@ -929,11 +979,19 @@ button{
 .songName{
   font-weight:750;
 
+  display:flex;
+  align-items:center;
+  min-width:0;
+}
+
+.songNameText{
   white-space:nowrap;
 
   overflow:hidden;
 
   text-overflow:ellipsis;
+
+  min-width:0;
 }
 
 .songMeta{
@@ -942,6 +1000,36 @@ button{
   color:#777780;
 
   margin-top:3px;
+}
+
+.unsavedDot{
+  display:inline-block;
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:#e8a33d;
+  margin-right:5px;
+  vertical-align:middle;
+}
+
+.homeSection{
+  margin-bottom:22px;
+}
+
+.mergedPill{
+  display:inline-flex;
+  align-items:center;
+  gap:3px;
+  flex-shrink:0;
+  font-size:10.5px;
+  font-weight:800;
+  color:#a7a7ae;
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;
+  padding:2px 7px;
+  margin-left:7px;
+  vertical-align:middle;
 }
 
 .empty{
@@ -1576,6 +1664,7 @@ button{
   z-index:97;
   display:flex;
   align-items:center;
+  gap:6px;
   background:rgba(24,24,27,.92);
   border:1px solid rgba(255,255,255,.14);
   border-radius:18px;
@@ -1585,12 +1674,26 @@ button{
   box-shadow:0 8px 22px rgba(0,0,0,.45);
 }
 
+.asSpeedBadge{
+  font-size:11px;
+  font-weight:800;
+  color:#a7a7ae;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:12px;
+  padding:4px 8px;
+  min-width:22px;
+  text-align:center;
+  pointer-events:none;
+}
+
 /* =========================================================
    ANALYSIS TITLE + RENAME
 ========================================================= */
 
 .analysisTitleRow{display:flex;align-items:center;gap:8px;min-width:0;margin-bottom:2px;}
 .keyBadge{display:inline-block;margin:10px 0 4px;background:#1d3a2b;color:#7fe0a3;font-size:12px;font-weight:800;padding:5px 12px;border-radius:20px;border:1px solid #2c5a41;}
+.capoBadge{display:inline-block;margin:10px 0 4px 6px;background:#2a2410;color:#e8c66a;font-size:12px;font-weight:800;padding:5px 12px;border-radius:20px;border:1px solid #4a3f18;}
 .songHeaderKey{flex:0 0 auto;margin:0;font-size:11px;padding:4px 10px;white-space:nowrap;}
 .analysisTitle{margin:0;flex:1;min-width:0;font-size:17px;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .analysisTitle.untitled{color:#85858c;font-weight:700;font-style:italic;}
@@ -4020,6 +4123,54 @@ function setGoogleUser(user){
 
   }
 
+  updateWelcomeHeader();
+
+}
+
+
+/*
+  Swaps the static "Welcome!" header for a time-of-day greeting,
+  plus the signed-in person's first name once they've signed in.
+  Persistent chrome above #screen, so this runs once at boot and
+  again anytime sign-in state changes — not on every render.
+*/
+function updateWelcomeHeader(){
+
+  const el =
+    document.querySelector('.welcome');
+
+  if(!el)return;
+
+  const hour =
+    new Date().getHours();
+
+  let greeting = 'Welcome';
+
+  if(hour < 5){
+    greeting = 'Good night';
+  }else if(hour < 12){
+    greeting = 'Good morning';
+  }else if(hour < 17){
+    greeting = 'Good afternoon';
+  }else if(hour < 22){
+    greeting = 'Good evening';
+  }else{
+    greeting = 'Good night';
+  }
+
+  const user =
+    getGoogleUser();
+
+  const firstName =
+    (user && user.name)
+      ? user.name.trim().split(/\s+/)[0]
+      : '';
+
+  el.textContent =
+    firstName
+      ? `${greeting}, ${firstName}!`
+      : `${greeting}!`;
+
 }
 
 
@@ -4354,6 +4505,40 @@ function getSyncStatus(){
     return { status:'idle', at:null };
 
   }
+
+}
+
+
+function formatRelativeTime(isoString){
+
+  if(!isoString)return null;
+
+  const then =
+    new Date(isoString).getTime();
+
+  if(Number.isNaN(then))return null;
+
+  const diffSeconds =
+    Math.round((Date.now() - then) / 1000);
+
+  if(diffSeconds < 60)return 'just now';
+
+  const diffMinutes =
+    Math.round(diffSeconds / 60);
+
+  if(diffMinutes < 60)return `${diffMinutes}m ago`;
+
+  const diffHours =
+    Math.round(diffMinutes / 60);
+
+  if(diffHours < 24)return `${diffHours}h ago`;
+
+  const diffDays =
+    Math.round(diffHours / 24);
+
+  if(diffDays < 30)return `${diffDays}d ago`;
+
+  return new Date(isoString).toLocaleDateString();
 
 }
 
@@ -5180,59 +5365,163 @@ function renderHome(){
 
   setActiveNav('home');
 
+  updateWelcomeHeader();
+
+
+  const recentSongs =
+    getRecentViews().slice(0,3);
+
+  const setlists =
+    getSetlists();
+
+  const activeSetlist =
+    setlists[0] || null;
+
 
   screen.innerHTML = `
 
     <div class="homePage">
 
-      <div class="homeActions">
+      ${
+        recentSongs.length
+        ? `
+          <div class="homeSection">
 
-        <div
-          class="homeCard"
-          id="homeLyrics"
-        >
+            <div class="sectionLabel">
+              Continue
+            </div>
 
-          <div class="homeCardIcon">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M9 18V5"/>
-              <path d="M9 5l10-2" style="stroke-width:3.1;"/>
-              <path d="M19 3v13"/>
-              <circle cx="6" cy="18" r="3" style="fill:currentColor;stroke:none;"/>
-              <circle cx="16" cy="16" r="3" style="fill:currentColor;stroke:none;"/>
-            </svg>
+            ${
+              recentSongs.map(song => `
+
+                <div
+                  class="songCard"
+                  data-home-song="${esc(song.id)}"
+                  style="cursor:pointer;margin-bottom:8px;"
+                >
+
+                  <div class="songIcon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9 18V5"/>
+                      <path d="M9 5l10-2" style="stroke-width:3.1;"/>
+                      <path d="M19 3v13"/>
+                      <circle cx="6" cy="18" r="3" style="fill:currentColor;stroke:none;"/>
+                      <circle cx="16" cy="16" r="3" style="fill:currentColor;stroke:none;"/>
+                    </svg>
+                  </div>
+
+                  <div class="songInfo">
+
+                    <div class="songName">
+                      <span class="songNameText">${esc(song.title)}</span>
+                    </div>
+
+                    <div class="songMeta">
+                      ${!song.savedAt ? '<span class="unsavedDot" aria-hidden="true"></span>' : ''}${song.analysis?'Analyzed':'Imported'} · ${song.savedAt?'Saved':'Not saved'}
+                    </div>
+
+                  </div>
+
+                </div>
+
+              `).join('')
+            }
+
           </div>
+        `
+        : ''
+      }
 
-          <div class="homeCardTitle">
-            Lyrics
+
+      ${
+        activeSetlist
+        ? `
+          <div class="homeSection">
+
+            <div class="sectionLabel">
+              Setlist
+            </div>
+
+            <div class="setlistCard" data-home-setlist="${esc(activeSetlist.id)}" style="margin:0;">
+
+              <div class="songIcon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 5v14"/>
+                  <path d="M9 5v14"/>
+                  <path d="M14 6.5v11"/>
+                  <path d="M19 4.5 20.6 18.4" style="stroke-linecap:round;"/>
+                </svg>
+              </div>
+
+              <div class="songInfo">
+                <div class="setlistCardTitle">${esc(activeSetlist.name)}</div>
+                <div class="setlistCardMeta">${activeSetlist.songIds.length} song${activeSetlist.songIds.length===1?'':'s'}</div>
+              </div>
+
+            </div>
+
           </div>
+        `
+        : ''
+      }
 
-          <div class="homeCardText">
-            Search, import, analyze and view worship songs.
-          </div>
 
+      <div class="homeSection">
+
+        <div class="sectionLabel">
+          Get Started
         </div>
 
+        <div class="homeActions">
 
-        <div
-          class="homeCard"
-          id="homeLibrary"
-        >
+          <div
+            class="homeCard"
+            id="homeLyrics"
+          >
 
-          <div class="homeCardIcon">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 5v14"/>
-              <path d="M9 5v14"/>
-              <path d="M14 6.5v11"/>
-              <path d="M19 4.5 20.6 18.4" style="stroke-linecap:round;"/>
-            </svg>
+            <div class="homeCardIcon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 18V5"/>
+                <path d="M9 5l10-2" style="stroke-width:3.1;"/>
+                <path d="M19 3v13"/>
+                <circle cx="6" cy="18" r="3" style="fill:currentColor;stroke:none;"/>
+                <circle cx="16" cy="16" r="3" style="fill:currentColor;stroke:none;"/>
+              </svg>
+            </div>
+
+            <div class="homeCardTitle">
+              Lyrics
+            </div>
+
+            <div class="homeCardText">
+              Search, import, analyze and view worship songs.
+            </div>
+
           </div>
 
-          <div class="homeCardTitle">
-            Library
-          </div>
 
-          <div class="homeCardText">
-            Open your saved songs.
+          <div
+            class="homeCard"
+            id="homeLibrary"
+          >
+
+            <div class="homeCardIcon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 5v14"/>
+                <path d="M9 5v14"/>
+                <path d="M14 6.5v11"/>
+                <path d="M19 4.5 20.6 18.4" style="stroke-linecap:round;"/>
+              </svg>
+            </div>
+
+            <div class="homeCardTitle">
+              Library
+            </div>
+
+            <div class="homeCardText">
+              Open your saved songs.
+            </div>
+
           </div>
 
         </div>
@@ -5254,6 +5543,42 @@ function renderHome(){
     .getElementById('homeLibrary')
     .onclick =
       renderLibrary;
+
+
+  screen.querySelectorAll('[data-home-song]').forEach(card => {
+
+    card.onclick = () => {
+
+      const song =
+        getRecentViews().find(
+          item => item.id === card.dataset.homeSong
+        );
+
+      if(song){
+
+        openSong(song);
+
+      }
+
+    };
+
+  });
+
+
+  const setlistCard =
+    screen.querySelector('[data-home-setlist]');
+
+  if(setlistCard){
+
+    setlistCard.onclick = () => {
+
+      libraryTab = 'setlists';
+
+      renderSetlistDetail(setlistCard.dataset.homeSetlist);
+
+    };
+
+  }
 
 }
 
@@ -5293,11 +5618,29 @@ function renderProfile(){
   const user =
     getGoogleUser();
 
+  const allSongs =
+    getSongs();
+
   const songCount =
-    getSongs().length;
+    allSongs.length;
+
+  const mergedCount =
+    allSongs.filter(
+      song =>
+        Array.isArray(song.mergeParts) &&
+        song.mergeParts.length > 1
+    ).length;
 
   const recentCount =
     getRecentViews().length;
+
+  const syncStatus =
+    getSyncStatus();
+
+  const lastSyncedLabel =
+    (user && syncStatus.status === 'synced' && syncStatus.at)
+      ? formatRelativeTime(syncStatus.at)
+      : '—';
 
 
   screen.innerHTML = `
@@ -5324,6 +5667,26 @@ function renderProfile(){
             ${esc(user ? user.email : 'Not signed in')}
           </div>
 
+        </div>
+
+      </div>
+
+
+      <div class="profileStats">
+
+        <div class="profileStatCard">
+          <div class="profileStatValue">${songCount}</div>
+          <div class="profileStatLabel">Songs</div>
+        </div>
+
+        <div class="profileStatCard">
+          <div class="profileStatValue">${mergedCount}</div>
+          <div class="profileStatLabel">Merged</div>
+        </div>
+
+        <div class="profileStatCard">
+          <div class="profileStatValue">${esc(lastSyncedLabel)}</div>
+          <div class="profileStatLabel">Last Synced</div>
         </div>
 
       </div>
@@ -6049,7 +6412,7 @@ function renderLyrics(){
           id="lyricsImport"
         >
 
-          <div class="lyricsActionIcon">
+          <div class="lyricsActionIcon importIcon">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 3v12"/>
               <path d="M7 10.5 12 15.5 17 10.5"/>
@@ -6062,10 +6425,18 @@ function renderLyrics(){
           </div>
 
           <div class="lyricsActionSub">
-            Load an Ultimate Guitar chord page
+            Load a text file — single or merged song
           </div>
 
         </button>
+
+
+        <input
+          type="file"
+          id="lyricsImportFile"
+          accept="text/plain,.txt,.chordpro"
+          style="display:none;"
+        >
 
 
         <button
@@ -6073,7 +6444,7 @@ function renderLyrics(){
           id="lyricsAnalyze"
         >
 
-          <div class="lyricsActionIcon">
+          <div class="lyricsActionIcon analyzeIcon">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 3.5c.5 3 2 4.5 5 5-3 .5-4.5 2-5 5-.5-3-2-4.5-5-5 3-.5 4.5-2 5-5z" style="fill:currentColor;stroke:none;"/>
               <path d="M19 14.5c.25 1.4.95 2.1 2.35 2.35-1.4.25-2.1.95-2.35 2.35-.25-1.4-.95-2.1-2.35-2.35 1.4-.25 2.1-.95 2.35-2.35z" style="fill:currentColor;stroke:none;"/>
@@ -6124,11 +6495,15 @@ function renderLyrics(){
                 <div class="songInfo">
 
                   <div class="songName">
-                    ${esc(song.title)}
+                    <span class="songNameText">${esc(song.title)}</span>
                   </div>
 
                   <div class="songMeta">
                     ${
+                      !song.savedAt
+                        ? '<span class="unsavedDot" aria-hidden="true"></span>'
+                        : ''
+                    }${
                       song.analysis
                         ? 'Analyzed'
                         : 'Imported'
@@ -6179,10 +6554,16 @@ function renderLyrics(){
       () => openSearch('all');
 
 
+  const lyricsImportFile =
+    document.getElementById('lyricsImportFile');
+
   document
     .getElementById('lyricsImport')
     .onclick =
-      () => openSearch('ug');
+      () => lyricsImportFile.click();
+
+  lyricsImportFile.onchange =
+    () => handleLyricsImportFile(lyricsImportFile);
 
 
   document
@@ -6215,6 +6596,124 @@ function renderLyrics(){
       };
 
     });
+
+}
+
+
+/*
+  Handles a file chosen from the Lyrics page's "Import Song"
+  button. Reuses the same parseSongTextFile() the Profile
+  screen's "Import Backup" uses, so this recognizes the exact
+  same things: a plain single song, a song exported with the
+  Title: "X" marker, or — if the file has more than one Title:
+  marker — a merged song, which gets reconstructed as a proper
+  paginated merge (mergeParts) rather than one flat blob. Saves
+  straight to the Library and opens it immediately, since this
+  entry point is about getting a song in front of you to read,
+  not just filing it away.
+*/
+
+function handleLyricsImportFile(inputEl){
+
+  const file =
+    inputEl.files[0];
+
+  if(!file){
+
+    return;
+
+  }
+
+  const reader =
+    new FileReader();
+
+  reader.onload = () => {
+
+    const raw =
+      String(reader.result || '');
+
+    try{
+
+      const parsed =
+        parseSongTextFile(raw);
+
+      if(parsed.type === 'merged'){
+
+        const hasLyrics =
+          parsed.parts.some(
+            part => part.text.trim()
+          );
+
+        if(!hasLyrics){
+
+          throw new Error(
+            'No lyrics found in this file.'
+          );
+
+        }
+
+        const combinedTitle =
+          parsed.parts
+            .map(part => part.title)
+            .join(' + ')
+            .slice(0,120);
+
+        const merged =
+          saveMergedSongParts(
+            combinedTitle,
+            parsed.parts
+          );
+
+        showToast(
+          'Imported ' + parsed.parts.length +
+          ' songs merged into "' + merged.title + '".',
+          'success'
+        );
+
+        openSong(merged);
+
+      }else{
+
+        if(!parsed.text.trim()){
+
+          throw new Error(
+            'No lyrics found in this file.'
+          );
+
+        }
+
+        const song =
+          saveSong(
+            parsed.title,
+            parsed.text
+          );
+
+        showToast(
+          '"' + song.title + '" imported into your Library.',
+          'success'
+        );
+
+        openSong(song);
+
+      }
+
+    }catch(error){
+
+      showToast(
+        'That file could not be imported: ' +
+        error.message,
+        'error'
+      );
+
+    }finally{
+
+      inputEl.value = '';
+
+    }
+
+  };
+
+  reader.readAsText(file);
 
 }
 
@@ -6457,8 +6956,22 @@ function isChordOnlyLine(line){
   }
 
 
+  /*
+    Ultimate Guitar's rhythm-slash bar notation writes a chord
+    line like "G / / | Bm / / | Em / / | C / / |" — each "/"
+    means "hold the previous chord for a beat" and "|" marks a
+    bar line. "|" is already stripped out entirely by the split
+    above (it isn't in the keep-set), but a bare "/" survives as
+    its own token — and isChordToken() rejects it, since it
+    doesn't start with a note letter. Without this, a line like
+    that fails the "every token is a chord" check below and
+    gets misread as a lyric line instead of a chord line.
+  */
+
   return tokens.every(
-    isChordToken
+    token =>
+      /^\/+$/.test(token) ||
+      isChordToken(token)
   );
 
 }
@@ -6767,6 +7280,66 @@ function detectKeyFromChords(chordTokens){
         : tonicName
 
   };
+
+}
+
+
+/*
+  Suggests a capo position that lets a guitarist play open,
+  beginner-friendly chord shapes instead of the song's actual
+  (harder) key — e.g. key of D# suggested as "Capo 1, play in D".
+  Returns null when the key is already one of those easy shapes,
+  or when no easy shape is within a practical 7-fret reach.
+*/
+function getCapoSuggestion(keyInfo){
+
+  if(!keyInfo)return null;
+
+  const isMinor =
+    keyInfo.mode === 'minor';
+
+  const easyShapes =
+    isMinor
+      ? ['Am','Em','Dm']
+      : ['C','D','G','A','E'];
+
+  const shapeRoots =
+    easyShapes.map(shape =>
+      isMinor ? shape.slice(0,-1) : shape
+    );
+
+  const tonicIndex =
+    chromatic.indexOf(keyInfo.tonic);
+
+  if(tonicIndex === -1)return null;
+
+  if(shapeRoots.includes(keyInfo.tonic))return null;
+
+  let best = null;
+
+  shapeRoots.forEach((shapeRoot, i) => {
+
+    const shapeIndex =
+      chromatic.indexOf(shapeRoot);
+
+    if(shapeIndex === -1)return;
+
+    const fret =
+      ((tonicIndex - shapeIndex) % 12 + 12) % 12;
+
+    if(fret > 0 && fret <= 7){
+
+      if(!best || fret < best.fret){
+
+        best = { fret, shape: easyShapes[i] };
+
+      }
+
+    }
+
+  });
+
+  return best;
 
 }
 
@@ -7964,6 +8537,7 @@ function renderSongViewer(){
   song.text=displayedText;
   const sections=getViewerSections(song,displayedText);
   const keyInfo=detectKeyFromChords(extractChordTokens(displayedText));
+  const capoInfo=getCapoSuggestion(keyInfo);
   screen.innerHTML=`
     <div class="songPage">
       <div class="songFixedHeader">
@@ -7976,6 +8550,7 @@ function renderSongViewer(){
             <svg viewBox="0 0 24 24" fill="${song.favorite?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M12 17.3 6.2 20.6l1.1-6.6-4.8-4.7 6.6-1 3-6 3 6 6.6 1-4.8 4.7 1.1 6.6z"/></svg>
           </button>
           ${keyInfo?`<div class="keyBadge songHeaderKey">Key: ${esc(keyInfo.label)}</div>`:''}
+          ${capoInfo?`<div class="capoBadge">Capo ${capoInfo.fret} → ${esc(capoInfo.shape)} shape</div>`:''}
         </div>
       </div>
       <div class="songToolbar">
@@ -8091,6 +8666,7 @@ function renderMergedSongViewer(){
   const displayedText=transposeText(part.text||'',amount);
   const sections=getViewerSections(part,displayedText);
   const keyInfo=detectKeyFromChords(extractChordTokens(displayedText));
+  const capoInfo=getCapoSuggestion(keyInfo);
   screen.innerHTML=`
     <div class="songPage mergedSongPage">
       <div class="songFixedHeader">
@@ -8103,6 +8679,7 @@ function renderMergedSongViewer(){
             <div class="mergeSongSubtitle">Song ${activeIndex+1} of ${total} — ${esc(song.title||'Merged Song')}</div>
           </div>
           ${keyInfo?`<div class="keyBadge songHeaderKey">Key: ${esc(keyInfo.label)}</div>`:''}
+          ${capoInfo?`<div class="capoBadge">Capo ${capoInfo.fret} → ${esc(capoInfo.shape)} shape</div>`:''}
         </div>
         <div class="mergePartPills" id="mergePartPills" aria-label="Songs in this merge">
           ${song.mergeParts.map((mergePart,index)=>`<button type="button" class="mergePartPill${index===activeIndex?' active':''}" data-part-index="${index}" aria-label="Song ${index+1}: ${esc(mergePart.title)}">${index+1}</button>`).join('')}
@@ -8333,6 +8910,8 @@ function toggleAutoScroll(){
 function setAutoScrollSpeedLevel(level){
   autoScrollSpeedLevel=Math.max(AUTO_SCROLL_MIN_LEVEL,Math.min(AUTO_SCROLL_MAX_LEVEL,level));
   refreshAutoScrollToggleLabel();
+  const badge=document.getElementById('asSpeedBadge');
+  if(badge)badge.textContent=autoScrollSpeedLevel+'x';
 }
 
 /*
@@ -8353,6 +8932,7 @@ function renderAutoScrollFab(){
         <button class="toolbarBtn asToggleBtn${autoScrollActive?' primary':''}" id="asToggle" aria-label="${autoScrollActive?'Pause auto-scroll':'Start auto-scroll'}">${autoScrollIconHTML()}</button>
         <button type="button" class="asArrowBtn asArrowDown" id="asArrowDown" aria-label="Decrease scroll speed">⌄</button>
       </div>
+      <div class="asSpeedBadge" id="asSpeedBadge">${autoScrollSpeedLevel}x</div>
     </div>
   `;
   attachAutoScrollControls();
@@ -10382,7 +10962,11 @@ function renderLibrary(){
             <div class="songInfo">
 
               <div class="songName">
-                ${esc(song.title)}
+                <span class="songNameText">${esc(song.title)}</span>${
+                  Array.isArray(song.mergeParts) && song.mergeParts.length > 1
+                    ? `<span class="mergedPill">${song.mergeParts.length} songs</span>`
+                    : ''
+                }
               </div>
 
 
