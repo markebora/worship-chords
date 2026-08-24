@@ -3,24 +3,45 @@
   no SDK dependency. Every Redis command is just a POST with
   a JSON array like ["HSET", key, field, value].
 
-  Needs two env vars (from the Upstash dashboard, or the
-  Vercel Marketplace "Upstash" integration):
-
-    UPSTASH_REDIS_REST_URL
-    UPSTASH_REDIS_REST_TOKEN
+  Vercel's Upstash integration prefixes env var names with your
+  project name (e.g. disciples_KV_REST_API_URL) rather than the
+  plain UPSTASH_REDIS_REST_URL Upstash itself uses — this checks
+  both so it works regardless of which one actually got created.
 */
+
+function firstDefined(...names){
+
+  for(const name of names){
+
+    if(process.env[name]){
+
+      return process.env[name];
+
+    }
+
+  }
+
+  return undefined;
+
+}
 
 export async function redis(...command) {
 
   const baseUrl =
-    process.env.UPSTASH_REDIS_REST_URL;
+    firstDefined(
+      'UPSTASH_REDIS_REST_URL',
+      'disciples_KV_REST_API_URL'
+    );
 
   const token =
-    process.env.UPSTASH_REDIS_REST_TOKEN;
+    firstDefined(
+      'UPSTASH_REDIS_REST_TOKEN',
+      'disciples_KV_REST_API_TOKEN'
+    );
 
   if (!baseUrl || !token) {
     throw new Error(
-      'Upstash Redis env vars (UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN) are not set.'
+      'Upstash Redis env vars are not set (checked UPSTASH_REDIS_REST_URL/TOKEN and disciples_KV_REST_API_URL/TOKEN).'
     );
   }
 
@@ -42,3 +63,4 @@ export async function redis(...command) {
   return data.result;
 
 }
+
