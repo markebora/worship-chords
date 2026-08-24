@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.worship_chords_rho.twa",
+      "sha256_cert_fingerprints": [
+        "B4:EC:76:C0:4B:2B:AA:EA:76:85:4A:A5:6E:97:87:E3:93:4E:F9:18:D1:A1:D4:71:01:A6:93:B1:12:FE:F6:A1"
+      ]
+    }
+  }
+]
