@@ -24,6 +24,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Disciples">
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+
 
 <style>
 
@@ -79,6 +83,100 @@ button{
 
   padding-top:calc(env(safe-area-inset-top, 0px) + 18px);
   padding-bottom:calc(110px + env(safe-area-inset-bottom, 0px));
+}
+
+
+/* =========================================================
+   STARTUP SPLASH
+
+   Plain wordmark, no logo image — fades/rises in once, then a
+   soft band of light keeps sweeping through the letters like a
+   slow wave of color until the home screen is ready.
+========================================================= */
+
+#startupSplash{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  background:#0b0b0c;
+
+  opacity:1;
+  transition:opacity 0.9s ease;
+}
+
+#startupSplash.splashHidden{
+  opacity:0;
+  pointer-events:none;
+}
+
+#startupSplash #lockup{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+
+#startupSplash #wordText{
+  font-family:'Poppins', sans-serif;
+  font-weight:800;
+  font-size:56px;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  white-space:nowrap;
+
+  background:linear-gradient(
+    90deg,
+    #f7f4ee 0%,
+    #f7f4ee 42%,
+    #fffef9 50%,
+    #f7f4ee 58%,
+    #f7f4ee 100%
+  );
+  background-size:300% 100%;
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+
+  opacity:0;
+  transform:translateY(14px);
+  animation:
+    splashWordIn .6s cubic-bezier(.2,.8,.3,1) forwards .2s,
+    splashColorWave 3.4s linear infinite 1s;
+}
+
+@keyframes splashWordIn{
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+@keyframes splashColorWave{
+  0%{ background-position:220% 0; }
+  100%{ background-position:-220% 0; }
+}
+
+#startupSplash #tagline{
+  margin-top:14px;
+
+  font-family:'Poppins', sans-serif;
+  font-weight:700;
+  font-size:13px;
+  letter-spacing:0.22em;
+  text-transform:uppercase;
+  color:#8a8a92;
+
+  opacity:0;
+  animation:splashTaglineIn .7s ease forwards 1.0s;
+}
+
+@keyframes splashTaglineIn{
+  to{ opacity:1; }
 }
 
 
@@ -2572,6 +2670,52 @@ button{
   cursor:pointer;
 }
 
+.libraryHeadActions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.syncCloudBtn.syncing svg{
+  animation:syncCloudSpin 1s linear infinite;
+}
+
+@keyframes syncCloudSpin{
+  from{ transform:rotate(0deg); }
+  to{ transform:rotate(360deg); }
+}
+
+.categoryPills{
+  display:flex;
+  gap:8px;
+  padding:0 16px 14px;
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+
+.categoryPills::-webkit-scrollbar{
+  display:none;
+}
+
+.categoryPill{
+  flex:0 0 auto;
+  border:1px solid #2d2d32;
+  background:#151518;
+  color:#a7a7ae;
+  border-radius:999px;
+  padding:8px 16px;
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.categoryPill.active{
+  background:#fff;
+  color:#111;
+  border-color:#fff;
+}
+
 .setlistCardTitle{
   font-weight:700;
   font-size:15px;
@@ -2617,6 +2761,15 @@ button{
 
 
 <body>
+
+<div id="startupSplash">
+
+  <div id="lockup">
+    <div id="wordText">Disciples</div>
+    <div id="tagline">Follow Jesus. Make Him Known.</div>
+  </div>
+
+</div>
 
 <div class="app">
 
@@ -2687,17 +2840,19 @@ button{
           aria-hidden="true"
         >
 
-          <rect
-            x="3"
-            y="4"
-            width="18"
-            height="12"
-            rx="2.5"
+          <circle
+            cx="7.5"
+            cy="17.5"
+            r="3"
+            style="fill:currentColor;stroke:none;"
           />
 
-          <path d="M8 20h8"/>
+          <path d="M10.5 17.5V5"/>
 
-          <path d="M12 16v4"/>
+          <path
+            d="M10.5 5c2.4-1.1 4.7-.4 5.4 1.5"
+            style="stroke-width:1.8;"
+          />
 
         </svg>
 
@@ -2748,13 +2903,13 @@ button{
           aria-hidden="true"
         >
 
-          <path d="M4 5v14"/>
+          <path d="M4 19V6.5"/>
 
-          <path d="M9 5v14"/>
+          <path d="M9.5 19V9"/>
 
-          <path d="M14 6.5v11"/>
+          <path d="M15 19V5.5"/>
 
-          <path d="M19 4.5 20.6 18.4" style="stroke-linecap:round;"/>
+          <path d="M18.5 19 21.5 8.5" style="stroke-linecap:round;"/>
 
         </svg>
 
@@ -3165,6 +3320,7 @@ let libraryTab = 'songs';
   Session-level, like showChords — not persisted.
 */
 let libraryFavoritesOnly = false;
+let libraryCategoryFilter = 'all';
 
 
 /*
@@ -5273,7 +5429,20 @@ async function syncOneSong(localSong){
 
 async function performDriveSync(){
 
-  if(!getGoogleUser() || !googleAccessToken){
+  if(!getGoogleUser()){
+
+    return;
+
+  }
+
+  if(!(await ensureGoogleAccessToken())){
+
+    setSyncStatus('error');
+
+    alert(
+      'Couldn\'t reconnect to Google automatically — ' +
+      'tap Sign In again in Profile → Account, then try Sync Now.'
+    );
 
     return;
 
@@ -8570,6 +8739,7 @@ function renderSongViewer(){
               <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
               <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
               <button class="songMenuItem" type="button" id="menuAddToSetlistBtn" role="menuitem">Add to Setlist</button>
+              <button class="songMenuItem" type="button" id="menuCategoryBtn" role="menuitem">Set Category</button>
               <button class="songMenuItem" type="button" id="menuSyncBtn" role="menuitem">Sync This Song</button>
               <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
               <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
@@ -8702,6 +8872,7 @@ function renderMergedSongViewer(){
               <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
               <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
               <button class="songMenuItem" type="button" id="menuAddToSetlistBtn" role="menuitem">Add to Setlist</button>
+              <button class="songMenuItem" type="button" id="menuCategoryBtn" role="menuitem">Set Category</button>
               <button class="songMenuItem" type="button" id="menuSyncBtn" role="menuitem">Sync This Song</button>
               <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
               <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
@@ -9249,6 +9420,23 @@ function attachSongMenuControls(){
       }
 
       showSetlistPicker(currentSong);
+
+    };
+
+
+  document
+    .getElementById(
+      'menuCategoryBtn'
+    )
+    .onclick = () => {
+
+      closeSongMenu();
+
+      if(!currentSong){
+        return;
+      }
+
+      showCategoryPicker(currentSong);
 
     };
 
@@ -10862,14 +11050,26 @@ function renderLibrary(){
   }
 
 
+  const CATEGORIES = [
+    { id: 'all', label: 'All' },
+    { id: 'praise', label: 'Praise' },
+    { id: 'worship', label: 'Worship' },
+    { id: 'solemn', label: 'Solemn' },
+    { id: 'hymn', label: 'Hymn' }
+  ];
+
+
   const allSongs =
     getSongs();
 
 
   const list =
-    libraryFavoritesOnly
-      ? allSongs.filter(song => song.favorite)
-      : allSongs;
+    allSongs
+      .filter(song => !libraryFavoritesOnly || song.favorite)
+      .filter(song =>
+        libraryCategoryFilter === 'all' ||
+        song.category === libraryCategoryFilter
+      );
 
 
   const selectMode =
@@ -10893,16 +11093,31 @@ function renderLibrary(){
       </div>
 
 
-      <button
-        class="searchBtn"
-        id="openSearch"
-        aria-label="Search library"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="10.5" cy="10.5" r="6.5"/>
-          <path d="M19.5 19.5 15.2 15.2"/>
-        </svg>
-      </button>
+      <div class="libraryHeadActions">
+
+        <button
+          class="searchBtn syncCloudBtn"
+          id="librarySyncNow"
+          aria-label="Sync with Drive"
+          title="Sync with Drive"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M7 18a4.2 4.2 0 0 1-.6-8.35 5.5 5.5 0 0 1 10.6-1.9A4 4 0 0 1 17 18H7Z"/>
+          </svg>
+        </button>
+
+        <button
+          class="searchBtn"
+          id="openSearch"
+          aria-label="Search library"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="10.5" cy="10.5" r="6.5"/>
+            <path d="M19.5 19.5 15.2 15.2"/>
+          </svg>
+        </button>
+
+      </div>
 
     </div>
 
@@ -10920,6 +11135,21 @@ function renderLibrary(){
         aria-pressed="${libraryFavoritesOnly}"
         title="Show favorites only"
       >★</button>
+
+    </div>
+
+
+    <div class="categoryPills">
+
+      ${
+        CATEGORIES.map(cat => `
+          <button
+            type="button"
+            class="categoryPill${libraryCategoryFilter === cat.id ? ' active' : ''}"
+            data-category-pill="${esc(cat.id)}"
+          >${esc(cat.label)}</button>
+        `).join('')
+      }
 
     </div>
 
@@ -11108,6 +11338,71 @@ function renderLibrary(){
     libraryFavoritesOnly = !libraryFavoritesOnly;
     renderLibrary();
   };
+
+
+  screen
+    .querySelectorAll('[data-category-pill]')
+    .forEach(btn => {
+
+      btn.onclick = () => {
+        libraryCategoryFilter = btn.dataset.categoryPill;
+        renderLibrary();
+      };
+
+    });
+
+
+  const librarySyncBtn =
+    document.getElementById('librarySyncNow');
+
+  if(librarySyncBtn){
+
+    librarySyncBtn.onclick = async () => {
+
+      if(!getGoogleUser()){
+
+        showToast(
+          'Sign in with Google first (Profile → Account).',
+          'error'
+        );
+
+        return;
+
+      }
+
+      if(librarySyncBtn.classList.contains('syncing')){
+
+        return;
+
+      }
+
+      librarySyncBtn.classList.add('syncing');
+
+      await performDriveSync();
+
+      librarySyncBtn.classList.remove('syncing');
+
+      const status =
+        getSyncStatus();
+
+      if(status.status === 'synced'){
+
+        showToast('Synced with Drive.', 'success');
+
+        renderLibrary();
+
+      }else{
+
+        showToast(
+          'Sync failed — check your connection.',
+          'error'
+        );
+
+      }
+
+    };
+
+  }
 
 
   screen
@@ -11731,6 +12026,122 @@ function renderSetlistDetail(setlistId){
   setlists to add to, plus a "+ New Setlist" option that creates
   one and adds the song to it in the same step.
 */
+
+function showCategoryPicker(song){
+
+  const host =
+    document.getElementById('confirmOverlay');
+
+  if(!host || !song)return;
+
+  const categories = [
+    { id: 'praise', label: 'Praise' },
+    { id: 'worship', label: 'Worship' },
+    { id: 'solemn', label: 'Solemn' },
+    { id: 'hymn', label: 'Hymn' }
+  ];
+
+  host.innerHTML = `
+
+    <div class="confirmBack" id="confirmBack">
+      <div class="confirmBox">
+
+        <p class="confirmMessage">Category for "${esc(song.title)}":</p>
+
+        ${
+          categories.map(cat => `
+            <button
+              class="toolbarBtn${song.category === cat.id ? ' primary' : ''}"
+              type="button"
+              data-pick-category="${esc(cat.id)}"
+              style="width:100%;justify-content:flex-start;margin-bottom:8px;"
+            >${esc(cat.label)}</button>
+          `).join('')
+        }
+
+        <button
+          class="toolbarBtn"
+          type="button"
+          data-pick-category=""
+          style="width:100%;justify-content:flex-start;margin-bottom:8px;color:#a7a7ae;"
+        >No Category</button>
+
+        <div class="confirmBtnRow">
+          <button class="toolbarBtn" id="pickerCancelBtn" type="button">Close</button>
+        </div>
+
+      </div>
+    </div>
+
+  `;
+
+  const back =
+    document.getElementById('confirmBack');
+
+  const close = () => {
+    back.classList.remove('open');
+    setTimeout(() => { host.innerHTML = ''; }, 200);
+  };
+
+  document.getElementById('pickerCancelBtn').onclick = close;
+
+  back.onclick = (event) => {
+    if(event.target === back){
+      close();
+    }
+  };
+
+  document.querySelectorAll('[data-pick-category]').forEach(btn => {
+    btn.onclick = () => {
+
+      const categoryId =
+        btn.dataset.pickCategory;
+
+      song.category =
+        categoryId || null;
+
+      song.updatedAt =
+        new Date().toISOString();
+
+      const songs =
+        getSongs();
+
+      const index =
+        songs.findIndex(item => item.id === song.id);
+
+      if(index !== -1){
+
+        songs[index] = song;
+
+        writeSongs(songs);
+
+      }
+
+      if(currentSong && currentSong.id === song.id){
+
+        currentSong.category =
+          song.category;
+
+      }
+
+      close();
+
+      showToast(
+        categoryId
+          ? `Category set to ${categories.find(c => c.id === categoryId).label}.`
+          : 'Category removed.',
+        'success'
+      );
+
+    };
+  });
+
+  requestAnimationFrame(() => {
+    back.classList.add('open');
+  });
+
+}
+
 
 function showSetlistPicker(song){
 
@@ -12765,6 +13176,28 @@ document
 
 
 renderHome();
+
+
+/*
+  Fade out the startup splash once the home screen has actually
+  rendered. The minimum-display timer keeps it from flashing by
+  too quickly on fast loads; the fallback removal guarantees it
+  never gets stuck on screen even if something above throws.
+*/
+
+(function hideStartupSplash(){
+
+  const splash = document.getElementById('startupSplash');
+  if(!splash) return;
+
+  const dismiss = () => {
+    splash.classList.add('splashHidden');
+    setTimeout(() => splash.remove(), 1000);
+  };
+
+  setTimeout(dismiss, 2200);
+
+})();
 
 
 /*
