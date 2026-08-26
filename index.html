@@ -1514,6 +1514,491 @@ button{
   color:#111;
 }
 
+
+/* =========================================================
+   SONG FLOW
+========================================================= */
+
+.flowView{
+  padding:6px 16px 14px;
+}
+
+.flowList{
+  display:flex;
+  flex-direction:column;
+  gap:0;
+
+  margin-bottom:10px;
+}
+
+/* Section cards — deliberately reuse .songSection/.songSectionName/
+   .songLine so Flow mode looks like the real chart, not a form. */
+
+.flowSectionCard{
+  position:relative;
+
+  padding:4px 4px;
+
+  border-bottom:1px solid #1e1e21;
+
+  cursor:pointer;
+  touch-action:manipulation;
+
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+
+.flowSectionCard:last-child{
+  border-bottom:0;
+}
+
+.flowSectionHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.flowSectionNameGroup{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:2px;
+
+  flex:1;
+  min-width:0;
+}
+
+.flowSideNoteSlot:empty{
+  display:none;
+}
+
+.flowSideNote{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+
+  margin-left:6px;
+
+  background:rgba(231,201,138,.1);
+  border:1px dashed rgba(231,201,138,.4);
+  border-radius:999px;
+
+  padding:3px 5px 3px 10px;
+
+  font-size:11.5px;
+  font-style:italic;
+  color:#e6c98a;
+
+  max-width:44vw;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.flowSideNoteDelete{
+  width:16px;
+  height:16px;
+  flex:0 0 auto;
+
+  border:0;
+  border-radius:50%;
+
+  background:rgba(255,255,255,.08);
+  color:#ff9b9b;
+
+  font-size:9px;
+
+  display:grid;
+  place-items:center;
+
+  cursor:pointer;
+}
+
+.flowSideNoteEditWrap{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+
+  margin-left:6px;
+}
+
+.flowSideNoteInput{
+  margin-left:0;
+
+  min-width:100px;
+  max-width:40vw;
+
+  background:rgba(231,201,138,.08);
+  border:1px dashed rgba(231,201,138,.5);
+  border-radius:999px;
+
+  color:#e6c98a;
+  font-style:italic;
+  font-size:12px;
+
+  padding:4px 11px;
+}
+
+.flowSideNoteInput::placeholder{
+  color:#8a7c58;
+}
+
+.flowSideNoteConfirm{
+  width:22px;
+  height:22px;
+  flex:0 0 auto;
+
+  border:1px solid rgba(158,231,132,.5);
+  border-radius:50%;
+
+  background:rgba(158,231,132,.12);
+  color:#9ee784;
+
+  font-size:11px;
+  font-weight:800;
+
+  display:grid;
+  place-items:center;
+
+  cursor:pointer;
+}
+
+/* Hidden until the card is long-pressed. */
+
+.flowItemControls{
+  display:flex;
+  align-items:center;
+  gap:4px;
+
+  flex:0 0 auto;
+
+  opacity:0;
+  transform:translateX(4px);
+
+  pointer-events:none;
+
+  transition:
+    opacity .18s ease,
+    transform .18s ease;
+}
+
+.flowSectionCard.controlsRevealed .flowItemControls{
+  opacity:1;
+  transform:translateX(0);
+
+  pointer-events:auto;
+}
+
+.flowSectionCard.controlsRevealed{
+  background:rgba(255,255,255,.035);
+  border-radius:10px;
+}
+
+/* Notes keep their controls visible as before — only section
+   cards hide theirs behind a long-press. */
+
+.flowItemControlsStatic{
+  opacity:.55;
+  transform:none;
+  pointer-events:auto;
+}
+
+.flowMoveBtn,
+.flowDupBtn,
+.flowAddNoteInlineBtn,
+.flowDeleteBtn{
+  width:24px;
+  height:24px;
+
+  border:1px solid #303036;
+  border-radius:7px;
+
+  background:#1a1a1d;
+  color:#c9c9ce;
+
+  font-size:11px;
+
+  display:grid;
+  place-items:center;
+
+  cursor:pointer;
+}
+
+.flowMoveBtn:disabled{
+  opacity:.3;
+}
+
+.flowDeleteBtn{
+  color:#ff8b8b;
+}
+
+.flowDupBtn{
+  font-size:13px;
+}
+
+.flowAddNoteInlineBtn{
+  font-size:12px;
+  color:#e6c98a;
+}
+
+.flowDragHandle{
+  width:22px;
+  height:24px;
+
+  border:0;
+  background:transparent;
+  color:#8a8a92;
+
+  font-size:15px;
+  line-height:1;
+
+  display:grid;
+  place-items:center;
+
+  cursor:grab;
+  touch-action:none;
+}
+
+.flowSectionCard.dragging,
+.flowBetweenNote.dragging{
+  opacity:.4;
+}
+
+.flowSectionDot{
+  display:inline-block;
+  width:7px;
+  height:7px;
+  margin-right:7px;
+
+  border-radius:50%;
+
+  vertical-align:middle;
+}
+
+.flowRepeatBadge{
+  margin-left:7px;
+
+  font-size:10.5px;
+  font-weight:800;
+  color:#a7a7ad;
+
+  background:rgba(255,255,255,.08);
+  border-radius:999px;
+
+  padding:1px 7px;
+
+  vertical-align:middle;
+}
+
+@keyframes flowJumpFlash{
+  0%{ background:rgba(255,255,255,.16); }
+  100%{ background:transparent; }
+}
+
+.flowJumpFlash{
+  animation:flowJumpFlash 1.1s ease;
+  border-radius:10px;
+}
+
+.flowSectionLines{
+  border-left:2px solid #2d2d32;
+  padding-left:12px;
+}
+
+.flowLineWrap{
+  position:relative;
+
+  display:flex;
+  align-items:baseline;
+  flex-wrap:wrap;
+
+  cursor:pointer;
+
+  border-radius:6px;
+}
+
+.flowView .flowLineWrap:active{
+  background:rgba(255,255,255,.04);
+}
+
+/* Note attached above a line — its own row, tucked between the
+   previous line and this one, like a margin cue written in. */
+
+.flowLineNoteAbove{
+  display:flex;
+  align-items:center;
+  gap:6px;
+
+  margin:4px 0;
+}
+
+.flowLineNoteInput{
+  flex:1;
+
+  resize:none;
+
+  background:rgba(231,201,138,.08);
+  border:1px dashed rgba(231,201,138,.4);
+  border-radius:8px;
+
+  color:#e6c98a;
+  font-style:italic;
+  font-size:12.5px;
+  line-height:1.4;
+
+  padding:5px 9px;
+
+  min-height:30px;
+}
+
+/* Note attached beside a line — an inline tag right after the
+   line's own text, same row. */
+
+.flowLineNoteBeside{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+
+  margin-left:8px;
+
+  background:rgba(231,201,138,.1);
+  border:1px dashed rgba(231,201,138,.4);
+  border-radius:999px;
+
+  padding:2px 4px 2px 9px;
+}
+
+.flowLineNoteBesideInput{
+  background:transparent;
+  border:0;
+
+  color:#e6c98a;
+  font-style:italic;
+  font-size:12px;
+
+  width:90px;
+}
+
+.flowLineNoteInput::placeholder,
+.flowLineNoteBesideInput::placeholder{
+  color:#8a7c58;
+}
+
+.flowLineNoteDelete{
+  width:18px;
+  height:18px;
+
+  flex:0 0 auto;
+
+  border:0;
+  border-radius:50%;
+
+  background:rgba(255,255,255,.08);
+  color:#ff9b9b;
+
+  font-size:10px;
+
+  display:grid;
+  place-items:center;
+
+  cursor:pointer;
+}
+
+/* Note sitting between two whole sections in the arrangement. */
+
+.flowBetweenNote{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+
+  background:rgba(231,201,138,.06);
+  border:1px dashed rgba(231,201,138,.35);
+  border-radius:12px;
+
+  padding:8px 12px;
+  margin:4px 0;
+}
+
+.flowNoteInput{
+  flex:1;
+
+  min-height:38px;
+
+  resize:vertical;
+
+  background:transparent;
+  border:0;
+
+  color:#e6c98a;
+  font-style:italic;
+
+  font-size:13.5px;
+  line-height:1.5;
+
+  padding:2px 0;
+}
+
+.flowNoteInput::placeholder{
+  color:#6b6b72;
+  font-style:italic;
+}
+
+.flowAddRow{
+  display:flex;
+  gap:8px;
+}
+
+.flowAddRow .toolbarBtn{
+  flex:1;
+}
+
+/* Read-only rendering of the same annotations, inside actual
+   Chords/Lyrics view once a custom flow exists for a song. */
+
+.flowLineNoteAboveStatic{
+  margin:4px 0;
+  padding:5px 9px;
+
+  background:rgba(231,201,138,.08);
+  border-left:2px solid rgba(231,201,138,.5);
+  border-radius:4px;
+
+  color:#e6c98a;
+  font-style:italic;
+  font-size:12.5px;
+  line-height:1.4;
+
+  white-space:pre-wrap;
+}
+
+.flowLineNoteBesideStatic{
+  margin-left:8px;
+
+  color:#e6c98a;
+  font-style:italic;
+  font-size:12px;
+
+  white-space:pre-wrap;
+}
+
+.flowNoteBlock{
+  margin:14px 0;
+  padding:12px 14px;
+
+  background:rgba(231,201,138,.08);
+  border:1px dashed rgba(231,201,138,.4);
+  border-radius:12px;
+
+  color:#e6c98a;
+  font-style:italic;
+  font-size:13.5px;
+  line-height:1.5;
+
+  white-space:pre-wrap;
+}
+
 .transposeGroup,
 .autoScrollGroup{
   display:flex;
@@ -3302,6 +3787,7 @@ let currentSong = null;
   saved with the song.
 */
 let showChords = true;
+let songFlowMode = false;
 
 /*
   Library multi-select state: song IDs currently checked in
@@ -8642,6 +9128,1075 @@ function reorderViewerSections(fromIndex,toIndex){
   renderSongViewer();
 }
 
+
+/* =========================================================
+   SONG FLOW
+
+   A separate arrangement layer on top of the parsed sections —
+   an ordered list that can repeat a section (Chorus twice,
+   Verse 1 again) and interleave free-text notes for the Music
+   Director, without duplicating any actual lyrics/chords data.
+   Each flow item just references a section by its _id, so
+   editing that section's content anywhere updates every place
+   it's used in the flow automatically.
+
+   Until the person actually edits the flow for a song, nothing
+   is persisted — Chords/Lyrics keeps behaving exactly as before
+   (this is fully backward-compatible with every existing song).
+   The moment they touch the Flow tab, a real `flow` array is
+   saved and from then on Chords/Lyrics renders THAT arrangement
+   — repeats, notes, and all — instead of the plain unique list.
+========================================================= */
+
+function getFlowTarget(song){
+
+  if(
+    Array.isArray(song.mergeParts) &&
+    song.mergeParts.length > 1
+  ){
+    return song.mergeParts[clampMergedPartIndex(song)];
+  }
+
+  return song;
+
+}
+
+
+function getSongFlow(target, sections){
+
+  if(
+    Array.isArray(target.flow) &&
+    target.flow.length
+  ){
+    return target.flow;
+  }
+
+  return sections.map(section => ({
+    id: 'flow-' + section._id + '-' + Math.random().toString(36).slice(2,7),
+    type: 'section',
+    sectionId: section._id
+  }));
+
+}
+
+
+function persistSongFlow(target, flow){
+
+  if(!currentSong)return;
+
+  target.flow = flow;
+
+  currentSong.updatedAt =
+    new Date().toISOString();
+
+  const songs = getSongs();
+
+  const index =
+    songs.findIndex(item => item.id === currentSong.id);
+
+  if(index !== -1){
+    songs[index] = currentSong;
+    writeSongs(songs.slice(0, MAX_SONGS));
+  }
+
+}
+
+
+function getExpandedDisplayBlocks(sections, flow){
+
+  const byId =
+    new Map(sections.map(section => [section._id, section]));
+
+  const blocks = [];
+
+  flow.forEach(item => {
+
+    if(item.type === 'note'){
+
+      blocks.push({
+        isNote: true,
+        id: item.id,
+        text: item.text || ''
+      });
+
+      return;
+
+    }
+
+    const section =
+      byId.get(item.sectionId);
+
+    if(section){
+
+      blocks.push({
+        isNote: false,
+        id: item.id,
+        name: section.name,
+        lines: section.lines,
+        lineNotes: Array.isArray(item.lineNotes) ? item.lineNotes : []
+      });
+
+    }
+
+  });
+
+  return blocks;
+
+}
+
+
+function moveFlowItem(flow, index, direction){
+
+  const target = index + direction;
+
+  if(target < 0 || target >= flow.length)return flow;
+
+  const copy = flow.slice();
+
+  const [item] = copy.splice(index, 1);
+
+  copy.splice(target, 0, item);
+
+  return copy;
+
+}
+
+
+function findFlowItem(flow, flowItemId){
+
+  return flow.find(item => item.id === flowItemId);
+
+}
+
+
+function addLineNoteToFlow(flow, flowItemId, lineIndex, placement){
+
+  return flow.map(item => {
+
+    if(item.id !== flowItemId)return item;
+
+    const lineNotes =
+      Array.isArray(item.lineNotes) ? item.lineNotes.slice() : [];
+
+    lineNotes.push({
+      id: 'note-' + Math.random().toString(36).slice(2,7),
+      lineIndex,
+      placement,
+      text: ''
+    });
+
+    return { ...item, lineNotes };
+
+  });
+
+}
+
+
+function removeLineNoteFromFlow(flow, flowItemId, noteId){
+
+  return flow.map(item => {
+
+    if(item.id !== flowItemId)return item;
+
+    return {
+      ...item,
+      lineNotes: (item.lineNotes || []).filter(note => note.id !== noteId)
+    };
+
+  });
+
+}
+
+
+function updateLineNoteTextInFlow(flow, flowItemId, noteId, text){
+
+  return flow.map(item => {
+
+    if(item.id !== flowItemId)return item;
+
+    return {
+      ...item,
+      lineNotes: (item.lineNotes || []).map(note =>
+        note.id === noteId ? { ...note, text } : note
+      )
+    };
+
+  });
+
+}
+
+
+function showAddFlowSectionPicker(sections, onPick){
+
+  const host =
+    document.getElementById('confirmOverlay');
+
+  if(!host)return;
+
+  host.innerHTML = `
+
+    <div class="confirmBack" id="confirmBack">
+      <div class="confirmBox">
+
+        <p class="confirmMessage">Add to flow:</p>
+
+        ${
+          sections.map(section => `
+            <button
+              class="toolbarBtn"
+              type="button"
+              data-pick-flow-section="${esc(section._id)}"
+              style="width:100%;justify-content:flex-start;margin-bottom:8px;"
+            >${esc(section.name)}</button>
+          `).join('')
+        }
+
+        <div class="confirmBtnRow">
+          <button class="toolbarBtn" id="pickerCancelBtn" type="button">Close</button>
+        </div>
+
+      </div>
+    </div>
+
+  `;
+
+  const back =
+    document.getElementById('confirmBack');
+
+  const close = () => {
+    back.classList.remove('open');
+    setTimeout(() => { host.innerHTML = ''; }, 200);
+  };
+
+  document.getElementById('pickerCancelBtn').onclick = close;
+
+  back.onclick = (event) => {
+    if(event.target === back){
+      close();
+    }
+  };
+
+  document.querySelectorAll('[data-pick-flow-section]').forEach(btn => {
+    btn.onclick = () => {
+      onPick(btn.dataset.pickFlowSection);
+      close();
+    };
+  });
+
+  requestAnimationFrame(() => {
+    back.classList.add('open');
+  });
+
+}
+
+
+function showLineNoteChooser(onPick){
+
+  const host =
+    document.getElementById('confirmOverlay');
+
+  if(!host)return;
+
+  host.innerHTML = `
+
+    <div class="confirmBack" id="confirmBack">
+      <div class="confirmBox">
+
+        <p class="confirmMessage">Add a note:</p>
+
+        <button
+          class="toolbarBtn"
+          type="button"
+          data-pick-placement="above"
+          style="width:100%;justify-content:flex-start;margin-bottom:8px;"
+        >Above this line</button>
+
+        <button
+          class="toolbarBtn"
+          type="button"
+          data-pick-placement="beside"
+          style="width:100%;justify-content:flex-start;margin-bottom:8px;"
+        >Beside this line</button>
+
+        <div class="confirmBtnRow">
+          <button class="toolbarBtn" id="pickerCancelBtn" type="button">Cancel</button>
+        </div>
+
+      </div>
+    </div>
+
+  `;
+
+  const back =
+    document.getElementById('confirmBack');
+
+  const close = () => {
+    back.classList.remove('open');
+    setTimeout(() => { host.innerHTML = ''; }, 200);
+  };
+
+  document.getElementById('pickerCancelBtn').onclick = close;
+
+  back.onclick = (event) => {
+    if(event.target === back){
+      close();
+    }
+  };
+
+  document.querySelectorAll('[data-pick-placement]').forEach(btn => {
+    btn.onclick = () => {
+      onPick(btn.dataset.pickPlacement);
+      close();
+    };
+  });
+
+  requestAnimationFrame(() => {
+    back.classList.add('open');
+  });
+
+}
+
+
+/*
+  Shared by the Flow tab (interactive=true) and the real
+  Chords/Lyrics display (interactive=false) — same markup for
+  the lines themselves so an arrangement drawn in Flow mode
+  looks identical to how it actually reads during a set,
+  annotations included.
+*/
+
+function renderSectionLinesHTML(block, interactive){
+
+  const lineNotes =
+    block.lineNotes || [];
+
+  return block.lines
+    .map((line, lineIndex) => {
+
+      if(line.trim() === '')return '';
+
+      const aboveNotes =
+        lineNotes.filter(note => note.lineIndex === lineIndex && note.placement === 'above');
+
+      const besideNotes =
+        lineNotes.filter(note => note.lineIndex === lineIndex && note.placement === 'beside');
+
+      const aboveHTML =
+        aboveNotes.map(note => interactive ? `
+          <div class="flowLineNoteAbove" data-line-note-id="${esc(note.id)}">
+            <textarea
+              class="flowLineNoteInput"
+              data-line-note-edit="${esc(note.id)}"
+              placeholder="Note..."
+              rows="1"
+            >${esc(note.text)}</textarea>
+            <button type="button" class="flowLineNoteDelete" data-line-note-delete="${esc(note.id)}" aria-label="Remove note">✕</button>
+          </div>
+        ` : (
+          note.text.trim()
+            ? `<div class="flowLineNoteAboveStatic">${esc(note.text)}</div>`
+            : ''
+        )).join('');
+
+      const lineHTML =
+        isChordOnlyLine(line)
+          ? `<div class="songLine chordLine">${esc(line)}</div>`
+          : `<div class="songLine lyricLine">${formatViewerLine(line)}</div>`;
+
+      const besideHTML =
+        besideNotes.map(note => interactive ? `
+          <span class="flowLineNoteBeside" data-line-note-id="${esc(note.id)}">
+            <input
+              class="flowLineNoteBesideInput"
+              data-line-note-edit="${esc(note.id)}"
+              value="${esc(note.text)}"
+              placeholder="note"
+            >
+            <button type="button" class="flowLineNoteDelete" data-line-note-delete="${esc(note.id)}" aria-label="Remove note">✕</button>
+          </span>
+        ` : (
+          note.text.trim()
+            ? `<span class="flowLineNoteBesideStatic">— ${esc(note.text)}</span>`
+            : ''
+        )).join('');
+
+      const tapAttr =
+        interactive ? ` data-flow-line-tap="${lineIndex}"` : '';
+
+      return `${aboveHTML}<div class="flowLineWrap"${tapAttr}>${lineHTML}${besideHTML}</div>`;
+
+    })
+    .join('');
+
+}
+
+
+function flowSectionAccent(name){
+
+  const key = (name || '').toLowerCase();
+
+  if(key.includes('pre-chorus') || key.includes('prechorus'))return '#89ddff';
+  if(key.includes('chorus'))return '#e6c98a';
+  if(key.includes('verse'))return '#7aa2f7';
+  if(key.includes('bridge'))return '#c792ea';
+  if(key.includes('intro'))return '#9ece6a';
+  if(key.includes('outro'))return '#f7768e';
+  if(key.includes('tag') || key.includes('interlude') || key.includes('instrumental'))return '#7dcfff';
+
+  return '#6b6b72';
+
+}
+
+
+function renderFlowListHTML(flow, sections){
+
+  const byId =
+    new Map(sections.map(section => [section._id, section]));
+
+  const html = [];
+
+  let i = 0;
+
+  while(i < flow.length){
+
+    const item = flow[i];
+
+    if(item.type === 'note'){
+
+      const noteControlsHTML = `
+        <div class="flowItemControls flowItemControlsStatic">
+          <button type="button" class="flowDragHandle" aria-label="Drag to reorder">⠿</button>
+          <button type="button" class="flowDeleteBtn" data-flow-delete="${i}" aria-label="Remove">✕</button>
+        </div>
+      `;
+
+      html.push(`
+        <div class="flowBetweenNote" data-flow-index="${i}" data-flow-group="${i}:${i}">
+
+          <textarea
+            class="flowNoteInput"
+            data-flow-note-index="${i}"
+            placeholder="Note between sections — key change, cue, adlib..."
+          >${esc(item.text)}</textarea>
+
+          ${noteControlsHTML}
+
+        </div>
+      `);
+
+      i += 1;
+      continue;
+
+    }
+
+    /* Group consecutive repeats of the same section into one
+       card with a ×N badge, instead of listing each one out. */
+
+    let end = i;
+
+    while(
+      end + 1 < flow.length &&
+      flow[end + 1].type === 'section' &&
+      flow[end + 1].sectionId === item.sectionId
+    ){
+      end += 1;
+    }
+
+    const count = end - i + 1;
+
+    const sectionControlsHTML = `
+      <div class="flowItemControls">
+        <button type="button" class="flowDragHandle" aria-label="Drag to reorder">⠿</button>
+        <button type="button" class="flowAddNoteInlineBtn" data-flow-sidenote-edit="${i}" aria-label="Add note beside this section">✎</button>
+        <button type="button" class="flowDupBtn" data-flow-duplicate="${end}" aria-label="Duplicate">⧉</button>
+        <button type="button" class="flowDeleteBtn" data-flow-delete="${end}" aria-label="Remove">✕</button>
+      </div>
+    `;
+
+    const section =
+      byId.get(item.sectionId);
+
+    if(!section){
+
+      html.push(`
+        <div class="flowSectionCard" data-flow-index="${i}" data-flow-group="${i}:${end}">
+          <div class="flowSectionHeader">
+            <div class="songSectionName">Missing section</div>
+            ${sectionControlsHTML}
+          </div>
+        </div>
+      `);
+
+      i = end + 1;
+      continue;
+
+    }
+
+    const accent =
+      flowSectionAccent(section.name);
+
+    const sideNoteHTML =
+      item.sideNote
+        ? `<span class="flowSideNote" data-flow-sidenote-slot="${i}">${esc(item.sideNote)}<button type="button" class="flowSideNoteDelete" data-flow-sidenote-clear="${i}" aria-label="Remove note">✕</button></span>`
+        : `<span class="flowSideNoteSlot" data-flow-sidenote-slot="${i}"></span>`;
+
+    html.push(`
+      <div class="flowSectionCard" data-flow-index="${i}" data-flow-group="${i}:${end}" data-flow-jump="${i}" style="border-left:3px solid ${accent}75;">
+
+        <div class="flowSectionHeader">
+          <div class="flowSectionNameGroup">
+            <div class="songSectionName">
+              <span class="flowSectionDot" style="background:${accent};"></span>${esc(section.name)}${count > 1 ? `<span class="flowRepeatBadge">×${count}</span>` : ''}
+            </div>
+            ${sideNoteHTML}
+          </div>
+          ${sectionControlsHTML}
+        </div>
+
+      </div>
+    `);
+
+    i = end + 1;
+
+  }
+
+  return html.join('');
+
+}
+
+
+function jumpToFlowSection(index){
+
+  songFlowMode = false;
+
+  renderSongViewer();
+
+  requestAnimationFrame(() => {
+
+    const el =
+      document.getElementById('section-' + index);
+
+    if(!el)return;
+
+    el.scrollIntoView({ behavior:'smooth', block:'start' });
+
+    el.classList.add('flowJumpFlash');
+
+    setTimeout(() => el.classList.remove('flowJumpFlash'), 1100);
+
+  });
+
+}
+
+
+function attachFlowControls(target, flow, sections){
+
+  /* Section cards keep their delete/duplicate controls hidden
+     until the card is long-pressed — tapping elsewhere, or
+     finishing an action, collapses it again on the next render.
+     A double-tap jumps to that section in the Chords/Lyrics view. */
+
+  const LONG_PRESS_MS = 420;
+  const CONTROL_SELECTOR = '.flowDeleteBtn, .flowDupBtn, .flowDragHandle, .flowAddNoteInlineBtn, .flowSideNoteDelete, .flowSideNoteInput, .flowSideNoteConfirm, .flowSideNote';
+
+  document.querySelectorAll('.flowSectionCard').forEach(card => {
+
+    let pressTimer = null;
+    let longPressed = false;
+
+    const clear = () => {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    };
+
+    card.addEventListener('pointerdown', (event) => {
+
+      if(event.target.closest(CONTROL_SELECTOR))return;
+
+      longPressed = false;
+
+      clear();
+
+      pressTimer = setTimeout(() => {
+
+        document.querySelectorAll('.flowSectionCard.controlsRevealed').forEach(other => {
+          if(other !== card)other.classList.remove('controlsRevealed');
+        });
+
+        card.classList.add('controlsRevealed');
+        longPressed = true;
+
+        if(navigator.vibrate)navigator.vibrate(8);
+
+      }, LONG_PRESS_MS);
+
+    });
+
+    ['pointerup','pointerleave','pointercancel'].forEach(evt => {
+      card.addEventListener(evt, clear);
+    });
+
+    card.addEventListener('click', (event) => {
+
+      if(event.target.closest(CONTROL_SELECTOR))return;
+
+      if(longPressed){
+        longPressed = false;
+        return;
+      }
+
+      if(card.classList.contains('controlsRevealed')){
+        card.classList.remove('controlsRevealed');
+      }
+
+    });
+
+    card.addEventListener('dblclick', (event) => {
+
+      if(event.target.closest(CONTROL_SELECTOR))return;
+
+      const jumpIndex = card.dataset.flowJump;
+
+      if(jumpIndex !== undefined){
+        jumpToFlowSection(Number(jumpIndex));
+      }
+
+    });
+
+  });
+
+  document.querySelectorAll('.flowDragHandle').forEach(handle => {
+
+    handle.addEventListener('pointerdown', (event) => {
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const card =
+        handle.closest('.flowSectionCard, .flowBetweenNote');
+
+      const list =
+        document.getElementById('flowList');
+
+      if(!card || !list)return;
+
+      card.classList.add('dragging');
+
+      const onMove = (moveEvent) => {
+
+        const y = moveEvent.clientY;
+
+        const siblings =
+          [...list.children].filter(el => el !== card);
+
+        let dropBefore = null;
+
+        for(const sib of siblings){
+
+          const rect = sib.getBoundingClientRect();
+
+          if(y < rect.top + rect.height / 2){
+            dropBefore = sib;
+            break;
+          }
+
+        }
+
+        if(dropBefore){
+          list.insertBefore(card, dropBefore);
+        }else{
+          list.appendChild(card);
+        }
+
+      };
+
+      const onUp = () => {
+
+        document.removeEventListener('pointermove', onMove);
+
+        card.classList.remove('dragging');
+
+        const newFlow = [];
+
+        [...list.children].forEach(el => {
+
+          const range = (el.dataset.flowGroup || '').split(':');
+
+          if(range.length !== 2)return;
+
+          const start = Number(range[0]);
+          const end = Number(range[1]);
+
+          for(let idx = start; idx <= end; idx++){
+            if(flow[idx])newFlow.push(flow[idx]);
+          }
+
+        });
+
+        persistSongFlow(target, newFlow);
+
+        renderSongViewer();
+
+      };
+
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp, { once:true });
+
+    });
+
+  });
+
+  document.querySelectorAll('[data-flow-duplicate]').forEach(btn => {
+
+    btn.onclick = (event) => {
+
+      event.stopPropagation();
+
+      const index =
+        Number(btn.dataset.flowDuplicate);
+
+      const updated =
+        flow.slice();
+
+      const copy = {
+        ...updated[index],
+        id: 'flow-' + Math.random().toString(36).slice(2,9)
+      };
+
+      updated.splice(index + 1, 0, copy);
+
+      persistSongFlow(target, updated);
+
+      renderSongViewer();
+
+    };
+
+  });
+
+  const openSideNoteEditor = (index) => {
+
+    const card =
+      document.querySelector(`.flowSectionCard[data-flow-jump="${index}"]`);
+
+    const slot =
+      card && card.querySelector(`[data-flow-sidenote-slot="${index}"]`);
+
+    if(!slot)return;
+
+    const current =
+      (flow[index] && flow[index].sideNote) || '';
+
+    slot.outerHTML = `
+      <span class="flowSideNoteEditWrap" data-flow-sidenote-slot="${index}">
+        <input type="text" class="flowSideNoteInput" data-flow-sidenote-input="${index}" placeholder="key change, cue...">
+        <button type="button" class="flowSideNoteConfirm" data-flow-sidenote-confirm="${index}" aria-label="Save note">✓</button>
+      </span>
+    `;
+
+    const inputEl =
+      card.querySelector(`[data-flow-sidenote-input="${index}"]`);
+
+    if(!inputEl)return;
+
+    inputEl.value = current;
+
+    inputEl.focus();
+    inputEl.select();
+
+    let committed = false;
+
+    const commit = () => {
+
+      if(committed)return;
+      committed = true;
+
+      const updated =
+        flow.slice();
+
+      updated[index] = {
+        ...updated[index],
+        sideNote: inputEl.value.trim()
+      };
+
+      persistSongFlow(target, updated);
+
+      renderSongViewer();
+
+    };
+
+    inputEl.addEventListener('blur', commit);
+
+    const confirmBtn =
+      card.querySelector(`[data-flow-sidenote-confirm="${index}"]`);
+
+    if(confirmBtn){
+      confirmBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        commit();
+      });
+    }
+
+    inputEl.addEventListener('keydown', (keyEvent) => {
+
+      if(keyEvent.key === 'Enter'){
+        keyEvent.preventDefault();
+        inputEl.blur();
+      }
+
+      if(keyEvent.key === 'Escape'){
+        committed = true;
+        renderSongViewer();
+      }
+
+    });
+
+  };
+
+  document.querySelectorAll('[data-flow-sidenote-edit]').forEach(btn => {
+
+    btn.onclick = (event) => {
+      event.stopPropagation();
+      openSideNoteEditor(Number(btn.dataset.flowSidenoteEdit));
+    };
+
+  });
+
+  document.querySelectorAll('.flowSideNote').forEach(chip => {
+
+    chip.addEventListener('click', (event) => {
+
+      if(event.target.closest('.flowSideNoteDelete'))return;
+
+      event.stopPropagation();
+
+      openSideNoteEditor(Number(chip.dataset.flowSidenoteSlot));
+
+    });
+
+  });
+
+  document.querySelectorAll('[data-flow-sidenote-clear]').forEach(btn => {
+
+    btn.onclick = (event) => {
+
+      event.stopPropagation();
+
+      const index =
+        Number(btn.dataset.flowSidenoteClear);
+
+      const updated =
+        flow.slice();
+
+      updated[index] = {
+        ...updated[index],
+        sideNote: ''
+      };
+
+      persistSongFlow(target, updated);
+
+      renderSongViewer();
+
+    };
+
+  });
+
+  document.querySelectorAll('[data-flow-delete]').forEach(btn => {
+
+    btn.onclick = () => {
+
+      const index =
+        Number(btn.dataset.flowDelete);
+
+      const updated =
+        flow.slice();
+
+      updated.splice(index, 1);
+
+      persistSongFlow(target, updated);
+
+      renderSongViewer();
+
+    };
+
+  });
+
+  document.querySelectorAll('[data-flow-note-index]').forEach(textarea => {
+
+    textarea.addEventListener('blur', () => {
+
+      const index =
+        Number(textarea.dataset.flowNoteIndex);
+
+      const updated =
+        flow.slice();
+
+      updated[index] = {
+        ...updated[index],
+        text: textarea.value
+      };
+
+      persistSongFlow(target, updated);
+
+    });
+
+  });
+
+  document.querySelectorAll('[data-flow-line-tap]').forEach(wrap => {
+
+    wrap.onclick = (event) => {
+
+      if(
+        event.target.closest('.flowLineNoteBeside') ||
+        event.target.closest('.flowLineNoteDelete')
+      ){
+        return;
+      }
+
+      const lineIndex =
+        Number(wrap.dataset.flowLineTap);
+
+      const container =
+        wrap.closest('[data-flow-item-id]');
+
+      if(!container)return;
+
+      const flowItemId =
+        container.dataset.flowItemId;
+
+      showLineNoteChooser((placement) => {
+
+        const updated =
+          addLineNoteToFlow(flow, flowItemId, lineIndex, placement);
+
+        persistSongFlow(target, updated);
+
+        renderSongViewer();
+
+      });
+
+    };
+
+  });
+
+  document.querySelectorAll('[data-line-note-delete]').forEach(btn => {
+
+    btn.onclick = (event) => {
+
+      event.stopPropagation();
+
+      const noteId =
+        btn.dataset.lineNoteDelete;
+
+      const container =
+        btn.closest('[data-flow-item-id]');
+
+      if(!container)return;
+
+      const flowItemId =
+        container.dataset.flowItemId;
+
+      const updated =
+        removeLineNoteFromFlow(flow, flowItemId, noteId);
+
+      persistSongFlow(target, updated);
+
+      renderSongViewer();
+
+    };
+
+  });
+
+  document.querySelectorAll('[data-line-note-edit]').forEach(input => {
+
+    input.addEventListener('click', event => event.stopPropagation());
+
+    input.addEventListener('blur', () => {
+
+      const noteId =
+        input.dataset.lineNoteEdit;
+
+      const container =
+        input.closest('[data-flow-item-id]');
+
+      if(!container)return;
+
+      const flowItemId =
+        container.dataset.flowItemId;
+
+      const updated =
+        updateLineNoteTextInFlow(flow, flowItemId, noteId, input.value);
+
+      persistSongFlow(target, updated);
+
+    });
+
+  });
+
+  const addSectionBtn =
+    document.getElementById('flowAddSectionBtn');
+
+  if(addSectionBtn){
+
+    addSectionBtn.onclick = () => {
+
+      showAddFlowSectionPicker(sections, (sectionId) => {
+
+        const updated =
+          flow.concat([{
+            id: 'flow-' + sectionId + '-' + Math.random().toString(36).slice(2,7),
+            type: 'section',
+            sectionId,
+            lineNotes: []
+          }]);
+
+        persistSongFlow(target, updated);
+
+        renderSongViewer();
+
+      });
+
+    };
+
+  }
+
+  const addNoteBtn =
+    document.getElementById('flowAddNoteBtn');
+
+  if(addNoteBtn){
+
+    addNoteBtn.onclick = () => {
+
+      const updated =
+        flow.concat([{
+          id: 'flow-note-' + Math.random().toString(36).slice(2,7),
+          type: 'note',
+          text: ''
+        }]);
+
+      persistSongFlow(target, updated);
+
+      renderSongViewer();
+
+      requestAnimationFrame(() => {
+
+        const inputs =
+          document.querySelectorAll('[data-flow-note-index]');
+
+        const last =
+          inputs[inputs.length - 1];
+
+        if(last){
+          last.focus();
+        }
+
+      });
+
+    };
+
+  }
+
+}
+
 function attachSectionNavBehavior(){
   const nav=document.getElementById('songSectionNav');
   if(!nav)return;
@@ -8707,6 +10262,13 @@ function renderSongViewer(){
   const sections=getViewerSections(song,displayedText);
   const keyInfo=detectKeyFromChords(extractChordTokens(displayedText));
   const capoInfo=getCapoSuggestion(keyInfo);
+
+  const flowTarget=song;
+  const hasCustomFlow=Array.isArray(flowTarget.flow)&&flowTarget.flow.length>0;
+  const flow=getSongFlow(flowTarget,sections);
+  const displayBlocks=hasCustomFlow?getExpandedDisplayBlocks(sections,flow):sections.map(section=>({isNote:false,id:section._id,name:section.name,lines:section.lines}));
+  const navBlocks=displayBlocks.filter(block=>!block.isNote);
+
   screen.innerHTML=`
     <div class="songPage">
       <div class="songFixedHeader">
@@ -8748,25 +10310,38 @@ function renderSongViewer(){
         </div>
         <div class="toolbarRow">
           <div class="viewModeGroup" id="viewModeGroup">
-            <button type="button" class="viewModeBtn${showChords?' active':''}" data-mode="chords">♪ Chords</button>
-            <button type="button" class="viewModeBtn${showChords?'':' active'}" data-mode="lyrics">▤ Lyrics</button>
+            <button type="button" class="viewModeBtn${(!songFlowMode&&showChords)?' active':''}" data-mode="chords">♪ Chords</button>
+            <button type="button" class="viewModeBtn${(!songFlowMode&&!showChords)?' active':''}" data-mode="lyrics">▤ Lyrics</button>
+            <button type="button" class="viewModeBtn${songFlowMode?' active':''}" data-mode="flow">☰ Flow</button>
           </div>
         </div>
       </div>
+      ${songFlowMode?`
+      <div class="flowView" id="flowView">
+        <div class="flowList" id="flowList">
+          ${renderFlowListHTML(flow,sections)}
+        </div>
+        <div class="flowAddRow">
+          <button type="button" class="toolbarBtn" id="flowAddSectionBtn">+ Section</button>
+          <button type="button" class="toolbarBtn" id="flowAddNoteBtn">+ Note</button>
+        </div>
+      </div>
+      `:`
       <div class="lyricsView" id="lyricsText" style="font-size:${song.fontSize}px;"><div class="songStructure${showChords?'':' chordsHidden'}" id="songStructure">
-        ${sections.map((section,index)=>`<div class="songSection" id="section-${index}" data-section-index="${index}"><div class="songSectionName">${esc(section.name)}</div>${section.lines.filter(line=>line.trim()!=='').map(line=>isChordOnlyLine(line)?`<div class="songLine chordLine">${esc(line)}</div>`:`<div class="songLine lyricLine">${formatViewerLine(line)}</div>`).join('')}</div>`).join('')}
+        ${displayBlocks.map((block,index)=>block.isNote?(block.text.trim()?`<div class="flowNoteBlock">${esc(block.text)}</div>`:''):`<div class="songSection" id="section-${index}" data-section-index="${index}"><div class="songSectionName">${esc(block.name)}</div>${renderSectionLinesHTML(block,false)}</div>`).join('')}
       </div></div>
+      `}
     </div>`;
-  document.getElementById('songSectionOverlay').innerHTML = `
+  document.getElementById('songSectionOverlay').innerHTML = songFlowMode?'':`
     <div class="songSectionFloatBar">
       <div class="songSectionNav" id="songSectionNav" aria-label="Song sections">
-        ${sections.map((section,index)=>`<button type="button" data-section-index="${index}" class="${index===0?'active':''}">${esc(section.name)}</button>`).join('')}
+        ${navBlocks.map((block,index)=>`<button type="button" data-section-index="${displayBlocks.indexOf(block)}" class="${index===0?'active':''}">${esc(block.name)}</button>`).join('')}
       </div>
     </div>
   `;
   renderAutoScrollFab();
   updateLyricsNavIndicator();
-  document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();currentSong=null;renderLyrics();};
+  document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;renderSongViewer();};
   document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;renderSongViewer();};
@@ -8776,17 +10351,21 @@ function renderSongViewer(){
   attachSongMenuControls();
   document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(btn=>{
     btn.onclick=()=>{
-      showChords=(btn.dataset.mode==='chords');
-      document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(b=>{
-        b.classList.toggle('active',b.dataset.mode===btn.dataset.mode);
-      });
-      const structureEl=document.getElementById('songStructure');
-      if(structureEl){
-        structureEl.classList.toggle('chordsHidden',!showChords);
+      if(btn.dataset.mode==='flow'){
+        songFlowMode=true;
+        renderSongViewer();
+        return;
       }
+      songFlowMode=false;
+      showChords=(btn.dataset.mode==='chords');
+      renderSongViewer();
     };
   });
-  attachSectionNavBehavior();
+  if(songFlowMode){
+    attachFlowControls(flowTarget,flow,sections);
+  }else{
+    attachSectionNavBehavior();
+  }
 }
 
 /* =========================================================
@@ -8837,6 +10416,13 @@ function renderMergedSongViewer(){
   const sections=getViewerSections(part,displayedText);
   const keyInfo=detectKeyFromChords(extractChordTokens(displayedText));
   const capoInfo=getCapoSuggestion(keyInfo);
+
+  const flowTarget=part;
+  const hasCustomFlow=Array.isArray(flowTarget.flow)&&flowTarget.flow.length>0;
+  const flow=getSongFlow(flowTarget,sections);
+  const displayBlocks=hasCustomFlow?getExpandedDisplayBlocks(sections,flow):sections.map(section=>({isNote:false,id:section._id,name:section.name,lines:section.lines}));
+  const navBlocks=displayBlocks.filter(block=>!block.isNote);
+
   screen.innerHTML=`
     <div class="songPage mergedSongPage">
       <div class="songFixedHeader">
@@ -8881,19 +10467,32 @@ function renderMergedSongViewer(){
         </div>
         <div class="toolbarRow">
           <div class="viewModeGroup" id="viewModeGroup">
-            <button type="button" class="viewModeBtn${showChords?' active':''}" data-mode="chords">♪ Chords</button>
-            <button type="button" class="viewModeBtn${showChords?'':' active'}" data-mode="lyrics">▤ Lyrics</button>
+            <button type="button" class="viewModeBtn${(!songFlowMode&&showChords)?' active':''}" data-mode="chords">♪ Chords</button>
+            <button type="button" class="viewModeBtn${(!songFlowMode&&!showChords)?' active':''}" data-mode="lyrics">▤ Lyrics</button>
+            <button type="button" class="viewModeBtn${songFlowMode?' active':''}" data-mode="flow">☰ Flow</button>
           </div>
         </div>
       </div>
+      ${songFlowMode?`
+      <div class="flowView" id="flowView">
+        <div class="flowList" id="flowList">
+          ${renderFlowListHTML(flow,sections)}
+        </div>
+        <div class="flowAddRow">
+          <button type="button" class="toolbarBtn" id="flowAddSectionBtn">+ Section</button>
+          <button type="button" class="toolbarBtn" id="flowAddNoteBtn">+ Note</button>
+        </div>
+      </div>
+      `:`
       <div class="lyricsView mergedLyricsView" id="lyricsText" style="font-size:${song.fontSize}px;"><div class="songStructure${showChords?'':' chordsHidden'}" id="songStructure">
-        ${sections.map((section,index)=>`<div class="songSection" id="section-${index}" data-section-index="${index}"><div class="songSectionName">${esc(section.name)}</div>${section.lines.filter(line=>line.trim()!=='').map(line=>isChordOnlyLine(line)?`<div class="songLine chordLine">${esc(line)}</div>`:`<div class="songLine lyricLine">${formatViewerLine(line)}</div>`).join('')}</div>`).join('')}
+        ${displayBlocks.map((block,index)=>block.isNote?(block.text.trim()?`<div class="flowNoteBlock">${esc(block.text)}</div>`:''):`<div class="songSection" id="section-${index}" data-section-index="${index}"><div class="songSectionName">${esc(block.name)}</div>${renderSectionLinesHTML(block,false)}</div>`).join('')}
       </div></div>
+      `}
     </div>`;
-  document.getElementById('songSectionOverlay').innerHTML = `
+  document.getElementById('songSectionOverlay').innerHTML = songFlowMode?'':`
     <div class="songSectionFloatBar">
       <div class="songSectionNav" id="songSectionNav" aria-label="Song sections">
-        ${sections.map((section,index)=>`<button type="button" data-section-index="${index}" class="${index===0?'active':''}">${esc(section.name)}</button>`).join('')}
+        ${navBlocks.map((block,index)=>`<button type="button" data-section-index="${displayBlocks.indexOf(block)}" class="${index===0?'active':''}">${esc(block.name)}</button>`).join('')}
       </div>
     </div>
   `;
@@ -8903,7 +10502,7 @@ function renderMergedSongViewer(){
   `;
   renderAutoScrollFab();
   updateLyricsNavIndicator();
-  document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();currentSong=null;renderLyrics();};
+  document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;renderSongViewer();};
   document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;renderSongViewer();};
@@ -8913,17 +10512,21 @@ function renderMergedSongViewer(){
   attachSongMenuControls();
   document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(btn=>{
     btn.onclick=()=>{
-      showChords=(btn.dataset.mode==='chords');
-      document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(b=>{
-        b.classList.toggle('active',b.dataset.mode===btn.dataset.mode);
-      });
-      const structureEl=document.getElementById('songStructure');
-      if(structureEl){
-        structureEl.classList.toggle('chordsHidden',!showChords);
+      if(btn.dataset.mode==='flow'){
+        songFlowMode=true;
+        renderSongViewer();
+        return;
       }
+      songFlowMode=false;
+      showChords=(btn.dataset.mode==='chords');
+      renderSongViewer();
     };
   });
-  attachSectionNavBehavior();
+  if(songFlowMode){
+    attachFlowControls(flowTarget,flow,sections);
+  }else{
+    attachSectionNavBehavior();
+  }
   document.querySelectorAll('#mergePartPills .mergePartPill').forEach(pill=>{
     pill.onclick=()=>goToMergedPartIndex(Number(pill.dataset.partIndex));
   });
