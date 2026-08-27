@@ -3,20 +3,8 @@
     "api/import.js": {
       "maxDuration": 30
     },
-    "api/drive-webhook.js": {
-      "maxDuration": 30
-    },
-    "api/drive-watch-renew.js": {
-      "maxDuration": 30
-    },
-    "api/drive-watch-status.js": {
+    "api/notify-new-song.js": {
       "maxDuration": 15
     }
-  },
-  "crons": [
-    {
-      "path": "/api/drive-watch-renew",
-      "schedule": "0 3 * * *"
-    }
-  ]
+  }
 }

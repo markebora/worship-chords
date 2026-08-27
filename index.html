@@ -3876,7 +3876,7 @@ button{
       <button
         data-source="drive"
       >
-        Google Drive
+        My Library
       </button>
 
       <button
@@ -3896,6 +3896,9 @@ button{
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 
 <script>
 
@@ -3911,6 +3914,129 @@ const modal =
 
 const query =
   document.getElementById('libraryQuery');
+
+
+/* =========================================================
+   FIREBASE CLIENT
+
+   The config used to be hardcoded here, which meant it was
+   baked straight into this file's source — visible to anyone
+   who could read the GitHub repo. It's now fetched at runtime
+   from a small serverless endpoint (/api/firebase-config,
+   see that file) that reads the real values out of Vercel
+   environment variables instead, so the repo's source no
+   longer contains them.
+
+   That said: a signed-in browser still has to receive this
+   config to talk to Firebase at all, so it's still visible in
+   the Network tab once the app is running — that's expected.
+   Firebase's own docs say the apiKey isn't meant to be a
+   secret; what actually gates access is Firestore Security
+   Rules (see firestore.rules), never this value.
+
+   Before using the app:
+     1. Create a Firebase project → add a Web app → copy the
+        config Firebase gives you.
+     2. In Vercel → Project → Settings → Environment Variables,
+        add FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN,
+        FIREBASE_PROJECT_ID, FIREBASE_STORAGE_BUCKET,
+        FIREBASE_MESSAGING_SENDER_ID, FIREBASE_APP_ID with
+        those values (see api/firebase-config.js).
+     3. Build → Firestore Database → Create database.
+     4. Build → Authentication → Sign-in method → enable
+        Email/Password, and add your team's accounts manually
+        under Authentication → Users (sign-up is disabled in
+        this app on purpose — see handleAuthSignUp).
+     5. Paste the rules from firestore.rules into
+        Firestore Database → Rules, and Publish.
+========================================================= */
+
+/*
+  Every device reads/writes this one document — that's what
+  makes it a shared library instead of a per-person one.
+  Firestore Security Rules (not this constant) are what
+  actually keep randoms off it; see firestore.rules.
+*/
+const SYNC_LIBRARY_DOC_ID = 'shared';
+
+/*
+  When this page is served normally from the web, relative paths
+  like fetch('/api/firebase-config') resolve against the site's
+  own domain automatically. But once this HTML is bundled as a
+  local file inside a native app shell (Capacitor/Cordova), the
+  page has no server behind it at all — those relative paths
+  would resolve to nothing and every /api/ call would fail.
+
+  Set this to your deployed backend's real URL (the Vercel
+  domain this project deploys to, e.g.
+  'https://your-project.vercel.app') so every /api/ call below
+  goes there explicitly instead of relying on same-origin.
+  Leave it as '' when running as a normal website — relative
+  paths still work fine in that case.
+*/
+const API_BASE_URL = '';
+
+let FIREBASE_CONFIGURED = false;
+let firebaseApp = null;
+let firebaseAuth = null;
+let firestoreDb = null;
+
+/*
+  Every entry point that touches Firebase (sign-in/up, sign-out,
+  sync, initSyncOnLoad) awaits this before using firebaseAuth/
+  firestoreDb, since fetching the config is now async instead
+  of being available immediately at page load.
+*/
+const firebaseReadyPromise = (async () => {
+
+  if(!window.firebase)return;
+
+  try{
+
+    const response =
+      await fetch(API_BASE_URL + '/api/firebase-config');
+
+    if(!response.ok)return;
+
+    const firebaseConfig =
+      await response.json();
+
+    const configured =
+      !!(firebaseConfig && firebaseConfig.apiKey && firebaseConfig.projectId);
+
+    if(!configured)return;
+
+    FIREBASE_CONFIGURED = true;
+
+    firebaseApp =
+      window.firebase.initializeApp(firebaseConfig);
+
+    firebaseAuth =
+      window.firebase.auth();
+
+    firestoreDb =
+      window.firebase.firestore();
+
+  }catch(error){
+
+    console.error(
+      'Firebase config fetch failed:',
+      error
+    );
+
+  }
+
+})();
+
+/*
+  Shared secret for /api/notify-new-song (the "New song added"
+  push notification) — must match the NOTIFY_SECRET environment
+  variable set on your backend deploy (e.g. Vercel → Project →
+  Settings → Environment Variables). Not related to Firebase;
+  this only protects that one notification endpoint.
+*/
+const NOTIFY_SECRET =
+  '4DFzmCxM1j6yM-7SepDpGYDCoqnRTJBy';
 
 
 /* =========================================================
@@ -5113,8 +5239,6 @@ function getSettings(){
 
     autoScrollSpeed: 2,
 
-    googleClientId: '',
-
     songNotifications: false,
 
     hasSeenLongPressHint: false
@@ -5167,182 +5291,19 @@ function writeSettings(partial){
 
 
 /* =========================================================
-   GOOGLE ACCOUNT
-   Uses Google Identity Services (client-side OAuth — no
-   backend needed). Requires a Google OAuth Client ID, set
-   once from the Profile page and stored in Settings.
-
-   Scope is drive.file — the app can only see/create files
-   it made itself, never the rest of anyone's Drive. That's
-   enough for our one shared library file.
+   SYNC ACCOUNT (Firebase Auth)
+   Each of the ~10 people on the team signs into their own
+   account (email + password) via Firebase Auth. Everyone who's
+   signed in reads/writes the same single shared library
+   document — see downloadLibrary()/uploadLibrary() below — so
+   it behaves like a shared library, not a personal one, while
+   every user still has their own credentials instead of
+   sharing one Google account. That's what a previous
+   Drive-based version of this app did, and sharing one
+   consumer Google account across many devices is exactly the
+   pattern Google's abuse detection flags — this avoids it
+   entirely.
 ========================================================= */
-
-let googleTokenClient = null;
-let googleAccessToken = null;
-
-const GOOGLE_DRIVE_SCOPE =
-  'openid email profile ' +
-  'https://www.googleapis.com/auth/drive.file';
-
-
-/*
-  True when running inside the wrapped Android app (Capacitor)
-  rather than a normal mobile browser tab. Google blocks its web
-  sign-in popup inside embedded webviews like this one, so the
-  native app needs a different sign-in path — see
-  googleSignInNative() below.
-*/
-function isNativeApp(){
-
-  return !!(
-    window.Capacitor &&
-    window.Capacitor.isNativePlatform &&
-    window.Capacitor.isNativePlatform()
-  );
-
-}
-
-
-/*
-  Native sign-in via the Capacitor Google Auth plugin (real
-  Android account picker — not the web popup, so it isn't
-  blocked). silent=true is used for background token refresh:
-  it still resolves quietly if the person already granted
-  access before, without popping any UI.
-
-  Requires the @codetrix-studio/capacitor-google-auth plugin to
-  be installed in the Android project and an Android-type OAuth
-  Client ID configured — see BUILD_APK.md for the exact setup
-  steps, since those need your own Google Cloud Console access
-  and can't be done from here.
-*/
-async function googleSignInNative(silent){
-
-  const plugin =
-    window.Capacitor &&
-    window.Capacitor.Plugins &&
-    window.Capacitor.Plugins.GoogleAuth;
-
-  if(!plugin){
-
-    if(!silent){
-
-      showToast(
-        'Google Sign-In isn\'t set up in this build yet. ' +
-        'See BUILD_APK.md for the native setup steps.',
-        'error'
-      );
-
-    }
-
-    return false;
-
-  }
-
-  try{
-
-    /*
-      Silent restore — called automatically whenever the app
-      needs Drive access but doesn't have a live token, e.g.
-      right after a fresh app launch — uses the plugin's
-      dedicated refresh() method. It silently reissues a token
-      from whichever account the person already signed into,
-      with no picker or prompt. signIn() is reserved for when
-      the person explicitly taps to connect their account.
-
-      This was the actual bug behind "have to log in every
-      time": the silent path was calling signIn() too, which
-      shows the account picker/consent screen — every app
-      restart looked like a fresh login instead of a quiet
-      background restore.
-    */
-
-    const canRefreshSilently =
-      silent &&
-      typeof plugin.refresh === 'function';
-
-    const result =
-      canRefreshSilently
-        ? await plugin.refresh()
-        : await plugin.signIn();
-
-    googleAccessToken =
-      (result.authentication && result.authentication.accessToken) ||
-      result.accessToken ||
-      null;
-
-    if(!googleAccessToken){
-
-      if(!silent){
-
-        showToast(
-          'Google sign-in did not return an access token.',
-          'error'
-        );
-
-      }
-
-      return false;
-
-    }
-
-    /*
-      refresh() only returns updated tokens, not a full profile
-      — keep whatever name/email/picture is already saved from
-      the original sign-in rather than overwriting it with
-      blanks when those fields aren't present on this result.
-    */
-
-    if(result.name || result.email || result.imageUrl){
-
-      setGoogleUser({
-
-        name: result.name || result.email || 'Google Account',
-
-        email: result.email || '',
-
-        picture: result.imageUrl || ''
-
-      });
-
-    }
-
-    if(!silent){
-
-      renderProfile();
-
-      pullNewSongsFromDrive();
-
-    }
-
-    return true;
-
-  }catch(error){
-
-    console.error(error);
-
-    /*
-      A silent refresh failing just means there's no cached
-      session to restore (never signed in yet, or the person
-      revoked access) — not worth surfacing as an error; the
-      next explicit sign-in tap will just do a normal signIn().
-    */
-
-    if(!silent){
-
-      showToast(
-        'Google sign-in failed: ' +
-        (error && error.message ? error.message : 'unknown error'),
-        'error'
-      );
-
-    }
-
-    return false;
-
-  }
-
-}
 
 
 function getGoogleUser(){
@@ -5434,212 +5395,122 @@ function updateWelcomeHeader(){
 }
 
 
-function loadGoogleScript(){
+/*
+  Shared guard used by every sign-in/sign-up/sync entry point —
+  a missing/placeholder firebaseConfig means the app hasn't been
+  configured yet (see the FIREBASE CLIENT block near the top of
+  this file), so fail with a clear message instead of a
+  confusing network error.
+*/
+async function requireFirebaseConfigured(){
 
-  return new Promise((resolve, reject) => {
+  await firebaseReadyPromise;
 
-    if(window.google && window.google.accounts){
+  if(firebaseAuth && firestoreDb){
 
-      resolve();
-      return;
+    return true;
 
-    }
+  }
 
-    const existing =
-      document.getElementById(
-        'googleIdentityScript'
-      );
+  showToast(
+    'Sync isn\'t configured yet — check your Firebase ' +
+    'environment variables (see api/firebase-config.js).',
+    'error'
+  );
 
-    if(existing){
-
-      existing.addEventListener(
-        'load',
-        () => resolve()
-      );
-
-      existing.addEventListener(
-        'error',
-        () => reject(
-          new Error('Failed to load Google script.')
-        )
-      );
-
-      return;
-
-    }
-
-    const script =
-      document.createElement('script');
-
-    script.id = 'googleIdentityScript';
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-
-    script.onload = () => resolve();
-
-    script.onerror = () => reject(
-      new Error('Failed to load Google script.')
-    );
-
-    document.head.appendChild(script);
-
-  });
+  return false;
 
 }
 
 
-async function googleSignIn(){
+/*
+  Kept for reference, but intentionally not wired to any button —
+  self-signup is disabled on purpose so a public URL + exposed
+  Firebase config can't let a stranger create an account and get
+  write access to the shared library. Add your team's accounts
+  manually in Firebase Console → Authentication → Users instead.
+*/
+async function handleAuthSignUp(email, password){
 
-  if(isNativeApp()){
-
-    await googleSignInNative(false);
-
-    return;
-
-  }
-
-  const clientId =
-    getSettings().googleClientId.trim();
-
-  if(!clientId){
-
-    showToast(
-      'Add your Google OAuth Client ID first ' +
-      '(Profile → Account).',
-      'error'
-    );
-
-    return;
-
-  }
+  if(!await requireFirebaseConfigured())return;
 
   try{
 
-    await loadGoogleScript();
+    const credential =
+      await firebaseAuth.createUserWithEmailAndPassword(email, password);
+
+    await onAuthReady(credential.user);
 
   }catch(error){
 
     showToast(
-      'Could not reach Google. Check your connection.',
+      'Sign-up failed: ' + error.message,
       'error'
     );
 
-    return;
-
   }
-
-  googleTokenClient =
-    google.accounts.oauth2.initTokenClient({
-
-      client_id: clientId,
-
-      scope: GOOGLE_DRIVE_SCOPE,
-
-      callback: async (response) => {
-
-        if(response.error){
-
-          showToast(
-            'Google sign-in failed: ' +
-            response.error,
-            'error'
-          );
-
-          return;
-
-        }
-
-        googleAccessToken =
-          response.access_token;
-
-        try{
-
-          const profileResponse =
-            await fetch(
-              'https://www.googleapis.com/oauth2/v3/userinfo',
-              {
-                headers:{
-                  Authorization:
-                    'Bearer ' + googleAccessToken
-                }
-              }
-            );
-
-          const profile =
-            await profileResponse.json();
-
-          setGoogleUser({
-
-            name: profile.name || profile.email,
-
-            email: profile.email || '',
-
-            picture: profile.picture || ''
-
-          });
-
-        }catch(error){
-
-          console.error(error);
-
-          setGoogleUser({
-
-            name: 'Google Account',
-
-            email: '',
-
-            picture: ''
-
-          });
-
-        }
-
-        renderProfile();
-
-        /*
-          After signing in, pull in any songs already in Drive
-          that aren't in this Library yet (additive only — this
-          never overwrites a song already saved here).
-        */
-
-        pullNewSongsFromDrive();
-
-      }
-
-    });
-
-  googleTokenClient.requestAccessToken();
 
 }
 
 
-function googleSignOut(){
+async function handleAuthSignIn(email, password){
 
-  if(isNativeApp()){
+  if(!await requireFirebaseConfigured())return;
 
-    const plugin =
-      window.Capacitor &&
-      window.Capacitor.Plugins &&
-      window.Capacitor.Plugins.GoogleAuth;
+  try{
 
-    if(plugin){
+    const credential =
+      await firebaseAuth.signInWithEmailAndPassword(email, password);
 
-      plugin.signOut().catch(() => {});
+    await onAuthReady(credential.user);
 
-    }
+  }catch(error){
 
-  }else if(googleAccessToken && window.google){
-
-    google.accounts.oauth2.revoke(
-      googleAccessToken,
-      () => {}
+    showToast(
+      'Sign-in failed: ' + error.message,
+      'error'
     );
 
   }
 
-  googleAccessToken = null;
-  googleTokenClient = null;
-  driveLibraryFileId = null;
+}
+
+
+async function onAuthReady(user){
+
+  setGoogleUser({
+
+    name:
+      (user.email || 'Account').split('@')[0],
+
+    email: user.email || '',
+
+    picture: ''
+
+  });
+
+  renderProfile();
+
+  /*
+    After signing in, pull in any songs already in the shared
+    library that aren't in this Library yet (additive only —
+    this never overwrites a song already saved here).
+  */
+
+  pullNewSongsFromDrive();
+
+}
+
+
+async function handleAuthSignOut(){
+
+  await firebaseReadyPromise;
+
+  if(firebaseAuth){
+
+    await firebaseAuth.signOut();
+
+  }
 
   setGoogleUser(null);
   setSyncStatus('idle');
@@ -5650,22 +5521,18 @@ function googleSignOut(){
 
 
 /* =========================================================
-   GOOGLE DRIVE SYNC
-   One shared JSON file (in the signed-in account's Drive)
-   holds the whole library plus a short "recently deleted"
-   list (tombstones). Nothing syncs automatically except a
-   brand-new song being saved — everything else (a changed
-   key, an edited line, a rename, a delete) stays local until
-   someone deliberately taps that song's Sync button, or
+   FIREBASE LIBRARY SYNC
+   One shared document (SYNC_LIBRARY_DOC_ID, in the `libraries`
+   collection) holds the whole library plus a short "recently
+   deleted" list (tombstones). Nothing syncs automatically
+   except a brand-new song being saved — everything else (a
+   changed key, an edited line, a rename, a delete) stays local
+   until someone deliberately taps that song's Sync button, or
    Profile → Sync Now for the whole library. That way one
    person's in-progress edits never jump onto everyone else's
    copy uninvited.
 ========================================================= */
 
-const DRIVE_LIBRARY_FILENAME =
-  'disciples-library.json';
-
-let driveLibraryFileId = null;
 let driveSyncInFlight = false;
 let driveSyncQueued = false;
 
@@ -5961,271 +5828,127 @@ function mergeLibraryState(
 }
 
 
-async function driveFetch(url, options={}, isRetry=false){
-
-  const response =
-    await fetch(url, {
-
-      ...options,
-
-      headers:{
-
-        ...(options.headers || {}),
-
-        Authorization:
-          'Bearer ' + googleAccessToken
-
-      }
-
-    });
-
-  if(response.status === 401 && !isRetry){
-
-    const refreshed =
-      await silentlyRefreshGoogleToken();
-
-    if(refreshed){
-
-      return driveFetch(url, options, true);
-
-    }
-
-  }
-
-  return response;
-
-}
-
-
-function silentlyRefreshGoogleToken(){
-
-  return new Promise(resolve => {
-
-    if(!googleTokenClient){
-
-      resolve(false);
-      return;
-
-    }
-
-    const previousCallback =
-      googleTokenClient.callback;
-
-    googleTokenClient.callback = (response) => {
-
-      googleTokenClient.callback = previousCallback;
-
-      if(response.error){
-
-        resolve(false);
-        return;
-
-      }
-
-      googleAccessToken =
-        response.access_token;
-
-      resolve(true);
-
-    };
-
-    googleTokenClient.requestAccessToken({
-      prompt: ''
-    });
-
-  });
-
-}
-
-
 /*
-  Being "signed in" (a saved profile) and having a live Drive
-  connection (an access token) are two different things — the
-  token resets on every reload and gets silently refreshed in
-  the background, which can lag or occasionally fail quietly.
-  Any Drive action calls this first so it self-heals instead
-  of surfacing "sign in" to someone who already has.
+  Being "signed in" (a saved profile) and having a live session
+  are two different things — Firebase's session restore runs
+  asynchronously in the background right after page load, which
+  can occasionally lag. Any sync action calls this first so it
+  self-heals instead of surfacing "sign in" to someone who
+  already has.
 */
+/*
+  Firebase restores a signed-in session asynchronously in the
+  background — firebaseAuth.currentUser can still be null for a
+  moment right after page load even though the person is signed
+  in. This waits for Firebase's first "here's the real auth
+  state" callback instead of trusting currentUser too early.
+*/
+let firebaseAuthReadyPromise = null;
 
-async function ensureGoogleAccessToken(){
+function waitForFirebaseAuthReady(){
 
-  if(googleAccessToken){
+  if(!firebaseAuth){
 
-    return true;
-
-  }
-
-  if(isNativeApp()){
-
-    return await googleSignInNative(true);
-
-  }
-
-  const clientId =
-    getSettings().googleClientId.trim();
-
-  if(!clientId){
-
-    return false;
+    return Promise.resolve(null);
 
   }
 
-  try{
+  if(!firebaseAuthReadyPromise){
 
-    await loadGoogleScript();
+    firebaseAuthReadyPromise =
+      new Promise(resolve => {
 
-  }catch(error){
+        const unsubscribe =
+          firebaseAuth.onAuthStateChanged(user => {
 
-    return false;
+            unsubscribe();
+            resolve(user);
 
-  }
-
-  if(!googleTokenClient){
-
-    googleTokenClient =
-      google.accounts.oauth2.initTokenClient({
-
-        client_id: clientId,
-
-        scope: GOOGLE_DRIVE_SCOPE,
-
-        callback: () => {}
+          });
 
       });
 
   }
 
-  return await silentlyRefreshGoogleToken();
+  return firebaseAuthReadyPromise;
 
 }
 
 
-async function ensureDriveLibraryFile(){
+async function ensureSyncSession(){
 
-  if(driveLibraryFileId){
+  if(!await requireFirebaseConfigured())return false;
 
-    return driveLibraryFileId;
+  const user =
+    firebaseAuth.currentUser ||
+    await waitForFirebaseAuthReady();
 
-  }
-
-  const query =
-    `name='${DRIVE_LIBRARY_FILENAME}' and trashed=false`;
-
-  const searchResponse =
-    await driveFetch(
-      'https://www.googleapis.com/drive/v3/files' +
-      '?q=' + encodeURIComponent(query) +
-      '&fields=files(id,name)'
-    );
-
-  const searchData =
-    await searchResponse.json();
-
-  if(searchData.files && searchData.files[0]){
-
-    driveLibraryFileId =
-      searchData.files[0].id;
-
-    return driveLibraryFileId;
-
-  }
-
-
-  /* Doesn't exist in this Drive yet — create it empty. */
-
-  const boundary =
-    'disciplesBoundary';
-
-  const metadata = {
-    name: DRIVE_LIBRARY_FILENAME,
-    mimeType: 'application/json'
-  };
-
-  const initialContent =
-    JSON.stringify({ songs:[], tombstones:[] });
-
-  const body =
-    `--${boundary}\r\n` +
-    'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
-    JSON.stringify(metadata) + '\r\n' +
-    `--${boundary}\r\n` +
-    'Content-Type: application/json\r\n\r\n' +
-    initialContent + '\r\n' +
-    `--${boundary}--`;
-
-  const createResponse =
-    await driveFetch(
-      'https://www.googleapis.com/upload/drive/v3/files' +
-      '?uploadType=multipart&fields=id',
-      {
-        method:'POST',
-        headers:{
-          'Content-Type':
-            `multipart/related; boundary=${boundary}`
-        },
-        body
-      }
-    );
-
-  const createData =
-    await createResponse.json();
-
-  driveLibraryFileId =
-    createData.id;
-
-  return driveLibraryFileId;
+  return !!user;
 
 }
 
 
-async function driveDownloadLibrary(fileId){
+async function downloadLibrary(){
 
-  const response =
-    await driveFetch(
-      'https://www.googleapis.com/drive/v3/files/' +
-      fileId + '?alt=media'
-    );
+  try{
 
-  if(!response.ok){
+    const docSnap =
+      await firestoreDb
+        .collection('libraries')
+        .doc(SYNC_LIBRARY_DOC_ID)
+        .get();
+
+    const payload =
+      docSnap.exists ? docSnap.data() : null;
+
+    return {
+
+      songs: Array.isArray(payload && payload.songs) ? payload.songs : [],
+
+      tombstones: Array.isArray(payload && payload.tombstones) ? payload.tombstones : []
+
+    };
+
+  }catch(error){
+
+    console.error(error);
 
     return { songs:[], tombstones:[] };
 
   }
 
-  const data =
-    await response.json().catch(() => null);
-
-  return {
-
-    songs: Array.isArray(data && data.songs) ? data.songs : [],
-
-    tombstones: Array.isArray(data && data.tombstones) ? data.tombstones : []
-
-  };
-
 }
 
 
-async function driveUploadLibrary(fileId, state){
+async function uploadLibrary(state){
 
-  await driveFetch(
-    'https://www.googleapis.com/upload/drive/v3/files/' +
-    fileId + '?uploadType=media',
-    {
-      method:'PATCH',
-      headers:{
-        'Content-Type':'application/json'
-      },
-      body: JSON.stringify(state)
-    }
-  );
+  try{
+
+    await firestoreDb
+      .collection('libraries')
+      .doc(SYNC_LIBRARY_DOC_ID)
+      .set({
+
+        songs: state.songs,
+
+        tombstones: state.tombstones,
+
+        updatedAt: new Date().toISOString()
+
+      });
+
+  }catch(error){
+
+    throw new Error(error.message);
+
+  }
 
 }
 
 
 /*
   Auto-upload path — used only right after a brand-new song
-  is saved. Adds it to the shared Drive file without touching
+  is saved. Adds it to the shared library without touching
   any other song already in there.
 */
 
@@ -6237,7 +5960,7 @@ async function uploadNewSongToDrive(song){
 
   }
 
-  if(!(await ensureGoogleAccessToken())){
+  if(!(await ensureSyncSession())){
 
     return;
 
@@ -6245,11 +5968,8 @@ async function uploadNewSongToDrive(song){
 
   try{
 
-    const fileId =
-      await ensureDriveLibraryFile();
-
     const remote =
-      await driveDownloadLibrary(fileId);
+      await downloadLibrary();
 
     const alreadyThere =
       remote.songs.some(
@@ -6260,8 +5980,7 @@ async function uploadNewSongToDrive(song){
 
       remote.songs.unshift(song);
 
-      await driveUploadLibrary(
-        fileId,
+      await uploadLibrary(
         {
 
           songs: remote.songs.slice(0,MAX_SONGS),
@@ -6270,6 +5989,8 @@ async function uploadNewSongToDrive(song){
 
         }
       );
+
+      notifyNewSong(song.title);
 
     }
 
@@ -6306,7 +6027,7 @@ async function pullNewSongsFromDrive(){
 
   }
 
-  if(!(await ensureGoogleAccessToken())){
+  if(!(await ensureSyncSession())){
 
     return;
 
@@ -6314,11 +6035,8 @@ async function pullNewSongsFromDrive(){
 
   try{
 
-    const fileId =
-      await ensureDriveLibraryFile();
-
     const remote =
-      await driveDownloadLibrary(fileId);
+      await downloadLibrary();
 
     const localSongs =
       getSongs();
@@ -6382,7 +6100,7 @@ async function syncOneSong(localSong){
   if(!getGoogleUser()){
 
     showToast(
-      'Sign in with Google first (Profile → Account).',
+      'Sign in first (Profile → Account).',
       'error'
     );
 
@@ -6390,10 +6108,10 @@ async function syncOneSong(localSong){
 
   }
 
-  if(!(await ensureGoogleAccessToken())){
+  if(!(await ensureSyncSession())){
 
     showToast(
-      'Couldn\'t reconnect to Google automatically — ' +
+      'Couldn\'t reconnect automatically — ' +
       'tap Sign In again in Profile → Account, then try Sync.',
       'error'
     );
@@ -6404,11 +6122,8 @@ async function syncOneSong(localSong){
 
   try{
 
-    const fileId =
-      await ensureDriveLibraryFile();
-
     const remote =
-      await driveDownloadLibrary(fileId);
+      await downloadLibrary();
 
     const remoteIndex =
       remote.songs.findIndex(
@@ -6463,8 +6178,7 @@ async function syncOneSong(localSong){
 
     }
 
-    await driveUploadLibrary(
-      fileId,
+    await uploadLibrary(
       {
 
         songs: remote.songs.slice(0,MAX_SONGS),
@@ -6539,12 +6253,12 @@ async function performDriveSync(){
 
   }
 
-  if(!(await ensureGoogleAccessToken())){
+  if(!(await ensureSyncSession())){
 
     setSyncStatus('error');
 
     alert(
-      'Couldn\'t reconnect to Google automatically — ' +
+      'Couldn\'t reconnect automatically — ' +
       'tap Sign In again in Profile → Account, then try Sync Now.'
     );
 
@@ -6564,11 +6278,8 @@ async function performDriveSync(){
 
   try{
 
-    const fileId =
-      await ensureDriveLibraryFile();
-
     const remote =
-      await driveDownloadLibrary(fileId);
+      await downloadLibrary();
 
     const merged =
       mergeLibraryState(
@@ -6591,7 +6302,7 @@ async function performDriveSync(){
 
     writeTombstones(merged.tombstones);
 
-    await driveUploadLibrary(fileId, merged);
+    await uploadLibrary(merged);
 
     setSyncStatus(
       'synced',
@@ -6980,11 +6691,11 @@ function renderProfile(){
 
                 <div>
                   <div class="settingsRowLabel">
-                    Google Account
+                    Account
                   </div>
                   <div class="settingsRowSub">
-                    Signed in — the Library syncs with this
-                    account's Drive.
+                    Signed in — the Library syncs with the
+                    shared team library.
                   </div>
                 </div>
 
@@ -7012,38 +6723,38 @@ function renderProfile(){
               </div>
             `
             : `
-              <div class="settingsRow">
-
-                <div>
-                  <div class="settingsRowLabel">
-                    Sign in with Google
-                  </div>
-                  <div class="settingsRowSub">
-                    Syncs your Library to a shared Google Drive so
-                    everyone using the app sees the same songs.
-                  </div>
-                </div>
-
-                <button class="toolbarBtn primary" id="googleSignInBtn">
-                  Sign In
-                </button>
-
-              </div>
-
               <div class="settingsCardPad">
 
-                <div class="settingsRowSub">
-                  One-time setup: paste the Google OAuth Client ID
-                  for the shared Drive we're using. Same Client ID
-                  on every device.
+                <div class="settingsRowSub" style="margin-bottom:10px;">
+                  Sign in to sync your Library with the shared
+                  team library. Same account works on every
+                  device.
                 </div>
 
                 <input
                   class="googleClientIdInput"
-                  id="googleClientIdInput"
-                  placeholder="Google OAuth Client ID"
-                  value="${esc(settings.googleClientId)}"
+                  id="authEmailInput"
+                  type="email"
+                  autocomplete="email"
+                  placeholder="Email"
+                  style="margin-bottom:8px;"
                 >
+
+                <input
+                  class="googleClientIdInput"
+                  id="authPasswordInput"
+                  type="password"
+                  autocomplete="current-password"
+                  placeholder="Password"
+                >
+
+                <div class="settingsRow" style="padding:14px 0 0;">
+
+                  <button class="toolbarBtn primary" id="authSignInBtn">
+                    Sign In
+                  </button>
+
+                </div>
 
               </div>
             `
@@ -7230,11 +6941,54 @@ function renderProfile(){
   /* ---------- Account ---------- */
 
   const signInBtn =
-    document.getElementById('googleSignInBtn');
+    document.getElementById('authSignInBtn');
+
+  const emailInput =
+    document.getElementById('authEmailInput');
+
+  const passwordInput =
+    document.getElementById('authPasswordInput');
+
+  const readCredentials = () => {
+
+    const email =
+      (emailInput && emailInput.value.trim()) || '';
+
+    const password =
+      (passwordInput && passwordInput.value) || '';
+
+    if(!email || !password){
+
+      showToast(
+        'Enter both an email and a password.',
+        'error'
+      );
+
+      return null;
+
+    }
+
+    return { email, password };
+
+  };
 
   if(signInBtn){
 
-    signInBtn.onclick = googleSignIn;
+    signInBtn.onclick = () => {
+
+      const credentials =
+        readCredentials();
+
+      if(credentials){
+
+        handleAuthSignIn(
+          credentials.email,
+          credentials.password
+        );
+
+      }
+
+    };
 
   }
 
@@ -7243,7 +6997,7 @@ function renderProfile(){
 
   if(signOutBtn){
 
-    signOutBtn.onclick = googleSignOut;
+    signOutBtn.onclick = handleAuthSignOut;
 
   }
 
@@ -7257,25 +7011,6 @@ function renderProfile(){
       performDriveSync();
 
     };
-
-  }
-
-  const clientIdInput =
-    document.getElementById('googleClientIdInput');
-
-  if(clientIdInput){
-
-    clientIdInput.addEventListener(
-      'blur',
-      () => {
-
-        writeSettings({
-          googleClientId:
-            clientIdInput.value.trim()
-        });
-
-      }
-    );
 
   }
 
@@ -12118,7 +11853,7 @@ function attachSongMenuControls(){
         currentSong = result.song;
 
         showToast(
-          'Synced — updated to the shared version from Drive.',
+          'Synced — updated to the shared version.',
           'success'
         );
 
@@ -12127,7 +11862,7 @@ function attachSongMenuControls(){
       }else if(result.outcome === 'uploaded'){
 
         showToast(
-          'Synced — added to Drive for everyone.',
+          'Synced — added for everyone.',
           'success'
         );
 
@@ -13739,8 +13474,8 @@ function renderLibrary(){
         <button
           class="searchBtn syncCloudBtn"
           id="librarySyncNow"
-          aria-label="Sync with Drive"
-          title="Sync with Drive"
+          aria-label="Sync library"
+          title="Sync library"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M7 18a4.2 4.2 0 0 1-.6-8.35 5.5 5.5 0 0 1 10.6-1.9A4 4 0 0 1 17 18H7Z"/>
@@ -13884,7 +13619,7 @@ function renderLibrary(){
                   class="songSyncBtn"
                   type="button"
                   data-sync-song="${esc(song.id)}"
-                  title="Sync this song with Drive"
+                  title="Sync this song"
                 >⟳</button>
               `
               : ''
@@ -14018,7 +13753,7 @@ function renderLibrary(){
       if(!getGoogleUser()){
 
         showToast(
-          'Sign in with Google first (Profile → Account).',
+          'Sign in first (Profile → Account).',
           'error'
         );
 
@@ -14043,7 +13778,7 @@ function renderLibrary(){
 
       if(status.status === 'synced'){
 
-        showToast('Synced with Drive.', 'success');
+        showToast('Synced with the shared library.', 'success');
 
         renderLibrary();
 
@@ -14410,7 +14145,7 @@ function renderLibrary(){
           if(result.outcome === 'took-remote'){
 
             showToast(
-              `"${song.title}" updated to the shared version from Drive.`,
+              `"${song.title}" updated to the shared version.`,
               'success'
             );
 
@@ -14419,7 +14154,7 @@ function renderLibrary(){
           }else if(result.outcome === 'uploaded'){
 
             showToast(
-              `"${song.title}" added to Drive for everyone.`,
+              `"${song.title}" added for everyone.`,
               'success'
             );
 
@@ -15210,16 +14945,16 @@ function renderResults(){
             getGoogleUser()
             ? `
               <div class="driveStatus">
-                ✅ Connected as ${esc(getGoogleUser().email || getGoogleUser().name)}.
-                Drive song search is coming soon — for now, use
+                ✅ Signed in as ${esc(getGoogleUser().email || getGoogleUser().name)}.
+                Library search is coming soon — for now, use
                 Import or Analyze to bring a song in.
               </div>
             `
             : `
               <div class="driveStatus">
-                🔐 Google Drive isn't connected yet. Sign in from
+                🔐 Not signed in yet. Sign in from
                 Profile → Account, then Search will look up
-                matching songs in your Drive.
+                matching songs in the shared library.
               </div>
             `
           )
@@ -15547,7 +15282,7 @@ async function importFromUG(url){
 
     const response =
       await fetch(
-        '/api/import',
+        API_BASE_URL + '/api/import',
         {
 
           method:'POST',
@@ -15872,18 +15607,26 @@ renderHome();
 
 
 /*
-  If we already have a Google account on file, try to pick the
-  session back up quietly (no popup) and pull in any brand-new
-  songs the other people have saved — never overwrites a song
-  already in this Library. If the silent grab fails — say, the
-  browser blocked it, or there's no cached native session — 
-  nothing breaks; signing in again from Profile covers it.
+  If there's a signed-in Firebase user (the SDK persists this
+  in IndexedDB/localStorage and restores it automatically), pick
+  it back up quietly and pull in any brand-new songs the other
+  people have saved — never overwrites a song already in this
+  Library. If there's no session, nothing breaks; signing in
+  again from Profile covers it.
 */
 
-async function initGoogleSyncOnLoad(){
+async function initSyncOnLoad(){
+
+  await firebaseReadyPromise;
+
+  if(!firebaseAuth){
+
+    return;
+
+  }
 
   const user =
-    getGoogleUser();
+    await waitForFirebaseAuthReady();
 
   if(!user){
 
@@ -15891,78 +15634,20 @@ async function initGoogleSyncOnLoad(){
 
   }
 
-  if(isNativeApp()){
+  if(!getGoogleUser()){
 
-    const restored =
-      await googleSignInNative(true);
-
-    if(restored){
-
-      pullNewSongsFromDrive();
-
-    }
+    await onAuthReady(user);
 
     return;
 
   }
 
-  const clientId =
-    getSettings().googleClientId.trim();
-
-  if(!clientId){
-
-    return;
-
-  }
-
-  try{
-
-    await loadGoogleScript();
-
-  }catch(error){
-
-    console.error(error);
-    return;
-
-  }
-
-  googleTokenClient =
-    google.accounts.oauth2.initTokenClient({
-
-      client_id: clientId,
-
-      scope: GOOGLE_DRIVE_SCOPE,
-
-      callback: (response) => {
-
-        if(response.error){
-
-          console.error(
-            'Silent Google sign-in failed:',
-            response.error
-          );
-
-          return;
-
-        }
-
-        googleAccessToken =
-          response.access_token;
-
-        pullNewSongsFromDrive();
-
-      }
-
-    });
-
-  googleTokenClient.requestAccessToken({
-    prompt: ''
-  });
+  pullNewSongsFromDrive();
 
 }
 
 
-initGoogleSyncOnLoad();
+initSyncOnLoad();
 
 
 /*
@@ -16048,6 +15733,40 @@ function urlBase64ToUint8Array(base64String){
 }
 
 
+/*
+  Tells the backend a brand-new song was just added to the
+  shared library, so it can push a "New song added" notification
+  to everyone else's device. Fire-and-forget — a failed request
+  here shouldn't block or fail the sync itself.
+*/
+async function notifyNewSong(title){
+
+  if(!NOTIFY_SECRET || NOTIFY_SECRET.includes('YOUR-'))return;
+
+  try{
+
+    await fetch(API_BASE_URL + '/api/notify-new-song', {
+
+      method:'POST',
+
+      headers:{
+        'Content-Type':'application/json',
+        'X-Notify-Secret': NOTIFY_SECRET
+      },
+
+      body: JSON.stringify({ title })
+
+    });
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+
 async function enableSongNotifications(){
 
   if(
@@ -16079,7 +15798,7 @@ async function enableSongNotifications(){
     }
 
     const keyResponse =
-      await fetch('/api/vapid-public-key');
+      await fetch(API_BASE_URL + '/api/vapid-public-key');
 
     const { publicKey } =
       await keyResponse.json();
@@ -16114,7 +15833,7 @@ async function enableSongNotifications(){
 
     }
 
-    await fetch('/api/push-subscribe', {
+    await fetch(API_BASE_URL + '/api/push-subscribe', {
 
       method:'POST',
 
@@ -16161,7 +15880,7 @@ async function disableSongNotifications(){
 
       if(subscription){
 
-        await fetch('/api/push-subscribe', {
+        await fetch(API_BASE_URL + '/api/push-subscribe', {
 
           method:'DELETE',
 

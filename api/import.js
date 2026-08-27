@@ -1,8 +1,15 @@
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', 'https://markebora.github.io');
+  /*
+    Was locked to a single GitHub Pages origin from an earlier
+    deployment. Widened to match the other /api endpoints in
+    this project (notify-new-song, firebase-config, etc.) so
+    requests from a bundled native app shell (Capacitor/Cordova,
+    which runs on its own origin like capacitor://localhost)
+    aren't rejected.
+  */
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Vary', 'Origin');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });

@@ -42,9 +42,8 @@ self.addEventListener('fetch', (event) => {
 });
 
 /*
-  New-song push notifications from the Drive sync backend
-  (see /api/drive-webhook). Shows a real system notification
-  even while the app isn't open.
+  New-song push notifications (see /api/notify-new-song). Shows
+  a real system notification even while the app isn't open.
 */
 self.addEventListener('push', (event) => {
   let payload = {};
