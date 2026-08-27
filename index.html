@@ -1131,7 +1131,12 @@ button{
 }
 
 .empty{
-  padding:18px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+
+  padding:32px 20px;
+  gap:10px;
 
   border:1px dashed #303036;
 
@@ -1140,8 +1145,52 @@ button{
   color:#707078;
 
   font-size:13px;
+  line-height:1.5;
 
   text-align:center;
+}
+
+.emptyIcon{
+  width:40px;
+  height:40px;
+
+  display:grid;
+  place-items:center;
+
+  border-radius:50%;
+  background:rgba(255,255,255,.05);
+
+  color:#4d4d55;
+
+  margin-bottom:2px;
+}
+
+.emptyIcon svg{
+  width:20px;
+  height:20px;
+
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+.emptyAction{
+  margin-top:4px;
+
+  border:0;
+  border-radius:11px;
+
+  background:#fff;
+  color:#111;
+
+  font-size:13px;
+  font-weight:800;
+
+  padding:9px 18px;
+
+  cursor:pointer;
 }
 
 
@@ -1506,12 +1555,61 @@ button{
 
   cursor:pointer;
 
+  touch-action:manipulation;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+
   transition:background .18s ease,color .18s ease;
 }
 
 .viewModeBtn.active{
   background:#fff;
   color:#111;
+}
+
+.mdModeBadge{
+  display:inline-block;
+  vertical-align:top;
+
+  margin-left:5px;
+
+  background:#7aa2f7;
+  color:#0d0d0f;
+
+  border-radius:5px;
+
+  padding:1px 5px;
+
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:.03em;
+}
+
+.viewModeBtn.mdActive:not(.active){
+  color:#7aa2f7;
+}
+
+.mdAvailableDot{
+  display:inline-block;
+  vertical-align:top;
+
+  width:6px;
+  height:6px;
+
+  margin-left:5px;
+  margin-top:2px;
+
+  background:#7aa2f7;
+  border-radius:50%;
+
+  animation:mdAvailablePulse 2.2s ease-in-out infinite;
+}
+
+@keyframes mdAvailablePulse{
+  0%,100%{opacity:.5;}
+  50%{opacity:1;}
 }
 
 
@@ -1665,6 +1763,69 @@ button{
   cursor:pointer;
 }
 
+.flowKeyChangeBadge{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+
+  margin-left:6px;
+
+  background:rgba(122,162,247,.12);
+  border:1px dashed rgba(122,162,247,.5);
+  border-radius:999px;
+
+  padding:3px 10px;
+
+  font-size:11.5px;
+  font-weight:700;
+  color:#7aa2f7;
+
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.flowKeyChangePanel[hidden]{
+  display:none;
+}
+
+.flowKeyChangePanel:not([hidden]){
+  margin-top:8px;
+}
+
+.flowKeyChangeControls{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+
+  padding:8px 10px;
+
+  background:rgba(122,162,247,.07);
+  border:1px dashed rgba(122,162,247,.35);
+  border-radius:10px;
+
+  cursor:default;
+}
+
+.flowKeyChangeLabel{
+  font-size:11.5px;
+  line-height:1.4;
+  color:#9aa5d1;
+
+  flex:1 1 160px;
+  min-width:140px;
+}
+
+.flowKeyChangeClear{
+  border:0;
+  background:transparent;
+
+  color:#ff8b8b;
+  font-size:11.5px;
+
+  cursor:pointer;
+}
+
 /* Hidden until the card is long-pressed. */
 
 .flowItemControls{
@@ -1741,6 +1902,24 @@ button{
 .flowAddNoteInlineBtn{
   font-size:12px;
   color:#e6c98a;
+}
+
+.flowKeyChangeBtn{
+  width:24px;
+  height:24px;
+
+  border:1px solid #303036;
+  border-radius:7px;
+
+  background:#1a1a1d;
+  color:#7aa2f7;
+
+  font-size:12px;
+
+  display:grid;
+  place-items:center;
+
+  cursor:pointer;
 }
 
 .flowDragHandle{
@@ -1954,33 +2133,65 @@ button{
   flex:1;
 }
 
-/* Read-only rendering of the same annotations, inside actual
-   Chords/Lyrics view once a custom flow exists for a song. */
+/* Shared shape for every translucent "pill" chip in the app —
+   flowSideNote, flowKeyChangeBadge, mdNotePill, and this base
+   class all use the same dashed-border, fully-rounded shape.
+   New pill/badge additions should add "pillNote" alongside
+   their own class and only define background/border-color/
+   color for their accent — everything else comes from here,
+   so new chips automatically stay visually locked in sync with
+   the existing ones instead of redefining the shape by hand. */
 
-.flowLineNoteAboveStatic{
-  margin:4px 0;
-  padding:5px 9px;
+.pillNote{
+  display:inline-block;
 
-  background:rgba(231,201,138,.08);
-  border-left:2px solid rgba(231,201,138,.5);
-  border-radius:4px;
+  border-style:dashed;
+  border-width:1px;
+  border-radius:999px;
+
+  padding:4px 11px;
+
+  font-style:italic;
+  font-size:11.5px;
+  line-height:1.3;
+}
+
+/* Read-only rendering of MD-Mode notes, inside the actual
+   Chords/Lyrics view once a custom flow exists for a song.
+   Each note stays right beside whatever it annotates — the
+   section name, or the line — but as its own separated pill
+   with a highlighted, translucent background, rather than
+   blended into that text. */
+
+.mdNotePill{
+  display:inline-block;
+
+  background:rgba(231,201,138,.14);
+  border:1px dashed rgba(231,201,138,.45);
+  border-radius:999px;
+
+  padding:4px 11px;
 
   color:#e6c98a;
   font-style:italic;
-  font-size:12.5px;
-  line-height:1.4;
+  font-weight:500;
+  font-size:12px;
+  line-height:1.3;
 
   white-space:pre-wrap;
 }
 
-.flowLineNoteBesideStatic{
+.mdNotePillSection{
+  font-size:11.5px;
+}
+
+.mdNotePillAbove{
+  margin:4px 0;
+}
+
+.mdNotePillBeside{
   margin-left:8px;
-
-  color:#e6c98a;
-  font-style:italic;
-  font-size:12px;
-
-  white-space:pre-wrap;
+  vertical-align:middle;
 }
 
 .flowNoteBlock{
@@ -1997,6 +2208,137 @@ button{
   line-height:1.5;
 
   white-space:pre-wrap;
+}
+
+.flowNoteCheckBtn{
+  width:24px;
+  height:24px;
+
+  border:1px solid rgba(158,231,132,.5);
+  border-radius:7px;
+
+  background:rgba(158,231,132,.12);
+  color:#9ee784;
+
+  font-size:12px;
+  font-weight:800;
+
+  display:grid;
+  place-items:center;
+
+  cursor:pointer;
+}
+
+.flowNoteConfirmed{
+  align-items:center;
+  background:rgba(231,201,138,.1);
+}
+
+.flowNoteConfirmedText{
+  flex:1;
+
+  color:#e6c98a;
+  font-style:italic;
+  font-size:13.5px;
+  line-height:1.5;
+
+  white-space:pre-wrap;
+  cursor:text;
+}
+
+/* Divider shown in the read-only Chords/Lyrics view at the
+   point a key change takes effect. */
+
+.flowKeyChangeDivider{
+  display:flex;
+  align-items:center;
+  gap:8px;
+
+  margin:18px 0 10px;
+
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  color:#7aa2f7;
+}
+
+.flowKeyChangeDivider::before,
+.flowKeyChangeDivider::after{
+  content:"";
+  flex:1;
+  height:1px;
+  background:rgba(122,162,247,.35);
+}
+
+.flowKeyChangeDivider.keyChangeFlash{
+  border-radius:8px;
+  animation:keyChangeFlashPulse .9s ease-out;
+}
+
+@keyframes keyChangeFlashPulse{
+  0%{
+    background:rgba(122,162,247,.24);
+    box-shadow:0 0 0 0 rgba(122,162,247,.5);
+  }
+  100%{
+    background:rgba(122,162,247,0);
+    box-shadow:0 0 0 14px rgba(122,162,247,0);
+  }
+}
+
+.longPressHintBanner{
+  position:fixed;
+  top:calc(12px + env(safe-area-inset-top, 0px));
+  left:50%;
+  z-index:500;
+
+  display:flex;
+  align-items:center;
+  gap:10px;
+
+  max-width:calc(100% - 32px);
+  width:420px;
+
+  background:rgba(122,162,247,.16);
+  border:1px solid rgba(122,162,247,.4);
+  border-radius:14px;
+
+  padding:10px 12px;
+
+  color:#dfe6ff;
+  font-size:12.5px;
+  line-height:1.4;
+
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  box-shadow:0 10px 26px rgba(0,0,0,.4);
+
+  opacity:0;
+  transform:translateX(-50%) translateY(-12px);
+  transition:opacity .26s ease, transform .26s ease;
+}
+
+.longPressHintBanner.show{
+  opacity:1;
+  transform:translateX(-50%) translateY(0);
+}
+
+.longPressHintClose{
+  flex:0 0 auto;
+
+  width:22px;
+  height:22px;
+
+  border:0;
+  border-radius:50%;
+
+  background:rgba(255,255,255,.14);
+  color:#fff;
+
+  font-size:11px;
+
+  cursor:pointer;
 }
 
 .transposeGroup,
@@ -2238,7 +2580,16 @@ button{
 .mergeTapNext{right:0;}
 .mergeTapPrev{left:0;}
 
-.songSectionFloatBar{position:fixed;bottom:calc(82px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:620px;z-index:99;background:transparent;border:0;box-shadow:none;padding:0;}
+.songSectionFloatBar{position:fixed;bottom:calc(82px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:620px;z-index:99;background:transparent;border:0;box-shadow:none;padding:0;transition:opacity .3s ease,transform .3s ease;}
+.songSectionFloatBar.idle{opacity:.4;transform:translateX(-50%) scale(.95);}
+
+/* Generic idle-fade base — see attachIdleFade() in the script.
+   Elements opt in with this class, then define their own
+   ".idle" look (a lighter opacity/scale usually reads best). */
+
+.idleFade{
+  transition:opacity .3s ease,transform .3s ease;
+}
 
 .autoScrollFab{
   position:fixed;
@@ -2255,6 +2606,13 @@ button{
   backdrop-filter:blur(14px);
   -webkit-backdrop-filter:blur(14px);
   box-shadow:0 8px 22px rgba(0,0,0,.45);
+
+  transition:opacity .3s ease,transform .3s ease;
+}
+
+.autoScrollFab.idle{
+  opacity:.36;
+  transform:scale(.9) translateX(4px);
 }
 
 .asSpeedBadge{
@@ -2337,7 +2695,7 @@ button{
 .librarySelectBar button{flex:0 0 auto;}
 .songSectionNav{display:flex;gap:7px;overflow-x:auto;padding:0 1px 3px;scrollbar-width:none;touch-action:pan-x;}
 .songSectionNav::-webkit-scrollbar{display:none;}
-.songSectionNav button{flex:0 0 auto;border:1px solid #303036;background:#18181b;color:#a7a7ad;border-radius:10px;padding:8px 11px;font-size:11px;font-weight:800;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:pan-x;transition:background .18s ease,color .18s ease,border-color .18s ease;}
+.songSectionNav button{flex:0 0 auto;border:1px solid #303036;border-left:3px solid var(--nav-accent,#303036);background:#18181b;color:#a7a7ad;border-radius:10px;padding:8px 11px 8px 9px;font-size:11px;font-weight:800;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:pan-x;transition:background .18s ease,color .18s ease,border-color .18s ease;}
 .songSectionNav button.active{background:#fff;color:#111;border-color:#fff;}
 .songSectionNav button.longPressing{transform:scale(.96);background:#303036;}
 .songSectionNav button.dragging{opacity:.45;}
@@ -2349,16 +2707,29 @@ button{
   flex-direction:column;
 
   gap:22px;
+
+  transition:opacity .14s ease;
+}
+
+.songStructure.structureFading{
+  opacity:0;
 }
 
 .songSection{
   scroll-margin-top:64px;
 }
 
-.songSectionName{
-  display:inline-block;
+.songSectionHeaderRow{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
 
   margin-bottom:10px;
+}
+
+.songSectionName{
+  display:inline-block;
 
   background:#26262b;
 
@@ -2987,6 +3358,15 @@ button{
   opacity:0;
   transform:translateY(10px);
   transition:opacity .25s ease, transform .25s ease;
+
+  pointer-events:auto;
+  touch-action:pan-y;
+  cursor:grab;
+}
+
+.toast.toastDragging{
+  transition:none;
+  cursor:grabbing;
 }
 
 .toast.toastShow{
@@ -3543,6 +3923,156 @@ const query =
    call sites just `await` it instead of using confirm().
 ========================================================= */
 
+/*
+  Generic idle-fade for floating controls that sit on top of
+  scrollable content (the auto-scroll FAB, the section-jump
+  pill bar, ...). Give the element the "idleFade" class plus
+  its own CSS for what ".idle" should look like, then call this
+  once after it's in the DOM. It fades to that idle state a
+  couple seconds after the last touch anywhere on the element,
+  and snaps back to full strength on the next tap. Any future
+  floating widget should reuse this instead of writing its own
+  timer.
+*/
+
+const IDLE_FADE_DEFAULT_MS = 2200;
+
+function attachIdleFade(el, delayMs){
+
+  if(!el)return null;
+
+  let timer = null;
+
+  const schedule = () => {
+
+    clearTimeout(timer);
+
+    el.classList.remove('idle');
+
+    timer = setTimeout(() => {
+      el.classList.add('idle');
+    }, delayMs || IDLE_FADE_DEFAULT_MS);
+
+  };
+
+  el.addEventListener('pointerdown', schedule);
+
+  schedule();
+
+  return schedule;
+
+}
+
+
+/*
+  Gives the "Key change" divider a brief glow the moment it
+  scrolls into view — a little extra heads-up for whoever's
+  reading/playing along, on top of the divider text itself.
+  Fires once per divider per render (unobserves after firing),
+  so scrolling back up and down again doesn't keep re-flashing
+  it.
+*/
+
+function attachKeyChangeFlash(){
+
+  if(!('IntersectionObserver' in window))return;
+
+  const dividers =
+    document.querySelectorAll('#songStructure .flowKeyChangeDivider');
+
+  if(!dividers.length)return;
+
+  const observer =
+    new IntersectionObserver((entries) => {
+
+      entries.forEach(entry => {
+
+        if(!entry.isIntersecting)return;
+
+        entry.target.classList.add('keyChangeFlash');
+
+        setTimeout(() => {
+          entry.target.classList.remove('keyChangeFlash');
+        }, 900);
+
+        observer.unobserve(entry.target);
+
+      });
+
+    }, { threshold: 0.6 });
+
+  dividers.forEach(div => observer.observe(div));
+
+}
+
+
+/*
+  A one-time tip shown the first time the song viewer opens,
+  since long-press now does three different things (Flow
+  section controls, Change Key, MD Mode) and none of them are
+  otherwise discoverable. Tracked in settings so it only ever
+  shows once.
+*/
+
+function maybeShowLongPressHint(){
+
+  if(getSettings().hasSeenLongPressHint)return;
+
+  writeSettings({ hasSeenLongPressHint: true });
+
+  const banner =
+    document.createElement('div');
+
+  banner.className = 'longPressHintBanner';
+
+  banner.innerHTML = `
+    <span>💡 Long-press a section in Flow for more options — or long-press <strong>Chords</strong> for MD Mode.</span>
+    <button type="button" class="longPressHintClose" aria-label="Dismiss">✕</button>
+  `;
+
+  document.body.appendChild(banner);
+
+  requestAnimationFrame(() => {
+    banner.classList.add('show');
+  });
+
+  const remove = () => {
+    banner.classList.remove('show');
+    setTimeout(() => banner.remove(), 260);
+  };
+
+  banner.querySelector('.longPressHintClose').onclick = remove;
+
+  setTimeout(remove, 6000);
+
+}
+
+
+/* Small shared icon set for empty states — keeps the "icon +
+   one line + next action" pattern consistent everywhere it's
+   used instead of every call site inlining its own SVG. */
+
+function emptyStateIconHTML(type){
+
+  const icons = {
+
+    music: '<svg viewBox="0 0 24 24"><path d="M9 18V5"/><path d="M9 5l10-2" style="stroke-width:3.1;"/><path d="M19 3v13"/><circle cx="6" cy="18" r="3" style="fill:currentColor;stroke:none;"/><circle cx="16" cy="16" r="3" style="fill:currentColor;stroke:none;"/></svg>',
+
+    list: '<svg viewBox="0 0 24 24"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>',
+
+    search: '<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M19.5 19.5 15.2 15.2"/></svg>',
+
+    clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+
+    layers: '<svg viewBox="0 0 24 24"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="M3 13l9 5 9-5"/></svg>'
+
+  };
+
+  return `<div class="emptyIcon">${icons[type] || icons.music}</div>`;
+
+}
+
+
 function showToast(message, type){
 
   const stack =
@@ -3569,7 +4099,15 @@ function showToast(message, type){
     toast.classList.add('toastShow');
   });
 
-  setTimeout(() => {
+  let dismissed = false;
+  let dismissTimer = null;
+
+  const dismiss = () => {
+
+    if(dismissed)return;
+    dismissed = true;
+
+    clearTimeout(dismissTimer);
 
     toast.classList.remove('toastShow');
 
@@ -3577,7 +4115,75 @@ function showToast(message, type){
       toast.remove();
     }, 250);
 
-  }, 3200);
+  };
+
+  dismissTimer = setTimeout(dismiss, 3200);
+
+  /* Swipe left or right to dismiss early — handy when a
+     second toast is about to stack on top of one that's
+     sitting over something you need to tap. */
+
+  let dragging = false;
+  let startX = 0;
+  let dx = 0;
+
+  toast.addEventListener('pointerdown', (event) => {
+
+    if(dismissed)return;
+
+    dragging = true;
+    startX = event.clientX;
+
+    toast.classList.add('toastDragging');
+
+    clearTimeout(dismissTimer);
+
+  });
+
+  toast.addEventListener('pointermove', (event) => {
+
+    if(!dragging)return;
+
+    dx = event.clientX - startX;
+
+    toast.style.transform = `translateX(${dx}px)`;
+    toast.style.opacity = String(Math.max(0, 1 - Math.abs(dx) / 140));
+
+  });
+
+  const endDrag = () => {
+
+    if(!dragging)return;
+    dragging = false;
+
+    toast.classList.remove('toastDragging');
+
+    if(Math.abs(dx) > 60){
+
+      dismissed = true;
+
+      toast.style.transform = `translateX(${dx > 0 ? 260 : -260}px)`;
+      toast.style.opacity = '0';
+
+      setTimeout(() => {
+        toast.remove();
+      }, 180);
+
+    }else{
+
+      toast.style.transform = '';
+      toast.style.opacity = '';
+
+      dismissTimer = setTimeout(dismiss, 1800);
+
+    }
+
+    dx = 0;
+
+  };
+
+  toast.addEventListener('pointerup', endDrag);
+  toast.addEventListener('pointercancel', endDrag);
 
 }
 
@@ -3788,6 +4394,16 @@ let currentSong = null;
 */
 let showChords = true;
 let songFlowMode = false;
+
+/*
+  MD ("Music Director") Mode — long-press the Chords button to
+  toggle. When on, the notes typed on the Flow page (between-
+  section notes, the note beside a section, and above/beside
+  line cues) are overlaid on the actual Chords/Lyrics page.
+  Off by default so the plain view stays clean for everyone
+  else. Session-level, like showChords — not persisted.
+*/
+let mdViewMode = false;
 
 /*
   Library multi-select state: song IDs currently checked in
@@ -4499,7 +5115,9 @@ function getSettings(){
 
     googleClientId: '',
 
-    songNotifications: false
+    songNotifications: false,
+
+    hasSeenLongPressHint: false
 
   };
 
@@ -7189,10 +7807,10 @@ function renderLyrics(){
         : `
 
           <div class="empty">
-
+            ${emptyStateIconHTML('clock')}
             No recently viewed songs.<br>
             Search or import a song to get started.
-
+            <button type="button" class="emptyAction" id="emptyRecentSearchBtn">Search</button>
           </div>
 
         `
@@ -7207,6 +7825,13 @@ function renderLyrics(){
     .getElementById('lyricsSearch')
     .onclick =
       () => openSearch('all');
+
+  const emptyRecentSearchBtn =
+    document.getElementById('emptyRecentSearchBtn');
+
+  if(emptyRecentSearchBtn){
+    emptyRecentSearchBtn.onclick = () => openSearch('all');
+  }
 
 
   const lyricsImportFile =
@@ -8378,6 +9003,7 @@ function renderAnalysisResult(
         : `
 
           <div class="empty">
+            ${emptyStateIconHTML('layers')}
             No sections detected yet.
           </div>
 
@@ -9209,6 +9835,15 @@ function getExpandedDisplayBlocks(sections, flow){
 
   const blocks = [];
 
+  /* Extra transpose offset in effect at this point in the flow.
+     A section item can carry keyChangeSteps, which resets this
+     value from that position onward — including through later
+     repeats of the same (or a different) section — until either
+     the flow ends or another keyChangeSteps point overrides it.
+     This lets one song hold two or more different keys. */
+
+  let currentExtra = 0;
+
   flow.forEach(item => {
 
     if(item.type === 'note'){
@@ -9223,17 +9858,38 @@ function getExpandedDisplayBlocks(sections, flow){
 
     }
 
+    if(typeof item.keyChangeSteps === 'number'){
+      currentExtra = item.keyChangeSteps;
+    }
+
     const section =
       byId.get(item.sectionId);
 
     if(section){
 
+      const lines =
+        currentExtra
+          ? section.lines.map(line => transposeText(line, currentExtra))
+          : section.lines;
+
+      const hasKeyChange =
+        typeof item.keyChangeSteps === 'number';
+
+      const keyLabel =
+        hasKeyChange
+          ? (detectKeyFromChords(extractChordTokens(lines.join('\n'))) || {}).label
+          : undefined;
+
       blocks.push({
         isNote: false,
         id: item.id,
         name: section.name,
-        lines: section.lines,
-        lineNotes: Array.isArray(item.lineNotes) ? item.lineNotes : []
+        lines,
+        lineNotes: Array.isArray(item.lineNotes) ? item.lineNotes : [],
+        sideNote: item.sideNote || '',
+        hasKeyChange,
+        keyChangeSteps: currentExtra,
+        keyChangeLabel: keyLabel
       });
 
     }
@@ -9241,6 +9897,83 @@ function getExpandedDisplayBlocks(sections, flow){
   });
 
   return blocks;
+
+}
+
+
+/* Shared by the plain and merged song viewers, and reused for
+   the MD Mode toggle's partial refresh so that toggle doesn't
+   have to tear down and rebuild the whole page. */
+
+/*
+  Quick confirmation toast after a transpose tap — the header
+  badge already updates too, but this puts the new key right
+  where your thumb is instead of making you look back up top.
+*/
+
+function showTransposeKeyToast(sourceText, steps){
+
+  const info =
+    detectKeyFromChords(
+      extractChordTokens(
+        transposeText(sourceText || '', steps)
+      )
+    );
+
+  if(info){
+    showToast('Key: ' + info.label, 'success');
+  }
+
+}
+
+
+function flowHasMdNotes(flow){
+
+  return (flow || []).some(item => {
+
+    if(item.type === 'note')return !!(item.text || '').trim();
+
+    if(item.sideNote && item.sideNote.trim())return true;
+
+    if(Array.isArray(item.lineNotes) && item.lineNotes.some(note => (note.text || '').trim()))return true;
+
+    return false;
+
+  });
+
+}
+
+
+function renderSongStructureHTML(displayBlocks){
+
+  return displayBlocks
+    .map((block, index) => {
+
+      if(block.isNote){
+
+        return mdViewMode && block.text.trim()
+          ? `<div class="flowNoteBlock">${esc(block.text)}</div>`
+          : '';
+
+      }
+
+      const accent =
+        flowSectionAccent(block.name);
+
+      const keyChangeHTML =
+        block.hasKeyChange
+          ? `<div class="flowKeyChangeDivider">Key change: ${block.keyChangeLabel ? esc(block.keyChangeLabel) : (block.keyChangeSteps > 0 ? '+' : '') + block.keyChangeSteps}</div>`
+          : '';
+
+      const sideNoteHTML =
+        (mdViewMode && block.sideNote && block.sideNote.trim())
+          ? `<span class="mdNotePill mdNotePillSection">${esc(block.sideNote.trim())}</span>`
+          : '';
+
+      return `${keyChangeHTML}<div class="songSection" id="section-${index}" data-section-index="${index}"><div class="songSectionHeaderRow"><div class="songSectionName" style="background:${accent}22;color:${accent};border:1px solid ${accent}55;">${esc(block.name)}</div>${sideNoteHTML}</div>${renderSectionLinesHTML(block,false)}</div>`;
+
+    })
+    .join('');
 
 }
 
@@ -9493,8 +10226,8 @@ function renderSectionLinesHTML(block, interactive){
             <button type="button" class="flowLineNoteDelete" data-line-note-delete="${esc(note.id)}" aria-label="Remove note">✕</button>
           </div>
         ` : (
-          note.text.trim()
-            ? `<div class="flowLineNoteAboveStatic">${esc(note.text)}</div>`
+          mdViewMode && note.text.trim()
+            ? `<div class="mdNotePill mdNotePillAbove">${esc(note.text)}</div>`
             : ''
         )).join('');
 
@@ -9515,8 +10248,8 @@ function renderSectionLinesHTML(block, interactive){
             <button type="button" class="flowLineNoteDelete" data-line-note-delete="${esc(note.id)}" aria-label="Remove note">✕</button>
           </span>
         ` : (
-          note.text.trim()
-            ? `<span class="flowLineNoteBesideStatic">— ${esc(note.text)}</span>`
+          mdViewMode && note.text.trim()
+            ? `<span class="mdNotePill mdNotePillBeside">${esc(note.text)}</span>`
             : ''
         )).join('');
 
@@ -9563,9 +10296,33 @@ function renderFlowListHTML(flow, sections){
 
     if(item.type === 'note'){
 
+      const isConfirmed =
+        !!item.confirmed && (item.text || '').trim();
+
+      if(isConfirmed){
+
+        html.push(`
+          <div class="flowBetweenNote flowNoteConfirmed" data-flow-index="${i}" data-flow-group="${i}:${i}">
+
+            <div class="flowNoteConfirmedText" data-flow-note-reopen="${i}">${esc(item.text)}</div>
+
+            <div class="flowItemControls flowItemControlsStatic">
+              <button type="button" class="flowDragHandle" aria-label="Drag to reorder">⠿</button>
+              <button type="button" class="flowDeleteBtn" data-flow-delete="${i}" aria-label="Remove">✕</button>
+            </div>
+
+          </div>
+        `);
+
+        i += 1;
+        continue;
+
+      }
+
       const noteControlsHTML = `
         <div class="flowItemControls flowItemControlsStatic">
           <button type="button" class="flowDragHandle" aria-label="Drag to reorder">⠿</button>
+          <button type="button" class="flowNoteCheckBtn" data-flow-note-check="${i}" aria-label="Done editing note">✓</button>
           <button type="button" class="flowDeleteBtn" data-flow-delete="${i}" aria-label="Remove">✕</button>
         </div>
       `;
@@ -9607,6 +10364,7 @@ function renderFlowListHTML(flow, sections){
     const sectionControlsHTML = `
       <div class="flowItemControls">
         <button type="button" class="flowDragHandle" aria-label="Drag to reorder">⠿</button>
+        <button type="button" class="flowKeyChangeBtn" data-flow-keychange-open="${i}" aria-label="Change key from here">♬</button>
         <button type="button" class="flowAddNoteInlineBtn" data-flow-sidenote-edit="${i}" aria-label="Add note beside this section">✎</button>
         <button type="button" class="flowDupBtn" data-flow-duplicate="${end}" aria-label="Duplicate">⧉</button>
         <button type="button" class="flowDeleteBtn" data-flow-delete="${end}" aria-label="Remove">✕</button>
@@ -9640,6 +10398,23 @@ function renderFlowListHTML(flow, sections){
         ? `<span class="flowSideNote" data-flow-sidenote-slot="${i}">${esc(item.sideNote)}<button type="button" class="flowSideNoteDelete" data-flow-sidenote-clear="${i}" aria-label="Remove note">✕</button></span>`
         : `<span class="flowSideNoteSlot" data-flow-sidenote-slot="${i}"></span>`;
 
+    const keyChangeHTML =
+      typeof item.keyChangeSteps === 'number'
+        ? (() => {
+            const detected =
+              detectKeyFromChords(
+                extractChordTokens(
+                  section.lines.map(line => transposeText(line, item.keyChangeSteps)).join('\n')
+                )
+              );
+            const label =
+              detected
+                ? detected.label
+                : (item.keyChangeSteps > 0 ? '+' : '') + item.keyChangeSteps;
+            return `<span class="flowKeyChangeBadge" data-flow-keychange-open="${i}">Key: ${esc(label)}</span>`;
+          })()
+        : '';
+
     html.push(`
       <div class="flowSectionCard" data-flow-index="${i}" data-flow-group="${i}:${end}" data-flow-jump="${i}" style="border-left:3px solid ${accent}75;">
 
@@ -9649,9 +10424,12 @@ function renderFlowListHTML(flow, sections){
               <span class="flowSectionDot" style="background:${accent};"></span>${esc(section.name)}${count > 1 ? `<span class="flowRepeatBadge">×${count}</span>` : ''}
             </div>
             ${sideNoteHTML}
+            ${keyChangeHTML}
           </div>
           ${sectionControlsHTML}
         </div>
+
+        <div class="flowKeyChangePanel" data-flow-keychange-panel="${i}" hidden></div>
 
       </div>
     `);
@@ -9697,7 +10475,7 @@ function attachFlowControls(target, flow, sections){
      A double-tap jumps to that section in the Chords/Lyrics view. */
 
   const LONG_PRESS_MS = 420;
-  const CONTROL_SELECTOR = '.flowDeleteBtn, .flowDupBtn, .flowDragHandle, .flowAddNoteInlineBtn, .flowSideNoteDelete, .flowSideNoteInput, .flowSideNoteConfirm, .flowSideNote';
+  const CONTROL_SELECTOR = '.flowDeleteBtn, .flowDupBtn, .flowDragHandle, .flowAddNoteInlineBtn, .flowSideNoteDelete, .flowSideNoteInput, .flowSideNoteConfirm, .flowSideNote, .flowKeyChangeBtn, .flowKeyChangeBadge, .flowKeyChangePanel';
 
   document.querySelectorAll('.flowSectionCard').forEach(card => {
 
@@ -9734,6 +10512,10 @@ function attachFlowControls(target, flow, sections){
 
     ['pointerup','pointerleave','pointercancel'].forEach(evt => {
       card.addEventListener(evt, clear);
+    });
+
+    card.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
     });
 
     card.addEventListener('click', (event) => {
@@ -10000,6 +10782,107 @@ function attachFlowControls(target, flow, sections){
 
   });
 
+  /* Change Key — revealed via the same long-press that shows
+     the other section controls. Sets an extra transpose offset
+     that takes effect starting at this exact point in the flow
+     and carries forward (through repeats of any section) until
+     either the song ends or another Change Key point overrides
+     it. Lets one song hold two (or more) different keys. */
+
+  const openKeyChangeEditor = (index) => {
+
+    const panel =
+      document.querySelector(`[data-flow-keychange-panel="${index}"]`);
+
+    if(!panel)return;
+
+    const hasExisting =
+      typeof flow[index].keyChangeSteps === 'number';
+
+    let value =
+      hasExisting ? flow[index].keyChangeSteps : 0;
+
+    const draw = () => {
+
+      panel.hidden = false;
+
+      const targetSection =
+        sections.find(section => section._id === flow[index].sectionId);
+
+      const detected =
+        targetSection
+          ? detectKeyFromChords(
+              extractChordTokens(
+                targetSection.lines.map(line => transposeText(line, value)).join('\n')
+              )
+            )
+          : null;
+
+      const keyPreview =
+        detected ? ` (${esc(detected.label)})` : '';
+
+      panel.innerHTML = `
+        <div class="flowKeyChangeControls">
+          <span class="flowKeyChangeLabel">Key change from here — carries to the end unless changed again</span>
+          <div class="transposeGroup">
+            <button type="button" class="toolbarBtn" data-kc-down>−</button>
+            <button type="button" class="toolbarBtn" data-kc-value>${value > 0 ? '+' : ''}${value}${keyPreview}</button>
+            <button type="button" class="toolbarBtn" data-kc-up>+</button>
+          </div>
+          ${hasExisting ? '<button type="button" class="flowKeyChangeClear" data-kc-clear>Remove</button>' : ''}
+          <button type="button" class="toolbarBtn" data-kc-done>Done</button>
+        </div>
+      `;
+
+      panel.querySelector('[data-kc-down]').onclick = (event) => {
+        event.stopPropagation();
+        value -= 1;
+        draw();
+      };
+
+      panel.querySelector('[data-kc-up]').onclick = (event) => {
+        event.stopPropagation();
+        value += 1;
+        draw();
+      };
+
+      const clearBtn = panel.querySelector('[data-kc-clear]');
+
+      if(clearBtn){
+        clearBtn.onclick = (event) => {
+          event.stopPropagation();
+          const updated = flow.slice();
+          const rest = { ...updated[index] };
+          delete rest.keyChangeSteps;
+          updated[index] = rest;
+          persistSongFlow(target, updated);
+          renderSongViewer();
+        };
+      }
+
+      panel.querySelector('[data-kc-done]').onclick = (event) => {
+        event.stopPropagation();
+        const updated = flow.slice();
+        updated[index] = { ...updated[index], keyChangeSteps: value };
+        persistSongFlow(target, updated);
+        renderSongViewer();
+      };
+
+    };
+
+    draw();
+
+  };
+
+  document.querySelectorAll('[data-flow-keychange-open]').forEach(btn => {
+
+    btn.onclick = (event) => {
+      event.stopPropagation();
+      openKeyChangeEditor(Number(btn.dataset.flowKeychangeOpen));
+    };
+
+  });
+
   document.querySelectorAll('[data-flow-delete]').forEach(btn => {
 
     btn.onclick = () => {
@@ -10038,6 +10921,72 @@ function attachFlowControls(target, flow, sections){
       persistSongFlow(target, updated);
 
     });
+
+  });
+
+  document.querySelectorAll('[data-flow-note-check]').forEach(btn => {
+
+    btn.onclick = (event) => {
+
+      event.stopPropagation();
+
+      const index =
+        Number(btn.dataset.flowNoteCheck);
+
+      const wrap =
+        btn.closest('.flowBetweenNote');
+
+      const textarea =
+        wrap && wrap.querySelector('[data-flow-note-index]');
+
+      const text =
+        textarea ? textarea.value : ((flow[index] && flow[index].text) || '');
+
+      const updated =
+        flow.slice();
+
+      updated[index] = {
+        ...updated[index],
+        text,
+        confirmed: true
+      };
+
+      persistSongFlow(target, updated);
+
+      renderSongViewer();
+
+    };
+
+  });
+
+  document.querySelectorAll('[data-flow-note-reopen]').forEach(el => {
+
+    el.onclick = (event) => {
+
+      event.stopPropagation();
+
+      const index =
+        Number(el.dataset.flowNoteReopen);
+
+      const updated =
+        flow.slice();
+
+      updated[index] = {
+        ...updated[index],
+        confirmed: false
+      };
+
+      persistSongFlow(target, updated);
+
+      renderSongViewer();
+
+      requestAnimationFrame(() => {
+        const textarea =
+          document.querySelector(`[data-flow-note-index="${index}"]`);
+        if(textarea)textarea.focus();
+      });
+
+    };
 
   });
 
@@ -10310,7 +11259,7 @@ function renderSongViewer(){
         </div>
         <div class="toolbarRow">
           <div class="viewModeGroup" id="viewModeGroup">
-            <button type="button" class="viewModeBtn${(!songFlowMode&&showChords)?' active':''}" data-mode="chords">♪ Chords</button>
+            <button type="button" class="viewModeBtn${(!songFlowMode&&showChords)?' active':''}${mdViewMode?' mdActive':''}" data-mode="chords">♪ Chords${mdViewMode?'<span class="mdModeBadge">MD</span>':(flowHasMdNotes(flow)?'<span class="mdAvailableDot" aria-label="This song has MD notes — long-press to view"></span>':'')}</button>
             <button type="button" class="viewModeBtn${(!songFlowMode&&!showChords)?' active':''}" data-mode="lyrics">▤ Lyrics</button>
             <button type="button" class="viewModeBtn${songFlowMode?' active':''}" data-mode="flow">☰ Flow</button>
           </div>
@@ -10328,29 +11277,73 @@ function renderSongViewer(){
       </div>
       `:`
       <div class="lyricsView" id="lyricsText" style="font-size:${song.fontSize}px;"><div class="songStructure${showChords?'':' chordsHidden'}" id="songStructure">
-        ${displayBlocks.map((block,index)=>block.isNote?(block.text.trim()?`<div class="flowNoteBlock">${esc(block.text)}</div>`:''):`<div class="songSection" id="section-${index}" data-section-index="${index}"><div class="songSectionName">${esc(block.name)}</div>${renderSectionLinesHTML(block,false)}</div>`).join('')}
+        ${renderSongStructureHTML(displayBlocks)}
       </div></div>
       `}
     </div>`;
   document.getElementById('songSectionOverlay').innerHTML = songFlowMode?'':`
-    <div class="songSectionFloatBar">
+    <div class="songSectionFloatBar idleFade">
       <div class="songSectionNav" id="songSectionNav" aria-label="Song sections">
-        ${navBlocks.map((block,index)=>`<button type="button" data-section-index="${displayBlocks.indexOf(block)}" class="${index===0?'active':''}">${esc(block.name)}</button>`).join('')}
+        ${navBlocks.map((block,index)=>`<button type="button" data-section-index="${displayBlocks.indexOf(block)}" class="${index===0?'active':''}" style="--nav-accent:${flowSectionAccent(block.name)};">${esc(block.name)}</button>`).join('')}
       </div>
     </div>
   `;
-  renderAutoScrollFab();
+  if(songFlowMode){
+    stopAutoScroll();
+    const asOverlay=document.getElementById('autoScrollOverlay');
+    if(asOverlay)asOverlay.innerHTML='';
+  }else{
+    renderAutoScrollFab();
+    attachIdleFade(document.querySelector('.songSectionFloatBar'));
+    attachKeyChangeFlash();
+    maybeShowLongPressHint();
+  }
   updateLyricsNavIndicator();
   document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
-  document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;renderSongViewer();};
-  document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;renderSongViewer();};
-  document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;renderSongViewer();};
-  document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);renderSongViewer();};
-  document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);renderSongViewer();};
+  document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
+  document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
+  document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
+  document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);renderSongViewer();showToast(song.fontSize+'px','success');};
+  document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);renderSongViewer();showToast(song.fontSize+'px','success');};
   attachSongMenuControls();
   document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(btn=>{
+    let mdPressTimer=null;
+    let mdLongPressed=false;
+    if(btn.dataset.mode==='chords'){
+      btn.addEventListener('pointerdown',()=>{
+        mdLongPressed=false;
+        clearTimeout(mdPressTimer);
+        mdPressTimer=setTimeout(()=>{
+          mdLongPressed=true;
+          mdViewMode=!mdViewMode;
+          if(navigator.vibrate)navigator.vibrate(8);
+          showToast(mdViewMode?'MD Mode on — flow notes shown':'MD Mode off','success');
+          btn.classList.toggle('mdActive',mdViewMode);
+          const existingBadge=btn.querySelector('.mdModeBadge');
+          if(mdViewMode&&!existingBadge){
+            btn.insertAdjacentHTML('beforeend','<span class="mdModeBadge">MD</span>');
+          }else if(!mdViewMode&&existingBadge){
+            existingBadge.remove();
+          }
+          const structureEl=document.getElementById('songStructure');
+          if(structureEl){
+            structureEl.classList.add('structureFading');
+            setTimeout(()=>{
+              structureEl.innerHTML=renderSongStructureHTML(displayBlocks);
+              structureEl.classList.remove('structureFading');
+              attachKeyChangeFlash();
+            },140);
+          }
+        },420);
+      });
+      ['pointerup','pointerleave','pointercancel'].forEach(evt=>{
+        btn.addEventListener(evt,()=>{clearTimeout(mdPressTimer);mdPressTimer=null;});
+      });
+      btn.addEventListener('contextmenu',(event)=>{event.preventDefault();});
+    }
     btn.onclick=()=>{
+      if(mdLongPressed){mdLongPressed=false;return;}
       if(btn.dataset.mode==='flow'){
         songFlowMode=true;
         renderSongViewer();
@@ -10467,7 +11460,7 @@ function renderMergedSongViewer(){
         </div>
         <div class="toolbarRow">
           <div class="viewModeGroup" id="viewModeGroup">
-            <button type="button" class="viewModeBtn${(!songFlowMode&&showChords)?' active':''}" data-mode="chords">♪ Chords</button>
+            <button type="button" class="viewModeBtn${(!songFlowMode&&showChords)?' active':''}${mdViewMode?' mdActive':''}" data-mode="chords">♪ Chords${mdViewMode?'<span class="mdModeBadge">MD</span>':(flowHasMdNotes(flow)?'<span class="mdAvailableDot" aria-label="This song has MD notes — long-press to view"></span>':'')}</button>
             <button type="button" class="viewModeBtn${(!songFlowMode&&!showChords)?' active':''}" data-mode="lyrics">▤ Lyrics</button>
             <button type="button" class="viewModeBtn${songFlowMode?' active':''}" data-mode="flow">☰ Flow</button>
           </div>
@@ -10485,14 +11478,14 @@ function renderMergedSongViewer(){
       </div>
       `:`
       <div class="lyricsView mergedLyricsView" id="lyricsText" style="font-size:${song.fontSize}px;"><div class="songStructure${showChords?'':' chordsHidden'}" id="songStructure">
-        ${displayBlocks.map((block,index)=>block.isNote?(block.text.trim()?`<div class="flowNoteBlock">${esc(block.text)}</div>`:''):`<div class="songSection" id="section-${index}" data-section-index="${index}"><div class="songSectionName">${esc(block.name)}</div>${renderSectionLinesHTML(block,false)}</div>`).join('')}
+        ${renderSongStructureHTML(displayBlocks)}
       </div></div>
       `}
     </div>`;
   document.getElementById('songSectionOverlay').innerHTML = songFlowMode?'':`
-    <div class="songSectionFloatBar">
+    <div class="songSectionFloatBar idleFade">
       <div class="songSectionNav" id="songSectionNav" aria-label="Song sections">
-        ${navBlocks.map((block,index)=>`<button type="button" data-section-index="${displayBlocks.indexOf(block)}" class="${index===0?'active':''}">${esc(block.name)}</button>`).join('')}
+        ${navBlocks.map((block,index)=>`<button type="button" data-section-index="${displayBlocks.indexOf(block)}" class="${index===0?'active':''}" style="--nav-accent:${flowSectionAccent(block.name)};">${esc(block.name)}</button>`).join('')}
       </div>
     </div>
   `;
@@ -10500,18 +11493,62 @@ function renderMergedSongViewer(){
     ${activeIndex>0?'<button type="button" class="mergeTapZone mergeTapPrev" id="mergeTapPrev" aria-label="Previous song"></button>':''}
     ${activeIndex<total-1?'<button type="button" class="mergeTapZone mergeTapNext" id="mergeTapNext" aria-label="Next song"></button>':''}
   `;
-  renderAutoScrollFab();
+  if(songFlowMode){
+    stopAutoScroll();
+    const asOverlay=document.getElementById('autoScrollOverlay');
+    if(asOverlay)asOverlay.innerHTML='';
+  }else{
+    renderAutoScrollFab();
+    attachIdleFade(document.querySelector('.songSectionFloatBar'));
+    attachKeyChangeFlash();
+    maybeShowLongPressHint();
+  }
   updateLyricsNavIndicator();
   document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
-  document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;renderSongViewer();};
-  document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;renderSongViewer();};
-  document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;renderSongViewer();};
-  document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);renderSongViewer();};
-  document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);renderSongViewer();};
+  document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;renderSongViewer();showTransposeKeyToast(part.text,song.transposeSteps);};
+  document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;renderSongViewer();showTransposeKeyToast(part.text,song.transposeSteps);};
+  document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;renderSongViewer();showTransposeKeyToast(part.text,song.transposeSteps);};
+  document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);renderSongViewer();showToast(song.fontSize+'px','success');};
+  document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);renderSongViewer();showToast(song.fontSize+'px','success');};
   attachSongMenuControls();
   document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(btn=>{
+    let mdPressTimer=null;
+    let mdLongPressed=false;
+    if(btn.dataset.mode==='chords'){
+      btn.addEventListener('pointerdown',()=>{
+        mdLongPressed=false;
+        clearTimeout(mdPressTimer);
+        mdPressTimer=setTimeout(()=>{
+          mdLongPressed=true;
+          mdViewMode=!mdViewMode;
+          if(navigator.vibrate)navigator.vibrate(8);
+          showToast(mdViewMode?'MD Mode on — flow notes shown':'MD Mode off','success');
+          btn.classList.toggle('mdActive',mdViewMode);
+          const existingBadge=btn.querySelector('.mdModeBadge');
+          if(mdViewMode&&!existingBadge){
+            btn.insertAdjacentHTML('beforeend','<span class="mdModeBadge">MD</span>');
+          }else if(!mdViewMode&&existingBadge){
+            existingBadge.remove();
+          }
+          const structureEl=document.getElementById('songStructure');
+          if(structureEl){
+            structureEl.classList.add('structureFading');
+            setTimeout(()=>{
+              structureEl.innerHTML=renderSongStructureHTML(displayBlocks);
+              structureEl.classList.remove('structureFading');
+              attachKeyChangeFlash();
+            },140);
+          }
+        },420);
+      });
+      ['pointerup','pointerleave','pointercancel'].forEach(evt=>{
+        btn.addEventListener(evt,()=>{clearTimeout(mdPressTimer);mdPressTimer=null;});
+      });
+      btn.addEventListener('contextmenu',(event)=>{event.preventDefault();});
+    }
     btn.onclick=()=>{
+      if(mdLongPressed){mdLongPressed=false;return;}
       if(btn.dataset.mode==='flow'){
         songFlowMode=true;
         renderSongViewer();
@@ -10700,7 +11737,7 @@ function renderAutoScrollFab(){
   const overlay=document.getElementById('autoScrollOverlay');
   if(!overlay)return;
   overlay.innerHTML=`
-    <div class="autoScrollFab">
+    <div class="autoScrollFab idleFade">
       <div class="asToggleWrap" id="asToggleWrap">
         <button type="button" class="asArrowBtn asArrowUp" id="asArrowUp" aria-label="Increase scroll speed">⌃</button>
         <button class="toolbarBtn asToggleBtn${autoScrollActive?' primary':''}" id="asToggle" aria-label="${autoScrollActive?'Pause auto-scroll':'Start auto-scroll'}">${autoScrollIconHTML()}</button>
@@ -10710,6 +11747,7 @@ function renderAutoScrollFab(){
     </div>
   `;
   attachAutoScrollControls();
+  attachIdleFade(document.querySelector('.autoScrollFab'));
 }
 
 function attachAutoScrollControls(){
@@ -12860,10 +13898,18 @@ function renderLibrary(){
 
           <div class="empty">
 
+            ${emptyStateIconHTML(libraryFavoritesOnly ? 'music' : 'music')}
+
             ${
               libraryFavoritesOnly
                 ? 'No favorites yet.<br>Tap the star on a song to pin it here.'
-                : 'No saved songs yet.<br>\n\n            Search, import or analyze a song.'
+                : 'No saved songs yet.<br>Search, import or analyze a song.'
+            }
+
+            ${
+              libraryFavoritesOnly
+                ? ''
+                : '<button type="button" class="emptyAction" id="emptyLibrarySearchBtn">Search</button>'
             }
 
           </div>
@@ -12925,6 +13971,13 @@ function renderLibrary(){
     )
     .onclick =
       () => openSearch('all');
+
+  const emptyLibrarySearchBtn =
+    document.getElementById('emptyLibrarySearchBtn');
+
+  if(emptyLibrarySearchBtn){
+    emptyLibrarySearchBtn.onclick = () => openSearch('all');
+  }
 
 
   document.getElementById('libraryTabSongs').onclick = () => {
@@ -13459,8 +14512,10 @@ function renderSetlistsTab(){
         `).join('')
         : `
           <div class="empty">
+            ${emptyStateIconHTML('list')}
             No setlists yet.<br>
-            Tap + to build one for an upcoming service.
+            Build one for an upcoming service.
+            <button type="button" class="emptyAction" id="emptySetlistCreateBtn">New Setlist</button>
           </div>
         `
       }
@@ -13486,6 +14541,18 @@ function renderSetlistsTab(){
       renderSetlistDetail(id);
     }
   };
+
+  const emptySetlistCreateBtn =
+    document.getElementById('emptySetlistCreateBtn');
+
+  if(emptySetlistCreateBtn){
+    emptySetlistCreateBtn.onclick = async () => {
+      const id = await createSetlist();
+      if(id){
+        renderSetlistDetail(id);
+      }
+    };
+  }
 
   screen.querySelectorAll('[data-setlist-card]').forEach(card => {
     card.onclick = () => {
@@ -13569,6 +14636,7 @@ function renderSetlistDetail(setlistId){
         `).join('')
         : `
           <div class="empty">
+            ${emptyStateIconHTML('music')}
             No songs yet.<br>
             Open a song, tap ⋮, then "Add to Setlist".
           </div>
@@ -14224,7 +15292,7 @@ function renderResults(){
     )
     .innerHTML =
       html ||
-      '<div class="empty">No results.</div>';
+      '<div class="empty">' + emptyStateIconHTML('search') + 'No results.</div>';
 
 
   document
