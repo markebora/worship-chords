@@ -3974,7 +3974,7 @@ const SYNC_LIBRARY_DOC_ID = 'shared';
   Leave it as '' when running as a normal website — relative
   paths still work fine in that case.
 */
-const API_BASE_URL = '';
+const API_BASE_URL = 'https://worship-chords-rho.vercel.app';
 
 let FIREBASE_CONFIGURED = false;
 let firebaseApp = null;
@@ -5491,6 +5491,30 @@ async function onAuthReady(user){
 
   renderProfile();
 
+  const profile =
+    await loadUserProfile(user.uid);
+
+  if(profile){
+
+    setGoogleUser({
+
+      name:
+        profile.name || (user.email || 'Account').split('@')[0],
+
+      email: user.email || '',
+
+      picture: profile.photo || ''
+
+    });
+
+    renderProfile();
+
+  }else{
+
+    await promptForDisplayName(user);
+
+  }
+
   /*
     After signing in, pull in any songs already in the shared
     library that aren't in this Library yet (additive only —
@@ -5884,6 +5908,213 @@ async function ensureSyncSession(){
     await waitForFirebaseAuthReady();
 
   return !!user;
+
+}
+
+
+/* =========================================================
+   USER PROFILE (display name + photo)
+
+   One small doc per person at profiles/{uid} — separate from
+   the big shared libraries/shared doc, and locked down so each
+   person can only read/write their own (see firestore.rules).
+   This is what lets "what should we call you" and a profile
+   photo follow someone's account across every device they sign
+   into, instead of just living in this one browser's storage.
+========================================================= */
+
+async function loadUserProfile(uid){
+
+  if(!await requireFirebaseConfigured())return null;
+
+  try{
+
+    const docSnap =
+      await firestoreDb
+        .collection('profiles')
+        .doc(uid)
+        .get();
+
+    return docSnap.exists ? docSnap.data() : null;
+
+  }catch(error){
+
+    console.error(error);
+
+    return null;
+
+  }
+
+}
+
+
+async function saveUserProfile(uid, profile){
+
+  if(!await requireFirebaseConfigured())return false;
+
+  try{
+
+    await firestoreDb
+      .collection('profiles')
+      .doc(uid)
+      .set({
+
+        name: profile.name || '',
+        photo: profile.photo || '',
+        updatedAt: new Date().toISOString()
+
+      }, { merge:true });
+
+    return true;
+
+  }catch(error){
+
+    console.error(error);
+
+    showToast(
+      'Could not save profile: ' + error.message,
+      'error'
+    );
+
+    return false;
+
+  }
+
+}
+
+
+/*
+  Shrinks + compresses a picked photo client-side before it ever
+  touches Firestore, so a profile photo stays a small handful of
+  KB instead of whatever multi-MB size a phone camera produces.
+  Resolves to a JPEG data URL, or null if the file couldn't be
+  read as an image.
+*/
+function resizeImageToDataUrl(file, maxWidth, maxHeight, quality){
+
+  return new Promise((resolve) => {
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+
+      const img = new Image();
+
+      img.onload = () => {
+
+        const scale =
+          Math.min(1, maxWidth / img.width, maxHeight / img.height);
+
+        const width =
+          Math.max(1, Math.round(img.width * scale));
+
+        const height =
+          Math.max(1, Math.round(img.height * scale));
+
+        const canvas =
+          document.createElement('canvas');
+
+        canvas.width = width;
+        canvas.height = height;
+
+        canvas
+          .getContext('2d')
+          .drawImage(img, 0, 0, width, height);
+
+        resolve(
+          canvas.toDataURL('image/jpeg', quality)
+        );
+
+      };
+
+      img.onerror = () => resolve(null);
+
+      img.src = reader.result;
+
+    };
+
+    reader.onerror = () => resolve(null);
+
+    reader.readAsDataURL(file);
+
+  });
+
+}
+
+
+/*
+  First-run onboarding — asks the person what to call them,
+  since the account name defaults to whatever's before the @ in
+  their sign-in email. Saved to their profiles/{uid} doc so it
+  follows them to every device.
+*/
+async function promptForDisplayName(user){
+
+  const emailPrefix =
+    (user.email || 'Account').split('@')[0];
+
+  const typed =
+    await showPromptDialog(
+      'What should we call you, disciple?',
+      emailPrefix
+    );
+
+  const finalName =
+    (typed && typed.trim()) || emailPrefix;
+
+  await saveUserProfile(
+    user.uid,
+    { name: finalName, photo:'' }
+  );
+
+  setGoogleUser({
+
+    name: finalName,
+    email: user.email || '',
+    picture: ''
+
+  });
+
+  renderProfile();
+
+}
+
+
+/*
+  Quiet refresh on app resume — if the name/photo was set from
+  a different device since this one last signed in, pick it up
+  without forcing a full re-sign-in. Fire-and-forget; safe to
+  no-op if there's nothing new.
+*/
+async function refreshUserProfile(user){
+
+  const profile =
+    await loadUserProfile(user.uid);
+
+  if(!profile)return;
+
+  const cached =
+    getGoogleUser();
+
+  setGoogleUser({
+
+    name:
+      profile.name ||
+      (cached && cached.name) ||
+      (user.email || 'Account').split('@')[0],
+
+    email:
+      user.email || (cached && cached.email) || '',
+
+    picture: profile.photo || ''
+
+  });
+
+  if(document.querySelector('.profilePage')){
+
+    renderProfile();
+
+  }
 
 }
 
@@ -6633,7 +6864,7 @@ function renderProfile(){
 
       <div class="profileHead">
 
-        <div class="profileAvatar">
+        <div class="profileAvatar" id="profileAvatarBtn" ${user ? 'style="cursor:pointer;" title="Tap to change photo"' : ''}>
           ${
             user && user.picture
               ? `<img src="${esc(user.picture)}" alt="">`
@@ -6641,9 +6872,15 @@ function renderProfile(){
           }
         </div>
 
+        ${
+          user
+            ? `<input type="file" id="profilePhotoFile" accept="image/*" style="display:none;">`
+            : ''
+        }
+
         <div class="profileHeadInfo">
 
-          <div class="profileName">
+          <div class="profileName" id="profileNameLabel" ${user ? 'style="cursor:pointer;" title="Tap to rename"' : ''}>
             ${esc(user ? user.name : 'Guest')}
           </div>
 
@@ -6936,6 +7173,121 @@ function renderProfile(){
     </div>
 
   `;
+
+
+  /* ---------- Profile photo + display name ---------- */
+
+  const avatarBtn =
+    document.getElementById('profileAvatarBtn');
+
+  const photoFileInput =
+    document.getElementById('profilePhotoFile');
+
+  if(avatarBtn && user && photoFileInput){
+
+    avatarBtn.onclick = () => photoFileInput.click();
+
+    photoFileInput.onchange = async () => {
+
+      const file =
+        photoFileInput.files && photoFileInput.files[0];
+
+      if(!file)return;
+
+      const authUser =
+        firebaseAuth && firebaseAuth.currentUser;
+
+      if(!authUser){
+
+        showToast('Sign in to set a profile photo.', 'error');
+
+        return;
+
+      }
+
+      const dataUrl =
+        await resizeImageToDataUrl(file, 200, 200, 0.75);
+
+      if(!dataUrl){
+
+        showToast('Could not read that photo.', 'error');
+
+        return;
+
+      }
+
+      const saved =
+        await saveUserProfile(
+          authUser.uid,
+          { name: user.name || '', photo: dataUrl }
+        );
+
+      if(!saved)return;
+
+      setGoogleUser({
+
+        name: user.name || '',
+        email: user.email || '',
+        picture: dataUrl
+
+      });
+
+      renderProfile();
+
+    };
+
+  }
+
+  const nameLabel =
+    document.getElementById('profileNameLabel');
+
+  if(nameLabel && user){
+
+    nameLabel.onclick = async () => {
+
+      const authUser =
+        firebaseAuth && firebaseAuth.currentUser;
+
+      if(!authUser){
+
+        showToast('Sign in to change your name.', 'error');
+
+        return;
+
+      }
+
+      const typed =
+        await showPromptDialog(
+          'What should we call you, disciple?',
+          user.name || ''
+        );
+
+      if(typed === null)return;
+
+      const finalName =
+        typed.trim() || user.name || '';
+
+      const saved =
+        await saveUserProfile(
+          authUser.uid,
+          { name: finalName, photo: user.picture || '' }
+        );
+
+      if(!saved)return;
+
+      setGoogleUser({
+
+        name: finalName,
+        email: user.email || '',
+        picture: user.picture || ''
+
+      });
+
+      renderProfile();
+
+    };
+
+  }
 
 
   /* ---------- Account ---------- */
@@ -15641,6 +15993,8 @@ async function initSyncOnLoad(){
     return;
 
   }
+
+  refreshUserProfile(user);
 
   pullNewSongsFromDrive();
 

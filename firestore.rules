@@ -4,16 +4,22 @@ rules_version = '2';
 // → Rules, then click Publish.
 //
 // Only signed-in users (your ~10 team members, via Email/Password
-// auth) can read or write anything at all, and the only thing
-// they can touch is the single shared "libraries/shared" document
-// that index.html reads/writes (SYNC_LIBRARY_DOC_ID). Everything
-// else is denied by default.
+// auth) can read or write anything at all. They can touch two
+// things: the single shared "libraries/shared" document that
+// index.html reads/writes (SYNC_LIBRARY_DOC_ID), and their own
+// "profiles/{their own uid}" document (display name + photo) —
+// never anyone else's profile. Everything else is denied by
+// default.
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     match /libraries/{docId} {
       allow read, write: if request.auth != null;
+    }
+
+    match /profiles/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
     // Deny everything else by default.
