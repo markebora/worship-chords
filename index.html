@@ -2576,9 +2576,7 @@ button{
 .mergePartPill{flex:0 0 auto;width:26px;height:26px;border-radius:50%;border:1px solid #303036;background:#18181b;color:#a7a7ad;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .18s ease,color .18s ease,border-color .18s ease;}
 .mergePartPill.active{background:#fff;color:#111;border-color:#fff;}
 .mergedLyricsView{touch-action:pan-y;will-change:transform;}
-.mergeTapZone{position:fixed;top:16%;bottom:18%;width:44px;background:transparent;border:0;padding:0;z-index:55;-webkit-tap-highlight-color:transparent;}
-.mergeTapNext{right:0;}
-.mergeTapPrev{left:0;}
+
 
 .songSectionFloatBar{position:fixed;bottom:calc(82px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:620px;z-index:99;background:transparent;border:0;box-shadow:none;padding:0;transition:opacity .3s ease,transform .3s ease;}
 .songSectionFloatBar.idle{opacity:.4;transform:translateX(-50%) scale(.95);}
@@ -3384,6 +3382,32 @@ button{
   border-color:#20402a;
   background:#132018;
   color:#9be8ae;
+}
+
+/* Compact, translucent variant — used for frequent/low-stakes
+   pings (like the key readout while transposing) so it stays
+   out of the way instead of reading as a full alert. */
+
+.toast.toastSmall{
+  max-width:220px;
+  width:auto;
+
+  padding:6px 14px;
+  border-radius:999px;
+
+  font-size:12.5px;
+  font-weight:600;
+  letter-spacing:.01em;
+  text-align:center;
+
+  background:rgba(19,32,24,.62);
+  border-color:rgba(32,64,42,.7);
+  color:#9be8ae;
+
+  -webkit-backdrop-filter:blur(10px);
+  backdrop-filter:blur(10px);
+
+  box-shadow:0 4px 16px rgba(0,0,0,.25);
 }
 
 
@@ -4206,7 +4230,7 @@ function emptyStateIconHTML(type){
 }
 
 
-function showToast(message, type){
+function showToast(message, type, opts){
 
   const stack =
     document.getElementById('toastStack');
@@ -4215,13 +4239,49 @@ function showToast(message, type){
     return;
   }
 
+  opts = opts || {};
+  const id = typeof opts === 'string' ? opts : opts.id;
+  const small = !!(opts && opts.small);
+
+  /* If this toast has an id and one with the same id is already
+     showing, just update its text and reset its timer instead of
+     stacking a new one on top — this is what stops rapid repeated
+     calls (e.g. holding the transpose button) from piling up. */
+
+  if(id){
+
+    const existing =
+      stack.querySelector(`.toast[data-toast-id="${id}"]`);
+
+    if(existing){
+
+      existing.textContent =
+        String(message == null ? '' : message);
+
+      if(existing._dismiss){
+        clearTimeout(existing._dismissTimer);
+        existing._dismissTimer =
+          setTimeout(existing._dismiss, small ? 1100 : 3200);
+      }
+
+      return;
+
+    }
+
+  }
+
   const toast =
     document.createElement('div');
 
   toast.className =
     'toast' +
     (type === 'error' ? ' toastError' : '') +
-    (type === 'success' ? ' toastSuccess' : '');
+    (type === 'success' ? ' toastSuccess' : '') +
+    (small ? ' toastSmall' : '');
+
+  if(id){
+    toast.dataset.toastId = id;
+  }
 
   toast.textContent =
     String(message == null ? '' : message);
@@ -4250,7 +4310,10 @@ function showToast(message, type){
 
   };
 
-  dismissTimer = setTimeout(dismiss, 3200);
+  toast._dismiss = dismiss;
+
+  dismissTimer = setTimeout(dismiss, small ? 1100 : 3200);
+  toast._dismissTimer = dismissTimer;
 
   /* Swipe left or right to dismiss early — handy when a
      second toast is about to stack on top of one that's
@@ -4270,6 +4333,7 @@ function showToast(message, type){
     toast.classList.add('toastDragging');
 
     clearTimeout(dismissTimer);
+    clearTimeout(toast._dismissTimer);
 
   });
 
@@ -4308,6 +4372,7 @@ function showToast(message, type){
       toast.style.opacity = '';
 
       dismissTimer = setTimeout(dismiss, 1800);
+      toast._dismissTimer = dismissTimer;
 
     }
 
@@ -4626,13 +4691,28 @@ function showOnboardingModal(user){
   its content is swapped out, so navigating between tabs/pages
   (and opening the song viewer, editor, etc.) always feels
   smooth instead of an abrupt content jump.
+
+  Small in-place tweaks — transpose, font size — also go through
+  a full renderSongViewer() re-render, but replaying this fade
+  on every single tap reads as an ugly blink rather than a
+  transition. Setting skipNextScreenTransition = true right
+  before one of those calls lets this one mutation through
+  without the animation, then resets itself automatically.
 */
+
+let skipNextScreenTransition = false;
 
 (function attachScreenTransition(){
 
   if(!screen)return;
 
   const replay=()=>{
+
+    if(skipNextScreenTransition){
+      skipNextScreenTransition = false;
+      return;
+    }
+
     screen.classList.remove('screenTransition');
     void screen.offsetWidth;
     screen.classList.add('screenTransition');
@@ -4657,6 +4737,16 @@ let source = 'all';
 let ugAwaitingPaste = false;
 
 let currentSong = null;
+
+/*
+  Which top-level screen is showing right now — set at the top
+  of each render* function below. Used only by
+  handleHardwareBack() (see near the bottom of this script) to
+  decide where the phone's hardware/gesture back button should
+  go, since a bundled native app has no browser back history to
+  fall back on.
+*/
+let currentScreenName = 'home';
 
 
 /*
@@ -7019,6 +7109,8 @@ async function performDriveSync(){
 
 function renderHome(){
 
+  currentScreenName = 'home';
+
   setActiveNav('home');
 
   updateWelcomeHeader();
@@ -7314,6 +7406,8 @@ function profileInitials(name){
 
 
 function renderProfile(){
+
+  currentScreenName = 'profile';
 
   setActiveNav('profile');
 
@@ -8213,6 +8307,8 @@ function renderProfile(){
 ========================================================= */
 
 function renderLyrics(){
+
+  currentScreenName = 'lyrics';
 
   setActiveNav('lyrics');
 
@@ -10498,7 +10594,7 @@ function showTransposeKeyToast(sourceText, steps){
     );
 
   if(info){
-    showToast('Key: ' + info.label, 'success');
+    showToast('Key: ' + info.label, 'success', { id: 'transposeKey', small: true });
   }
 
 }
@@ -11777,6 +11873,7 @@ function attachSectionNavBehavior(){
 }
 
 function renderSongViewer(){
+  currentScreenName = 'songViewer';
   const song=currentSong;
   if(song && Array.isArray(song.mergeParts) && song.mergeParts.length>1){
     renderMergedSongViewer();
@@ -11879,11 +11976,11 @@ function renderSongViewer(){
   updateLyricsNavIndicator();
   document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
-  document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
-  document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
-  document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
-  document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);renderSongViewer();showToast(song.fontSize+'px','success');};
-  document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);renderSongViewer();showToast(song.fontSize+'px','success');};
+  document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
+  document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
+  document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
+  document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
+  document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
   attachSongMenuControls();
   document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(btn=>{
     let mdPressTimer=null;
@@ -12068,10 +12165,7 @@ function renderMergedSongViewer(){
       </div>
     </div>
   `;
-  document.getElementById('mergeNavOverlay').innerHTML = `
-    ${activeIndex>0?'<button type="button" class="mergeTapZone mergeTapPrev" id="mergeTapPrev" aria-label="Previous song"></button>':''}
-    ${activeIndex<total-1?'<button type="button" class="mergeTapZone mergeTapNext" id="mergeTapNext" aria-label="Next song"></button>':''}
-  `;
+  document.getElementById('mergeNavOverlay').innerHTML = '';
   if(songFlowMode){
     stopAutoScroll();
     const asOverlay=document.getElementById('autoScrollOverlay');
@@ -12085,11 +12179,11 @@ function renderMergedSongViewer(){
   updateLyricsNavIndicator();
   document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
-  document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;renderSongViewer();showTransposeKeyToast(part.text,song.transposeSteps);};
-  document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;renderSongViewer();showTransposeKeyToast(part.text,song.transposeSteps);};
-  document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;renderSongViewer();showTransposeKeyToast(part.text,song.transposeSteps);};
-  document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);renderSongViewer();showToast(song.fontSize+'px','success');};
-  document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);renderSongViewer();showToast(song.fontSize+'px','success');};
+  document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,song.transposeSteps);};
+  document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,song.transposeSteps);};
+  document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,song.transposeSteps);};
+  document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
+  document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
   attachSongMenuControls();
   document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(btn=>{
     let mdPressTimer=null;
@@ -12146,10 +12240,6 @@ function renderMergedSongViewer(){
   document.querySelectorAll('#mergePartPills .mergePartPill').forEach(pill=>{
     pill.onclick=()=>goToMergedPartIndex(Number(pill.dataset.partIndex));
   });
-  const nextBtn=document.getElementById('mergeTapNext');
-  if(nextBtn)nextBtn.onclick=()=>goToMergedPart(1);
-  const prevBtn=document.getElementById('mergeTapPrev');
-  if(prevBtn)prevBtn.onclick=()=>goToMergedPart(-1);
   attachMergedSwipeHandlers();
 }
 
@@ -12158,35 +12248,9 @@ function attachMergedSwipeHandlers(){
   if(!el)return;
   let startX=0,startY=0,tracking=false,horizontal=false;
 
-  /*
-    The tap zones (left/right transparent edge buttons) are
-    the "border" — swiping should never start there, only
-    inside the actual lyrics content. Checking their real
-    getBoundingClientRect() (rather than duplicating the CSS
-    width as a magic number) means this stays correct even if
-    the tap-zone size changes later.
-  */
-  const withinTapZone=(x,y)=>{
-    return ['mergeTapPrev','mergeTapNext'].some(id=>{
-      const zone=document.getElementById(id);
-      if(!zone)return false;
-      const rect=zone.getBoundingClientRect();
-      return x>=rect.left&&x<=rect.right&&y>=rect.top&&y<=rect.bottom;
-    });
-  };
-
   el.addEventListener('touchstart',event=>{
     if(event.touches.length!==1)return;
     const touch=event.touches[0];
-    if(withinTapZone(touch.clientX,touch.clientY)){
-      /*
-        Touch started on the edge tap-zone itself — let that
-        button handle it as a tap, don't also track it as a
-        swipe candidate.
-      */
-      tracking=false;
-      return;
-    }
     startX=touch.clientX;
     startY=touch.clientY;
     tracking=true;
@@ -14275,6 +14339,8 @@ function saveEditorChanges(){
 
 function renderLibrary(){
 
+  currentScreenName = 'library';
+
   setActiveNav('library');
 
 
@@ -15161,6 +15227,8 @@ function renderSetlistsTab(){
 
 function renderSetlistDetail(setlistId){
 
+  currentScreenName = 'setlistDetail';
+
   setActiveNav('library');
 
   const setlists =
@@ -15295,6 +15363,8 @@ function renderSetlistDetail(setlistId){
   it for the whole team, not just this device.
 */
 function renderLineupDetail(){
+
+  currentScreenName = 'lineupDetail';
 
   setActiveNav('home');
 
@@ -16984,6 +17054,129 @@ if('serviceWorker' in navigator){
       });
 
   });
+
+}
+
+
+/* =========================================================
+   HARDWARE BACK BUTTON (native app shell)
+
+   In a browser tab, the phone's back gesture/button falls back
+   to normal browser history — leaving the page, or doing
+   nothing if there's nowhere to go. In a bundled native app
+   (Capacitor), there IS no browser history to fall back on, so
+   without this the hardware back button just closes the app
+   from any screen.
+
+   This mirrors whatever the on-screen back button already does
+   for the current screen (see currentScreenName, set at the top
+   of each render* function above): closes an open song menu or
+   dialog first if one is open, otherwise goes to that screen's
+   logical parent, and only lets the app actually exit once
+   already on Home — same as tapping back manually would.
+*/
+
+function handleHardwareBack(){
+
+  const songMenuDropdown =
+    document.getElementById('songMenuDropdown');
+
+  if(songMenuDropdown && songMenuDropdown.classList.contains('open')){
+
+    closeSongMenu();
+
+    return true;
+
+  }
+
+  const confirmBack =
+    document.getElementById('confirmBack');
+
+  if(confirmBack && confirmBack.classList.contains('open')){
+
+    confirmBack.classList.remove('open');
+
+    const host =
+      document.getElementById('confirmOverlay');
+
+    setTimeout(() => {
+      if(host)host.innerHTML = '';
+    }, 200);
+
+    return true;
+
+  }
+
+  switch(currentScreenName){
+
+    case 'songViewer':
+
+      stopAutoScroll();
+      songFlowMode = false;
+      currentSong = null;
+      renderLyrics();
+
+      return true;
+
+    case 'setlistDetail':
+
+      libraryTab = 'setlists';
+      renderLibrary();
+
+      return true;
+
+    case 'lineupDetail':
+
+      renderHome();
+
+      return true;
+
+    case 'library':
+    case 'lyrics':
+    case 'profile':
+
+      renderHome();
+
+      return true;
+
+    case 'home':
+    default:
+
+      /*
+        Already on Home — nothing left to go "back" to inside
+        the app. Return false so the caller below lets the
+        native app actually exit, same as a person would expect
+        pressing back on a home screen to do.
+      */
+
+      return false;
+
+  }
+
+}
+
+
+if(
+  window.Capacitor &&
+  window.Capacitor.Plugins &&
+  window.Capacitor.Plugins.App
+){
+
+  window.Capacitor.Plugins.App.addListener(
+    'backButton',
+    () => {
+
+      const handled =
+        handleHardwareBack();
+
+      if(!handled){
+
+        window.Capacitor.Plugins.App.exitApp();
+
+      }
+
+    }
+  );
 
 }
 
