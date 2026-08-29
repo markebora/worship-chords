@@ -5043,12 +5043,95 @@ function writeSongs(songs){
     explicitly from saveCurrentSong(); everything else only
     reaches Drive when someone taps that song's Sync button,
     or Profile → Sync Now.
+
+    Exception: a song that's on the shared Sunday Worship
+    lineup auto-syncs on every edit — see scheduleLineupAutoSync
+    below. That's the one list everyone on the team is expected
+    to be looking at the same live version of, so it shouldn't
+    depend on the editor remembering to tap Sync. Every other
+    song stays opt-in/manual, same as before.
   */
+
+  const previousById =
+    new Map(
+      getSongs().map(item => [item.id, item])
+    );
 
   localStorage.setItem(
     'worshipChordsSongs',
     JSON.stringify(songs.slice(0, MAX_SONGS))
   );
+
+  try{
+
+    const lineupIds =
+      new Set(
+        getLocalLineup().songs.map(item => item.id)
+      );
+
+    if(lineupIds.size){
+
+      songs.forEach(song => {
+
+        if(!lineupIds.has(song.id))return;
+
+        const prev =
+          previousById.get(song.id);
+
+        if(!prev || prev.updatedAt !== song.updatedAt){
+
+          scheduleLineupAutoSync(song.id);
+
+        }
+
+      });
+
+    }
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+
+/*
+  Debounced per-song trigger for the Sunday Worship auto-sync
+  exception above. Coalesces bursts of edits (dragging the flow
+  around, typing out chord fixes) into a single upload instead
+  of hammering Firestore on every keystroke, and runs silently —
+  no toast — so it doesn't turn into the same notification spam
+  the manual Sync button would cause if it fired on every edit.
+*/
+
+const lineupAutoSyncTimers = new Map();
+
+function scheduleLineupAutoSync(songId){
+
+  if(lineupAutoSyncTimers.has(songId)){
+
+    clearTimeout(
+      lineupAutoSyncTimers.get(songId)
+    );
+
+  }
+
+  const timer = setTimeout(async () => {
+
+    lineupAutoSyncTimers.delete(songId);
+
+    const song =
+      getSongs().find(item => item.id === songId);
+
+    if(!song)return;
+
+    await syncOneSong(song, { silent:true });
+
+  }, 1200);
+
+  lineupAutoSyncTimers.set(songId, timer);
 
 }
 
@@ -6485,13 +6568,13 @@ async function pullNewSongsFromDrive(){
 
   if(!getGoogleUser()){
 
-    return;
+    return { ok:false, reason:'signed-out' };
 
   }
 
   if(!(await ensureSyncSession())){
 
-    return;
+    return { ok:false, reason:'signed-out' };
 
   }
 
@@ -6538,11 +6621,15 @@ async function pullNewSongsFromDrive(){
       new Date().toISOString()
     );
 
+    return { ok:true, added:newOnes.length };
+
   }catch(error){
 
     console.error(error);
 
     setSyncStatus('error');
+
+    return { ok:false, reason:'error', error };
 
   }
 
@@ -6857,14 +6944,18 @@ async function clearLineup(){
   'uploaded' so the caller can tell the user what happened.
 */
 
-async function syncOneSong(localSong){
+async function syncOneSong(localSong, opts){
+
+  const silent = !!(opts && opts.silent);
 
   if(!getGoogleUser()){
 
-    showToast(
-      'Sign in first (Profile → Account).',
-      'error'
-    );
+    if(!silent){
+      showToast(
+        'Sign in first (Profile → Account).',
+        'error'
+      );
+    }
 
     return null;
 
@@ -6872,11 +6963,13 @@ async function syncOneSong(localSong){
 
   if(!(await ensureSyncSession())){
 
-    showToast(
-      'Couldn\'t reconnect automatically — ' +
-      'tap Sign In again in Profile → Account, then try Sync.',
-      'error'
-    );
+    if(!silent){
+      showToast(
+        'Couldn\'t reconnect automatically — ' +
+        'tap Sign In again in Profile → Account, then try Sync.',
+        'error'
+      );
+    }
 
     return null;
 
@@ -6988,10 +7081,12 @@ async function syncOneSong(localSong){
 
     setSyncStatus('error');
 
-    showToast(
-      'Sync failed — check your connection and try again.',
-      'error'
-    );
+    if(!silent){
+      showToast(
+        'Sync failed — check your connection and try again.',
+        'error'
+      );
+    }
 
     return null;
 
@@ -14970,6 +15065,24 @@ function renderLibrary(){
                 longPressed =
                   true;
 
+                /*
+                  Neutralize the CSS :active press effect
+                  (scale + darkened background) on THIS card
+                  before the list re-renders. Without this,
+                  the old (visually "pressed") node gets
+                  swapped out mid-touch for a fresh node in
+                  its normal resting state, and that instant
+                  jump from pressed → normal is the flicker.
+                */
+
+                card.style.transition =
+                  'none';
+
+                card.style.transform =
+                  'scale(1)';
+
+                card.style.background =
+                  '#18181b';
 
                 toggleLibrarySelection(
                   songId
@@ -15474,20 +15587,65 @@ function renderLineupDetail(){
   };
 
   screen.querySelectorAll('[data-open-lineup-song]').forEach(el => {
-    el.onclick = () => {
+    el.onclick = async () => {
+
+      const songId =
+        el.dataset.openLineupSong;
 
       const song =
-        songsById.get(el.dataset.openLineupSong);
+        songsById.get(songId);
 
       if(song){
 
         openSong(song);
+        return;
+
+      }
+
+      /* Not on this device yet — actually try to fetch it instead
+         of just repeating the same error every time it's tapped. */
+
+      if(el.dataset.syncing === '1')return;
+      el.dataset.syncing = '1';
+
+      showToast('Syncing…', null, { id:'lineupSync', small:true });
+
+      const result =
+        await pullNewSongsFromDrive();
+
+      el.dataset.syncing = '';
+
+      if(!result.ok){
+
+        showToast(
+          result.reason === 'signed-out'
+            ? 'Sign in first to sync this song.'
+            : 'Could not sync — check your connection.',
+          'error',
+          { id:'lineupSync' }
+        );
+
+        return;
+
+      }
+
+      const freshSong =
+        getSongs().find(item => item.id === songId);
+
+      if(freshSong){
+
+        songsById.set(songId, freshSong);
+
+        showToast('Synced.', 'success', { id:'lineupSync', small:true });
+
+        openSong(freshSong);
 
       }else{
 
         showToast(
-          "This song hasn't synced to this device yet.",
-          'error'
+          "This song hasn't been shared to the library yet.",
+          'error',
+          { id:'lineupSync' }
         );
 
       }
