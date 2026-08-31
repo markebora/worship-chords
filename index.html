@@ -4797,6 +4797,7 @@ let libraryCategoryFilter = 'all';
 let pdfExportSections = [];
 let pdfExportColumns = 1;
 let pdfExportIncludeChords = true;
+let pdfExportPageSize = 'letter'; /* letter | legal | a4 */
 
 
 /*
@@ -5940,6 +5941,168 @@ function recordDeletedSongs(ids){
 }
 
 
+/*
+  Duplicate detection — two saves of the exact same song (e.g.
+  the same song added independently on two phones, then merged
+  together by the team sync) end up as two separate Library
+  entries with different ids but identical title + lyrics/chords.
+  This finds those and quietly keeps only the most recently
+  updated copy, remapping any Setlist or the Sunday Worship
+  lineup that pointed at the one being removed so nothing breaks.
+  Merged songs (mergeParts) are left alone — being a *combination*
+  of songs, they're never "the same song" as a single one.
+*/
+
+function normalizeForDuplicateCheck(value){
+
+  return String(value || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+}
+
+function dedupeLibrarySongs(){
+
+  const songs =
+    getSongs();
+
+  const isMerged =
+    song =>
+      Array.isArray(song.mergeParts) &&
+      song.mergeParts.length > 1;
+
+  const groups =
+    new Map();
+
+  songs.forEach(song => {
+
+    if(isMerged(song))return;
+
+    const key =
+      normalizeForDuplicateCheck(song.title) +
+      '::' +
+      normalizeForDuplicateCheck(song.originalText || song.text);
+
+    if(!key.trim())return;
+
+    if(!groups.has(key)){
+      groups.set(key, []);
+    }
+
+    groups.get(key).push(song);
+
+  });
+
+  const idsToRemove = [];
+  const idRemap = new Map(); /* removed id -> survivor id */
+
+  groups.forEach(group => {
+
+    if(group.length < 2)return;
+
+    const sorted =
+      [...group].sort((a, b) => {
+
+        const aTime =
+          new Date(a.updatedAt || a.savedAt || 0).getTime();
+
+        const bTime =
+          new Date(b.updatedAt || b.savedAt || 0).getTime();
+
+        return bTime - aTime;
+
+      });
+
+    const survivor = sorted[0];
+
+    sorted.slice(1).forEach(dupe => {
+
+      idsToRemove.push(dupe.id);
+      idRemap.set(dupe.id, survivor.id);
+
+    });
+
+  });
+
+  if(!idsToRemove.length){
+
+    return 0;
+
+  }
+
+  writeSongs(
+    songs.filter(
+      song => !idsToRemove.includes(song.id)
+    )
+  );
+
+  recordDeletedSongs(idsToRemove);
+
+  /* Point any Setlist entries at the surviving copy */
+
+  const setlists =
+    getSetlists();
+
+  let setlistsChanged = false;
+
+  setlists.forEach(setlist => {
+
+    setlist.songIds =
+      setlist.songIds.map(id => {
+
+        if(idRemap.has(id)){
+
+          setlistsChanged = true;
+          return idRemap.get(id);
+
+        }
+
+        return id;
+
+      });
+
+  });
+
+  if(setlistsChanged){
+
+    writeSetlists(setlists);
+
+  }
+
+  /* Point the local Sunday Worship lineup at the survivor too */
+
+  const lineup =
+    getLocalLineup();
+
+  let lineupChanged = false;
+
+  if(lineup && Array.isArray(lineup.songs)){
+
+    lineup.songs.forEach(entry => {
+
+      if(entry && idRemap.has(entry.id)){
+
+        entry.id = idRemap.get(entry.id);
+        lineupChanged = true;
+
+      }
+
+    });
+
+    if(lineupChanged){
+
+      setLocalLineup(lineup);
+
+    }
+
+  }
+
+  return idsToRemove.length;
+
+}
+
+
 function setSyncStatus(status, at){
 
   const detail = { status, at: at || null };
@@ -6605,12 +6768,29 @@ async function pullNewSongsFromDrive(){
         )
       );
 
-      if(
+      const libraryOnScreen =
         document.getElementById('screen') &&
-        screen.querySelector('.librarySection')
-      ){
+        screen.querySelector('.librarySection');
 
+      if(libraryOnScreen){
+
+        /*
+          Let the re-render below run its own dedupe pass so the
+          "removed duplicates" toast (if any) actually reaches
+          the person, instead of firing silently before they can
+          see it.
+        */
         renderLibrary();
+
+      }else{
+
+        /*
+          Nobody's looking at the Library right now — clean up
+          silently so it's already tidy whenever they do open it.
+          (The next manual Library visit will show the toast if
+          this actually found something, via its own dedupe call.)
+        */
+        dedupeLibrarySongs();
 
       }
 
@@ -10511,7 +10691,7 @@ function reorderViewerSections(fromIndex,toIndex){
   if(!currentSong||fromIndex===toIndex)return;
   const isMerged=Array.isArray(currentSong.mergeParts)&&currentSong.mergeParts.length>1;
   const target=isMerged?currentSong.mergeParts[clampMergedPartIndex(currentSong)]:currentSong;
-  const amount=currentSong.transposeSteps||0;
+  const amount=(isMerged?target.transposeSteps:currentSong.transposeSteps)||0;
   const displayedText=transposeText(target.originalText||target.text||'',amount);
   const sections=getViewerSections(target,displayedText);
   if(fromIndex<0||toIndex<0||fromIndex>=sections.length||toIndex>=sections.length)return;
@@ -12174,7 +12354,7 @@ function renderMergedSongViewer(){
   const activeIndex=clampMergedPartIndex(song);
   const total=song.mergeParts.length;
   const part=song.mergeParts[activeIndex];
-  const amount=song.transposeSteps||0;
+  const amount=part.transposeSteps||0;
   const displayedText=transposeText(part.text||'',amount);
   const sections=getViewerSections(part,displayedText);
   const keyInfo=detectKeyFromChords(extractChordTokens(displayedText));
@@ -12274,9 +12454,9 @@ function renderMergedSongViewer(){
   updateLyricsNavIndicator();
   document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
-  document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,song.transposeSteps);};
-  document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,song.transposeSteps);};
-  document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,song.transposeSteps);};
+  document.getElementById('transposeDown').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)-1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
+  document.getElementById('transposeUp').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)+1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
+  document.getElementById('transposeReset').onclick=()=>{part.transposeSteps=0;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
   document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
   document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
   attachSongMenuControls();
@@ -12396,8 +12576,24 @@ let autoScrollSpeedLevel=getSettings().autoScrollSpeed; /* 1-5 */
 const AUTO_SCROLL_MIN_LEVEL=1;
 const AUTO_SCROLL_MAX_LEVEL=5;
 
+/*
+  Level 1 used to be 34px/s (18+1*16) — same formula as the
+  other levels — but that was still too fast for people trying
+  to follow along while playing. Per request: level 1 is now a
+  quarter (25%) of what it used to be; levels 2-5 keep their
+  original speeds so the rest of the range feels the same as
+  before.
+*/
+const AUTO_SCROLL_SPEEDS = {
+  1: (18+1*16) * 0.25, /* 34 -> 8.5px/s */
+  2: 18+2*16,           /* 50px/s */
+  3: 18+3*16,           /* 66px/s */
+  4: 18+4*16,           /* 82px/s */
+  5: 18+5*16            /* 98px/s */
+};
+
 function autoScrollPxPerSecond(){
-  return 18+autoScrollSpeedLevel*16; /* level1=34 ... level5=98 */
+  return AUTO_SCROLL_SPEEDS[autoScrollSpeedLevel] || AUTO_SCROLL_SPEEDS[1];
 }
 
 function autoScrollStep(now){
@@ -13189,10 +13385,15 @@ function exportCurrentSongAsText(){
 
   parts.forEach((part, partIndex) => {
 
+    const partAmount =
+      isMerged
+        ? (part.transposeSteps || 0)
+        : amount;
+
     const displayedText =
       transposeText(
         part.text || '',
-        amount
+        partAmount
       );
 
     const sections =
@@ -13308,14 +13509,23 @@ function openPdfExportOptions(){
 
   if(!currentSong)return;
 
+  const isMerged =
+    Array.isArray(currentSong.mergeParts) &&
+    currentSong.mergeParts.length > 1;
+
+  const source =
+    isMerged
+      ? currentSong.mergeParts[clampMergedPartIndex(currentSong)]
+      : currentSong;
+
   const amount =
-    currentSong.transposeSteps || 0;
+    (isMerged ? source.transposeSteps : currentSong.transposeSteps) || 0;
 
   const displayedText =
     transposeText(
 
-      currentSong.originalText ||
-      currentSong.text ||
+      source.originalText ||
+      source.text ||
       '',
 
       amount
@@ -13344,6 +13554,12 @@ function openPdfExportOptions(){
   if(![1,2,3].includes(pdfExportColumns)){
 
     pdfExportColumns = 1;
+
+  }
+
+  if(!['letter','legal','a4'].includes(pdfExportPageSize)){
+
+    pdfExportPageSize = 'letter';
 
   }
 
@@ -13425,13 +13641,22 @@ function renderPdfExportOptions(){
 
         <div class="songHeading">
           <h1>Export as PDF</h1>
-          <p>${esc(currentSong.title || 'Untitled Song')}</p>
+          <p>${esc((Array.isArray(currentSong.mergeParts)&&currentSong.mergeParts.length>1?currentSong.mergeParts[clampMergedPartIndex(currentSong)].title:currentSong.title) || 'Untitled Song')}</p>
         </div>
 
       </div>
 
       <div class="editorActions">
         <button class="toolbarBtn primary" id="pdfExportGo">Export PDF</button>
+      </div>
+
+      <div class="pdfOptionGroup">
+        <div class="pdfOptionLabel">Page Size</div>
+        <div class="viewModeGroup" id="pdfPageSizeGroup">
+          <button type="button" class="viewModeBtn${pdfExportPageSize==='letter'?' active':''}" data-page-size="letter">Letter</button>
+          <button type="button" class="viewModeBtn${pdfExportPageSize==='legal'?' active':''}" data-page-size="legal">Legal</button>
+          <button type="button" class="viewModeBtn${pdfExportPageSize==='a4'?' active':''}" data-page-size="a4">A4</button>
+        </div>
       </div>
 
       <div class="pdfOptionGroup">
@@ -13485,6 +13710,15 @@ function renderPdfExportOptions(){
         b.classList.toggle('active', b === btn);
       });
       updatePdfExportPreview();
+    };
+  });
+
+  document.querySelectorAll('#pdfPageSizeGroup .viewModeBtn').forEach(btn => {
+    btn.onclick = () => {
+      pdfExportPageSize = btn.dataset.pageSize;
+      document.querySelectorAll('#pdfPageSizeGroup .viewModeBtn').forEach(b => {
+        b.classList.toggle('active', b === btn);
+      });
     };
   });
 
@@ -13678,14 +13912,23 @@ function generatePdfFromOptions(){
 
   }
 
+  const isMerged =
+    Array.isArray(currentSong.mergeParts) &&
+    currentSong.mergeParts.length > 1;
+
+  const pdfSource =
+    isMerged
+      ? currentSong.mergeParts[clampMergedPartIndex(currentSong)]
+      : currentSong;
+
   const amount =
-    currentSong.transposeSteps || 0;
+    (isMerged ? pdfSource.transposeSteps : currentSong.transposeSteps) || 0;
 
   const displayedText =
     transposeText(
 
-      currentSong.originalText ||
-      currentSong.text ||
+      pdfSource.originalText ||
+      pdfSource.text ||
       '',
 
       amount
@@ -13705,7 +13948,7 @@ function generatePdfFromOptions(){
   const doc =
     new jsPDF({
       unit:'pt',
-      format:'letter'
+      format:pdfExportPageSize === 'a4' ? 'a4' : pdfExportPageSize === 'legal' ? 'legal' : 'letter'
     });
 
   const columns = pdfExportColumns;
@@ -13773,6 +14016,7 @@ function generatePdfFromOptions(){
 
   doc.text(
     sanitizeForPlainExport(
+      pdfSource.title ||
       currentSong.title ||
       'Untitled Song'
     ),
@@ -14437,6 +14681,19 @@ function renderLibrary(){
   currentScreenName = 'library';
 
   setActiveNav('library');
+
+
+  const duplicatesRemoved =
+    dedupeLibrarySongs();
+
+  if(duplicatesRemoved){
+
+    showToast(
+      `Removed ${duplicatesRemoved} duplicate ${duplicatesRemoved===1?'copy':'copies'} of songs already in your library.`,
+      'success'
+    );
+
+  }
 
 
   if(libraryTab === 'setlists'){
