@@ -12578,14 +12578,14 @@ const AUTO_SCROLL_MAX_LEVEL=5;
 
 /*
   Level 1 used to be 34px/s (18+1*16) — same formula as the
-  other levels — but that was still too fast for people trying
-  to follow along while playing. Per request: level 1 is now a
-  quarter (25%) of what it used to be; levels 2-5 keep their
-  original speeds so the rest of the range feels the same as
-  before.
+  other levels — but that was too fast for people trying to
+  follow along while playing. 25% was tried and felt too slow;
+  70% of the original level-1 speed is the current sweet spot.
+  Levels 2-5 keep their original speeds so the rest of the range
+  feels the same as before.
 */
 const AUTO_SCROLL_SPEEDS = {
-  1: (18+1*16) * 0.25, /* 34 -> 8.5px/s */
+  1: (18+1*16) * 0.7,  /* 34 -> 23.8px/s */
   2: 18+2*16,           /* 50px/s */
   3: 18+3*16,           /* 66px/s */
   4: 18+4*16,           /* 82px/s */
