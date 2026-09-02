@@ -17540,10 +17540,20 @@ renderHome();
 
 /*
   Resolves to the live Firebase user (or null) once the SDK's
-  had a chance to restore a persisted session. Also resolves
-  null — never blocks — if Firebase isn't configured at all,
-  so a local/dev checkout without api/firebase-config still
-  opens straight to Home instead of being locked out.
+  had a chance to restore a persisted session.
+
+  If Firebase can't be reached at all right now — genuinely not
+  configured (local/dev checkout), or just offline — there's no
+  way to ask it who's signed in. In that case fall back to this
+  device's own record of the last successful sign-in
+  (worshipChordsGoogleUser, cleared only by an explicit Sign
+  Out): if it's there, someone was already signed in here, so
+  let them straight into Home with their local Library instead
+  of locking them out just because the network is down. Only a
+  device that's never signed in (or was explicitly signed out)
+  falls through to the gate — and on that device, being offline
+  means the gate can't be satisfied yet either way, which is the
+  expected first-time-needs-internet behavior.
 */
 async function currentAuthUser(){
 
@@ -17551,7 +17561,7 @@ async function currentAuthUser(){
 
   if(!firebaseAuth){
 
-    return null;
+    return getGoogleUser() ? true : null;
 
   }
 
