@@ -202,6 +202,104 @@ button{
 
 
 /* =========================================================
+   LOGIN GATE
+
+   Shown right after the startup splash finishes whenever
+   there's no signed-in Firebase session — first install, or
+   any time someone's signed out. Sits above the app content
+   but below the confirm-dialog layer (2100) and toasts (2000)
+   so the "what should we call you, disciple?" onboarding modal
+   and error toasts still surface correctly while this is up.
+========================================================= */
+
+#loginGate{
+  position:fixed;
+  inset:0;
+  z-index:1900;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+
+  background:#000000;
+
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+
+  transition:
+    opacity .35s ease,
+    visibility 0s linear .35s;
+}
+
+#loginGate.gateOpen{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+
+  transition:
+    opacity .35s ease,
+    visibility 0s linear 0s;
+}
+
+#loginGateCard{
+  width:min(340px,100%);
+}
+
+#loginGateBrand{
+  font-family:'Poppins', sans-serif;
+  font-weight:800;
+  font-size:28px;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  text-align:center;
+  color:#f7f4ee;
+}
+
+#loginGateTagline{
+  margin:6px 0 30px;
+
+  font-family:'Poppins', sans-serif;
+  font-weight:700;
+  font-size:11px;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+  text-align:center;
+  color:#8a8a92;
+}
+
+#loginGateBody .profileAvatar{
+  margin:0 auto 14px;
+}
+
+.gateName{
+  text-align:center;
+  font-size:16px;
+  font-weight:800;
+  color:#f7f7f7;
+}
+
+.gateEmail{
+  margin:3px 0 18px;
+  text-align:center;
+  font-size:12.5px;
+  color:#85858c;
+}
+
+.gateSwitchLink{
+  width:100%;
+  margin-top:10px;
+
+  background:transparent;
+  border:0;
+
+  color:#85858c;
+  text-decoration:underline;
+}
+
+
+/* =========================================================
    HEADER
 ========================================================= */
 
@@ -3711,6 +3809,19 @@ button{
 
 </div>
 
+<div id="loginGate">
+
+  <div id="loginGateCard">
+
+    <div id="loginGateBrand">Disciples</div>
+    <div id="loginGateTagline">Follow Jesus. Make Him Known.</div>
+
+    <div id="loginGateBody"></div>
+
+  </div>
+
+</div>
+
 <div class="app">
 
 
@@ -5707,6 +5818,8 @@ function setGoogleUser(user){
       JSON.stringify(user)
     );
 
+    setRememberedAccount(user);
+
   }else{
 
     localStorage.removeItem(
@@ -5716,6 +5829,60 @@ function setGoogleUser(user){
   }
 
   updateWelcomeHeader();
+
+}
+
+
+/*
+  Separate from worshipChordsGoogleUser above: that one is
+  cleared on sign-out, this one isn't. It's what lets the login
+  gate greet a signed-out person with "Login as {name}" (plus
+  their photo) instead of a blank email/password form, the way
+  Google's own account picker does. Only cleared when someone
+  explicitly taps "Use another account".
+*/
+function getRememberedAccount(){
+
+  try{
+
+    return JSON.parse(
+      localStorage.getItem(
+        'worshipChordsRememberedAccount'
+      ) || 'null'
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+    return null;
+
+  }
+
+}
+
+
+function setRememberedAccount(user){
+
+  if(!user || !user.email)return;
+
+  localStorage.setItem(
+    'worshipChordsRememberedAccount',
+    JSON.stringify({
+      name: user.name || '',
+      email: user.email || '',
+      picture: user.picture || ''
+    })
+  );
+
+}
+
+
+function clearRememberedAccount(){
+
+  localStorage.removeItem(
+    'worshipChordsRememberedAccount'
+  );
 
 }
 
@@ -5826,7 +5993,7 @@ async function handleAuthSignUp(email, password){
 
 async function handleAuthSignIn(email, password){
 
-  if(!await requireFirebaseConfigured())return;
+  if(!await requireFirebaseConfigured())return false;
 
   try{
 
@@ -5835,12 +6002,16 @@ async function handleAuthSignIn(email, password){
 
     await onAuthReady(credential.user);
 
+    return true;
+
   }catch(error){
 
     showToast(
       'Sign-in failed: ' + error.message,
       'error'
     );
+
+    return false;
 
   }
 
@@ -5913,6 +6084,238 @@ async function handleAuthSignOut(){
   setSyncStatus('idle');
 
   renderProfile();
+
+  /*
+    Require signing back in before the app's usable again —
+    the remembered account (still saved) makes this a one-tap
+    "Login as {name}" rather than a blank form.
+  */
+  showLoginGate();
+
+}
+
+
+/* =========================================================
+   LOGIN GATE
+   Full-screen sign-in required before the app's usable, shown
+   after the startup splash whenever there's no live Firebase
+   session (first install, or any time someone's signed out).
+   Remembers the last account on this device (name/email/photo)
+   so returning to it is "Login as {name}" instead of typing an
+   email again — clearable via "Use another account".
+========================================================= */
+
+function showLoginGate(){
+
+  const gate =
+    document.getElementById('loginGate');
+
+  if(!gate)return;
+
+  renderLoginGate();
+
+  gate.classList.add('gateOpen');
+
+}
+
+
+function hideLoginGate(){
+
+  const gate =
+    document.getElementById('loginGate');
+
+  if(!gate)return;
+
+  gate.classList.remove('gateOpen');
+
+}
+
+
+function renderLoginGate(){
+
+  const body =
+    document.getElementById('loginGateBody');
+
+  if(!body)return;
+
+  const remembered =
+    getRememberedAccount();
+
+  if(remembered && remembered.email){
+
+    body.innerHTML = `
+
+      <div class="profileAvatar">
+        ${
+          remembered.picture
+            ? `<img src="${esc(remembered.picture)}" alt="">`
+            : esc(profileInitials(remembered.name))
+        }
+      </div>
+
+      <div class="gateName">${esc(remembered.name)}</div>
+      <div class="gateEmail">${esc(remembered.email)}</div>
+
+      <input
+        class="googleClientIdInput"
+        id="gatePasswordInput"
+        type="password"
+        autocomplete="current-password"
+        placeholder="Password"
+      >
+
+      <button class="toolbarBtn primary" id="gateSignInBtn" style="width:100%;margin-top:12px;">
+        Login as ${esc(remembered.name)}
+      </button>
+
+      <button class="toolbarBtn gateSwitchLink" id="gateSwitchAccountBtn" type="button">
+        Not you? Use another account
+      </button>
+
+    `;
+
+    const passwordInput =
+      document.getElementById('gatePasswordInput');
+
+    const signInBtn =
+      document.getElementById('gateSignInBtn');
+
+    const defaultLabel =
+      `Login as ${remembered.name}`;
+
+    const attempt = async () => {
+
+      const password =
+        passwordInput.value;
+
+      if(!password){
+
+        showToast('Enter your password.', 'error');
+        return;
+
+      }
+
+      signInBtn.disabled = true;
+      signInBtn.textContent = 'Signing in…';
+
+      const ok =
+        await handleAuthSignIn(remembered.email, password);
+
+      if(ok){
+
+        hideLoginGate();
+
+      }else{
+
+        signInBtn.disabled = false;
+        signInBtn.textContent = defaultLabel;
+
+      }
+
+    };
+
+    signInBtn.onclick = attempt;
+
+    passwordInput.onkeydown = (event) => {
+
+      if(event.key === 'Enter')attempt();
+
+    };
+
+    document.getElementById('gateSwitchAccountBtn').onclick = () => {
+
+      clearRememberedAccount();
+      renderLoginGate();
+
+    };
+
+    requestAnimationFrame(() => passwordInput.focus());
+
+  }else{
+
+    body.innerHTML = `
+
+      <input
+        class="googleClientIdInput"
+        id="gateEmailInput"
+        type="email"
+        autocomplete="email"
+        placeholder="Email"
+      >
+
+      <input
+        class="googleClientIdInput"
+        id="gatePasswordInput"
+        type="password"
+        autocomplete="current-password"
+        placeholder="Password"
+        style="margin-top:10px;"
+      >
+
+      <button class="toolbarBtn primary" id="gateSignInBtn" style="width:100%;margin-top:12px;">
+        Sign In
+      </button>
+
+    `;
+
+    const emailInput =
+      document.getElementById('gateEmailInput');
+
+    const passwordInput =
+      document.getElementById('gatePasswordInput');
+
+    const signInBtn =
+      document.getElementById('gateSignInBtn');
+
+    const attempt = async () => {
+
+      const email =
+        emailInput.value.trim();
+
+      const password =
+        passwordInput.value;
+
+      if(!email || !password){
+
+        showToast('Enter both an email and a password.', 'error');
+        return;
+
+      }
+
+      signInBtn.disabled = true;
+      signInBtn.textContent = 'Signing in…';
+
+      const ok =
+        await handleAuthSignIn(email, password);
+
+      if(ok){
+
+        hideLoginGate();
+
+      }else{
+
+        signInBtn.disabled = false;
+        signInBtn.textContent = 'Sign In';
+
+      }
+
+    };
+
+    signInBtn.onclick = attempt;
+
+    [emailInput, passwordInput].forEach(input => {
+
+      input.onkeydown = (event) => {
+
+        if(event.key === 'Enter')attempt();
+
+      };
+
+    });
+
+    requestAnimationFrame(() => emailInput.focus());
+
+  }
 
 }
 
@@ -17135,17 +17538,54 @@ renderHome();
   never gets stuck on screen even if something above throws.
 */
 
+/*
+  Resolves to the live Firebase user (or null) once the SDK's
+  had a chance to restore a persisted session. Also resolves
+  null — never blocks — if Firebase isn't configured at all,
+  so a local/dev checkout without api/firebase-config still
+  opens straight to Home instead of being locked out.
+*/
+async function currentAuthUser(){
+
+  await firebaseReadyPromise;
+
+  if(!firebaseAuth){
+
+    return null;
+
+  }
+
+  return firebaseAuth.currentUser || await waitForFirebaseAuthReady();
+
+}
+
+
 (function hideStartupSplash(){
 
   const splash = document.getElementById('startupSplash');
   if(!splash) return;
 
-  const dismiss = () => {
+  /*
+    The intro always plays for at least this long, and whether
+    the login gate appears next is decided before the splash
+    starts fading — so there's never a gap where Home is
+    visible/usable underneath for someone who isn't signed in.
+  */
+  const minDelay =
+    new Promise(resolve => setTimeout(resolve, 2200));
+
+  Promise.all([minDelay, currentAuthUser()]).then(([, user]) => {
+
     splash.classList.add('splashHidden');
     setTimeout(() => splash.remove(), 1000);
-  };
 
-  setTimeout(dismiss, 2200);
+    if(!user){
+
+      showLoginGate();
+
+    }
+
+  });
 
 })();
 

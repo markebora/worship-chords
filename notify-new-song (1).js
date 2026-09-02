@@ -48,7 +48,7 @@ export default async function handler(req, res){
 
   try{
 
-    const { title } =
+    const { title, heading } =
       req.body || {};
 
     if(!title || typeof title !== 'string'){
@@ -62,7 +62,7 @@ export default async function handler(req, res){
     const result =
       await broadcastNotification({
 
-        title:'New song added',
+        title: (typeof heading === 'string' && heading) || 'New song added',
         body: title.slice(0,120),
         url:'/',
         tag:'new-song-' + Date.now()
