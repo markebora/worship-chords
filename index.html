@@ -5269,7 +5269,26 @@ function writeSongs(songs){
   the manual Sync button would cause if it fired on every edit.
 */
 
+/*
+  Debounced per-song trigger for the Sunday Worship auto-sync
+  exception above. Coalesces bursts of edits (dragging the flow
+  around, typing out chord fixes) into a single upload instead
+  of hammering Firestore on every keystroke, and runs silently —
+  no toast — so it doesn't turn into the same notification spam
+  the manual Sync button would cause if it fired on every edit.
+
+  The debounce alone isn't safe for live use, though — during an
+  actual service someone edits, then immediately backgrounds the
+  app or taps into another song, and the pending timer can get
+  silently killed before it ever fires, leaving the edit stuck
+  local-only. flushLineupAutoSync/flushAllLineupAutoSyncs exist
+  to close that gap: anything that could plausibly race ahead of
+  a pending edit (leaving the song, the tab losing focus, the
+  page unloading, or a manual sync starting) flushes it first.
+*/
+
 const lineupAutoSyncTimers = new Map();
+const lineupAutoSyncPending = new Map();
 
 function scheduleLineupAutoSync(songId){
 
@@ -5281,22 +5300,116 @@ function scheduleLineupAutoSync(songId){
 
   }
 
-  const timer = setTimeout(async () => {
+  const run = async () => {
 
     lineupAutoSyncTimers.delete(songId);
 
     const song =
       getSongs().find(item => item.id === songId);
 
-    if(!song)return;
+    if(!song){
+      lineupAutoSyncPending.delete(songId);
+      return;
+    }
 
-    await syncOneSong(song, { silent:true });
+    const promise =
+      syncOneSong(song, { silent:true })
+        .then(result => {
 
-  }, 1200);
+          /*
+            Success stays silent by design — but a failure here
+            is exactly the scenario that caused the original
+            accident (an edit that looked fine locally but never
+            actually reached the team). That's worth surfacing
+            even though the push itself was automatic.
+          */
+
+          if(!result){
+
+            showToast(
+              `Couldn't sync "${song.title}" to the team — check your connection.`,
+              'error'
+            );
+
+          }
+
+        })
+        .finally(() => {
+          lineupAutoSyncPending.delete(songId);
+        });
+
+    lineupAutoSyncPending.set(songId, promise);
+
+    await promise;
+
+  };
+
+  const timer = setTimeout(run, 700);
 
   lineupAutoSyncTimers.set(songId, timer);
+  lineupAutoSyncTimers.get(songId).__run = run;
 
 }
+
+
+function flushLineupAutoSync(songId){
+
+  if(lineupAutoSyncTimers.has(songId)){
+
+    const timer =
+      lineupAutoSyncTimers.get(songId);
+
+    clearTimeout(timer);
+    lineupAutoSyncTimers.delete(songId);
+
+    return timer.__run();
+
+  }
+
+  if(lineupAutoSyncPending.has(songId)){
+
+    return lineupAutoSyncPending.get(songId);
+
+  }
+
+  return Promise.resolve();
+
+}
+
+
+function flushAllLineupAutoSyncs(){
+
+  const ids =
+    new Set([
+      ...lineupAutoSyncTimers.keys(),
+      ...lineupAutoSyncPending.keys()
+    ]);
+
+  return Promise.all(
+    [...ids].map(id => flushLineupAutoSync(id))
+  );
+
+}
+
+
+/*
+  Backgrounding the app, switching tabs, or the page unloading
+  are exactly the moments a live edit is at risk — flush any
+  pending Sunday Worship auto-sync immediately rather than
+  trusting the debounce timer to survive it.
+*/
+
+document.addEventListener('visibilitychange', () => {
+
+  if(document.visibilityState === 'hidden'){
+    flushAllLineupAutoSyncs();
+  }
+
+});
+
+window.addEventListener('pagehide', () => {
+  flushAllLineupAutoSyncs();
+});
 
 
 /* =========================================================
@@ -7768,6 +7881,14 @@ async function performDriveSync(){
   setSyncStatus('syncing');
 
   try{
+
+    /*
+      Push any pending lineup edit first, so a full sync always
+      folds in the latest change rather than racing a debounce
+      timer that hasn't fired yet.
+    */
+
+    await flushAllLineupAutoSyncs();
 
     const remote =
       await downloadLibrary();
@@ -12703,7 +12824,7 @@ function renderSongViewer(){
     maybeShowLongPressHint();
   }
   updateLyricsNavIndicator();
-  document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
+  document.getElementById('songBackBtn').onclick=()=>{if(currentSong)flushLineupAutoSync(currentSong.id);stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
   document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
@@ -12906,7 +13027,7 @@ function renderMergedSongViewer(){
     maybeShowLongPressHint();
   }
   updateLyricsNavIndicator();
-  document.getElementById('songBackBtn').onclick=()=>{stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
+  document.getElementById('songBackBtn').onclick=()=>{if(currentSong)flushLineupAutoSync(currentSong.id);stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
   document.getElementById('transposeDown').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)-1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
   document.getElementById('transposeUp').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)+1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
