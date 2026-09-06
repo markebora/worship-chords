@@ -8182,14 +8182,29 @@ function renderHome(){
 
     card.onclick = () => {
 
-      const song =
-        getRecentViews().find(
-          item => item.id === card.dataset.homeSong
+      const songId =
+        card.dataset.homeSong;
+
+      const liveSong =
+        getSongs().find(
+          item => item.id === songId
         );
 
-      if(song){
+      if(liveSong){
 
-        openSong(song);
+        openSong(liveSong);
+        return;
+
+      }
+
+      const snapshot =
+        getRecentViews().find(
+          item => item.id === songId
+        );
+
+      if(snapshot){
+
+        openSong(snapshot);
 
       }
 
@@ -9383,16 +9398,47 @@ function renderLyrics(){
 
       card.onclick = () => {
 
-        const song =
-          getRecentViews().find(
-            item =>
-              item.id ===
-              card.dataset.lyricsSong
+        const songId =
+          card.dataset.lyricsSong;
+
+        /*
+          Always prefer the live Library copy over the Recent
+          snapshot — the snapshot is just a lightweight record
+          for showing this list (title, when it was viewed) and
+          goes stale the moment the real song changes: a key
+          change, a Flow edit, becoming part of a merge, being
+          re-synced from the team. Opening from Recent should
+          feel identical to opening from Library, so it needs
+          to actually BE the same object, not a frozen copy of
+          it from whenever it was last viewed.
+        */
+
+        const liveSong =
+          getSongs().find(
+            item => item.id === songId
           );
 
-        if(song){
+        if(liveSong){
 
-          openSong(song);
+          openSong(liveSong);
+          return;
+
+        }
+
+        /*
+          Not in the Library (e.g. a preview that was viewed but
+          never saved) — fall back to the stored snapshot so it
+          can still be reopened.
+        */
+
+        const snapshot =
+          getRecentViews().find(
+            item => item.id === songId
+          );
+
+        if(snapshot){
+
+          openSong(snapshot);
 
         }
 
