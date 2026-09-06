@@ -3669,6 +3669,65 @@ button{
 
 
 /* =========================================================
+   LINEUP SONG SYNC INDICATOR
+   Shown only on songs that are part of the Sunday Worship
+   lineup. Doubles as a status readout and a manual "upload
+   now" button — tap it any time to push immediately instead
+   of waiting on the quiet background auto-sync.
+========================================================= */
+
+.lineupSyncBtn{
+  background:none;
+  border:0;
+  padding:6px;
+  margin:0;
+  color:#5a5a62;
+  cursor:pointer;
+  line-height:1;
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+}
+
+.lineupSyncBtn svg{
+  width:20px;
+  height:20px;
+  display:block;
+}
+
+.lineupSyncBtn[data-state="dirty"]{
+  color:#c9c9ce;
+}
+
+.lineupSyncBtn[data-state="clean"]{
+  color:#5fd08a;
+}
+
+.lineupSyncBtn[data-state="syncing"] svg{
+  animation:lineupSyncSpin 1s linear infinite;
+}
+
+@keyframes lineupSyncSpin{
+  from{ transform:rotate(0deg); }
+  to{ transform:rotate(360deg); }
+}
+
+.lineupSyncBtn[data-state="remoteUpdate"]{
+  color:#4da6ff;
+}
+
+.lineupUpdateDot{
+  display:inline-block;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#4da6ff;
+  margin-left:6px;
+  flex-shrink:0;
+}
+
+
+/* =========================================================
    SETLISTS
 ========================================================= */
 
@@ -5290,6 +5349,137 @@ function writeSongs(songs){
 const lineupAutoSyncTimers = new Map();
 const lineupAutoSyncPending = new Map();
 
+/*
+  Extra state for the per-song sync indicator/upload button.
+  lineupUploadInFlight   — songs currently mid-push (spinner)
+  lineupConfirmedPushedAt — songId -> the updatedAt value we last
+                            confirmed actually reached the team,
+                            so the button can tell "pushed" apart
+                            from "edited since the last push"
+  pendingLineupRemoteUpdate — songs where the realtime listener
+                            saw a newer version from someone else
+                            but held off applying it because this
+                            device had that exact song open at the
+                            time (never yank content out from under
+                            someone mid-read)
+*/
+
+const lineupUploadInFlight = new Set();
+const lineupConfirmedPushedAt = new Map();
+const pendingLineupRemoteUpdate = new Set();
+
+
+function getLineupSyncState(song){
+
+  if(pendingLineupRemoteUpdate.has(song.id)){
+    return 'remoteUpdate';
+  }
+
+  if(lineupUploadInFlight.has(song.id)){
+    return 'syncing';
+  }
+
+  const confirmedAt =
+    lineupConfirmedPushedAt.get(song.id);
+
+  if(confirmedAt && confirmedAt === song.updatedAt){
+    return 'clean';
+  }
+
+  return 'dirty';
+
+}
+
+
+function isSongInLineup(songId){
+
+  return getLocalLineup().songs.some(
+    item => item.id === songId
+  );
+
+}
+
+
+/*
+  Announce a content push to the team by stamping this song's
+  entry in the shared lineup doc with its new updatedAt — that's
+  the field every device's realtime listener is watching, so
+  this is what actually makes the blue "update available" state
+  show up on everyone else's screen within moments.
+*/
+
+async function announceLineupSongUpdated(songId, updatedAt){
+
+  const remote =
+    await downloadLineup();
+
+  const index =
+    remote.songs.findIndex(item => item.id === songId);
+
+  if(index === -1)return;
+
+  remote.songs[index] = {
+    ...remote.songs[index],
+    updatedAt
+  };
+
+  await uploadLineup(remote);
+
+  setLocalLineup(remote);
+
+}
+
+
+/*
+  The one upload pipeline behind both the quiet auto-sync and
+  the manual Upload button — same underlying push either way,
+  so tapping Upload can never contradict what auto-sync already
+  did, and neither path can leave the other unaware.
+*/
+
+async function pushLineupSongUpdate(song){
+
+  const result =
+    await syncOneSong(song, { silent:true });
+
+  if(!result)return null;
+
+  const resolvedSong =
+    result.song || song;
+
+  if(isSongInLineup(song.id)){
+
+    try{
+
+      await announceLineupSongUpdated(
+        song.id,
+        resolvedSong.updatedAt || song.updatedAt
+      );
+
+    }catch(error){
+
+      console.error(error);
+
+      /*
+        Content is safely on Drive either way — this only means
+        other devices won't get an instant nudge this time around;
+        their own next open or sync still picks it up normally.
+      */
+
+    }
+
+  }
+
+  lineupConfirmedPushedAt.set(
+    song.id,
+    resolvedSong.updatedAt || song.updatedAt
+  );
+
+  return result;
+
+}
+
+
 function scheduleLineupAutoSync(songId){
 
   if(lineupAutoSyncTimers.has(songId)){
@@ -5312,8 +5502,11 @@ function scheduleLineupAutoSync(songId){
       return;
     }
 
+    lineupUploadInFlight.add(songId);
+    updateLineupSyncIndicatorDOM(songId);
+
     const promise =
-      syncOneSong(song, { silent:true })
+      pushLineupSongUpdate(song)
         .then(result => {
 
           /*
@@ -5336,6 +5529,8 @@ function scheduleLineupAutoSync(songId){
         })
         .finally(() => {
           lineupAutoSyncPending.delete(songId);
+          lineupUploadInFlight.delete(songId);
+          updateLineupSyncIndicatorDOM(songId);
         });
 
     lineupAutoSyncPending.set(songId, promise);
@@ -5410,6 +5605,337 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pagehide', () => {
   flushAllLineupAutoSyncs();
 });
+
+
+/*
+  The sync indicator/upload button shown in the song header for
+  any song that's part of the Sunday Worship lineup. Same markup
+  function is used both to build the initial header HTML and to
+  patch just this one button afterward — patching in place (never
+  a full re-render) so the spinner-to-check transition doesn't
+  reset scroll position while someone's mid-read.
+*/
+
+function renderLineupSyncButtonHTML(song){
+
+  if(!song || !isSongInLineup(song.id))return '';
+
+  const state =
+    getLineupSyncState(song);
+
+  const cloudCheck =
+    '<path d="M7 18a4.2 4.2 0 0 1-.6-8.35 5.5 5.5 0 0 1 10.6-1.9A4 4 0 0 1 17 18H7Z"/>' +
+    '<path d="m9.5 14 2 2 3.5-4"/>';
+
+  const cloudUp =
+    '<path d="M7 18a4.2 4.2 0 0 1-.6-8.35 5.5 5.5 0 0 1 10.6-1.9A4 4 0 0 1 17 18H7Z"/>' +
+    '<path d="M12 12v6"/>' +
+    '<path d="M9.5 14.5 12 12l2.5 2.5"/>';
+
+  const glyph =
+    (state === 'clean' || state === 'remoteUpdate') ? cloudCheck : cloudUp;
+
+  const label =
+    state === 'remoteUpdate' ? 'Newer version from the team available — tap to update'
+    : state === 'syncing' ? 'Syncing to the team…'
+    : state === 'clean' ? 'Synced with the team'
+    : 'Tap to upload to the team';
+
+  return `
+    <button
+      class="lineupSyncBtn"
+      id="lineupSyncBtn"
+      type="button"
+      data-state="${state}"
+      aria-label="${esc(label)}"
+      title="${esc(label)}"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${glyph}</svg>
+    </button>
+  `;
+
+}
+
+
+function attachLineupSyncButton(song){
+
+  const btn =
+    document.getElementById('lineupSyncBtn');
+
+  if(!btn)return;
+
+  btn.onclick = () => handleLineupSyncButtonClick(song);
+
+}
+
+
+function updateLineupSyncIndicatorDOM(songId){
+
+  if(!currentSong || currentSong.id !== songId)return;
+
+  const btn =
+    document.getElementById('lineupSyncBtn');
+
+  if(!btn)return;
+
+  const wrapper =
+    document.createElement('div');
+
+  wrapper.innerHTML =
+    renderLineupSyncButtonHTML(currentSong).trim();
+
+  const fresh =
+    wrapper.firstElementChild;
+
+  if(!fresh)return;
+
+  btn.replaceWith(fresh);
+
+  fresh.onclick = () => handleLineupSyncButtonClick(currentSong);
+
+}
+
+
+async function handleLineupSyncButtonClick(song){
+
+  const state =
+    getLineupSyncState(song);
+
+  if(state === 'syncing')return;
+
+  if(state === 'remoteUpdate'){
+
+    await applyPendingLineupUpdate(song.id);
+    return;
+
+  }
+
+  /*
+    A manual tap always pushes right now, whether or not a quiet
+    auto-sync happens to already be pending — same pipeline, this
+    just skips the debounce wait for someone who wants certainty
+    immediately instead of trusting the background timer.
+  */
+
+  if(lineupAutoSyncTimers.has(song.id)){
+
+    clearTimeout(lineupAutoSyncTimers.get(song.id));
+    lineupAutoSyncTimers.delete(song.id);
+
+  }
+
+  lineupUploadInFlight.add(song.id);
+  updateLineupSyncIndicatorDOM(song.id);
+
+  const result =
+    await pushLineupSongUpdate(song);
+
+  lineupUploadInFlight.delete(song.id);
+  updateLineupSyncIndicatorDOM(song.id);
+
+  if(!result){
+
+    showToast(
+      `Couldn't upload "${song.title}" — check your connection.`,
+      'error'
+    );
+
+  }
+
+}
+
+
+/*
+  Pure pull — used when the realtime listener sees someone else's
+  newer version. Writes straight to localStorage rather than
+  going through writeSongs(), since this is content arriving FROM
+  the team, not a local edit — routing it through writeSongs would
+  treat it as a fresh change and schedule a pointless push right
+  back out.
+*/
+
+async function pullLineupSongContent(songId){
+
+  try{
+
+    const remote =
+      await downloadLibrary();
+
+    const remoteSong =
+      remote.songs.find(item => item.id === songId);
+
+    if(!remoteSong)return false;
+
+    const songs =
+      getSongs();
+
+    const index =
+      songs.findIndex(item => item.id === songId);
+
+    if(index === -1){
+      songs.unshift(remoteSong);
+    }else{
+      songs[index] = remoteSong;
+    }
+
+    localStorage.setItem(
+      'worshipChordsSongs',
+      JSON.stringify(songs.slice(0, MAX_SONGS))
+    );
+
+    lineupConfirmedPushedAt.set(
+      songId,
+      remoteSong.updatedAt
+    );
+
+    return true;
+
+  }catch(error){
+
+    console.error(error);
+    return false;
+
+  }
+
+}
+
+
+async function applyPendingLineupUpdate(songId){
+
+  pendingLineupRemoteUpdate.delete(songId);
+
+  const applied =
+    await pullLineupSongContent(songId);
+
+  if(applied && currentSong && currentSong.id === songId){
+
+    const fresh =
+      getSongs().find(item => item.id === songId);
+
+    if(fresh){
+
+      currentSong = fresh;
+      renderSongViewer();
+
+    }
+
+  }
+
+}
+
+
+function refreshLineupDetailIfOpen(){
+
+  if(currentScreenName === 'lineupDetail'){
+    renderLineupDetail();
+  }
+
+}
+
+
+/*
+  Realtime watch on the shared lineup doc — this is what makes
+  "someone else uploaded a change" show up on every other screen
+  within moments instead of waiting for the next manual sync.
+  Started once, on sign-in and on app boot (see initSyncOnLoad),
+  and just keeps running for the rest of the session.
+*/
+
+let lineupLiveStarted = false;
+
+async function startLineupLiveListener(){
+
+  if(lineupLiveStarted)return;
+
+  if(!await requireFirebaseConfigured())return;
+
+  lineupLiveStarted = true;
+
+  try{
+
+    firestoreDb
+      .collection('lineups')
+      .doc(SYNC_LINEUP_DOC_ID)
+      .onSnapshot(
+        docSnap => {
+
+          const data =
+            docSnap.exists ? docSnap.data() : null;
+
+          const songs =
+            Array.isArray(data && data.songs) ? data.songs : [];
+
+          handleLineupSnapshot(songs);
+
+        },
+        error => {
+          console.error(error);
+        }
+      );
+
+  }catch(error){
+
+    console.error(error);
+    lineupLiveStarted = false;
+
+  }
+
+}
+
+
+function handleLineupSnapshot(remoteSongs){
+
+  const localSongs =
+    getSongs();
+
+  remoteSongs.forEach(entry => {
+
+    if(!entry || !entry.id || !entry.updatedAt)return;
+
+    const local =
+      localSongs.find(item => item.id === entry.id);
+
+    const localTime =
+      new Date(
+        (local && (local.updatedAt || local.savedAt)) || 0
+      );
+
+    const remoteTime =
+      new Date(entry.updatedAt);
+
+    if(remoteTime <= localTime)return;
+
+    if(currentSong && currentSong.id === entry.id){
+
+      if(!pendingLineupRemoteUpdate.has(entry.id)){
+
+        pendingLineupRemoteUpdate.add(entry.id);
+        updateLineupSyncIndicatorDOM(entry.id);
+
+      }
+
+    }else{
+
+      pullLineupSongContent(entry.id).then(applied => {
+
+        if(!applied)return;
+
+        if(
+          document.getElementById('screen') &&
+          screen.querySelector('.librarySection')
+        ){
+          renderLibrary();
+        }
+
+        refreshLineupDetailIfOpen();
+
+      });
+
+    }
+
+  });
+
+}
 
 
 /* =========================================================
@@ -6179,6 +6705,8 @@ async function onAuthReady(user){
   pullNewSongsFromDrive();
 
   pullLineupFromDrive();
+
+  startLineupLiveListener();
 
 }
 
@@ -7582,7 +8110,8 @@ async function sendCurrentSongToLineup(song){
       remote.songs.push({
 
         id: song.id,
-        title: song.title
+        title: song.title,
+        updatedAt: song.updatedAt || song.savedAt || new Date().toISOString()
 
       });
 
@@ -7604,7 +8133,23 @@ async function sendCurrentSongToLineup(song){
 
     }
 
+    lineupConfirmedPushedAt.set(
+      song.id,
+      song.updatedAt || song.savedAt
+    );
+
     showToast('Added to the Sunday Worship lineup.', 'success');
+
+    /*
+      The sync/upload indicator only shows once a song is in the
+      lineup, so the header rendered before this button existed —
+      refresh it now so the button actually appears right away
+      instead of waiting for some unrelated re-render.
+    */
+
+    if(currentSong && currentSong.id === song.id){
+      renderSongViewer();
+    }
 
   }catch(error){
 
@@ -12799,6 +13344,7 @@ function renderSongViewer(){
           <button class="favoriteBtn${song.favorite?' active':''}" id="songFavoriteBtn" type="button" aria-label="${song.favorite?'Remove from favorites':'Add to favorites'}">
             <svg viewBox="0 0 24 24" fill="${song.favorite?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M12 17.3 6.2 20.6l1.1-6.6-4.8-4.7 6.6-1 3-6 3 6 6.6 1-4.8 4.7 1.1 6.6z"/></svg>
           </button>
+          ${renderLineupSyncButtonHTML(song)}
           ${keyInfo?`<div class="keyBadge songHeaderKey">Key: ${esc(keyInfo.label)}</div>`:''}
           ${capoInfo?`<div class="capoBadge">Capo ${capoInfo.fret} → ${esc(capoInfo.shape)} shape</div>`:''}
         </div>
@@ -12870,8 +13416,9 @@ function renderSongViewer(){
     maybeShowLongPressHint();
   }
   updateLyricsNavIndicator();
-  document.getElementById('songBackBtn').onclick=()=>{if(currentSong)flushLineupAutoSync(currentSong.id);stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
+  document.getElementById('songBackBtn').onclick=()=>{if(currentSong){flushLineupAutoSync(currentSong.id);if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);}stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
+  attachLineupSyncButton(currentSong);
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
   document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
   document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
@@ -13073,7 +13620,7 @@ function renderMergedSongViewer(){
     maybeShowLongPressHint();
   }
   updateLyricsNavIndicator();
-  document.getElementById('songBackBtn').onclick=()=>{if(currentSong)flushLineupAutoSync(currentSong.id);stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
+  document.getElementById('songBackBtn').onclick=()=>{if(currentSong){flushLineupAutoSync(currentSong.id);if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);}stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
   document.getElementById('transposeDown').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)-1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
   document.getElementById('transposeUp').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)+1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
@@ -16353,6 +16900,24 @@ function renderSetlistDetail(setlistId){
   personal, per-device setlist — so removing a song here removes
   it for the whole team, not just this device.
 */
+function isLineupEntryNewerThanLocal(lineup, localSong){
+
+  const entry =
+    lineup.songs.find(item => item.id === localSong.id);
+
+  if(!entry || !entry.updatedAt)return false;
+
+  const entryTime =
+    new Date(entry.updatedAt);
+
+  const localTime =
+    new Date(localSong.updatedAt || localSong.savedAt || 0);
+
+  return entryTime > localTime;
+
+}
+
+
 function renderLineupDetail(){
 
   currentScreenName = 'lineupDetail';
@@ -16422,7 +16987,7 @@ function renderLineupDetail(){
               data-open-lineup-song="${esc(song.id)}"
               style="${song.missing ? 'color:#a7a7ae;' : ''}"
             >
-              ${esc(song.title)}${song.missing ? ' (not synced to this device yet)' : ''}
+              ${esc(song.title)}${song.missing ? ' (not synced to this device yet)' : ''}${(!song.missing && isLineupEntryNewerThanLocal(lineup, song)) ? '<span class="lineupUpdateDot" title="Newer version from the team available"></span>' : ''}
             </div>
 
             <button class="setlistOrderBtn" type="button" data-remove-from-lineup="${esc(song.id)}" title="Remove from lineup" style="color:#ff8b8b;">✕</button>
@@ -17808,6 +18373,8 @@ async function initSyncOnLoad(){
   pullNewSongsFromDrive();
 
   pullLineupFromDrive();
+
+  startLineupLiveListener();
 
 }
 
