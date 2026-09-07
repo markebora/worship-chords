@@ -14320,6 +14320,7 @@ function attachMergedSwipeHandlers(){
   let startX=0,startY=0,tracking=false,horizontal=false;
 
   el.addEventListener('touchstart',event=>{
+    if(annotateMode)return;
     if(event.touches.length!==1)return;
     const touch=event.touches[0];
     startX=touch.clientX;
@@ -14328,6 +14329,7 @@ function attachMergedSwipeHandlers(){
     horizontal=false;
   },{passive:true});
   el.addEventListener('touchmove',event=>{
+    if(annotateMode)return;
     if(!tracking)return;
     const dx=event.touches[0].clientX-startX;
     const dy=event.touches[0].clientY-startY;
@@ -14340,6 +14342,7 @@ function attachMergedSwipeHandlers(){
     }
   },{passive:false});
   const finishSwipe=event=>{
+    if(annotateMode)return;
     if(!tracking)return;
     tracking=false;
     if(horizontal){
