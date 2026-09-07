@@ -2274,6 +2274,113 @@ button{
   flex:1;
 }
 
+
+/* =========================================================
+   FREEHAND ANNOTATIONS
+   Personal, local-only markup layer over the live Chords/
+   Lyrics view -- pen, highlighter, text, eraser. Never synced;
+   lives in localStorage keyed by song, not in the song object
+   itself, so it can't accidentally reach the team.
+========================================================= */
+
+.annotateWrap{
+  position:relative;
+}
+
+.annotateSvg{
+  position:absolute;
+  left:0;
+  top:0;
+  width:100%;
+  height:100%;
+
+  pointer-events:none;
+  touch-action:none;
+}
+
+.annotateSvg.active{
+  pointer-events:auto;
+}
+
+.annotateToggleBtn.active{
+  background:#fff;
+  color:#111;
+}
+
+.annotateToolbar{
+  position:fixed;
+  left:50%;
+  bottom:calc(92px + env(safe-area-inset-bottom, 0px));
+  transform:translateX(-50%);
+  z-index:130;
+
+  display:flex;
+  align-items:center;
+  gap:6px;
+
+  padding:8px;
+
+  background:rgba(20,20,23,.95);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:999px;
+
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+
+  box-shadow:0 10px 30px rgba(0,0,0,.5);
+}
+
+.annotateToolBtn{
+  width:38px;
+  height:38px;
+
+  border:0;
+  border-radius:50%;
+
+  background:transparent;
+  color:#c9c9ce;
+
+  display:grid;
+  place-items:center;
+
+  cursor:pointer;
+  flex:0 0 auto;
+}
+
+.annotateToolBtn svg{
+  width:19px;
+  height:19px;
+}
+
+.annotateToolBtn.active{
+  background:#fff;
+  color:#111;
+}
+
+.annotateColorDot{
+  width:22px;
+  height:22px;
+
+  border-radius:50%;
+  border:2px solid transparent;
+
+  cursor:pointer;
+  flex:0 0 auto;
+}
+
+.annotateColorDot.active{
+  border-color:#fff;
+}
+
+.annotateDivider{
+  width:1px;
+  height:22px;
+
+  background:rgba(255,255,255,.16);
+  flex:0 0 auto;
+}
+
+
 /* Shared shape for every translucent "pill" chip in the app —
    flowSideNote, flowKeyChangeBadge, mdNotePill, and this base
    class all use the same dashed-border, fully-rounded shape.
@@ -5632,8 +5739,23 @@ function renderLineupSyncButtonHTML(song){
     '<path d="M12 12v6"/>' +
     '<path d="M9.5 14.5 12 12l2.5 2.5"/>';
 
+  /*
+    Fading ring instead of the cloud glyph while a push is in
+    flight — reads as "working" at a glance rather than needing
+    a second to register as a cloud icon that happens to spin.
+  */
+
+  const spinner =
+    '<defs><linearGradient id="lineupSyncSpinnerGradient" x1="0%" y1="0%" x2="100%" y2="100%">' +
+    '<stop offset="0%" stop-color="currentColor" stop-opacity="1"/>' +
+    '<stop offset="100%" stop-color="currentColor" stop-opacity="0"/>' +
+    '</linearGradient></defs>' +
+    '<circle cx="12" cy="12" r="9" fill="none" stroke="url(#lineupSyncSpinnerGradient)" stroke-width="2.5" stroke-linecap="round"/>';
+
   const glyph =
-    (state === 'clean' || state === 'remoteUpdate') ? cloudCheck : cloudUp;
+    state === 'syncing' ? spinner
+    : (state === 'clean' || state === 'remoteUpdate') ? cloudCheck
+    : cloudUp;
 
   const label =
     state === 'remoteUpdate' ? 'Newer version from the team available — tap to update'
@@ -13313,7 +13435,499 @@ function attachSectionNavBehavior(){
   });
 }
 
+/* =========================================================
+   FREEHAND ANNOTATIONS
+   Personal, local-only markup over the live Chords/Lyrics
+   view. Deliberately kept out of the `song` object entirely
+   — stored under its own localStorage key, keyed by song id
+   — so it can never get swept up into a Drive push, a lineup
+   upload, or a Send to Team. Points are stored as fractions
+   (0-1) of the content area's width/height, and the SVG's
+   viewBox is sized to the container's actual pixel dimensions
+   at render/draw time, so strokes render at true, undistorted
+   proportions regardless of how tall the lyrics happen to be.
+========================================================= */
+
+function getSongAnnotations(annotationKey){
+
+  try{
+
+    const all =
+      JSON.parse(
+        localStorage.getItem('worshipChordsAnnotations') || '{}'
+      );
+
+    return Array.isArray(all[annotationKey]) ? all[annotationKey] : [];
+
+  }catch(error){
+
+    console.error(error);
+    return [];
+
+  }
+
+}
+
+
+function saveSongAnnotations(annotationKey, strokes){
+
+  try{
+
+    const all =
+      JSON.parse(
+        localStorage.getItem('worshipChordsAnnotations') || '{}'
+      );
+
+    all[annotationKey] = strokes;
+
+    localStorage.setItem(
+      'worshipChordsAnnotations',
+      JSON.stringify(all)
+    );
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+
+function getAnnotationKey(song){
+
+  if(
+    Array.isArray(song.mergeParts) &&
+    song.mergeParts.length > 1
+  ){
+
+    return song.mergeParts[clampMergedPartIndex(song)].id;
+
+  }
+
+  return song.id;
+
+}
+
+
+let annotateMode = false;
+let annotateTool = 'pen';
+let annotateColor = '#ff5a5a';
+let annotateDrawing = false;
+let annotateCurrentPoints = [];
+let annotateCurrentEl = null;
+
+const ANNOTATE_COLORS = ['#ff5a5a', '#ffd23f', '#4da6ff', '#f5f5f0'];
+
+
+function renderAnnotateToggleButtonHTML(){
+
+  return `
+    <button
+      class="toolbarBtn annotateToggleBtn${annotateMode ? ' active' : ''}"
+      id="annotateToggleBtn"
+      type="button"
+      title="${annotateMode ? 'Done annotating' : 'Annotate — personal, prep notes'}"
+      aria-label="${annotateMode ? 'Done annotating' : 'Annotate'}"
+    >✎</button>
+  `;
+
+}
+
+
+function renderAnnotateToolbarHTML(){
+
+  if(!annotateMode)return '';
+
+  const tools = [
+    { id:'pen', label:'Pen', glyph:'<path d="M4 20l1-4L16 5l3 3L8 19l-4 1Z"/><path d="M13.5 7.5 16.5 10.5"/>' },
+    { id:'highlighter', label:'Highlighter', glyph:'<path d="M4 20h6"/><path d="M9 15 15 9l4 4-6 6H9v-4Z"/><path d="M14.5 8.5 17 5.5l3.5 3.5-3 2.5"/>' },
+    { id:'text', label:'Text', glyph:'<path d="M6 6h12"/><path d="M12 6v13"/><path d="M9 19h6"/>' },
+    { id:'eraser', label:'Eraser', glyph:'<path d="M17 3 21 7 8 20H4v-4Z"/><path d="M13 7 17 11"/>' }
+  ];
+
+  return `
+    <div class="annotateToolbar" id="annotateToolbar">
+
+      ${
+        tools.map(tool => `
+          <button
+            type="button"
+            class="annotateToolBtn${annotateTool === tool.id ? ' active' : ''}"
+            data-annotate-tool="${tool.id}"
+            title="${esc(tool.label)}"
+            aria-label="${esc(tool.label)}"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${tool.glyph}</svg>
+          </button>
+        `).join('')
+      }
+
+      <div class="annotateDivider"></div>
+
+      ${
+        ANNOTATE_COLORS.map(color => `
+          <button
+            type="button"
+            class="annotateColorDot${annotateColor === color ? ' active' : ''}"
+            data-annotate-color="${esc(color)}"
+            style="background:${esc(color)};"
+            aria-label="Color ${esc(color)}"
+          ></button>
+        `).join('')
+      }
+
+      <div class="annotateDivider"></div>
+
+      <button type="button" class="annotateToolBtn" id="annotateClearBtn" title="Clear all" aria-label="Clear all">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+      </button>
+
+    </div>
+  `;
+
+}
+
+
+function renderAnnotationSvgContentHTML(annotationKey, pixelWidth, pixelHeight){
+
+  const strokes =
+    getSongAnnotations(annotationKey);
+
+  return strokes.map(stroke => {
+
+    if(stroke.tool === 'text'){
+
+      return `<text x="${stroke.x * pixelWidth}" y="${stroke.y * pixelHeight}" fill="${esc(stroke.color)}" font-size="15" font-family="inherit" font-weight="700" style="text-shadow:0 1px 3px rgba(0,0,0,.6);">${esc(stroke.text)}</text>`;
+
+    }
+
+    const isHighlighter =
+      stroke.tool === 'highlighter';
+
+    const pointsAttr =
+      stroke.points
+        .map(p => (p.x * pixelWidth) + ',' + (p.y * pixelHeight))
+        .join(' ');
+
+    return `<polyline points="${pointsAttr}" fill="none" stroke="${esc(stroke.color)}" stroke-width="${isHighlighter ? 16 : 3}" stroke-linecap="round" stroke-linejoin="round" opacity="${isHighlighter ? 0.4 : 1}" ${isHighlighter ? 'style="mix-blend-mode:multiply;"' : ''}/>`;
+
+  }).join('');
+
+}
+
+
+function sizeAndRenderAnnotationLayer(annotationKey){
+
+  const wrap =
+    document.getElementById('annotateWrap');
+
+  const svg =
+    document.getElementById('annotateSvg');
+
+  if(!wrap || !svg)return;
+
+  const width =
+    wrap.clientWidth || 1;
+
+  const height =
+    wrap.scrollHeight || 1;
+
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+  svg.innerHTML =
+    renderAnnotationSvgContentHTML(annotationKey, width, height);
+
+}
+
+
+function toAnnotateFraction(svg, clientX, clientY){
+
+  const rect =
+    svg.getBoundingClientRect();
+
+  return {
+    x: Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)),
+    y: Math.max(0, Math.min(1, (clientY - rect.top) / rect.height))
+  };
+
+}
+
+
+function eraseAnnotationNear(annotationKey, fraction){
+
+  const strokes =
+    getSongAnnotations(annotationKey);
+
+  const threshold = 0.035;
+
+  const remaining =
+    strokes.filter(stroke => {
+
+      if(stroke.tool === 'text'){
+
+        const dx = stroke.x - fraction.x;
+        const dy = stroke.y - fraction.y;
+
+        return Math.sqrt(dx*dx + dy*dy) > threshold * 2;
+
+      }
+
+      return !stroke.points.some(point => {
+
+        const dx = point.x - fraction.x;
+        const dy = point.y - fraction.y;
+
+        return Math.sqrt(dx*dx + dy*dy) < threshold;
+
+      });
+
+    });
+
+  if(remaining.length !== strokes.length){
+
+    saveSongAnnotations(annotationKey, remaining);
+    sizeAndRenderAnnotationLayer(annotationKey);
+
+  }
+
+}
+
+
+function promptAnnotateText(annotationKey, fraction){
+
+  const text =
+    prompt('Note text:');
+
+  if(!text || !text.trim())return;
+
+  const strokes =
+    getSongAnnotations(annotationKey);
+
+  strokes.push({
+
+    id: 'text-' + Math.random().toString(36).slice(2,8),
+    tool: 'text',
+    color: annotateColor,
+    x: fraction.x,
+    y: fraction.y,
+    text: text.trim()
+
+  });
+
+  saveSongAnnotations(annotationKey, strokes);
+  sizeAndRenderAnnotationLayer(annotationKey);
+
+}
+
+
+function attachAnnotateHandlers(annotationKey){
+
+  const svg =
+    document.getElementById('annotateSvg');
+
+  if(!svg)return;
+
+  svg.classList.toggle('active', annotateMode);
+
+  if(!annotateMode)return;
+
+  svg.onpointerdown = (event) => {
+
+    if(annotateTool === 'text'){
+
+      promptAnnotateText(
+        annotationKey,
+        toAnnotateFraction(svg, event.clientX, event.clientY)
+      );
+
+      return;
+
+    }
+
+    if(annotateTool === 'eraser'){
+
+      annotateDrawing = true;
+
+      eraseAnnotationNear(
+        annotationKey,
+        toAnnotateFraction(svg, event.clientX, event.clientY)
+      );
+
+      return;
+
+    }
+
+    annotateDrawing = true;
+
+    const fraction =
+      toAnnotateFraction(svg, event.clientX, event.clientY);
+
+    annotateCurrentPoints = [fraction];
+
+    const rect =
+      svg.getBoundingClientRect();
+
+    annotateCurrentEl =
+      document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+
+    const isHighlighter =
+      annotateTool === 'highlighter';
+
+    annotateCurrentEl.setAttribute('fill', 'none');
+    annotateCurrentEl.setAttribute('stroke', annotateColor);
+    annotateCurrentEl.setAttribute('stroke-width', isHighlighter ? '16' : '3');
+    annotateCurrentEl.setAttribute('stroke-linecap', 'round');
+    annotateCurrentEl.setAttribute('stroke-linejoin', 'round');
+    annotateCurrentEl.setAttribute('opacity', isHighlighter ? '0.4' : '1');
+
+    if(isHighlighter){
+      annotateCurrentEl.style.mixBlendMode = 'multiply';
+    }
+
+    annotateCurrentEl.setAttribute(
+      'points',
+      (fraction.x * rect.width) + ',' + (fraction.y * rect.height)
+    );
+
+    svg.appendChild(annotateCurrentEl);
+
+  };
+
+  svg.onpointermove = (event) => {
+
+    if(!annotateDrawing)return;
+
+    if(annotateTool === 'eraser'){
+
+      eraseAnnotationNear(
+        annotationKey,
+        toAnnotateFraction(svg, event.clientX, event.clientY)
+      );
+
+      return;
+
+    }
+
+    if(!annotateCurrentEl)return;
+
+    const rect =
+      svg.getBoundingClientRect();
+
+    const fraction =
+      toAnnotateFraction(svg, event.clientX, event.clientY);
+
+    annotateCurrentPoints.push(fraction);
+
+    const pointsAttr =
+      annotateCurrentPoints
+        .map(p => (p.x * rect.width) + ',' + (p.y * rect.height))
+        .join(' ');
+
+    annotateCurrentEl.setAttribute('points', pointsAttr);
+
+  };
+
+  const finishStroke = () => {
+
+    if(!annotateDrawing)return;
+
+    annotateDrawing = false;
+
+    if(annotateTool === 'eraser')return;
+
+    if(annotateCurrentPoints.length > 1){
+
+      const strokes =
+        getSongAnnotations(annotationKey);
+
+      strokes.push({
+        id: 'stroke-' + Math.random().toString(36).slice(2,8),
+        tool: annotateTool,
+        color: annotateColor,
+        points: annotateCurrentPoints
+      });
+
+      saveSongAnnotations(annotationKey, strokes);
+
+    }else if(annotateCurrentEl){
+
+      annotateCurrentEl.remove();
+
+    }
+
+    annotateCurrentPoints = [];
+    annotateCurrentEl = null;
+
+  };
+
+  svg.onpointerup = finishStroke;
+  svg.onpointercancel = finishStroke;
+  svg.onpointerleave = finishStroke;
+
+}
+
+
+function attachAnnotateToolbar(annotationKey){
+
+  const toggleBtn =
+    document.getElementById('annotateToggleBtn');
+
+  if(toggleBtn){
+
+    toggleBtn.onclick = () => {
+
+      annotateMode = !annotateMode;
+      renderSongViewer();
+
+    };
+
+  }
+
+  document.querySelectorAll('[data-annotate-tool]').forEach(btn => {
+
+    btn.onclick = () => {
+
+      annotateTool = btn.dataset.annotateTool;
+      renderSongViewer();
+
+    };
+
+  });
+
+  document.querySelectorAll('[data-annotate-color]').forEach(btn => {
+
+    btn.onclick = () => {
+
+      annotateColor = btn.dataset.annotateColor;
+      renderSongViewer();
+
+    };
+
+  });
+
+  const clearBtn =
+    document.getElementById('annotateClearBtn');
+
+  if(clearBtn){
+
+    clearBtn.onclick = () => {
+
+      if(!confirm('Clear all annotations on this song?'))return;
+
+      saveSongAnnotations(annotationKey, []);
+      sizeAndRenderAnnotationLayer(annotationKey);
+
+    };
+
+  }
+
+}
+
+
+
 function renderSongViewer(){
+
   currentScreenName = 'songViewer';
   const song=currentSong;
   if(song && Array.isArray(song.mergeParts) && song.mergeParts.length>1){
@@ -13332,6 +13946,7 @@ function renderSongViewer(){
   const flow=getSongFlow(flowTarget,sections);
   const displayBlocks=hasCustomFlow?getExpandedDisplayBlocks(sections,flow):sections.map(section=>({isNote:false,id:section._id,name:section.name,lines:section.lines}));
   const navBlocks=displayBlocks.filter(block=>!block.isNote);
+  const annotationKey=getAnnotationKey(song);
 
   screen.innerHTML=`
     <div class="songPage">
@@ -13360,6 +13975,7 @@ function renderSongViewer(){
         <div class="toolbarRow secondaryRow">
           <button class="toolbarBtn" id="fontMinus">A−</button>
           <button class="toolbarBtn" id="fontPlus">A+</button>
+          ${renderAnnotateToggleButtonHTML()}
           <div class="songMenuWrap" id="songMenuWrap">
             <button class="toolbarBtn songMenuBtn" id="songMenuBtn" type="button" aria-haspopup="true" aria-label="More options">⋮</button>
             <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
@@ -13393,11 +14009,12 @@ function renderSongViewer(){
         </div>
       </div>
       `:`
-      <div class="lyricsView" id="lyricsText" style="font-size:${song.fontSize}px;"><div class="songStructure${showChords?'':' chordsHidden'}" id="songStructure">
+      <div class="lyricsView" id="lyricsText" style="font-size:${song.fontSize}px;"><div class="annotateWrap" id="annotateWrap"><div class="songStructure${showChords?'':' chordsHidden'}" id="songStructure">
         ${renderSongStructureHTML(displayBlocks)}
-      </div></div>
+      </div><svg class="annotateSvg" id="annotateSvg"></svg></div></div>
       `}
-    </div>`;
+    </div>
+    ${renderAnnotateToolbarHTML()}`;
   document.getElementById('songSectionOverlay').innerHTML = songFlowMode?'':`
     <div class="songSectionFloatBar idleFade">
       <div class="songSectionNav" id="songSectionNav" aria-label="Song sections">
@@ -13476,6 +14093,9 @@ function renderSongViewer(){
     attachFlowControls(flowTarget,flow,sections);
   }else{
     attachSectionNavBehavior();
+    sizeAndRenderAnnotationLayer(annotationKey);
+    attachAnnotateHandlers(annotationKey);
+    attachAnnotateToolbar(annotationKey);
   }
 }
 
@@ -13533,6 +14153,7 @@ function renderMergedSongViewer(){
   const flow=getSongFlow(flowTarget,sections);
   const displayBlocks=hasCustomFlow?getExpandedDisplayBlocks(sections,flow):sections.map(section=>({isNote:false,id:section._id,name:section.name,lines:section.lines}));
   const navBlocks=displayBlocks.filter(block=>!block.isNote);
+  const annotationKey=part.id;
 
   screen.innerHTML=`
     <div class="songPage mergedSongPage">
@@ -13545,6 +14166,7 @@ function renderMergedSongViewer(){
             <h1 class="songHeaderTitle">${esc(part.title||'Untitled Song')}</h1>
             <div class="mergeSongSubtitle">Song ${activeIndex+1} of ${total} — ${esc(song.title||'Merged Song')}</div>
           </div>
+          ${renderLineupSyncButtonHTML(song)}
           ${keyInfo?`<div class="keyBadge songHeaderKey">Key: ${esc(keyInfo.label)}</div>`:''}
           ${capoInfo?`<div class="capoBadge">Capo ${capoInfo.fret} → ${esc(capoInfo.shape)} shape</div>`:''}
         </div>
@@ -13563,6 +14185,7 @@ function renderMergedSongViewer(){
         <div class="toolbarRow secondaryRow">
           <button class="toolbarBtn" id="fontMinus">A−</button>
           <button class="toolbarBtn" id="fontPlus">A+</button>
+          ${renderAnnotateToggleButtonHTML()}
           <div class="songMenuWrap" id="songMenuWrap">
             <button class="toolbarBtn songMenuBtn" id="songMenuBtn" type="button" aria-haspopup="true" aria-label="More options">⋮</button>
             <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
@@ -13596,11 +14219,12 @@ function renderMergedSongViewer(){
         </div>
       </div>
       `:`
-      <div class="lyricsView mergedLyricsView" id="lyricsText" style="font-size:${song.fontSize}px;"><div class="songStructure${showChords?'':' chordsHidden'}" id="songStructure">
+      <div class="lyricsView mergedLyricsView" id="lyricsText" style="font-size:${song.fontSize}px;"><div class="annotateWrap" id="annotateWrap"><div class="songStructure${showChords?'':' chordsHidden'}" id="songStructure">
         ${renderSongStructureHTML(displayBlocks)}
-      </div></div>
+      </div><svg class="annotateSvg" id="annotateSvg"></svg></div></div>
       `}
-    </div>`;
+    </div>
+    ${renderAnnotateToolbarHTML()}`;
   document.getElementById('songSectionOverlay').innerHTML = songFlowMode?'':`
     <div class="songSectionFloatBar idleFade">
       <div class="songSectionNav" id="songSectionNav" aria-label="Song sections">
@@ -13622,6 +14246,7 @@ function renderMergedSongViewer(){
   updateLyricsNavIndicator();
   document.getElementById('songBackBtn').onclick=()=>{if(currentSong){flushLineupAutoSync(currentSong.id);if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);}stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
+  attachLineupSyncButton(song);
   document.getElementById('transposeDown').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)-1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
   document.getElementById('transposeUp').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)+1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
   document.getElementById('transposeReset').onclick=()=>{part.transposeSteps=0;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
@@ -13679,6 +14304,9 @@ function renderMergedSongViewer(){
     attachFlowControls(flowTarget,flow,sections);
   }else{
     attachSectionNavBehavior();
+    sizeAndRenderAnnotationLayer(annotationKey);
+    attachAnnotateHandlers(annotationKey);
+    attachAnnotateToolbar(annotationKey);
   }
   document.querySelectorAll('#mergePartPills .mergePartPill').forEach(pill=>{
     pill.onclick=()=>goToMergedPartIndex(Number(pill.dataset.partIndex));
