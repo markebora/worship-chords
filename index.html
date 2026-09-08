@@ -3217,84 +3217,183 @@ button{
   margin-bottom:14px;
 }
 
-.editorSections{
-  display:flex;
+.editorTextarea{
+  width:100%;
 
-  flex-direction:column;
+  display:block;
 
-  gap:10px;
-}
-
-.editorSection{
-  background:#171719;
+  resize:none;
+  overflow:hidden;
 
   border:1px solid #2d2d32;
-
   border-radius:15px;
 
-  overflow:hidden;
-}
-
-.editorSectionHead{
-  display:flex;
-
-  align-items:center;
-
-  gap:8px;
-
-  padding:10px;
-
-  background:#1d1d20;
-
-  border-bottom:1px solid #29292e;
-}
-
-.sectionType{
-  flex:1;
-
-  min-width:0;
-
-  background:#101012;
+  background:#0e0e10;
 
   color:#fff;
 
-  border:1px solid #34343a;
+  padding:16px;
 
-  border-radius:9px;
+  font:
+    14px/1.7
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
 
-  padding:8px 9px;
-
-  font-size:12px;
-
-  font-weight:800;
-
+.editorTextarea:focus{
   outline:none;
+  border-color:#4a4a52;
 }
 
-.sectionTools{
+
+/* =========================================================
+   EDITOR PILL BAR
+   Reuses the same long-press-then-drag gesture as the live
+   Chords/Lyrics section nav, extended with a second branch:
+   holding still after the long-press opens a Duplicate/Delete
+   popup instead of immediately dragging. Only an actual finger
+   move after that closes the popup and hands off into the
+   normal drag-to-reorder path.
+========================================================= */
+
+.editorPillBarWrap{
+  margin-top:14px;
+}
+
+.editorPillBarLabel{
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.03em;
+  text-transform:uppercase;
+  color:#77777f;
+  margin-bottom:8px;
+}
+
+.editorPillBar{
   display:flex;
+  align-items:center;
+  gap:8px;
 
-  gap:5px;
+  overflow-x:auto;
+  padding-bottom:4px;
+
+  scrollbar-width:none;
 }
 
-.sectionTool{
-  width:34px;
-  height:34px;
+.editorPillBar::-webkit-scrollbar{
+  display:none;
+}
 
-  border:0;
+.editorPill{
+  flex:0 0 auto;
 
-  border-radius:9px;
+  display:flex;
+  align-items:center;
+  gap:6px;
 
-  background:#29292e;
+  padding:9px 14px;
 
-  color:#ddd;
+  background:#1a1a1d;
+  border:1px solid #303036;
+  border-radius:999px;
+
+  color:#e6e6e8;
+  font-size:12.5px;
+  font-weight:800;
+  white-space:nowrap;
+
+  cursor:pointer;
+
+  touch-action:none;
+
+  transition:background .12s ease, transform .12s ease;
+}
+
+.editorPill.longPressing{
+  background:#26262b;
+}
+
+.editorPill.dragging{
+  background:#fff;
+  color:#111;
+  transform:scale(1.06);
+  box-shadow:0 8px 20px rgba(0,0,0,.5);
+  z-index:5;
+  position:relative;
+}
+
+.editorPillAdd{
+  flex:0 0 auto;
+
+  width:38px;
+  height:38px;
+
+  display:grid;
+  place-items:center;
+
+  background:transparent;
+  border:1px dashed #3a3a40;
+  border-radius:50%;
+
+  color:#c9c9ce;
+  font-size:17px;
+  font-weight:800;
 
   cursor:pointer;
 }
 
-.sectionTool.delete{
+.editorPillPopup{
+  position:fixed;
+  z-index:200;
+
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+
+  padding:6px;
+
+  background:rgba(24,24,27,.98);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:13px;
+
+  box-shadow:0 12px 30px rgba(0,0,0,.55);
+
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+}
+
+.editorPillPopup button{
+  display:flex;
+  align-items:center;
+  gap:8px;
+
+  padding:9px 14px;
+
+  background:transparent;
+  border:0;
+  border-radius:8px;
+
+  color:#f1f1f2;
+  font-size:13px;
+  font-weight:700;
+
+  white-space:nowrap;
+  text-align:left;
+
+  cursor:pointer;
+}
+
+.editorPillPopup button:active{
+  background:rgba(255,255,255,.08);
+}
+
+.editorPillPopup button.danger{
   color:#ff8b8b;
 }
+
+
 
 /* =========================================================
    PDF EXPORT OPTIONS
@@ -3432,61 +3531,6 @@ button{
   margin-top:8px;
   font-size:11px;
   color:#6b6b72;
-}
-
-.editorTextarea{
-  width:100%;
-
-  min-height:150px;
-
-  display:block;
-
-  resize:vertical;
-
-  border:0;
-
-  outline:none;
-
-  background:#0e0e10;
-
-  color:#fff;
-
-  padding:14px;
-
-  font:
-    14px/1.7
-    ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    monospace;
-}
-
-.addSectionArea{
-  margin-top:12px;
-
-  display:flex;
-
-  gap:8px;
-}
-
-.addSectionSelect{
-  flex:1;
-
-  min-width:0;
-
-  background:#1a1a1d;
-
-  color:#fff;
-
-  border:1px solid #303036;
-
-  border-radius:10px;
-
-  padding:10px;
-
-  font-size:12px;
-
-  font-weight:700;
 }
 
 
@@ -13721,7 +13765,12 @@ function promptAnnotateText(annotationKey, fraction){
 }
 
 
+let currentAnnotationKey = null;
+
+
 function attachAnnotateHandlers(annotationKey){
+
+  currentAnnotationKey = annotationKey;
 
   const svg =
     document.getElementById('annotateSvg');
@@ -13730,9 +13779,17 @@ function attachAnnotateHandlers(annotationKey){
 
   svg.classList.toggle('active', annotateMode);
 
-  if(!annotateMode)return;
+  /*
+    Handlers stay attached at all times — each one bails
+    immediately if annotate mode is off — rather than being
+    attached/detached on toggle. That's what lets turning
+    annotate mode on/off, or switching tools, be a small DOM
+    patch (updateAnnotateUI) instead of a full re-render.
+  */
 
   svg.onpointerdown = (event) => {
+
+    if(!annotateMode)return;
 
     if(annotateTool === 'text'){
 
@@ -13796,7 +13853,7 @@ function attachAnnotateHandlers(annotationKey){
 
   svg.onpointermove = (event) => {
 
-    if(!annotateDrawing)return;
+    if(!annotateMode || !annotateDrawing)return;
 
     if(annotateTool === 'eraser'){
 
@@ -13830,7 +13887,7 @@ function attachAnnotateHandlers(annotationKey){
 
   const finishStroke = () => {
 
-    if(!annotateDrawing)return;
+    if(!annotateMode || !annotateDrawing)return;
 
     annotateDrawing = false;
 
@@ -13868,7 +13925,19 @@ function attachAnnotateHandlers(annotationKey){
 }
 
 
+/*
+  Everything below patches the DOM in place instead of calling
+  renderSongViewer() — switching tools/colors, or toggling
+  annotate mode on/off, only needs to touch the small toolbar
+  and a couple of CSS classes. Re-rendering the whole page for
+  that was what caused the flicker: the entire lyrics view was
+  being torn down and rebuilt just to swap which tool button
+  looked highlighted.
+*/
+
 function attachAnnotateToolbar(annotationKey){
+
+  currentAnnotationKey = annotationKey;
 
   const toggleBtn =
     document.getElementById('annotateToggleBtn');
@@ -13878,18 +13947,87 @@ function attachAnnotateToolbar(annotationKey){
     toggleBtn.onclick = () => {
 
       annotateMode = !annotateMode;
-      renderSongViewer();
+      updateAnnotateUI();
 
     };
 
   }
+
+  /*
+    The toolbar itself is never part of the full-render
+    template — it's only ever created/removed here, so there's
+    exactly one place that can create it and no risk of a
+    leftover copy surviving a later full re-render (font size,
+    transpose, tab switch) alongside a freshly built one.
+  */
+
+  updateAnnotateUI();
+
+}
+
+
+function updateAnnotateUI(){
+
+  const toggleBtn =
+    document.getElementById('annotateToggleBtn');
+
+  if(toggleBtn){
+
+    toggleBtn.classList.toggle('active', annotateMode);
+
+    const label =
+      annotateMode ? 'Done annotating' : 'Annotate — personal, prep notes';
+
+    toggleBtn.title = label;
+    toggleBtn.setAttribute('aria-label', label);
+
+  }
+
+  const svg =
+    document.getElementById('annotateSvg');
+
+  if(svg){
+    svg.classList.toggle('active', annotateMode);
+  }
+
+  const existingToolbar =
+    document.getElementById('annotateToolbar');
+
+  if(existingToolbar){
+    existingToolbar.remove();
+  }
+
+  if(annotateMode){
+
+    const wrapper =
+      document.createElement('div');
+
+    wrapper.innerHTML =
+      renderAnnotateToolbarHTML().trim();
+
+    const toolbarEl =
+      wrapper.firstElementChild;
+
+    if(toolbarEl){
+
+      document.body.appendChild(toolbarEl);
+      wireAnnotateToolbarButtons();
+
+    }
+
+  }
+
+}
+
+
+function wireAnnotateToolbarButtons(){
 
   document.querySelectorAll('[data-annotate-tool]').forEach(btn => {
 
     btn.onclick = () => {
 
       annotateTool = btn.dataset.annotateTool;
-      renderSongViewer();
+      updateAnnotateUI();
 
     };
 
@@ -13900,7 +14038,7 @@ function attachAnnotateToolbar(annotationKey){
     btn.onclick = () => {
 
       annotateColor = btn.dataset.annotateColor;
-      renderSongViewer();
+      updateAnnotateUI();
 
     };
 
@@ -13915,8 +14053,8 @@ function attachAnnotateToolbar(annotationKey){
 
       if(!confirm('Clear all annotations on this song?'))return;
 
-      saveSongAnnotations(annotationKey, []);
-      sizeAndRenderAnnotationLayer(annotationKey);
+      saveSongAnnotations(currentAnnotationKey, []);
+      sizeAndRenderAnnotationLayer(currentAnnotationKey);
 
     };
 
@@ -14014,7 +14152,7 @@ function renderSongViewer(){
       </div><svg class="annotateSvg" id="annotateSvg"></svg></div></div>
       `}
     </div>
-    ${renderAnnotateToolbarHTML()}`;
+    `;
   document.getElementById('songSectionOverlay').innerHTML = songFlowMode?'':`
     <div class="songSectionFloatBar idleFade">
       <div class="songSectionNav" id="songSectionNav" aria-label="Song sections">
@@ -14224,7 +14362,7 @@ function renderMergedSongViewer(){
       </div><svg class="annotateSvg" id="annotateSvg"></svg></div></div>
       `}
     </div>
-    ${renderAnnotateToolbarHTML()}`;
+    `;
   document.getElementById('songSectionOverlay').innerHTML = songFlowMode?'':`
     <div class="songSectionFloatBar idleFade">
       <div class="songSectionNav" id="songSectionNav" aria-label="Song sections">
@@ -15980,14 +16118,53 @@ function editCurrentSong(){
 
 /* =========================================================
    STRUCTURED EDITOR
+
+   One continuous Lyrics & Chords page — matches how the song
+   is actually stored, instead of a box per section. The pill
+   bar below is purely for arrangement: reorder by long-press-
+   then-drag (same gesture as the live section nav), or hold
+   still after the long-press to get a Duplicate/Delete popup
+   instead. Dragging after the popup opens closes it immediately
+   and hands off into the normal reorder path, so the two never
+   fight each other.
 ========================================================= */
+
+let editorSections = [];
+
+
+function sectionsToEditorText(sections){
+
+  return sections
+    .map(section => {
+
+      const body =
+        section.lines.join('\n');
+
+      return (
+        (section.name || 'Section') +
+        (body.length ? '\n' + body : '')
+      );
+
+    })
+    .join('\n\n');
+
+}
+
+
+function autoGrowEditorTextarea(textarea){
+
+  textarea.style.height = 'auto';
+  textarea.style.height = textarea.scrollHeight + 'px';
+
+}
+
 
 function renderEditor(song){
 
   setActiveNav('lyrics');
 
 
-  const sections =
+  editorSections =
     parseSections(
       song.originalText ||
       song.text ||
@@ -16034,408 +16211,494 @@ function renderEditor(song){
           Save Changes
         </button>
 
-
-        <button
-          class="toolbarBtn"
-          id="addEditorSection"
-        >
-          + Add Section
-        </button>
-
-      </div>
-
-
-      <div
-        class="editorSections"
-        id="editorSections"
-      >
-
-        ${
-          sections
-            .map(
-              (section,index) =>
-                editorSectionHTML(
-                  section,
-                  index
-                )
-            )
-            .join('')
-        }
-
-      </div>
-
-
-      <div class="addSectionArea">
-
-        <select
-          class="addSectionSelect"
-          id="sectionTypeSelect"
-        >
-
-          <option>
-            Intro
-          </option>
-
-          <option>
-            Verse
-          </option>
-
-          <option>
-            Pre-Chorus
-          </option>
-
-          <option>
-            Chorus
-          </option>
-
-          <option>
-            Bridge
-          </option>
-
-          <option>
-            Interlude
-          </option>
-
-          <option>
-            Instrumental
-          </option>
-
-          <option>
-            Outro
-          </option>
-
-          <option>
-            Tag
-          </option>
-
-        </select>
-
-
-        <button
-          class="toolbarBtn"
-          id="addSelectedSection"
-        >
-          Add
-        </button>
-
-      </div>
-
-    </div>
-
-  `;
-
-
-  document
-    .getElementById(
-      'editorBack'
-    )
-    .onclick =
-      renderSongViewer;
-
-
-  document
-    .getElementById(
-      'saveEditor'
-    )
-    .onclick =
-      saveEditorChanges;
-
-
-  document
-    .getElementById(
-      'addEditorSection'
-    )
-    .onclick =
-      addEditorSection;
-
-
-  document
-    .getElementById(
-      'addSelectedSection'
-    )
-    .onclick =
-      addEditorSection;
-
-}
-
-
-function editorSectionHTML(
-  section,
-  index
-){
-
-  return `
-
-    <div
-      class="editorSection"
-      data-editor-section
-    >
-
-      <div class="editorSectionHead">
-
-        <input
-          class="sectionType"
-          value="${esc(section.name)}"
-        >
-
-
-        <div class="sectionTools">
-
-          <button
-            class="sectionTool"
-            type="button"
-            onclick="moveEditorSection(this,-1)"
-          >
-            ↑
-          </button>
-
-
-          <button
-            class="sectionTool"
-            type="button"
-            onclick="moveEditorSection(this,1)"
-          >
-            ↓
-          </button>
-
-          <button
-            class="sectionTool"
-            type="button"
-            title="Duplicate section"
-            onclick="duplicateEditorSection(this)"
-          >
-            ⧉
-          </button>
-
-
-          <button
-            class="sectionTool delete"
-            type="button"
-            onclick="deleteEditorSection(this)"
-          >
-            ×
-          </button>
-
-        </div>
-
       </div>
 
 
       <textarea
         class="editorTextarea"
-      >${esc(
-        section.lines.join('\n')
-      )}</textarea>
+        id="editorTextarea"
+        spellcheck="false"
+      >${esc(sectionsToEditorText(editorSections))}</textarea>
+
+
+      <div class="editorPillBarWrap">
+
+        <div class="editorPillBarLabel">
+          Arrangement — hold a pill to duplicate or delete, drag to reorder
+        </div>
+
+        <div
+          class="editorPillBar"
+          id="editorPillBar"
+        >
+          ${renderEditorPillsHTML()}
+        </div>
+
+      </div>
+
 
     </div>
 
   `;
 
+
+  document
+    .getElementById('editorBack')
+    .onclick =
+      renderSongViewer;
+
+
+  document
+    .getElementById('saveEditor')
+    .onclick =
+      saveEditorChanges;
+
+
+  const textarea =
+    document.getElementById('editorTextarea');
+
+  autoGrowEditorTextarea(textarea);
+
+  textarea.addEventListener('input', () => {
+    autoGrowEditorTextarea(textarea);
+  });
+
+  textarea.addEventListener('blur', () => {
+
+    /*
+      Picks up any section the person typed by hand (a new
+      header line, a renamed one) so the pill bar stays a
+      reasonably accurate reflection of the text without
+      re-parsing on every keystroke, which would be both
+      wasteful and liable to jitter the pills mid-type.
+    */
+
+    editorSections =
+      parseSections(textarea.value);
+
+    refreshEditorPillBar();
+
+  });
+
+
+  attachEditorPillBehavior();
+
 }
 
 
-function addEditorSection(){
+function renderEditorPillsHTML(){
 
-  const select =
-    document.getElementById(
-      'sectionTypeSelect'
-    );
+  return editorSections
+    .map((section, index) => `
+      <button
+        type="button"
+        class="editorPill"
+        data-pill-index="${index}"
+      >${esc(section.name || 'Section')}</button>
+    `)
+    .join('') +
+    `
+      <button
+        type="button"
+        class="editorPillAdd"
+        id="editorPillAdd"
+        aria-label="Add section"
+      >+</button>
+    `;
+
+}
 
 
-  const name =
-    select
-      ? select.value
-      : 'Verse';
+function refreshEditorPillBar(){
+
+  const bar =
+    document.getElementById('editorPillBar');
+
+  if(!bar)return;
+
+  bar.innerHTML =
+    renderEditorPillsHTML();
+
+  attachEditorPillBehavior();
+
+}
 
 
-  const container =
-    document.getElementById(
-      'editorSections'
-    );
+function refreshEditorFromSections(){
 
+  const textarea =
+    document.getElementById('editorTextarea');
 
-  if(!container){
+  if(textarea){
 
-    return;
+    textarea.value =
+      sectionsToEditorText(editorSections);
+
+    autoGrowEditorTextarea(textarea);
 
   }
 
+  refreshEditorPillBar();
 
-  const wrapper =
-    document.createElement('div');
-
-
-  wrapper.innerHTML =
-    editorSectionHTML(
-      {
-        name,
-        lines:[]
-      },
-      container.children.length
-    );
+}
 
 
-  container.appendChild(
-    wrapper.firstElementChild
+function showAddEditorSectionPicker(onPick){
+
+  const host =
+    document.getElementById('confirmOverlay');
+
+  if(!host)return;
+
+  const options =
+    ['Intro','Verse','Pre-Chorus','Chorus','Bridge','Interlude','Instrumental','Outro','Tag'];
+
+  host.innerHTML = `
+
+    <div class="confirmBack" id="confirmBack">
+      <div class="confirmBox">
+
+        <p class="confirmMessage">Add section:</p>
+
+        ${
+          options.map(name => `
+            <button
+              class="toolbarBtn"
+              type="button"
+              data-pick-editor-section="${esc(name)}"
+              style="width:100%;justify-content:flex-start;margin-bottom:8px;"
+            >${esc(name)}</button>
+          `).join('')
+        }
+
+        <div class="confirmBtnRow">
+          <button class="toolbarBtn" id="pickerCancelBtn" type="button">Close</button>
+        </div>
+
+      </div>
+    </div>
+
+  `;
+
+  const back =
+    document.getElementById('confirmBack');
+
+  const close = () => {
+    back.classList.remove('open');
+    setTimeout(() => { host.innerHTML = ''; }, 200);
+  };
+
+  document.getElementById('pickerCancelBtn').onclick = close;
+
+  back.onclick = (event) => {
+    if(event.target === back){
+      close();
+    }
+  };
+
+  document.querySelectorAll('[data-pick-editor-section]').forEach(btn => {
+    btn.onclick = () => {
+      onPick(btn.dataset.pickEditorSection);
+      close();
+    };
+  });
+
+  requestAnimationFrame(() => {
+    back.classList.add('open');
+  });
+
+}
+
+
+/* ---------- Pill popup (Duplicate / Delete) ---------- */
+
+let editorPillPressTimer = null;
+let editorPillLongPressed = false;
+let editorPillStartX = 0;
+let editorPillStartY = 0;
+let editorPillDragging = null;
+let editorPillDragStartIndex = -1;
+
+
+function closeEditorPillPopup(){
+
+  const popup =
+    document.getElementById('editorPillPopup');
+
+  if(popup)popup.remove();
+
+  document.removeEventListener(
+    'pointerdown',
+    onDocPointerDownCloseEditorPopup
   );
 
 }
 
 
-function duplicateEditorSection(button){
-  const section=button.closest('[data-editor-section]');
-  if(!section)return;
-  const clone=section.cloneNode(true);
-  section.parentElement.insertBefore(clone,section.nextSibling);
-}
+function onDocPointerDownCloseEditorPopup(event){
 
+  const popup =
+    document.getElementById('editorPillPopup');
 
-function moveEditorSection(
-  button,
-  direction
-){
+  if(!popup)return;
 
-  const section =
-    button.closest(
-      '[data-editor-section]'
-    );
+  if(popup.contains(event.target))return;
 
-
-  if(!section){
-
-    return;
-
-  }
-
-
-  const container =
-    section.parentElement;
-
-
-  const sections =
-    [...container.children];
-
-
-  const index =
-    sections.indexOf(
-      section
-    );
-
-
-  const target =
-    index + direction;
-
-
-  if(
-    target < 0 ||
-    target >= sections.length
-  ){
-
-    return;
-
-  }
-
-
-  if(
-    direction < 0
-  ){
-
-    container.insertBefore(
-      section,
-      sections[target]
-    );
-
-  }else{
-
-    container.insertBefore(
-      sections[target],
-      section
-    );
-
-  }
+  closeEditorPillPopup();
 
 }
 
 
-function deleteEditorSection(
-  button
-){
+function showEditorPillPopup(pillEl, index){
 
-  const section =
-    button.closest(
-      '[data-editor-section]'
-    );
+  closeEditorPillPopup();
+
+  const rect =
+    pillEl.getBoundingClientRect();
+
+  const popup =
+    document.createElement('div');
+
+  popup.className = 'editorPillPopup';
+  popup.id = 'editorPillPopup';
+
+  popup.innerHTML = `
+    <button type="button" data-pill-action="duplicate">⧉ Duplicate</button>
+    <button type="button" class="danger" data-pill-action="delete">✕ Delete</button>
+  `;
+
+  document.body.appendChild(popup);
+
+  const popupRect =
+    popup.getBoundingClientRect();
+
+  let top = rect.bottom + 8;
+
+  if(top + popupRect.height > window.innerHeight - 20){
+    top = rect.top - popupRect.height - 8;
+  }
+
+  let left = rect.left;
+
+  if(left + popupRect.width > window.innerWidth - 12){
+    left = window.innerWidth - popupRect.width - 12;
+  }
+
+  popup.style.top = top + 'px';
+  popup.style.left = Math.max(12, left) + 'px';
+
+  popup.querySelector('[data-pill-action="duplicate"]').onclick = () => {
+
+    const section = editorSections[index];
+
+    if(section){
+
+      editorSections.splice(index + 1, 0, {
+        name: section.name,
+        lines: [...section.lines]
+      });
+
+      refreshEditorFromSections();
+
+    }
+
+    closeEditorPillPopup();
+
+  };
+
+  popup.querySelector('[data-pill-action="delete"]').onclick = () => {
+
+    editorSections.splice(index, 1);
+    refreshEditorFromSections();
+    closeEditorPillPopup();
+
+  };
+
+  setTimeout(() => {
+    document.addEventListener('pointerdown', onDocPointerDownCloseEditorPopup);
+  }, 0);
+
+}
 
 
-  if(section){
+function attachEditorPillBehavior(){
 
-    section.remove();
+  const bar =
+    document.getElementById('editorPillBar');
+
+  if(!bar)return;
+
+  const addBtn =
+    document.getElementById('editorPillAdd');
+
+  if(addBtn){
+
+    addBtn.onclick = () => {
+
+      showAddEditorSectionPicker((name) => {
+
+        editorSections.push({ name, lines:[] });
+        refreshEditorFromSections();
+
+      });
+
+    };
 
   }
+
+  bar.querySelectorAll('.editorPill').forEach(pill => {
+
+    pill.addEventListener('pointerdown', event => {
+
+      closeEditorPillPopup();
+
+      editorPillLongPressed = false;
+      editorPillStartX = event.clientX;
+      editorPillStartY = event.clientY;
+
+      clearTimeout(editorPillPressTimer);
+      pill.classList.add('longPressing');
+
+      editorPillPressTimer = setTimeout(() => {
+
+        editorPillLongPressed = true;
+        pill.classList.remove('longPressing');
+
+        showEditorPillPopup(
+          pill,
+          Number(pill.dataset.pillIndex)
+        );
+
+      }, 500);
+
+    });
+
+    pill.addEventListener('pointermove', event => {
+
+      const dx = event.clientX - editorPillStartX;
+      const dy = event.clientY - editorPillStartY;
+
+      const moved =
+        Math.sqrt(dx*dx + dy*dy) > 10;
+
+      if(!moved)return;
+
+      if(!editorPillDragging){
+
+        clearTimeout(editorPillPressTimer);
+        pill.classList.remove('longPressing');
+
+        if(!editorPillLongPressed)return;
+
+        /*
+          The popup is open and the finger just started moving —
+          that's the "drag instead" signal: close the popup and
+          hand off into the normal reorder gesture.
+        */
+
+        closeEditorPillPopup();
+
+        editorPillDragging = pill;
+        editorPillDragStartIndex = [...bar.children].indexOf(pill);
+        pill.classList.add('dragging');
+
+      }
+
+      event.preventDefault();
+
+      const pills =
+        [...bar.querySelectorAll('.editorPill')];
+
+      const target =
+        pills.find(candidate => {
+
+          if(candidate === editorPillDragging)return false;
+
+          const targetRect =
+            candidate.getBoundingClientRect();
+
+          return (
+            event.clientX >= targetRect.left &&
+            event.clientX <= targetRect.right
+          );
+
+        });
+
+      if(!target)return;
+
+      const currentIndex =
+        [...bar.children].indexOf(editorPillDragging);
+
+      const targetIndex =
+        [...bar.children].indexOf(target);
+
+      if(targetIndex > currentIndex){
+        bar.insertBefore(editorPillDragging, target.nextSibling);
+      }else{
+        bar.insertBefore(editorPillDragging, target);
+      }
+
+    });
+
+    pill.addEventListener('pointerup', () => {
+
+      clearTimeout(editorPillPressTimer);
+      pill.classList.remove('longPressing');
+
+      if(editorPillDragging){
+
+        const finalIndex =
+          [...bar.children].indexOf(pill);
+
+        pill.classList.remove('dragging');
+
+        if(finalIndex !== editorPillDragStartIndex){
+
+          const [moved] =
+            editorSections.splice(editorPillDragStartIndex, 1);
+
+          editorSections.splice(finalIndex, 0, moved);
+
+          refreshEditorFromSections();
+
+        }
+
+        editorPillDragging = null;
+        editorPillDragStartIndex = -1;
+
+      }
+
+      editorPillLongPressed = false;
+
+    });
+
+    pill.addEventListener('pointercancel', () => {
+
+      clearTimeout(editorPillPressTimer);
+      pill.classList.remove('longPressing');
+
+      if(editorPillDragging){
+        editorPillDragging.classList.remove('dragging');
+        editorPillDragging = null;
+      }
+
+      editorPillDragStartIndex = -1;
+      editorPillLongPressed = false;
+
+    });
+
+  });
 
 }
 
 
 function saveEditorChanges(){
 
-  const sections =
-    document
-      .querySelectorAll(
-        '[data-editor-section]'
-      );
-
-
-  const output = [];
-
-
-  sections.forEach(section => {
-
-    const name =
-      section
-        .querySelector(
-          '.sectionType'
-        )
-        .value
-        .trim();
-
-
-    const text =
-      section
-        .querySelector(
-          '.editorTextarea'
-        )
-        .value;
-
-
-    if(
-      name ||
-      text.trim()
-    ){
-
-      output.push(
-        name || 'Section'
-      );
-
-
-      output.push(
-        text
-      );
-
-
-      output.push('');
-
-    }
-
-  });
-
+  const textarea =
+    document.getElementById('editorTextarea');
 
   const text =
-    output.join('\n')
-      .replace(
-        /\n{3,}/g,
-        '\n\n'
-      )
-      .trim();
+    (textarea ? textarea.value : '').trim();
 
 
   currentSong.originalText =
@@ -16469,6 +16732,7 @@ function saveEditorChanges(){
   saveCurrentSong();
 
 }
+
 
 
 /* =========================================================
