@@ -14230,10 +14230,26 @@ function renderSongViewer(){
   if(songFlowMode){
     attachFlowControls(flowTarget,flow,sections);
   }else{
-    attachSectionNavBehavior();
-    sizeAndRenderAnnotationLayer(annotationKey);
-    attachAnnotateHandlers(annotationKey);
-    attachAnnotateToolbar(annotationKey);
+    /*
+      Deferred one frame on purpose: attachSectionNavBehavior
+      and the annotation layer both need to read layout
+      (offsetHeight, scrollHeight) to do their job, and reading
+      layout right after a screen.innerHTML swap forces the
+      browser to compute it synchronously before it's had a
+      chance to paint the new song content — on a long song,
+      on a mid-range phone, that's exactly what shows up as a
+      visible stall/flicker when switching songs. Letting the
+      browser paint first, then doing this measuring work on
+      the next frame, is what actually fixes it — the ~16ms
+      delay before section-nav/annotations are interactive is
+      imperceptible.
+    */
+    requestAnimationFrame(() => {
+      attachSectionNavBehavior();
+      sizeAndRenderAnnotationLayer(annotationKey);
+      attachAnnotateHandlers(annotationKey);
+      attachAnnotateToolbar(annotationKey);
+    });
   }
 }
 
@@ -14275,8 +14291,54 @@ function goToMergedPart(delta){
   goToMergedPartIndex((song.activePartIndex||0)+delta);
 }
 
+/*
+  One-time self-heal for merged songs saved before parts had
+  their own id — without this, every song inside an older merge
+  shares a single `undefined` annotation key, so notes drawn on
+  one part show up on all of them. Runs harmlessly every time a
+  merged song opens; once every part has a real id, there's
+  nothing left to fix and it's a no-op.
+*/
+
+function ensureMergePartIds(song){
+
+  if(
+    !song ||
+    !Array.isArray(song.mergeParts)
+  ){
+    return;
+  }
+
+  const missing =
+    song.mergeParts.some(part => !part.id);
+
+  if(!missing)return;
+
+  song.mergeParts =
+    song.mergeParts.map((part, index) => ({
+      ...part,
+      id: part.id || (song.id + '-part-' + index)
+    }));
+
+  const songs =
+    getSongs();
+
+  const index =
+    songs.findIndex(item => item.id === song.id);
+
+  if(index !== -1){
+
+    songs[index] = song;
+    writeSongs(songs.slice(0, MAX_SONGS));
+
+  }
+
+}
+
+
 function renderMergedSongViewer(){
   const song=currentSong;
+  ensureMergePartIds(song);
   const activeIndex=clampMergedPartIndex(song);
   const total=song.mergeParts.length;
   const part=song.mergeParts[activeIndex];
@@ -14441,10 +14503,12 @@ function renderMergedSongViewer(){
   if(songFlowMode){
     attachFlowControls(flowTarget,flow,sections);
   }else{
-    attachSectionNavBehavior();
-    sizeAndRenderAnnotationLayer(annotationKey);
-    attachAnnotateHandlers(annotationKey);
-    attachAnnotateToolbar(annotationKey);
+    requestAnimationFrame(() => {
+      attachSectionNavBehavior();
+      sizeAndRenderAnnotationLayer(annotationKey);
+      attachAnnotateHandlers(annotationKey);
+      attachAnnotateToolbar(annotationKey);
+    });
   }
   document.querySelectorAll('#mergePartPills .mergePartPill').forEach(pill=>{
     pill.onclick=()=>goToMergedPartIndex(Number(pill.dataset.partIndex));
@@ -18341,7 +18405,21 @@ function saveMergedSongParts(title, parts){
       combinedText
     );
 
-  merged.mergeParts = parts;
+  /*
+    Each part needs its own stable, unique id — without one,
+    things keyed by "the current part's id" (freehand
+    annotations, most notably) end up sharing a single
+    undefined key across every song in the merge, so notes
+    drawn on one bleed onto all the others. Tying it to the
+    merged song's own id keeps it stable across re-saves.
+  */
+
+  merged.mergeParts =
+    parts.map((part, index) => ({
+      ...part,
+      id: part.id || (merged.id + '-part-' + index)
+    }));
+
   merged.activePartIndex = 0;
 
   const allSongs = getSongs();
