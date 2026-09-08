@@ -5981,6 +5981,7 @@ async function applyPendingLineupUpdate(songId){
     if(fresh){
 
       currentSong = fresh;
+      skipNextScreenTransition=true;
       renderSongViewer();
 
     }
@@ -8314,6 +8315,7 @@ async function sendCurrentSongToLineup(song){
     */
 
     if(currentSong && currentSong.id === song.id){
+      skipNextScreenTransition=true;
       renderSongViewer();
     }
 
@@ -12031,6 +12033,7 @@ function reorderViewerSections(fromIndex,toIndex){
   sections.splice(toIndex,0,moved);
   target.sectionOrder=sections.map(section=>section._id);
   persistSectionOrder();
+  skipNextScreenTransition=true;
   renderSongViewer();
 }
 
@@ -12727,6 +12730,7 @@ function jumpToFlowSection(index){
 
   songFlowMode = false;
 
+  skipNextScreenTransition=true;
   renderSongViewer();
 
   requestAnimationFrame(() => {
@@ -12897,6 +12901,7 @@ function attachFlowControls(target, flow, sections){
 
         persistSongFlow(target, newFlow);
 
+        skipNextScreenTransition=true;
         renderSongViewer();
 
       };
@@ -12929,6 +12934,7 @@ function attachFlowControls(target, flow, sections){
 
       persistSongFlow(target, updated);
 
+      skipNextScreenTransition=true;
       renderSongViewer();
 
     };
@@ -12982,6 +12988,7 @@ function attachFlowControls(target, flow, sections){
 
       persistSongFlow(target, updated);
 
+      skipNextScreenTransition=true;
       renderSongViewer();
 
     };
@@ -13007,6 +13014,7 @@ function attachFlowControls(target, flow, sections){
 
       if(keyEvent.key === 'Escape'){
         committed = true;
+        skipNextScreenTransition=true;
         renderSongViewer();
       }
 
@@ -13056,6 +13064,7 @@ function attachFlowControls(target, flow, sections){
 
       persistSongFlow(target, updated);
 
+      skipNextScreenTransition=true;
       renderSongViewer();
 
     };
@@ -13136,6 +13145,7 @@ function attachFlowControls(target, flow, sections){
           delete rest.keyChangeSteps;
           updated[index] = rest;
           persistSongFlow(target, updated);
+          skipNextScreenTransition=true;
           renderSongViewer();
         };
       }
@@ -13145,6 +13155,7 @@ function attachFlowControls(target, flow, sections){
         const updated = flow.slice();
         updated[index] = { ...updated[index], keyChangeSteps: value };
         persistSongFlow(target, updated);
+        skipNextScreenTransition=true;
         renderSongViewer();
       };
 
@@ -13177,6 +13188,7 @@ function attachFlowControls(target, flow, sections){
 
       persistSongFlow(target, updated);
 
+      skipNextScreenTransition=true;
       renderSongViewer();
 
     };
@@ -13233,6 +13245,7 @@ function attachFlowControls(target, flow, sections){
 
       persistSongFlow(target, updated);
 
+      skipNextScreenTransition=true;
       renderSongViewer();
 
     };
@@ -13258,6 +13271,7 @@ function attachFlowControls(target, flow, sections){
 
       persistSongFlow(target, updated);
 
+      skipNextScreenTransition=true;
       renderSongViewer();
 
       requestAnimationFrame(() => {
@@ -13299,6 +13313,7 @@ function attachFlowControls(target, flow, sections){
 
         persistSongFlow(target, updated);
 
+        skipNextScreenTransition=true;
         renderSongViewer();
 
       });
@@ -13329,6 +13344,7 @@ function attachFlowControls(target, flow, sections){
 
       persistSongFlow(target, updated);
 
+      skipNextScreenTransition=true;
       renderSongViewer();
 
     };
@@ -13380,6 +13396,7 @@ function attachFlowControls(target, flow, sections){
 
         persistSongFlow(target, updated);
 
+        skipNextScreenTransition=true;
         renderSongViewer();
 
       });
@@ -13404,6 +13421,7 @@ function attachFlowControls(target, flow, sections){
 
       persistSongFlow(target, updated);
 
+      skipNextScreenTransition=true;
       renderSongViewer();
 
       requestAnimationFrame(() => {
@@ -14172,7 +14190,7 @@ function renderSongViewer(){
   }
   updateLyricsNavIndicator();
   document.getElementById('songBackBtn').onclick=()=>{if(currentSong){flushLineupAutoSync(currentSong.id);if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);}stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
-  const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
+  const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);skipNextScreenTransition=true;renderSongViewer();};}
   attachLineupSyncButton(currentSong);
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
   document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
@@ -14219,11 +14237,13 @@ function renderSongViewer(){
       if(mdLongPressed){mdLongPressed=false;return;}
       if(btn.dataset.mode==='flow'){
         songFlowMode=true;
+        skipNextScreenTransition=true;
         renderSongViewer();
         return;
       }
       songFlowMode=false;
       showChords=(btn.dataset.mode==='chords');
+      skipNextScreenTransition=true;
       renderSongViewer();
     };
   });
@@ -14457,7 +14477,7 @@ function renderMergedSongViewer(){
   }
   updateLyricsNavIndicator();
   document.getElementById('songBackBtn').onclick=()=>{if(currentSong){flushLineupAutoSync(currentSong.id);if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);}stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
-  const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);renderSongViewer();};}
+  const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);skipNextScreenTransition=true;renderSongViewer();};}
   attachLineupSyncButton(song);
   document.getElementById('transposeDown').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)-1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
   document.getElementById('transposeUp').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)+1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
@@ -14504,11 +14524,13 @@ function renderMergedSongViewer(){
       if(mdLongPressed){mdLongPressed=false;return;}
       if(btn.dataset.mode==='flow'){
         songFlowMode=true;
+        skipNextScreenTransition=true;
         renderSongViewer();
         return;
       }
       songFlowMode=false;
       showChords=(btn.dataset.mode==='chords');
+      skipNextScreenTransition=true;
       renderSongViewer();
     };
   });
@@ -14906,6 +14928,7 @@ function saveCurrentSong(){
   );
 
 
+  skipNextScreenTransition=true;
   renderSongViewer();
 
 }
@@ -15069,6 +15092,7 @@ function attachSongMenuControls(){
           'success'
         );
 
+        skipNextScreenTransition=true;
         renderSongViewer();
 
       }else if(result.outcome === 'uploaded'){
