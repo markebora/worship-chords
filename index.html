@@ -2827,7 +2827,7 @@ button{
 .mergePartPills::-webkit-scrollbar{display:none;}
 .mergePartPill{flex:0 0 auto;width:26px;height:26px;border-radius:50%;border:1px solid #303036;background:#18181b;color:#a7a7ad;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .18s ease,color .18s ease,border-color .18s ease;}
 .mergePartPill.active{background:#fff;color:#111;border-color:#fff;}
-.mergedLyricsView{touch-action:pan-y;will-change:transform;}
+.mergedLyricsView{touch-action:pan-y;}
 
 
 .songSectionFloatBar{position:fixed;bottom:calc(82px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:620px;z-index:99;background:transparent;border:0;box-shadow:none;padding:0;transition:opacity .3s ease,transform .3s ease;}
@@ -14281,6 +14281,18 @@ function goToMergedPartIndex(index){
   if(clamped===(song.activePartIndex||0))return;
   stopAutoScroll();
   song.activePartIndex=clamped;
+  /*
+    Without this, switching songs inside a merge replays the
+    full-page fade-from-transparent animation — and since the
+    section-nav pills and auto-scroll button live in a separate
+    overlay that isn't part of that fade, they stay fully
+    visible the whole time while the main content flashes to
+    blank and back in. That mismatch is the flicker. A swipe
+    or a pill tap already carries its own motion; the content
+    should just be there the instant you land, the same way it
+    already works for transpose and font size.
+  */
+  skipNextScreenTransition=true;
   renderSongViewer();
   window.scrollTo(0,0);
 }
