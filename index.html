@@ -368,13 +368,13 @@ button{
 }
 
 .content.screenTransition{
-  animation:screenFadeIn .32s cubic-bezier(.22,.8,.36,1);
+  animation:screenFadeIn .2s cubic-bezier(.22,.8,.36,1);
 }
 
 @keyframes screenFadeIn{
   from{
     opacity:0;
-    transform:translateY(10px);
+    transform:translateY(8px);
   }
   to{
     opacity:1;
@@ -6091,6 +6091,7 @@ function handleLineupSnapshot(remoteSongs){
           document.getElementById('screen') &&
           screen.querySelector('.librarySection')
         ){
+          skipNextScreenTransition=true;
           renderLibrary();
         }
 
@@ -8042,6 +8043,7 @@ async function pullNewSongsFromDrive(){
           the person, instead of firing silently before they can
           see it.
         */
+        skipNextScreenTransition=true;
         renderLibrary();
 
       }else{
@@ -8639,6 +8641,7 @@ async function performDriveSync(){
       screen.querySelector('.librarySection')
     ){
 
+      skipNextScreenTransition=true;
       renderLibrary();
 
     }
@@ -17159,16 +17162,19 @@ function renderLibrary(){
 
   document.getElementById('libraryTabSongs').onclick = () => {
     libraryTab = 'songs';
+    skipNextScreenTransition=true;
     renderLibrary();
   };
 
   document.getElementById('libraryTabSetlists').onclick = () => {
     libraryTab = 'setlists';
+    skipNextScreenTransition=true;
     renderLibrary();
   };
 
   document.getElementById('libraryFavoritesToggle').onclick = () => {
     libraryFavoritesOnly = !libraryFavoritesOnly;
+    skipNextScreenTransition=true;
     renderLibrary();
   };
 
@@ -17179,6 +17185,7 @@ function renderLibrary(){
 
       btn.onclick = () => {
         libraryCategoryFilter = btn.dataset.categoryPill;
+        skipNextScreenTransition=true;
         renderLibrary();
       };
 
@@ -17222,6 +17229,7 @@ function renderLibrary(){
 
         showToast('Synced with the shared library.', 'success');
 
+        skipNextScreenTransition=true;
         renderLibrary();
 
       }else{
@@ -17249,6 +17257,7 @@ function renderLibrary(){
       btn.addEventListener('click', event => {
         event.stopPropagation();
         toggleFavorite(btn.dataset.favoriteSong);
+        skipNextScreenTransition=true;
         renderLibrary();
       });
 
@@ -17324,6 +17333,7 @@ function renderLibrary(){
 
       librarySelectedIds.clear();
 
+      skipNextScreenTransition=true;
       renderLibrary();
 
     };
@@ -17379,6 +17389,7 @@ function renderLibrary(){
 
       librarySelectedIds.clear();
 
+      skipNextScreenTransition=true;
       renderLibrary();
 
     };
@@ -17609,6 +17620,7 @@ function renderLibrary(){
               'success'
             );
 
+            skipNextScreenTransition=true;
             renderLibrary();
 
           }else if(result.outcome === 'uploaded'){
@@ -17722,11 +17734,13 @@ function renderSetlistsTab(){
 
   document.getElementById('libraryTabSongs').onclick = () => {
     libraryTab = 'songs';
+    skipNextScreenTransition=true;
     renderLibrary();
   };
 
   document.getElementById('libraryTabSetlists').onclick = () => {
     libraryTab = 'setlists';
+    skipNextScreenTransition=true;
     renderLibrary();
   };
 
@@ -18347,6 +18361,7 @@ async function renameSongById(songId){
 
   librarySelectedIds.clear();
 
+  skipNextScreenTransition=true;
   renderLibrary();
 
 }
@@ -18415,6 +18430,7 @@ async function mergeSongsByIds(ids){
     'success'
   );
 
+  skipNextScreenTransition=true;
   renderLibrary();
 
 }
@@ -18490,6 +18506,7 @@ function toggleLibrarySelection(songId){
 
   }
 
+  skipNextScreenTransition=true;
   renderLibrary();
 
 }
@@ -18499,6 +18516,7 @@ function exitLibrarySelectMode(){
 
   librarySelectedIds.clear();
 
+  skipNextScreenTransition=true;
   renderLibrary();
 
 }
