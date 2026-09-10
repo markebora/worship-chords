@@ -2300,6 +2300,16 @@ button{
 
 .annotateSvg.active{
   pointer-events:auto;
+
+  /*
+    Lets a second finger's scroll actually reach the browser's
+    native handling once JS stops calling preventDefault for it
+    — see the pointer-count check in attachAnnotateHandlers.
+    Single-finger drawing still works: JS calls preventDefault
+    on every pointermove while exactly one finger is down and a
+    stroke is active, which overrides this for that case.
+  */
+  touch-action:pan-y;
 }
 
 .annotateToggleBtn.active{
@@ -2590,6 +2600,7 @@ button{
 }
 
 .transposeGroup,
+.fontSizeGroup,
 .autoScrollGroup{
   display:flex;
 
@@ -2876,6 +2887,50 @@ button{
   min-width:22px;
   text-align:center;
   pointer-events:none;
+}
+
+.asDrawToggleBtn{
+  position:absolute;
+  left:50%;
+  bottom:100%;
+
+  width:40px;
+  height:40px;
+
+  margin-bottom:10px;
+
+  border-radius:50%;
+  border:1px solid rgba(255,255,255,.14);
+
+  background:rgba(24,24,27,.94);
+  color:#cfcfd4;
+
+  font-size:16px;
+
+  display:grid;
+  place-items:center;
+
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  box-shadow:0 8px 22px rgba(0,0,0,.45);
+
+  opacity:0;
+  transform:translateX(-50%) translateY(8px) scale(.85);
+  pointer-events:none;
+
+  transition:opacity .2s ease, transform .2s ease, background .18s ease, color .18s ease;
+}
+
+.autoScrollFab.speedMode .asDrawToggleBtn{
+  opacity:1;
+  transform:translateX(-50%) translateY(0) scale(1);
+  pointer-events:auto;
+}
+
+.asDrawToggleBtn.active{
+  background:#fff;
+  color:#111;
+  border-color:#fff;
 }
 
 /* =========================================================
@@ -3204,17 +3259,47 @@ button{
 ========================================================= */
 
 .editorPage{
-  padding:4px 0 30px;
+  padding:4px 0 110px;
 }
 
 .editorActions{
   display:flex;
+
+  align-items:center;
 
   gap:8px;
 
   flex-wrap:wrap;
 
   margin-bottom:14px;
+}
+
+.editorActions .toolbarBtn.primary{
+  flex:1;
+}
+
+.editorUndoBtn,
+.editorRedoBtn{
+  width:40px;
+  height:40px;
+
+  display:grid;
+  place-items:center;
+
+  border:1px solid #303036;
+  border-radius:12px;
+
+  background:#1a1a1d;
+  color:#e6e6e8;
+
+  font-size:16px;
+
+  flex:0 0 auto;
+}
+
+.editorUndoBtn:disabled,
+.editorRedoBtn:disabled{
+  opacity:.3;
 }
 
 .editorTextarea{
@@ -3247,19 +3332,43 @@ button{
   border-color:#4a4a52;
 }
 
+.editorMergeContext{
+  margin-top:2px;
+
+  font-size:12px;
+  font-weight:600;
+
+  color:#8b8b93;
+}
+
 
 /* =========================================================
    EDITOR PILL BAR
-   Reuses the same long-press-then-drag gesture as the live
-   Chords/Lyrics section nav, extended with a second branch:
-   holding still after the long-press opens a Duplicate/Delete
-   popup instead of immediately dragging. Only an actual finger
-   move after that closes the popup and hands off into the
-   normal drag-to-reorder path.
+   Floats above the content the same way the live Chords/Lyrics
+   section nav does — transparent wrapper, always reachable
+   without scrolling to the bottom of a long song. Reuses the
+   same long-press-then-drag gesture as that live nav, extended
+   with a second branch: holding still after the long-press
+   opens a Duplicate/Delete popup instead of immediately
+   dragging. Only an actual finger move after that closes the
+   popup and hands off into the normal drag-to-reorder path.
 ========================================================= */
 
 .editorPillBarWrap{
-  margin-top:14px;
+  position:fixed;
+  left:50%;
+  bottom:calc(82px + env(safe-area-inset-bottom, 0px));
+  transform:translateX(-50%);
+
+  width:calc(100% - 24px);
+  max-width:620px;
+
+  z-index:99;
+
+  background:transparent;
+  border:0;
+  box-shadow:none;
+  padding:0;
 }
 
 .editorPillBarLabel{
@@ -3269,6 +3378,8 @@ button{
   text-transform:uppercase;
   color:#77777f;
   margin-bottom:8px;
+
+  text-shadow:0 1px 6px rgba(0,0,0,.9), 0 0 14px rgba(0,0,0,.7);
 }
 
 .editorPillBar{
@@ -13585,21 +13696,6 @@ let annotateCurrentEl = null;
 const ANNOTATE_COLORS = ['#ff5a5a', '#ffd23f', '#4da6ff', '#f5f5f0'];
 
 
-function renderAnnotateToggleButtonHTML(){
-
-  return `
-    <button
-      class="toolbarBtn annotateToggleBtn${annotateMode ? ' active' : ''}"
-      id="annotateToggleBtn"
-      type="button"
-      title="${annotateMode ? 'Done annotating' : 'Annotate — personal, prep notes'}"
-      aria-label="${annotateMode ? 'Done annotating' : 'Annotate'}"
-    >✎</button>
-  `;
-
-}
-
-
 function renderAnnotateToolbarHTML(){
 
   if(!annotateMode)return '';
@@ -13808,9 +13904,41 @@ function attachAnnotateHandlers(annotationKey){
     patch (updateAnnotateUI) instead of a full re-render.
   */
 
+  /*
+    Tracks how many fingers are currently down on the drawing
+    surface. One finger draws; the moment a second one lands,
+    whatever stroke was in progress is abandoned and control is
+    handed back to the browser's native scrolling (touch-action:
+    pan-y on .annotateSvg.active is what makes that native
+    scroll actually available to hand off to).
+  */
+
+  const activeAnnotatePointers = new Set();
+
   svg.onpointerdown = (event) => {
 
     if(!annotateMode)return;
+
+    activeAnnotatePointers.add(event.pointerId);
+
+    if(activeAnnotatePointers.size > 1){
+
+      if(annotateDrawing){
+
+        annotateDrawing = false;
+
+        if(annotateCurrentEl){
+          annotateCurrentEl.remove();
+          annotateCurrentEl = null;
+        }
+
+        annotateCurrentPoints = [];
+
+      }
+
+      return;
+
+    }
 
     if(annotateTool === 'text'){
 
@@ -13874,9 +14002,18 @@ function attachAnnotateHandlers(annotationKey){
 
   svg.onpointermove = (event) => {
 
-    if(!annotateMode || !annotateDrawing)return;
+    if(!annotateMode)return;
+
+    if(activeAnnotatePointers.size > 1){
+      /* Two-plus fingers — let native scrolling handle this move. */
+      return;
+    }
+
+    if(!annotateDrawing)return;
 
     if(annotateTool === 'eraser'){
+
+      event.preventDefault();
 
       eraseAnnotationNear(
         annotationKey,
@@ -13888,6 +14025,15 @@ function attachAnnotateHandlers(annotationKey){
     }
 
     if(!annotateCurrentEl)return;
+
+    /*
+      Only reached with exactly one finger down and an active
+      stroke — this is the one case that should override the
+      element's own touch-action:pan-y and claim the gesture as
+      drawing instead of a native single-finger scroll.
+    */
+
+    event.preventDefault();
 
     const rect =
       svg.getBoundingClientRect();
@@ -13906,7 +14052,11 @@ function attachAnnotateHandlers(annotationKey){
 
   };
 
-  const finishStroke = () => {
+  const finishStroke = (event) => {
+
+    if(event && event.pointerId !== undefined){
+      activeAnnotatePointers.delete(event.pointerId);
+    }
 
     if(!annotateMode || !annotateDrawing)return;
 
@@ -14130,11 +14280,10 @@ function renderSongViewer(){
             <button class="toolbarBtn" id="transposeReset">Transpose:${amount>0?'+':''}${amount}</button>
             <button class="toolbarBtn" id="transposeUp">+</button>
           </div>
-        </div>
-        <div class="toolbarRow secondaryRow">
-          <button class="toolbarBtn" id="fontMinus">A−</button>
-          <button class="toolbarBtn" id="fontPlus">A+</button>
-          ${renderAnnotateToggleButtonHTML()}
+          <div class="fontSizeGroup">
+            <button class="toolbarBtn" id="fontMinus">A−</button>
+            <button class="toolbarBtn" id="fontPlus">A+</button>
+          </div>
           <div class="songMenuWrap" id="songMenuWrap">
             <button class="toolbarBtn songMenuBtn" id="songMenuBtn" type="button" aria-haspopup="true" aria-label="More options">⋮</button>
             <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
@@ -14416,11 +14565,10 @@ function renderMergedSongViewer(){
             <button class="toolbarBtn" id="transposeReset">Transpose:${amount>0?'+':''}${amount}</button>
             <button class="toolbarBtn" id="transposeUp">+</button>
           </div>
-        </div>
-        <div class="toolbarRow secondaryRow">
-          <button class="toolbarBtn" id="fontMinus">A−</button>
-          <button class="toolbarBtn" id="fontPlus">A+</button>
-          ${renderAnnotateToggleButtonHTML()}
+          <div class="fontSizeGroup">
+            <button class="toolbarBtn" id="fontMinus">A−</button>
+            <button class="toolbarBtn" id="fontPlus">A+</button>
+          </div>
           <div class="songMenuWrap" id="songMenuWrap">
             <button class="toolbarBtn songMenuBtn" id="songMenuBtn" type="button" aria-haspopup="true" aria-label="More options">⋮</button>
             <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
@@ -14709,7 +14857,8 @@ function renderAutoScrollFab(){
   const overlay=document.getElementById('autoScrollOverlay');
   if(!overlay)return;
   overlay.innerHTML=`
-    <div class="autoScrollFab idleFade">
+    <div class="autoScrollFab idleFade" id="autoScrollFabRoot">
+      <button type="button" class="asDrawToggleBtn${annotateMode?' active':''}" id="asDrawToggleBtn" aria-label="${annotateMode?'Stop drawing':'Draw on this song'}" title="${annotateMode?'Stop drawing':'Draw on this song'}">✎</button>
       <div class="asToggleWrap" id="asToggleWrap">
         <button type="button" class="asArrowBtn asArrowUp" id="asArrowUp" aria-label="Increase scroll speed">⌃</button>
         <button class="toolbarBtn asToggleBtn${autoScrollActive?' primary':''}" id="asToggle" aria-label="${autoScrollActive?'Pause auto-scroll':'Start auto-scroll'}">${autoScrollIconHTML()}</button>
@@ -14725,8 +14874,10 @@ function renderAutoScrollFab(){
 function attachAutoScrollControls(){
   const toggleBtn=document.getElementById('asToggle');
   const wrap=document.getElementById('asToggleWrap');
+  const fabRoot=document.getElementById('autoScrollFabRoot');
   const upBtn=document.getElementById('asArrowUp');
   const downBtn=document.getElementById('asArrowDown');
+  const drawBtn=document.getElementById('asDrawToggleBtn');
   if(!toggleBtn||!wrap)return;
 
   let pressTimer=null;
@@ -14735,11 +14886,13 @@ function attachAutoScrollControls(){
   const enterSpeedMode=()=>{
     longPressFired=true;
     wrap.classList.add('speedMode');
+    if(fabRoot)fabRoot.classList.add('speedMode');
     refreshAutoScrollToggleLabel();
   };
 
   const exitSpeedMode=()=>{
     wrap.classList.remove('speedMode');
+    if(fabRoot)fabRoot.classList.remove('speedMode');
     refreshAutoScrollToggleLabel();
   };
 
@@ -14751,6 +14904,16 @@ function attachAutoScrollControls(){
   if(downBtn)downBtn.addEventListener('click',event=>{
     event.stopPropagation();
     setAutoScrollSpeedLevel(autoScrollSpeedLevel-1);
+  });
+
+  if(drawBtn)drawBtn.addEventListener('click',event=>{
+    event.stopPropagation();
+    annotateMode=!annotateMode;
+    updateAnnotateUI();
+    drawBtn.classList.toggle('active',annotateMode);
+    drawBtn.setAttribute('aria-label',annotateMode?'Stop drawing':'Draw on this song');
+    drawBtn.title=annotateMode?'Stop drawing':'Draw on this song';
+    exitSpeedMode();
   });
 
   toggleBtn.addEventListener('pointerdown',event=>{
