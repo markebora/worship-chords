@@ -8771,33 +8771,39 @@ function setLocalLineup(lineup){
 
 async function downloadLineup(){
 
-  try{
+  /*
+    Deliberately no try/catch here — a real Firestore failure
+    (permission denied, offline, etc.) must reach the caller as
+    a rejected promise, not get swallowed into a fake "0 songs,
+    0 videos" success. Every caller already wraps this in its
+    own try/catch (send/remove/announce actions show a toast or
+    log silently; the quiet pull-on-open refreshes just skip
+    updating the local cache) — so on failure nothing local gets
+    overwritten with an incorrectly-empty result. That silent
+    overwrite was the actual cause of videos (and, unlikely as
+    it is, songs) appearing to vanish after a restart: the app
+    would open, quietly try to refresh from the server, the
+    request would fail, and the failure used to look exactly
+    like "the server says there's nothing here."
+  */
 
-    const docSnap =
-      await firestoreDb
-        .collection('lineups')
-        .doc(SYNC_LINEUP_DOC_ID)
-        .get();
+  const docSnap =
+    await firestoreDb
+      .collection('lineups')
+      .doc(SYNC_LINEUP_DOC_ID)
+      .get();
 
-    const payload =
-      docSnap.exists ? docSnap.data() : null;
+  const payload =
+    docSnap.exists ? docSnap.data() : null;
 
-    return {
+  return {
 
-      title: (payload && payload.title) || 'Sunday Worship',
-      songs: Array.isArray(payload && payload.songs) ? payload.songs : [],
-      videos: Array.isArray(payload && payload.videos) ? payload.videos : [],
-      updatedBy: (payload && payload.updatedBy) || ''
+    title: (payload && payload.title) || 'Sunday Worship',
+    songs: Array.isArray(payload && payload.songs) ? payload.songs : [],
+    videos: Array.isArray(payload && payload.videos) ? payload.videos : [],
+    updatedBy: (payload && payload.updatedBy) || ''
 
-    };
-
-  }catch(error){
-
-    console.error(error);
-
-    return { title:'Sunday Worship', songs:[], videos:[], updatedBy:'' };
-
-  }
+  };
 
 }
 
@@ -8937,28 +8943,26 @@ function setLocalVideoArchive(archive){
 
 async function downloadVideoArchive(){
 
-  try{
+  /*
+    Same reasoning as downloadLineup() above — let a real failure
+    reject instead of masquerading as "the archive is empty".
+    archiveVideo() and pullVideoArchiveFromDrive() both already
+    catch around this and, on failure, simply leave whatever's
+    already cached locally untouched.
+  */
 
-    const docSnap =
-      await firestoreDb
-        .collection('videoArchive')
-        .doc(SYNC_VIDEO_ARCHIVE_DOC_ID)
-        .get();
+  const docSnap =
+    await firestoreDb
+      .collection('videoArchive')
+      .doc(SYNC_VIDEO_ARCHIVE_DOC_ID)
+      .get();
 
-    const payload =
-      docSnap.exists ? docSnap.data() : null;
+  const payload =
+    docSnap.exists ? docSnap.data() : null;
 
-    return {
-      videos: Array.isArray(payload && payload.videos) ? payload.videos : []
-    };
-
-  }catch(error){
-
-    console.error(error);
-
-    return { videos: [] };
-
-  }
+  return {
+    videos: Array.isArray(payload && payload.videos) ? payload.videos : []
+  };
 
 }
 
