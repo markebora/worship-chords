@@ -4212,6 +4212,198 @@ button{
   margin-left:0;
 }
 
+
+/* =========================================================
+   YOUTUBE PLAYLIST (Sunday lineup)
+========================================================= */
+
+.ytPlaylistHeadRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:9px;
+}
+
+.ytPlaylistHeadRow .sectionLabel{
+  margin-bottom:0;
+}
+
+.ytAddLinkBtn{
+  flex-shrink:0;
+  background:#1e1e22;
+  border:1px solid #2d2d32;
+  color:#e8e8ea;
+  border-radius:8px;
+  padding:6px 12px;
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.ytAddLinkBtn:disabled{
+  opacity:.4;
+  cursor:default;
+}
+
+.ytLinkRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:#151518;
+  border:1px solid #2d2d32;
+  border-radius:12px;
+  padding:8px 10px;
+  margin:0 16px 8px;
+  cursor:pointer;
+}
+
+.ytLinkThumb{
+  position:relative;
+  flex-shrink:0;
+  width:72px;
+  height:44px;
+  border-radius:8px;
+  overflow:hidden;
+  background:#000;
+}
+
+.ytLinkThumb img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.ytLinkPlayIcon{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#fff;
+  font-size:14px;
+  background:rgba(0,0,0,.28);
+  text-shadow:0 1px 3px rgba(0,0,0,.6);
+}
+
+.ytLinkMeta{
+  flex:1;
+  min-width:0;
+}
+
+.ytLinkTitle{
+  font-size:13.5px;
+  font-weight:600;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.ytLinkAddedBy{
+  font-size:11.5px;
+  color:#8a8a92;
+  margin-top:2px;
+}
+
+
+/* =========================================================
+   YOUTUBE PLAYER MODAL
+
+   A centered floating player, not a real new tab/window — tapping
+   a playlist link opens this overlay in place so nobody actually
+   leaves the app. Sized like a portrait card (video pinned to the
+   top, comfortably narrow) rather than a full-bleed landscape
+   embed, closer to what tapping a YouTube link normally feels
+   like on a phone.
+========================================================= */
+
+.ytModalBack{
+  position:fixed;
+  inset:0;
+  z-index:2200;
+
+  background:rgba(0,0,0,0);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+
+  transition:
+    opacity .2s ease,
+    background .2s ease,
+    visibility 0s linear .2s;
+}
+
+.ytModalBack.open{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  background:rgba(0,0,0,.85);
+
+  transition:
+    opacity .2s ease,
+    background .2s ease,
+    visibility 0s linear 0s;
+}
+
+.ytModalBox{
+  position:relative;
+  width:min(420px,100%);
+
+  transform:translateY(10px) scale(.98);
+  transition:transform .2s ease;
+}
+
+.ytModalBack.open .ytModalBox{
+  transform:translateY(0) scale(1);
+}
+
+.ytModalFrameWrap{
+  position:relative;
+  width:100%;
+  aspect-ratio:16/9;
+
+  background:#000;
+  border-radius:16px;
+  overflow:hidden;
+
+  box-shadow:0 20px 60px rgba(0,0,0,.6);
+}
+
+.ytModalFrameWrap iframe{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  border:0;
+}
+
+.ytModalClose{
+  position:absolute;
+  top:-42px;
+  right:0;
+
+  width:34px;
+  height:34px;
+
+  border-radius:50%;
+  border:1px solid rgba(255,255,255,.2);
+  background:rgba(20,20,22,.92);
+  color:#fff;
+
+  font-size:15px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  cursor:pointer;
+}
+
 </style>
 
 </head>
@@ -4283,6 +4475,8 @@ button{
   <div id="songSectionOverlay"></div>
   <div id="mergeNavOverlay"></div>
   <div id="autoScrollOverlay"></div>
+
+  <div id="ytPlayerOverlay"></div>
   <div id="editorPillOverlay"></div>
   <div id="toastStack" aria-live="polite"></div>
   <div id="confirmOverlay"></div>
@@ -5510,6 +5704,35 @@ function setActiveNav(name){
   if(autoScrollOverlay){
 
     autoScrollOverlay.innerHTML = '';
+
+  }
+
+
+  /*
+    Unlike the overlays above, the video modal is NOT repopulated
+    by the render call that just ran — it's an independent,
+    user-opened player — so it should only be torn down when the
+    person actually navigates to a different screen, never when
+    the current screen just quietly re-renders itself in place
+    (e.g. the realtime lineup listener refreshing lineupDetail
+    while a video is playing). See ytPlayerOpenScreenName above.
+  */
+
+  if(
+    ytPlayerOpenScreenName !== null &&
+    ytPlayerOpenScreenName !== currentScreenName
+  ){
+
+    ytPlayerOpenScreenName = null;
+
+    const ytPlayerOverlay =
+      document.getElementById('ytPlayerOverlay');
+
+    if(ytPlayerOverlay){
+
+      ytPlayerOverlay.innerHTML = '';
+
+    }
 
   }
 
@@ -8327,13 +8550,14 @@ function getLocalLineup(){
 
       title: (raw && raw.title) || 'Sunday Worship',
       songs: Array.isArray(raw && raw.songs) ? raw.songs : [],
+      videos: Array.isArray(raw && raw.videos) ? raw.videos : [],
       updatedBy: (raw && raw.updatedBy) || ''
 
     };
 
   }catch(error){
 
-    return { title:'Sunday Worship', songs:[], updatedBy:'' };
+    return { title:'Sunday Worship', songs:[], videos:[], updatedBy:'' };
 
   }
 
@@ -8367,6 +8591,7 @@ async function downloadLineup(){
 
       title: (payload && payload.title) || 'Sunday Worship',
       songs: Array.isArray(payload && payload.songs) ? payload.songs : [],
+      videos: Array.isArray(payload && payload.videos) ? payload.videos : [],
       updatedBy: (payload && payload.updatedBy) || ''
 
     };
@@ -8375,7 +8600,7 @@ async function downloadLineup(){
 
     console.error(error);
 
-    return { title:'Sunday Worship', songs:[], updatedBy:'' };
+    return { title:'Sunday Worship', songs:[], videos:[], updatedBy:'' };
 
   }
 
@@ -8393,6 +8618,7 @@ async function uploadLineup(state){
 
         title: state.title || 'Sunday Worship',
         songs: state.songs || [],
+        videos: state.videos || [],
         updatedBy: state.updatedBy || '',
         updatedAt: new Date().toISOString()
 
@@ -8403,6 +8629,269 @@ async function uploadLineup(state){
     throw new Error(error.message);
 
   }
+
+}
+
+
+/*
+  YOUTUBE PLAYLIST — lives inside the same shared lineup doc as
+  the songs (see SUNDAY LINEUP above), so pasted links show up
+  for the whole team the same way sent songs do. Capped at 5
+  links; playback happens in an in-app modal (openYouTubePlayer)
+  instead of actually navigating away, so nobody ever leaves the
+  app to watch one.
+*/
+
+const LINEUP_MAX_VIDEOS = 5;
+
+/*
+  Set while the video modal is open, to the currentScreenName it
+  was opened on. Lets setActiveNav's cleanup (below) tell a real
+  navigation — where the player should close — apart from the
+  lineup screen quietly re-rendering itself in place (e.g. the
+  realtime listener picking up a teammate's edit), where closing
+  it would yank the video out from under whoever's watching.
+*/
+let ytPlayerOpenScreenName = null;
+
+function extractYouTubeId(url){
+
+  if(!url)return null;
+
+  const trimmed =
+    String(url).trim();
+
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtube\.com\/watch\?[^#]*[?&]v=)([\w-]{11})/,
+    /youtu\.be\/([\w-]{11})/,
+    /youtube\.com\/shorts\/([\w-]{11})/,
+    /youtube\.com\/embed\/([\w-]{11})/,
+    /youtube\.com\/live\/([\w-]{11})/,
+    /music\.youtube\.com\/watch\?[^#]*[?&]v=([\w-]{11})/
+  ];
+
+  for(const pattern of patterns){
+
+    const match =
+      trimmed.match(pattern);
+
+    if(match)return match[1];
+
+  }
+
+  return null;
+
+}
+
+
+async function addVideoToLineupPrompt(){
+
+  const localLineup =
+    getLocalLineup();
+
+  if((localLineup.videos || []).length >= LINEUP_MAX_VIDEOS){
+
+    showToast(`You can only add up to ${LINEUP_MAX_VIDEOS} videos.`, 'error');
+    return;
+
+  }
+
+  const input =
+    await showPromptDialog(
+      'Paste a YouTube link',
+      '',
+      { confirmLabel:'Add' }
+    );
+
+  if(input === null)return;
+
+  const url =
+    input.trim();
+
+  if(!url)return;
+
+  const videoId =
+    extractYouTubeId(url);
+
+  if(!videoId){
+
+    showToast('That doesn\'t look like a YouTube link.', 'error');
+    return;
+
+  }
+
+  if(!await requireFirebaseConfigured())return;
+
+  if(!(await ensureSyncSession())){
+
+    showToast('Sign in first to add this to the team lineup.', 'error');
+    return;
+
+  }
+
+  try{
+
+    const remote =
+      await downloadLineup();
+
+    if(remote.videos.length >= LINEUP_MAX_VIDEOS){
+
+      showToast(`You can only add up to ${LINEUP_MAX_VIDEOS} videos.`, 'error');
+      return;
+
+    }
+
+    if(remote.videos.some(item => item.id === videoId)){
+
+      showToast('That video is already in the playlist.', 'error');
+      return;
+
+    }
+
+    const user =
+      getGoogleUser();
+
+    remote.videos.push({
+
+      id: videoId,
+      url,
+      addedBy: (user && user.name) || ''
+
+    });
+
+    remote.updatedBy =
+      (user && user.name) || '';
+
+    await uploadLineup(remote);
+
+    setLocalLineup(remote);
+
+    renderLineupDetail();
+
+  }catch(error){
+
+    console.error(error);
+
+    showToast(
+      'Could not add the video: ' + error.message,
+      'error'
+    );
+
+  }
+
+}
+
+
+async function removeVideoFromLineup(videoId){
+
+  if(!await requireFirebaseConfigured())return;
+
+  if(!(await ensureSyncSession()))return;
+
+  try{
+
+    const remote =
+      await downloadLineup();
+
+    remote.videos =
+      remote.videos.filter(item => item.id !== videoId);
+
+    await uploadLineup(remote);
+
+    setLocalLineup(remote);
+
+    renderLineupDetail();
+
+  }catch(error){
+
+    console.error(error);
+
+    showToast(
+      'Could not update the playlist: ' + error.message,
+      'error'
+    );
+
+  }
+
+}
+
+
+/*
+  Centered in-app player — opens as an overlay on top of whatever
+  screen is showing, never a real new browser tab/window, so it
+  works the same in the installed PWA/APK as it does in a normal
+  tab. Closes on the X, on tapping the dark backdrop, or silently
+  whenever setActiveNav tears down transient overlays (see the
+  overlay-clearing block above) so it can't keep playing muted in
+  the background after navigating away.
+*/
+
+function closeYouTubePlayer(){
+
+  ytPlayerOpenScreenName = null;
+
+  const host =
+    document.getElementById('ytPlayerOverlay');
+
+  if(!host)return;
+
+  const back =
+    host.querySelector('.ytModalBack');
+
+  if(!back){
+    host.innerHTML = '';
+    return;
+  }
+
+  back.classList.remove('open');
+
+  setTimeout(() => {
+    host.innerHTML = '';
+  }, 200);
+
+}
+
+
+function openYouTubePlayer(videoId){
+
+  const host =
+    document.getElementById('ytPlayerOverlay');
+
+  if(!host || !videoId)return;
+
+  ytPlayerOpenScreenName = currentScreenName;
+
+  host.innerHTML = `
+
+    <div class="ytModalBack" id="ytModalBack">
+      <div class="ytModalBox">
+
+        <button class="ytModalClose" id="ytModalCloseBtn" type="button" aria-label="Close video">✕</button>
+
+        <div class="ytModalFrameWrap">
+          <iframe
+            src="https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&playsinline=1&rel=0"
+            title="YouTube video player"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+          ></iframe>
+        </div>
+
+      </div>
+    </div>
+
+  `;
+
+  requestAnimationFrame(() => {
+    const back = document.getElementById('ytModalBack');
+    if(back)back.classList.add('open');
+  });
+
+  document.getElementById('ytModalCloseBtn').onclick = closeYouTubePlayer;
+
+  document.getElementById('ytModalBack').addEventListener('click', (event) => {
+    if(event.target.id === 'ytModalBack')closeYouTubePlayer();
+  });
 
 }
 
@@ -8599,7 +9088,7 @@ async function clearLineup(){
   try{
 
     const cleared =
-      { title:'Sunday Worship', songs:[], updatedBy:'' };
+      { title:'Sunday Worship', songs:[], videos:[], updatedBy:'' };
 
     await uploadLineup(cleared);
 
@@ -18884,6 +19373,9 @@ function renderLineupDetail(){
 
     });
 
+  const videos =
+    Array.isArray(lineup.videos) ? lineup.videos : [];
+
   screen.innerHTML = `
 
     <div class="libraryHead">
@@ -18981,6 +19473,50 @@ function renderLineupDetail(){
             ${emptyStateIconHTML('music')}
             Nothing sent yet.<br>
             Open a song, tap ⋮, then "Send to Team".
+          </div>
+        `
+      }
+
+    </div>
+
+
+    <div class="librarySection">
+
+      <div class="ytPlaylistHeadRow">
+        <div class="sectionLabel">
+          YT Playlist${videos.length ? ` (${videos.length}/${LINEUP_MAX_VIDEOS})` : ''}
+        </div>
+        <button
+          class="ytAddLinkBtn"
+          type="button"
+          id="ytAddLinkBtn"
+          ${videos.length >= LINEUP_MAX_VIDEOS ? 'disabled' : ''}
+        >+ Add link</button>
+      </div>
+
+      ${
+        videos.length
+        ? videos.map(video => `
+            <div class="ytLinkRow" data-yt-row="${esc(video.id)}">
+
+              <div class="ytLinkThumb" data-yt-play="${esc(video.id)}">
+                <img src="https://i.ytimg.com/vi/${esc(video.id)}/mqdefault.jpg" alt="" loading="lazy">
+                <span class="ytLinkPlayIcon">▶</span>
+              </div>
+
+              <div class="ytLinkMeta" data-yt-play="${esc(video.id)}">
+                <div class="ytLinkTitle">${esc(video.url || video.id)}</div>
+                ${video.addedBy ? `<div class="ytLinkAddedBy">added by ${esc(video.addedBy)}</div>` : ''}
+              </div>
+
+              <button class="setlistOrderBtn" type="button" data-remove-yt="${esc(video.id)}" title="Remove video" style="color:#ff8b8b;">✕</button>
+
+            </div>
+          `).join('')
+        : `
+          <div class="empty">
+            No videos yet.<br>
+            Paste up to ${LINEUP_MAX_VIDEOS} YouTube links for the team to watch.
           </div>
         `
       }
@@ -19096,6 +19632,28 @@ function renderLineupDetail(){
   screen.querySelectorAll('[data-remove-from-lineup]').forEach(btn => {
     btn.onclick = () => {
       removeSongFromLineup(btn.dataset.removeFromLineup);
+    };
+  });
+
+  const ytAddLinkBtn =
+    document.getElementById('ytAddLinkBtn');
+
+  if(ytAddLinkBtn){
+    ytAddLinkBtn.onclick = () => {
+      addVideoToLineupPrompt();
+    };
+  }
+
+  screen.querySelectorAll('[data-yt-play]').forEach(el => {
+    el.onclick = () => {
+      openYouTubePlayer(el.dataset.ytPlay);
+    };
+  });
+
+  screen.querySelectorAll('[data-remove-yt]').forEach(btn => {
+    btn.onclick = (event) => {
+      event.stopPropagation();
+      removeVideoFromLineup(btn.dataset.removeYt);
     };
   });
 
