@@ -4372,8 +4372,14 @@ button{
   transition:
     transform .2s ease,
     width .22s cubic-bezier(.22,.8,.36,1),
-    bottom .22s cubic-bezier(.22,.8,.36,1),
-    right .22s cubic-bezier(.22,.8,.36,1);
+    left .22s cubic-bezier(.22,.8,.36,1),
+    top .22s cubic-bezier(.22,.8,.36,1),
+    right .22s cubic-bezier(.22,.8,.36,1),
+    bottom .22s cubic-bezier(.22,.8,.36,1);
+}
+
+.ytModalBox.dragging{
+  transition:none;
 }
 
 .ytModalBack.open .ytModalBox{
@@ -4388,10 +4394,16 @@ button{
   z-index:2300;
 
   pointer-events:auto;
-  cursor:pointer;
+  cursor:grab;
+  touch-action:none;
 
   border-radius:14px;
   box-shadow:0 10px 30px rgba(0,0,0,.6);
+}
+
+.ytModalBox.minimized.dragging{
+  cursor:grabbing;
+  box-shadow:0 16px 40px rgba(0,0,0,.75);
 }
 
 .ytModalFrameWrap{
@@ -8865,6 +8877,188 @@ let ytPlayerOpenScreenName = null;
 */
 let ytPlayerMinimized = false;
 
+/*
+  Where the mini player currently sits — null until the person
+  first drags it, meaning "use the default corner from the CSS
+  rule below." Once dragged, remembers only a side (it always
+  snaps fully left or right, never floats mid-width) and a top
+  offset, and that position is re-applied every time the player
+  gets minimized again — including a fresh video opened later —
+  so it stays wherever they last left it for the rest of the
+  session.
+*/
+let ytPlayerDockPosition = null;
+
+/*
+  Keeps the mini player fully on screen — never under the status
+  bar/top notch, never under the bottom nav bar — while dragging
+  and after snapping.
+*/
+function clampYtDockTop(topPx, boxHeight){
+
+  const topMin = 12;
+
+  const topMax =
+    window.innerHeight - boxHeight - 96;
+
+  return Math.min(
+    Math.max(topPx, topMin),
+    Math.max(topMin, topMax)
+  );
+
+}
+
+/*
+  Applies ytPlayerDockPosition (if the person has ever dragged
+  the player) as explicit inline left/top, overriding the default
+  CSS right/bottom corner. No-op — leaves the CSS default in
+  place — until a drag has actually happened once.
+*/
+function applyYtDockPosition(box){
+
+  if(!ytPlayerDockPosition)return;
+
+  const rect =
+    box.getBoundingClientRect();
+
+  const height =
+    rect.height || (box.offsetWidth * 9 / 16);
+
+  const top =
+    clampYtDockTop(ytPlayerDockPosition.top, height);
+
+  box.style.top = top + 'px';
+  box.style.bottom = 'auto';
+
+  if(ytPlayerDockPosition.side === 'left'){
+    box.style.left = '14px';
+    box.style.right = 'auto';
+  }else{
+    box.style.right = '14px';
+    box.style.left = 'auto';
+  }
+
+}
+
+/*
+  Releases the inline position so the box falls back to its
+  normal (centered, relatively-positioned) expanded layout —
+  otherwise a leftover inline left/top from dragging while
+  minimized would misplace it once it's no longer position:fixed.
+*/
+function clearYtDockInlinePosition(box){
+
+  box.style.left = '';
+  box.style.right = '';
+  box.style.top = '';
+  box.style.bottom = '';
+
+}
+
+/*
+  Drag-to-move for the minimized mini player, snapping to
+  whichever side (left/right) it's closer to on release — same
+  "chat head" behavior as Messenger's floating bubble or a phone's
+  picture-in-picture window. Only active while minimized; tapping
+  without moving still restores the full player, same as before.
+*/
+function wireYtMiniPlayerDrag(box){
+
+  let dragState = null;
+
+  box.addEventListener('pointerdown', event => {
+
+    if(!ytPlayerMinimized)return;
+    if(event.target.closest('.ytModalControls'))return;
+
+    const rect =
+      box.getBoundingClientRect();
+
+    dragState = {
+
+      startX: event.clientX,
+      startY: event.clientY,
+      boxLeft: rect.left,
+      boxTop: rect.top,
+      boxHeight: rect.height,
+      moved: false
+
+    };
+
+    box.setPointerCapture(event.pointerId);
+
+  });
+
+  box.addEventListener('pointermove', event => {
+
+    if(!dragState)return;
+
+    const dx = event.clientX - dragState.startX;
+    const dy = event.clientY - dragState.startY;
+
+    if(
+      !dragState.moved &&
+      (Math.abs(dx) > 6 || Math.abs(dy) > 6)
+    ){
+
+      dragState.moved = true;
+      box.classList.add('dragging');
+
+    }
+
+    if(!dragState.moved)return;
+
+    box.style.left =
+      (dragState.boxLeft + dx) + 'px';
+
+    box.style.top =
+      clampYtDockTop(dragState.boxTop + dy, dragState.boxHeight) + 'px';
+
+    box.style.right = 'auto';
+    box.style.bottom = 'auto';
+
+  });
+
+  const endDrag = event => {
+
+    if(!dragState)return;
+
+    const wasDrag = dragState.moved;
+
+    box.classList.remove('dragging');
+
+    if(wasDrag){
+
+      const rect =
+        box.getBoundingClientRect();
+
+      const centerX =
+        rect.left + rect.width / 2;
+
+      ytPlayerDockPosition = {
+
+        side: centerX < window.innerWidth / 2 ? 'left' : 'right',
+        top: clampYtDockTop(rect.top, rect.height)
+
+      };
+
+      applyYtDockPosition(box);
+
+    }else if(ytPlayerMinimized){
+
+      setYouTubePlayerMinimized(false);
+
+    }
+
+    dragState = null;
+
+  };
+
+  box.addEventListener('pointerup', endDrag);
+  box.addEventListener('pointercancel', endDrag);
+
+}
+
 function extractYouTubeId(url){
 
   if(!url)return null;
@@ -9373,6 +9567,12 @@ function setYouTubePlayerMinimized(minimized){
   back.classList.toggle('minimized', minimized);
   box.classList.toggle('minimized', minimized);
 
+  if(minimized){
+    applyYtDockPosition(box);
+  }else{
+    clearYtDockInlinePosition(box);
+  }
+
   const minBtn =
     document.getElementById('ytModalMinBtn');
 
@@ -9442,9 +9642,7 @@ function openYouTubePlayer(videoId){
     pointer-events:none so taps pass straight through to the app
     underneath) closes it.
   */
-  document.getElementById('ytModalBox').addEventListener('click', () => {
-    if(ytPlayerMinimized)setYouTubePlayerMinimized(false);
-  });
+  wireYtMiniPlayerDrag(document.getElementById('ytModalBox'));
 
   document.getElementById('ytModalBack').addEventListener('click', (event) => {
     if(event.target.id === 'ytModalBack')closeYouTubePlayer();
