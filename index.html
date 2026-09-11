@@ -4553,6 +4553,45 @@ button{
   -webkit-box-orient:vertical;
 }
 
+.videoSectionHeadRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:9px;
+}
+
+.videoSectionHeadRow .sectionLabel{
+  margin-bottom:0;
+  flex-shrink:0;
+}
+
+.videoSearchInput{
+  flex:1;
+  min-width:0;
+  max-width:160px;
+
+  background:#18181b;
+  border:1px solid #29292e;
+  border-radius:9px;
+
+  padding:6px 10px;
+
+  font-size:12.5px;
+  color:#e8e8ea;
+}
+
+.videoSearchInput::placeholder{
+  color:#6f6f78;
+}
+
+.videoRowEmpty{
+  padding:14px 2px;
+
+  font-size:12.5px;
+  color:#707078;
+}
+
 </style>
 
 </head>
@@ -7472,6 +7511,8 @@ async function onAuthReady(user){
 
   pullLineupFromDrive();
 
+  pullVideoArchiveFromDrive();
+
   startLineupLiveListener();
 
 }
@@ -8848,6 +8889,275 @@ function extractYouTubeId(url){
 }
 
 
+/*
+  VIDEO ARCHIVE — a permanent, shared record of every YouTube link
+  ever pasted anywhere in the app (the Sunday lineup's YT Playlist
+  AND any song's attached video). Deliberately independent of both
+  of those: removing a video from the Sunday lineup only drops it
+  from that 5-link rotation — it stays here, and the whole team can
+  still find it later by searching its title. Lives in its own
+  shared Firestore doc, same one-shared-document pattern already
+  used for the library and the lineup.
+*/
+
+const SYNC_VIDEO_ARCHIVE_DOC_ID = 'shared';
+
+
+function getLocalVideoArchive(){
+
+  try{
+
+    const raw =
+      JSON.parse(
+        localStorage.getItem('worshipChordsVideoArchive') || 'null'
+      );
+
+    return {
+      videos: Array.isArray(raw && raw.videos) ? raw.videos : []
+    };
+
+  }catch(error){
+
+    return { videos: [] };
+
+  }
+
+}
+
+
+function setLocalVideoArchive(archive){
+
+  localStorage.setItem(
+    'worshipChordsVideoArchive',
+    JSON.stringify({ videos: (archive && archive.videos) || [] })
+  );
+
+}
+
+
+async function downloadVideoArchive(){
+
+  try{
+
+    const docSnap =
+      await firestoreDb
+        .collection('videoArchive')
+        .doc(SYNC_VIDEO_ARCHIVE_DOC_ID)
+        .get();
+
+    const payload =
+      docSnap.exists ? docSnap.data() : null;
+
+    return {
+      videos: Array.isArray(payload && payload.videos) ? payload.videos : []
+    };
+
+  }catch(error){
+
+    console.error(error);
+
+    return { videos: [] };
+
+  }
+
+}
+
+
+async function uploadVideoArchive(state){
+
+  try{
+
+    await firestoreDb
+      .collection('videoArchive')
+      .doc(SYNC_VIDEO_ARCHIVE_DOC_ID)
+      .set({
+
+        videos: state.videos || [],
+
+        updatedAt: new Date().toISOString()
+
+      });
+
+  }catch(error){
+
+    throw new Error(error.message);
+
+  }
+
+}
+
+
+/*
+  Quiet refresh — called alongside pullLineupFromDrive on sign-in
+  and app open. Only touches the video row (not the whole Home
+  screen), same targeted-update approach as search filtering below,
+  so it can't interrupt anything the person's in the middle of.
+*/
+async function pullVideoArchiveFromDrive(){
+
+  if(!getGoogleUser())return;
+
+  if(!(await ensureSyncSession()))return;
+
+  try{
+
+    const remote =
+      await downloadVideoArchive();
+
+    setLocalVideoArchive(remote);
+
+    renderVideoCardRow();
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+
+/*
+  No API key needed — YouTube's public oEmbed endpoint hands back
+  a video's real title from just its URL. Used so a link pasted
+  into the Sunday lineup (which has no song to borrow a title
+  from) is still searchable by something meaningful. Best-effort
+  only: on failure (offline, private video, etc.) the entry just
+  falls back to the song title or a generic label.
+*/
+async function fetchYouTubeTitle(videoId){
+
+  try{
+
+    const response =
+      await fetch(
+        'https://www.youtube.com/oembed?url=' +
+        encodeURIComponent('https://www.youtube.com/watch?v=' + videoId) +
+        '&format=json'
+      );
+
+    if(!response.ok)return null;
+
+    const data =
+      await response.json();
+
+    return data && data.title ? String(data.title) : null;
+
+  }catch(error){
+
+    return null;
+
+  }
+
+}
+
+
+/*
+  Adds (or refreshes) one video in the permanent archive. Safe to
+  call every time a link is pasted anywhere — dedupes by video id,
+  so re-pasting the same link updates it instead of duplicating.
+  Best-effort and silent by design: this always runs after the
+  primary action (add to lineup / attach to song) has already
+  succeeded on its own, so a failure here should never surface as
+  an error to whoever just pasted a link.
+*/
+async function archiveVideo(entryInput){
+
+  const id = entryInput.id;
+  const url = entryInput.url;
+  const songId = entryInput.songId;
+  const songTitle = entryInput.songTitle;
+  const addedBy = entryInput.addedBy;
+
+  if(!id)return;
+
+  const nowIso =
+    new Date().toISOString();
+
+  const applyEntry = (list, youtubeTitle) => {
+
+    const index =
+      list.findIndex(item => item.id === id);
+
+    if(index === -1){
+
+      list.unshift({
+
+        id,
+        url,
+        songId: songId || null,
+        songTitle: songTitle || null,
+        youtubeTitle: youtubeTitle || null,
+        addedBy: addedBy || '',
+        firstAddedAt: nowIso,
+        lastSeenAt: nowIso
+
+      });
+
+    }else{
+
+      const existing = list[index];
+
+      list[index] = {
+
+        ...existing,
+        songId: songId || existing.songId || null,
+        songTitle: songTitle || existing.songTitle || null,
+        youtubeTitle: youtubeTitle || existing.youtubeTitle || null,
+        lastSeenAt: nowIso
+
+      };
+
+    }
+
+    return list;
+
+  };
+
+  /*
+    Update the local cache — and whatever's on screen — right
+    away, so it shows up immediately even before (or without) a
+    successful round trip to the team's shared copy.
+  */
+  const localArchive =
+    getLocalVideoArchive();
+
+  setLocalVideoArchive({
+    videos: applyEntry(localArchive.videos.slice(), null)
+  });
+
+  renderVideoCardRow();
+
+  if(!firebaseAuth || !firestoreDb)return;
+  if(!getGoogleUser())return;
+
+  try{
+
+    if(!(await ensureSyncSession()))return;
+
+    const youtubeTitle =
+      await fetchYouTubeTitle(id);
+
+    const remote =
+      await downloadVideoArchive();
+
+    applyEntry(remote.videos, youtubeTitle);
+
+    await uploadVideoArchive(remote);
+
+    setLocalVideoArchive(remote);
+
+    renderVideoCardRow();
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+
 async function addVideoToLineupPrompt(){
 
   const localLineup =
@@ -8931,6 +9241,12 @@ async function addVideoToLineupPrompt(){
     setLocalLineup(remote);
 
     renderLineupDetail();
+
+    archiveVideo({
+      id: videoId,
+      url,
+      addedBy: (user && user.name) || ''
+    });
 
   }catch(error){
 
@@ -9386,6 +9702,21 @@ function persistCurrentSongVideo(){
 
   writeSongs(songs);
 
+  if(currentSong.video){
+
+    const user =
+      getGoogleUser();
+
+    archiveVideo({
+      id: currentSong.video.id,
+      url: currentSong.video.url,
+      songId: currentSong.id,
+      songTitle: currentSong.title,
+      addedBy: (user && user.name) || ''
+    });
+
+  }
+
   skipNextScreenTransition = true;
 
   if(Array.isArray(currentSong.mergeParts) && currentSong.mergeParts.length > 1){
@@ -9735,6 +10066,115 @@ async function performDriveSync(){
    HOME
 ========================================================= */
 
+/*
+  Renders just the video card row's contents — not the whole Home
+  screen — so it can be called from a search box's input event
+  (every keystroke) without destroying and recreating that same
+  input mid-type, and from background refreshes (archiveVideo,
+  pullVideoArchiveFromDrive) without disturbing whatever else is
+  on screen. No-ops if Home (or its video row) isn't currently
+  showing.
+*/
+function renderVideoCardRow(filterText){
+
+  const rowEl =
+    document.getElementById('videoCardRow');
+
+  if(!rowEl)return;
+
+  const query =
+    (filterText || '').trim().toLowerCase();
+
+  const allVideos =
+    getLocalVideoArchive().videos.slice();
+
+  const filtered =
+    query
+      ? allVideos.filter(entry =>
+          (entry.songTitle||'').toLowerCase().includes(query) ||
+          (entry.youtubeTitle||'').toLowerCase().includes(query)
+        )
+      : allVideos;
+
+  filtered.sort(
+    (a,b) => (b.lastSeenAt||'').localeCompare(a.lastSeenAt||'')
+  );
+
+  const shown =
+    filtered.slice(0,30);
+
+  if(!shown.length){
+
+    rowEl.innerHTML = `
+      <div class="videoRowEmpty">
+        ${query ? `No videos match "${esc(filterText.trim())}".` : 'No videos yet.'}
+      </div>
+    `;
+
+    return;
+
+  }
+
+  rowEl.innerHTML =
+    shown.map(entry => {
+
+      const label =
+        entry.songTitle || entry.youtubeTitle || 'YouTube video';
+
+      return `
+
+        <div class="videoCard">
+
+          <div class="videoCardThumb" data-video-play="${esc(entry.id)}">
+            <img src="https://i.ytimg.com/vi/${esc(entry.id)}/mqdefault.jpg" alt="" loading="lazy">
+            <span class="videoCardPlayBtn">▶</span>
+          </div>
+
+          <div
+            class="videoCardTitle"
+            data-video-title-id="${esc(entry.id)}"
+            data-video-song-id="${esc(entry.songId || '')}"
+          >
+            ${esc(label)}
+          </div>
+
+        </div>
+
+      `;
+
+    }).join('');
+
+  rowEl.querySelectorAll('[data-video-play]').forEach(thumb => {
+
+    thumb.onclick = () => {
+      openYouTubePlayer(thumb.dataset.videoPlay);
+    };
+
+  });
+
+  rowEl.querySelectorAll('[data-video-title-id]').forEach(titleEl => {
+
+    titleEl.onclick = () => {
+
+      const songId =
+        titleEl.dataset.videoSongId;
+
+      const liveSong =
+        songId ? getSongs().find(item => item.id === songId) : null;
+
+      if(liveSong){
+        openSong(liveSong);
+      }else{
+        openYouTubePlayer(titleEl.dataset.videoTitleId);
+      }
+
+    };
+
+  });
+
+}
+
+
 function renderHome(){
 
   currentScreenName = 'home';
@@ -9744,11 +10184,8 @@ function renderHome(){
   updateWelcomeHeader();
 
 
-  const videoSongs =
-    getSongs()
-      .filter(song => song.video && song.video.id)
-      .sort((a,b) => (b.updatedAt||b.savedAt||'').localeCompare(a.updatedAt||a.savedAt||''))
-      .slice(0,10);
+  const videoArchive =
+    getLocalVideoArchive().videos;
 
   const setlists =
     getSetlists();
@@ -9765,36 +10202,24 @@ function renderHome(){
     <div class="homePage">
 
       ${
-        videoSongs.length
+        videoArchive.length
         ? `
           <div class="homeSection">
 
-            <div class="sectionLabel">
-              Worship Videos
+            <div class="videoSectionHeadRow">
+              <div class="sectionLabel">
+                Worship Videos
+              </div>
+              <input
+                class="videoSearchInput"
+                id="videoSearchInput"
+                type="text"
+                placeholder="Search by title..."
+                autocomplete="off"
+              >
             </div>
 
-            <div class="videoCardRow">
-
-              ${
-                videoSongs.map(song => `
-
-                  <div class="videoCard">
-
-                    <div class="videoCardThumb" data-video-play="${esc(song.video.id)}">
-                      <img src="https://i.ytimg.com/vi/${esc(song.video.id)}/mqdefault.jpg" alt="" loading="lazy">
-                      <span class="videoCardPlayBtn">▶</span>
-                    </div>
-
-                    <div class="videoCardTitle" data-video-open-song="${esc(song.id)}">
-                      ${esc(song.title)}
-                    </div>
-
-                  </div>
-
-                `).join('')
-              }
-
-            </div>
+            <div class="videoCardRow" id="videoCardRow"></div>
 
           </div>
         `
@@ -9946,33 +10371,18 @@ function renderHome(){
       renderLibrary;
 
 
-  screen.querySelectorAll('[data-video-play]').forEach(thumb => {
+  renderVideoCardRow();
 
-    thumb.onclick = () => {
-      openYouTubePlayer(thumb.dataset.videoPlay);
+  const videoSearchInput =
+    document.getElementById('videoSearchInput');
+
+  if(videoSearchInput){
+
+    videoSearchInput.oninput = () => {
+      renderVideoCardRow(videoSearchInput.value);
     };
 
-  });
-
-  screen.querySelectorAll('[data-video-open-song]').forEach(titleEl => {
-
-    titleEl.onclick = () => {
-
-      const songId =
-        titleEl.dataset.videoOpenSong;
-
-      const liveSong =
-        getSongs().find(
-          item => item.id === songId
-        );
-
-      if(liveSong){
-        openSong(liveSong);
-      }
-
-    };
-
-  });
+  }
 
 
   const setlistCard =
@@ -21295,6 +21705,8 @@ async function initSyncOnLoad(){
   pullNewSongsFromDrive();
 
   pullLineupFromDrive();
+
+  pullVideoArchiveFromDrive();
 
   startLineupLiveListener();
 
