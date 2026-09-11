@@ -8956,6 +8956,98 @@ function clearYtDockInlinePosition(box){
 }
 
 /*
+  MINI PLAYER PERSISTENCE
+
+  So "minimize it and keep browsing" survives all the way to
+  "close the app entirely and reopen it later" — not just staying
+  alive through in-app navigation (that part's handled above by
+  ytPlayerOpenScreenName's exemption for minimized players).
+  Deliberately local-only (localStorage, not synced to the team)
+  and scoped to ONLY the minimized state: expanding it, or closing
+  it outright, both clear this, since neither of those means
+  "leave this running in the background." Playback itself still
+  can't resume silently while the app is fully closed — nothing
+  can run at all with the page gone — this only means the mini
+  player automatically reappears (and tries to autoplay) the
+  moment the app is reopened, in the same spot it was left.
+*/
+
+const YT_MINI_PLAYER_STORAGE_KEY = 'worshipChordsMiniPlayer';
+
+let ytPlayerCurrentVideoId = null;
+
+function saveYtMiniPlayerState(){
+
+  if(!ytPlayerMinimized || !ytPlayerCurrentVideoId){
+
+    localStorage.removeItem(YT_MINI_PLAYER_STORAGE_KEY);
+    return;
+
+  }
+
+  localStorage.setItem(
+
+    YT_MINI_PLAYER_STORAGE_KEY,
+
+    JSON.stringify({
+
+      videoId: ytPlayerCurrentVideoId,
+      side: ytPlayerDockPosition ? ytPlayerDockPosition.side : null,
+      top: ytPlayerDockPosition ? ytPlayerDockPosition.top : null
+
+    })
+
+  );
+
+}
+
+function clearYtMiniPlayerState(){
+
+  localStorage.removeItem(YT_MINI_PLAYER_STORAGE_KEY);
+
+}
+
+/*
+  Called once at app boot. Best-effort: a fresh page load has no
+  preceding user gesture, so mobile browsers' autoplay-with-sound
+  policy may hold the video paused until the person taps it —
+  that's the browser's own audio policy, not a bug here.
+*/
+function restoreYtMiniPlayerOnBoot(){
+
+  let saved;
+
+  try{
+
+    saved =
+      JSON.parse(
+        localStorage.getItem(YT_MINI_PLAYER_STORAGE_KEY) || 'null'
+      );
+
+  }catch(error){
+
+    saved = null;
+
+  }
+
+  if(!saved || !saved.videoId)return;
+
+  if(saved.side && typeof saved.top === 'number'){
+
+    ytPlayerDockPosition = {
+      side: saved.side,
+      top: saved.top
+    };
+
+  }
+
+  openYouTubePlayer(saved.videoId);
+  setYouTubePlayerMinimized(true);
+
+}
+
+
+/*
   Drag-to-move for the minimized mini player, snapping to
   whichever side (left/right) it's closer to on release — same
   "chat head" behavior as Messenger's floating bubble or a phone's
@@ -9043,6 +9135,7 @@ function wireYtMiniPlayerDrag(box){
       };
 
       applyYtDockPosition(box);
+      saveYtMiniPlayerState();
 
     }else if(ytPlayerMinimized){
 
@@ -9510,6 +9603,9 @@ function closeYouTubePlayer(){
 
   ytPlayerOpenScreenName = null;
   ytPlayerMinimized = false;
+  ytPlayerCurrentVideoId = null;
+
+  clearYtMiniPlayerState();
 
   const host =
     document.getElementById('ytPlayerOverlay');
@@ -9573,6 +9669,8 @@ function setYouTubePlayerMinimized(minimized){
     clearYtDockInlinePosition(box);
   }
 
+  saveYtMiniPlayerState();
+
   const minBtn =
     document.getElementById('ytModalMinBtn');
 
@@ -9596,6 +9694,7 @@ function openYouTubePlayer(videoId){
 
   ytPlayerOpenScreenName = currentScreenName;
   ytPlayerMinimized = false;
+  ytPlayerCurrentVideoId = videoId;
 
   host.innerHTML = `
 
@@ -21795,6 +21894,8 @@ document
 
 
 renderHome();
+
+restoreYtMiniPlayerOnBoot();
 
 
 /*
