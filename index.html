@@ -3375,6 +3375,11 @@ button{
   padding:0;
 }
 
+.editorPillBarWrap.idle{
+  opacity:.4;
+  transform:translateX(-50%) scale(.95);
+}
+
 .editorPillBarLabel{
   font-size:11px;
   font-weight:800;
@@ -3687,6 +3692,12 @@ button{
   }
 
   .songSectionFloatBar{
+    bottom:74px;
+
+    width:calc(100% - 18px);
+  }
+
+  .editorPillBarWrap{
     bottom:74px;
 
     width:calc(100% - 18px);
@@ -4189,6 +4200,7 @@ button{
   <div id="songSectionOverlay"></div>
   <div id="mergeNavOverlay"></div>
   <div id="autoScrollOverlay"></div>
+  <div id="editorPillOverlay"></div>
   <div id="toastStack" aria-live="polite"></div>
   <div id="confirmOverlay"></div>
 
@@ -5356,16 +5368,17 @@ function setActiveNav(name){
 
 
   /*
-    Both the library select-bar and the song section float-bar
-    live in fixed-position overlays that sit as SIBLINGS of
-    #screen (not children of it). #screen replays a transform
-    animation on every render, and a `transform` on an ancestor
-    turns `position:fixed` descendants into elements positioned
-    relative to that ancestor instead of the viewport — which is
-    what caused the bars to visibly pop in near the content and
-    then snap down into place. Clearing both overlays here, and
-    letting each render function repopulate its own overlay,
-    keeps them genuinely viewport-fixed with no jump.
+    The library select-bar, the song section float-bar, and the
+    editor's arrangement pill bar all live in fixed-position
+    overlays that sit as SIBLINGS of #screen (not children of
+    it). #screen replays a transform animation on every render,
+    and a `transform` on an ancestor turns `position:fixed`
+    descendants into elements positioned relative to that
+    ancestor instead of the viewport — which is what caused the
+    bars to visibly pop in near the content and then snap down
+    into place. Clearing all three overlays here, and letting
+    each render function repopulate its own overlay, keeps them
+    genuinely viewport-fixed with no jump.
   */
 
   const libraryOverlay =
@@ -5394,6 +5407,16 @@ function setActiveNav(name){
   if(mergeNavOverlay){
 
     mergeNavOverlay.innerHTML = '';
+
+  }
+
+
+  const editorPillOverlay =
+    document.getElementById('editorPillOverlay');
+
+  if(editorPillOverlay){
+
+    editorPillOverlay.innerHTML = '';
 
   }
 
@@ -14253,6 +14276,23 @@ function wireAnnotateToolbarButtons(){
 function renderSongViewer(){
 
   currentScreenName = 'songViewer';
+
+  /*
+    The editor's arrangement pill bar lives in its own fixed
+    overlay (editorPillOverlay) so it isn't broken by #screen's
+    transition transform — see the comment in setActiveNav().
+    Editor "Back" and "Save" both land here directly rather than
+    through setActiveNav, so this is the one place that needs to
+    clear it on the way out; renderSongViewer doesn't know
+    anything about the editor otherwise.
+  */
+  const editorPillOverlay =
+    document.getElementById('editorPillOverlay');
+
+  if(editorPillOverlay){
+    editorPillOverlay.innerHTML = '';
+  }
+
   const song=currentSong;
   if(song && Array.isArray(song.mergeParts) && song.mergeParts.length>1){
     renderMergedSongViewer();
@@ -16412,6 +16452,17 @@ function editCurrentSong(){
 
 let editorSections = [];
 
+/*
+  Which object Save actually writes to. For a plain song this is
+  just currentSong. For a merged song it's the specific entry in
+  currentSong.mergeParts that was open when the editor was
+  opened — editing a merge must only ever touch that one part's
+  text, never the merge's own flattened summary text and never
+  mergeParts/activePartIndex themselves. See renderEditor() and
+  saveEditorChanges().
+*/
+let editorEditingTarget = null;
+
 
 function sectionsToEditorText(sections){
 
@@ -16440,17 +16491,188 @@ function autoGrowEditorTextarea(textarea){
 }
 
 
+/*
+  EDITOR UNDO/REDO
+
+  Tracks snapshots of the raw editor text (the same string the
+  textarea holds and sectionsToEditorText() produces) rather than
+  diffing editorSections directly — that's the one representation
+  every kind of edit already funnels through, whether it's typed
+  text or a pill action (add/duplicate/delete/reorder), so a
+  single history covers both without the two needing to know
+  about each other.
+
+  Typing debounces into one history entry per pause instead of
+  one per keystroke (scheduleEditorHistoryCommit). Pill actions
+  commit immediately since each one is already a single discrete
+  action (see refreshEditorFromSections). History is per editor
+  session — renderEditor() resets it fresh every time the editor
+  opens, including separately for each part of a merged song.
+*/
+
+const EDITOR_HISTORY_LIMIT = 100;
+
+let editorHistory = [];
+let editorHistoryIndex = -1;
+let editorHistoryDebounce = null;
+let editorApplyingHistory = false;
+
+function resetEditorHistory(text){
+
+  editorHistory = [text];
+  editorHistoryIndex = 0;
+
+  updateEditorHistoryButtons();
+
+}
+
+function commitEditorHistory(text){
+
+  if(editorApplyingHistory)return;
+
+  if(editorHistory[editorHistoryIndex] === text)return;
+
+  editorHistory =
+    editorHistory.slice(0, editorHistoryIndex + 1);
+
+  editorHistory.push(text);
+
+  if(editorHistory.length > EDITOR_HISTORY_LIMIT){
+    editorHistory.shift();
+  }
+
+  editorHistoryIndex =
+    editorHistory.length - 1;
+
+  updateEditorHistoryButtons();
+
+}
+
+function scheduleEditorHistoryCommit(text){
+
+  clearTimeout(editorHistoryDebounce);
+
+  editorHistoryDebounce =
+    setTimeout(() => commitEditorHistory(text), 500);
+
+}
+
+function applyEditorHistoryIndex(newIndex){
+
+  if(newIndex < 0 || newIndex >= editorHistory.length)return;
+
+  editorHistoryIndex = newIndex;
+
+  const text =
+    editorHistory[editorHistoryIndex];
+
+  /*
+    Guards commitEditorHistory against re-recording the very
+    snapshot we're restoring — setting textarea.value directly
+    doesn't fire an 'input' event, so this is mostly a safety net
+    rather than something reachable in the normal flow.
+  */
+  editorApplyingHistory = true;
+
+  const textarea =
+    document.getElementById('editorTextarea');
+
+  if(textarea){
+    textarea.value = text;
+    autoGrowEditorTextarea(textarea);
+  }
+
+  editorSections =
+    parseSections(text);
+
+  refreshEditorPillBar();
+
+  updateEditorHistoryButtons();
+
+  editorApplyingHistory = false;
+
+}
+
+function editorUndo(){
+
+  const textarea =
+    document.getElementById('editorTextarea');
+
+  /*
+    Flushes any not-yet-committed typing as its own step first,
+    so undo always steps back from exactly what's on screen right
+    now instead of silently discarding the last half-second of
+    typing.
+  */
+  if(editorHistoryDebounce){
+
+    clearTimeout(editorHistoryDebounce);
+    editorHistoryDebounce = null;
+
+    if(textarea)commitEditorHistory(textarea.value);
+
+  }
+
+  applyEditorHistoryIndex(editorHistoryIndex - 1);
+
+}
+
+function editorRedo(){
+  applyEditorHistoryIndex(editorHistoryIndex + 1);
+}
+
+function updateEditorHistoryButtons(){
+
+  const undoBtn =
+    document.getElementById('editorUndoBtn');
+
+  const redoBtn =
+    document.getElementById('editorRedoBtn');
+
+  if(undoBtn){
+    undoBtn.disabled = editorHistoryIndex <= 0;
+  }
+
+  if(redoBtn){
+    redoBtn.disabled = editorHistoryIndex >= editorHistory.length - 1;
+  }
+
+}
+
+
 function renderEditor(song){
 
   setActiveNav('lyrics');
 
 
+  /*
+    A merged song's own text/originalText is just a flattened
+    join of every part (see saveMergedSongParts) — parsing THAT
+    is what used to edit every song in the merge as one blob.
+    Editing has to target the specific part that's actually open
+    in the viewer right now.
+  */
+
+  const isMergedEdit =
+    Array.isArray(song.mergeParts) &&
+    song.mergeParts.length > 1;
+
+  editorEditingTarget =
+    isMergedEdit
+      ? song.mergeParts[clampMergedPartIndex(song)]
+      : song;
+
+
   editorSections =
     parseSections(
-      song.originalText ||
-      song.text ||
+      editorEditingTarget.originalText ||
+      editorEditingTarget.text ||
       ''
     );
+
+  resetEditorHistory(
+    sectionsToEditorText(editorSections)
+  );
 
 
   screen.innerHTML = `
@@ -16475,8 +16697,14 @@ function renderEditor(song){
           </h1>
 
           <p>
-            ${esc(song.title || 'Untitled Song')}
+            ${esc(editorEditingTarget.title || song.title || 'Untitled Song')}
           </p>
+
+          ${isMergedEdit ? `
+          <p class="editorMergeContext">
+            Song ${clampMergedPartIndex(song) + 1} of ${song.mergeParts.length} in "${esc(song.title || 'this merge')}" — saving only updates this song
+          </p>
+          ` : ''}
 
         </div>
 
@@ -16484,6 +16712,24 @@ function renderEditor(song){
 
 
       <div class="editorActions">
+
+        <button
+          type="button"
+          class="editorUndoBtn"
+          id="editorUndoBtn"
+          aria-label="Undo"
+          title="Undo"
+          disabled
+        >↺</button>
+
+        <button
+          type="button"
+          class="editorRedoBtn"
+          id="editorRedoBtn"
+          aria-label="Redo"
+          title="Redo"
+          disabled
+        >↻</button>
 
         <button
           class="toolbarBtn primary"
@@ -16502,7 +16748,25 @@ function renderEditor(song){
       >${esc(sectionsToEditorText(editorSections))}</textarea>
 
 
-      <div class="editorPillBarWrap">
+    </div>
+
+  `;
+
+
+  /*
+    Rendered into editorPillOverlay — a sibling of #screen —
+    rather than inline here, so its position:fixed is genuinely
+    viewport-fixed instead of relative to #screen's transition
+    transform. See the comment in setActiveNav().
+  */
+  const editorPillOverlay =
+    document.getElementById('editorPillOverlay');
+
+  if(editorPillOverlay){
+
+    editorPillOverlay.innerHTML = `
+
+      <div class="editorPillBarWrap idleFade">
 
         <div class="editorPillBarLabel">
           Arrangement — hold a pill to duplicate or delete, drag to reorder
@@ -16517,10 +16781,11 @@ function renderEditor(song){
 
       </div>
 
+    `;
 
-    </div>
+    attachIdleFade(document.querySelector('.editorPillBarWrap'));
 
-  `;
+  }
 
 
   document
@@ -16535,13 +16800,60 @@ function renderEditor(song){
       saveEditorChanges;
 
 
+  document
+    .getElementById('editorUndoBtn')
+    .onclick =
+      editorUndo;
+
+
+  document
+    .getElementById('editorRedoBtn')
+    .onclick =
+      editorRedo;
+
+
   const textarea =
     document.getElementById('editorTextarea');
 
   autoGrowEditorTextarea(textarea);
 
   textarea.addEventListener('input', () => {
+
     autoGrowEditorTextarea(textarea);
+
+    scheduleEditorHistoryCommit(textarea.value);
+
+  });
+
+  textarea.addEventListener('keydown', (event) => {
+
+    /*
+      Takes over Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (or +Y) rather
+      than letting the browser's own native textarea undo run —
+      that native undo stack tracks raw keystrokes and doesn't
+      know anything about the pill actions folded into this same
+      history, so the two would fight each other and desync.
+    */
+
+    const key =
+      event.key.toLowerCase();
+
+    if((event.ctrlKey || event.metaKey) && key === 'z' && !event.shiftKey){
+
+      event.preventDefault();
+      editorUndo();
+
+      return;
+
+    }
+
+    if((event.ctrlKey || event.metaKey) && (key === 'y' || (key === 'z' && event.shiftKey))){
+
+      event.preventDefault();
+      editorRedo();
+
+    }
+
   });
 
   textarea.addEventListener('blur', () => {
@@ -16553,6 +16865,9 @@ function renderEditor(song){
       re-parsing on every keystroke, which would be both
       wasteful and liable to jitter the pills mid-type.
     */
+
+    clearTimeout(editorHistoryDebounce);
+    commitEditorHistory(textarea.value);
 
     editorSections =
       parseSections(textarea.value);
@@ -16607,17 +16922,29 @@ function refreshEditorPillBar(){
 
 function refreshEditorFromSections(){
 
+  const text =
+    sectionsToEditorText(editorSections);
+
   const textarea =
     document.getElementById('editorTextarea');
 
   if(textarea){
 
     textarea.value =
-      sectionsToEditorText(editorSections);
+      text;
 
     autoGrowEditorTextarea(textarea);
 
   }
+
+  /*
+    A pill action is already one discrete, complete change —
+    unlike typing, it doesn't need the debounce, so it commits
+    straight away. Any typing commit still pending gets cleared
+    first so it doesn't land out of order after this one.
+  */
+  clearTimeout(editorHistoryDebounce);
+  commitEditorHistory(text);
 
   refreshEditorPillBar();
 
@@ -16982,30 +17309,66 @@ function saveEditorChanges(){
     (textarea ? textarea.value : '').trim();
 
 
-  currentSong.originalText =
+  /*
+    Writes to editorEditingTarget — either currentSong itself,
+    or (for a merged song) the specific entry inside
+    currentSong.mergeParts that renderEditor resolved when the
+    editor opened. Either way it's the same object by reference,
+    so mutating it here is enough; there's nothing separate to
+    write back into the mergeParts array.
+  */
+
+  const target =
+    editorEditingTarget ||
+    currentSong;
+
+
+  target.originalText =
     text;
 
 
-  currentSong.text =
+  target.text =
     text;
 
 
-  currentSong.analysis =
+  target.analysis =
     analyzeFocusedSong(
       text
     );
 
-  currentSong.sectionOrder =
+  target.sectionOrder =
     parseSections(text).map((section,index) =>
       String(index) + '|' + String(section.name || 'Section').trim().toLowerCase()
     );
 
 
-  if(currentSong.mergeParts){
+  /*
+    THE FIX: editing a merged song used to always delete
+    currentSong.mergeParts/activePartIndex here, collapsing the
+    whole merge into a single song on every save. That's gone —
+    the merge itself is never touched. All that's left to do for
+    a merged save is refresh the merge's own flattened
+    text/originalText (the join of every part — see
+    saveMergedSongParts) so it doesn't go stale now that one
+    part's text just changed.
+  */
 
-    delete currentSong.mergeParts;
+  const isMergedEdit =
+    Array.isArray(currentSong.mergeParts) &&
+    currentSong.mergeParts.length > 1;
 
-    delete currentSong.activePartIndex;
+  if(isMergedEdit){
+
+    const combinedText =
+      currentSong.mergeParts
+        .map(part => part.originalText || part.text || '')
+        .join('\n\n');
+
+    currentSong.text =
+      combinedText;
+
+    currentSong.originalText =
+      combinedText;
 
   }
 
