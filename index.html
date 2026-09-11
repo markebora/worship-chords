@@ -4462,6 +4462,97 @@ button{
   border-color:rgba(255,255,255,.25);
 }
 
+
+/* =========================================================
+   HOME — WORSHIP VIDEOS ROW
+
+   Replaces the old "Continue" list on Home (recent songs already
+   live in Lyrics). Cards show the video attached to a song —
+   YouTube thumbnail, small ▶ badge to play it right there, title
+   below to open the song itself. Horizontal scroll, no page
+   navigation needed.
+========================================================= */
+
+.videoCardRow{
+  display:flex;
+  gap:12px;
+
+  overflow-x:auto;
+  padding-bottom:2px;
+  margin:0 -22px;
+  padding-left:22px;
+  padding-right:22px;
+
+  scroll-snap-type:x proximity;
+  -webkit-overflow-scrolling:touch;
+}
+
+.videoCardRow::-webkit-scrollbar{
+  display:none;
+}
+
+.videoCard{
+  flex:0 0 auto;
+  width:148px;
+  scroll-snap-align:start;
+}
+
+.videoCardThumb{
+  position:relative;
+  width:100%;
+  aspect-ratio:16/9;
+
+  border-radius:12px;
+  overflow:hidden;
+
+  background:#000;
+  border:1px solid #29292e;
+
+  cursor:pointer;
+}
+
+.videoCardThumb img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.videoCardPlayBtn{
+  position:absolute;
+  right:6px;
+  bottom:6px;
+
+  width:26px;
+  height:26px;
+
+  border-radius:50%;
+  background:rgba(0,0,0,.68);
+  border:1px solid rgba(255,255,255,.25);
+  color:#fff;
+
+  font-size:11px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.videoCardTitle{
+  margin-top:8px;
+
+  font-size:13px;
+  font-weight:700;
+  line-height:1.3;
+  color:#e8e8ea;
+
+  cursor:pointer;
+
+  overflow:hidden;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+}
+
 </style>
 
 </head>
@@ -9191,6 +9282,107 @@ async function sendCurrentSongToLineup(song){
 }
 
 
+/*
+  Reached from the song viewer's ⋮ menu → "Add/Change Video Link".
+  Stores one pasted YouTube link directly on the song record
+  itself (song.video = {id, url}) — separate from the Sunday
+  lineup's own shared videos[] list. Persisted through the normal
+  writeSongs() path, so if this song happens to already be on the
+  shared lineup, the existing auto-sync logic picks the new field
+  up and pushes it to the team the same as any other edit; no
+  special-casing needed here.
+*/
+async function attachVideoToCurrentSong(){
+
+  if(!currentSong)return;
+
+  if(String(currentSong.id).startsWith('preview-')){
+
+    showToast(
+      'Save this song first, then attach a video.',
+      'error'
+    );
+
+    return;
+
+  }
+
+  const input =
+    await showPromptDialog(
+      'Paste a YouTube link for this song',
+      (currentSong.video && currentSong.video.url) || '',
+      { confirmLabel: currentSong.video ? 'Update' : 'Add' }
+    );
+
+  if(input === null)return;
+
+  const url =
+    input.trim();
+
+  if(!url){
+
+    if(!currentSong.video)return;
+
+    delete currentSong.video;
+
+    persistCurrentSongVideo();
+
+    showToast('Video removed.', 'success');
+
+    return;
+
+  }
+
+  const videoId =
+    extractYouTubeId(url);
+
+  if(!videoId){
+
+    showToast('That doesn\'t look like a YouTube link.', 'error');
+    return;
+
+  }
+
+  currentSong.video = { id: videoId, url };
+
+  persistCurrentSongVideo();
+
+  showToast('Video attached.', 'success');
+
+}
+
+
+function persistCurrentSongVideo(){
+
+  if(!currentSong)return;
+
+  const songs =
+    getSongs();
+
+  const index =
+    songs.findIndex(item => item.id === currentSong.id);
+
+  if(index === -1)return;
+
+  if(currentSong.video){
+    songs[index].video = currentSong.video;
+  }else{
+    delete songs[index].video;
+  }
+
+  writeSongs(songs);
+
+  skipNextScreenTransition = true;
+
+  if(Array.isArray(currentSong.mergeParts) && currentSong.mergeParts.length > 1){
+    renderMergedSongViewer();
+  }else{
+    renderSongViewer();
+  }
+
+}
+
+
 async function removeSongFromLineup(songId){
 
   if(!await requireFirebaseConfigured())return;
@@ -9538,8 +9730,11 @@ function renderHome(){
   updateWelcomeHeader();
 
 
-  const recentSongs =
-    getRecentViews().slice(0,3);
+  const videoSongs =
+    getSongs()
+      .filter(song => song.video && song.video.id)
+      .sort((a,b) => (b.updatedAt||b.savedAt||'').localeCompare(a.updatedAt||a.savedAt||''))
+      .slice(0,10);
 
   const setlists =
     getSetlists();
@@ -9556,49 +9751,36 @@ function renderHome(){
     <div class="homePage">
 
       ${
-        recentSongs.length
+        videoSongs.length
         ? `
           <div class="homeSection">
 
             <div class="sectionLabel">
-              Continue
+              Worship Videos
             </div>
 
-            ${
-              recentSongs.map(song => `
+            <div class="videoCardRow">
 
-                <div
-                  class="songCard"
-                  data-home-song="${esc(song.id)}"
-                  style="cursor:pointer;margin-bottom:8px;"
-                >
+              ${
+                videoSongs.map(song => `
 
-                  <div class="songIcon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M9 18V5"/>
-                      <path d="M9 5l10-2" style="stroke-width:3.1;"/>
-                      <path d="M19 3v13"/>
-                      <circle cx="6" cy="18" r="3" style="fill:currentColor;stroke:none;"/>
-                      <circle cx="16" cy="16" r="3" style="fill:currentColor;stroke:none;"/>
-                    </svg>
-                  </div>
+                  <div class="videoCard">
 
-                  <div class="songInfo">
-
-                    <div class="songName">
-                      <span class="songNameText">${esc(song.title)}</span>
+                    <div class="videoCardThumb" data-video-play="${esc(song.video.id)}">
+                      <img src="https://i.ytimg.com/vi/${esc(song.video.id)}/mqdefault.jpg" alt="" loading="lazy">
+                      <span class="videoCardPlayBtn">▶</span>
                     </div>
 
-                    <div class="songMeta">
-                      ${!song.savedAt ? '<span class="unsavedDot" aria-hidden="true"></span>' : ''}${song.analysis?'Analyzed':'Imported'} · ${song.savedAt?'Saved':'Not saved'}
+                    <div class="videoCardTitle" data-video-open-song="${esc(song.id)}">
+                      ${esc(song.title)}
                     </div>
 
                   </div>
 
-                </div>
+                `).join('')
+              }
 
-              `).join('')
-            }
+            </div>
 
           </div>
         `
@@ -9750,12 +9932,20 @@ function renderHome(){
       renderLibrary;
 
 
-  screen.querySelectorAll('[data-home-song]').forEach(card => {
+  screen.querySelectorAll('[data-video-play]').forEach(thumb => {
 
-    card.onclick = () => {
+    thumb.onclick = () => {
+      openYouTubePlayer(thumb.dataset.videoPlay);
+    };
+
+  });
+
+  screen.querySelectorAll('[data-video-open-song]').forEach(titleEl => {
+
+    titleEl.onclick = () => {
 
       const songId =
-        card.dataset.homeSong;
+        titleEl.dataset.videoOpenSong;
 
       const liveSong =
         getSongs().find(
@@ -9763,21 +9953,7 @@ function renderHome(){
         );
 
       if(liveSong){
-
         openSong(liveSong);
-        return;
-
-      }
-
-      const snapshot =
-        getRecentViews().find(
-          item => item.id === songId
-        );
-
-      if(snapshot){
-
-        openSong(snapshot);
-
       }
 
     };
@@ -15262,6 +15438,7 @@ function renderSongViewer(){
               <button class="songMenuItem" type="button" id="menuCategoryBtn" role="menuitem">Set Category</button>
               <button class="songMenuItem" type="button" id="menuSyncBtn" role="menuitem">Sync This Song</button>
               <button class="songMenuItem" type="button" id="menuSendToTeamBtn" role="menuitem">Send to Team</button>
+              <button class="songMenuItem" type="button" id="menuAddVideoBtn" role="menuitem">${song.video?'Change Video Link':'Add Video Link'}</button>
               <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
               <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
             </div>
@@ -15547,6 +15724,7 @@ function renderMergedSongViewer(){
               <button class="songMenuItem" type="button" id="menuCategoryBtn" role="menuitem">Set Category</button>
               <button class="songMenuItem" type="button" id="menuSyncBtn" role="menuitem">Sync This Song</button>
               <button class="songMenuItem" type="button" id="menuSendToTeamBtn" role="menuitem">Send to Team</button>
+              <button class="songMenuItem" type="button" id="menuAddVideoBtn" role="menuitem">${song.video?'Change Video Link':'Add Video Link'}</button>
               <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
               <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
             </div>
@@ -16264,6 +16442,17 @@ function attachSongMenuControls(){
       sendCurrentSongToLineup(currentSong);
 
     };
+
+
+  const menuAddVideoBtn =
+    document.getElementById('menuAddVideoBtn');
+
+  if(menuAddVideoBtn){
+    menuAddVideoBtn.onclick = () => {
+      closeSongMenu();
+      attachVideoToCurrentSong();
+    };
+  }
 
 
   document
