@@ -2332,6 +2332,12 @@ button{
   align-items:center;
   gap:6px;
 
+  max-width:calc(100% - 24px);
+  overflow-x:auto;
+  scrollbar-width:none;
+  touch-action:pan-x;
+  -webkit-overflow-scrolling:touch;
+
   padding:8px;
 
   background:rgba(20,20,23,.95);
@@ -2342,6 +2348,10 @@ button{
   -webkit-backdrop-filter:blur(20px);
 
   box-shadow:0 10px 30px rgba(0,0,0,.5);
+}
+
+.annotateToolbar::-webkit-scrollbar{
+  display:none;
 }
 
 .annotateToolBtn{
@@ -2369,6 +2379,11 @@ button{
 .annotateToolBtn.active{
   background:#fff;
   color:#111;
+}
+
+.annotateToolBtn:disabled{
+  opacity:.32;
+  cursor:default;
 }
 
 .annotateColorDot{
@@ -3400,6 +3415,7 @@ button{
   padding-bottom:4px;
 
   scrollbar-width:none;
+  touch-action:pan-x;
 }
 
 .editorPillBar::-webkit-scrollbar{
@@ -3426,7 +3442,7 @@ button{
 
   cursor:pointer;
 
-  touch-action:none;
+  touch-action:pan-x;
 
   transition:background .12s ease, transform .12s ease;
 }
@@ -13723,6 +13739,112 @@ let annotateCurrentEl = null;
 const ANNOTATE_COLORS = ['#ff5a5a', '#ffd23f', '#4da6ff', '#f5f5f0'];
 
 
+/*
+  ANNOTATION UNDO/REDO
+
+  Keyed by annotationKey (same key strokes are stored under),
+  each holding a stack of JSON snapshots of the strokes array
+  taken right before a mutation. One snapshot per *gesture* —
+  a whole pen stroke, a whole eraser drag, one placed text note,
+  or a clear-all — never one per intermediate point, so a single
+  undo reverts a whole action instead of a single sample point.
+  In-memory only, per page load, same as annotate mode itself.
+*/
+
+const ANNOTATE_HISTORY_LIMIT = 50;
+
+let annotateUndoStack = {};
+let annotateRedoStack = {};
+let annotateEraseGestureSnapshotted = false;
+
+function snapshotAnnotationsBeforeChange(annotationKey){
+
+  if(!annotationKey)return;
+
+  const stack =
+    annotateUndoStack[annotationKey] ||
+    (annotateUndoStack[annotationKey] = []);
+
+  stack.push(JSON.stringify(getSongAnnotations(annotationKey)));
+
+  if(stack.length > ANNOTATE_HISTORY_LIMIT){
+    stack.shift();
+  }
+
+  annotateRedoStack[annotationKey] = [];
+
+}
+
+function annotateUndo(){
+
+  const key = currentAnnotationKey;
+
+  const stack =
+    key && annotateUndoStack[key];
+
+  if(!stack || !stack.length)return;
+
+  const currentSnapshot =
+    JSON.stringify(getSongAnnotations(key));
+
+  const previousSnapshot =
+    stack.pop();
+
+  (annotateRedoStack[key] || (annotateRedoStack[key] = []))
+    .push(currentSnapshot);
+
+  saveSongAnnotations(key, JSON.parse(previousSnapshot));
+  sizeAndRenderAnnotationLayer(key);
+  updateAnnotateHistoryButtons();
+
+}
+
+function annotateRedo(){
+
+  const key = currentAnnotationKey;
+
+  const stack =
+    key && annotateRedoStack[key];
+
+  if(!stack || !stack.length)return;
+
+  const currentSnapshot =
+    JSON.stringify(getSongAnnotations(key));
+
+  const nextSnapshot =
+    stack.pop();
+
+  (annotateUndoStack[key] || (annotateUndoStack[key] = []))
+    .push(currentSnapshot);
+
+  saveSongAnnotations(key, JSON.parse(nextSnapshot));
+  sizeAndRenderAnnotationLayer(key);
+  updateAnnotateHistoryButtons();
+
+}
+
+function updateAnnotateHistoryButtons(){
+
+  const key = currentAnnotationKey;
+
+  const undoBtn =
+    document.getElementById('annotateUndoBtn');
+
+  const redoBtn =
+    document.getElementById('annotateRedoBtn');
+
+  const canUndo =
+    !!(key && annotateUndoStack[key] && annotateUndoStack[key].length);
+
+  const canRedo =
+    !!(key && annotateRedoStack[key] && annotateRedoStack[key].length);
+
+  if(undoBtn)undoBtn.disabled = !canUndo;
+  if(redoBtn)redoBtn.disabled = !canRedo;
+
+}
+
+
 function renderAnnotateToolbarHTML(){
 
   if(!annotateMode)return '';
@@ -13750,6 +13872,16 @@ function renderAnnotateToolbarHTML(){
           </button>
         `).join('')
       }
+
+      <div class="annotateDivider"></div>
+
+      <button type="button" class="annotateToolBtn" id="annotateUndoBtn" title="Undo" aria-label="Undo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
+      </button>
+
+      <button type="button" class="annotateToolBtn" id="annotateRedoBtn" title="Redo" aria-label="Redo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>
+      </button>
 
       <div class="annotateDivider"></div>
 
@@ -13874,8 +14006,14 @@ function eraseAnnotationNear(annotationKey, fraction){
 
   if(remaining.length !== strokes.length){
 
+    if(!annotateEraseGestureSnapshotted){
+      snapshotAnnotationsBeforeChange(annotationKey);
+      annotateEraseGestureSnapshotted = true;
+    }
+
     saveSongAnnotations(annotationKey, remaining);
     sizeAndRenderAnnotationLayer(annotationKey);
+    updateAnnotateHistoryButtons();
 
   }
 
@@ -13888,6 +14026,8 @@ function promptAnnotateText(annotationKey, fraction){
     prompt('Note text:');
 
   if(!text || !text.trim())return;
+
+  snapshotAnnotationsBeforeChange(annotationKey);
 
   const strokes =
     getSongAnnotations(annotationKey);
@@ -13905,6 +14045,7 @@ function promptAnnotateText(annotationKey, fraction){
 
   saveSongAnnotations(annotationKey, strokes);
   sizeAndRenderAnnotationLayer(annotationKey);
+  updateAnnotateHistoryButtons();
 
 }
 
@@ -13985,6 +14126,7 @@ function attachAnnotateHandlers(annotationKey){
     if(annotateTool === 'eraser'){
 
       annotateDrawing = true;
+      annotateEraseGestureSnapshotted = false;
 
       eraseAnnotationNear(
         annotationKey,
@@ -14100,9 +14242,14 @@ function attachAnnotateHandlers(annotationKey){
 
     annotateDrawing = false;
 
-    if(annotateTool === 'eraser')return;
+    if(annotateTool === 'eraser'){
+      annotateEraseGestureSnapshotted = false;
+      return;
+    }
 
     if(annotateCurrentPoints.length > 1){
+
+      snapshotAnnotationsBeforeChange(annotationKey);
 
       const strokes =
         getSongAnnotations(annotationKey);
@@ -14115,6 +14262,7 @@ function attachAnnotateHandlers(annotationKey){
       });
 
       saveSongAnnotations(annotationKey, strokes);
+      updateAnnotateHistoryButtons();
 
     }else if(annotateCurrentEl){
 
@@ -14262,12 +14410,33 @@ function wireAnnotateToolbarButtons(){
 
       if(!confirm('Clear all annotations on this song?'))return;
 
+      if(getSongAnnotations(currentAnnotationKey).length){
+        snapshotAnnotationsBeforeChange(currentAnnotationKey);
+      }
+
       saveSongAnnotations(currentAnnotationKey, []);
       sizeAndRenderAnnotationLayer(currentAnnotationKey);
+      updateAnnotateHistoryButtons();
 
     };
 
   }
+
+  const undoBtn =
+    document.getElementById('annotateUndoBtn');
+
+  if(undoBtn){
+    undoBtn.onclick = annotateUndo;
+  }
+
+  const redoBtn =
+    document.getElementById('annotateRedoBtn');
+
+  if(redoBtn){
+    redoBtn.onclick = annotateRedo;
+  }
+
+  updateAnnotateHistoryButtons();
 
 }
 
