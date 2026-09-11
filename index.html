@@ -4145,6 +4145,73 @@ button{
   cursor:pointer;
 }
 
+.lineupEntry{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  background:#151518;
+  border:1px solid #2d2d32;
+  border-radius:12px;
+  padding:10px 12px;
+  margin:0 16px 8px;
+}
+
+.lineupEntry .setlistOrderBtn{
+  flex-shrink:0;
+  margin-top:1px;
+}
+
+.lineupEntryParts{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+}
+
+.lineupPartRow{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  padding:5px 0;
+  cursor:pointer;
+}
+
+.lineupPartRow + .lineupPartRow{
+  border-top:1px solid #232327;
+}
+
+.lineupPartTitle{
+  flex:1;
+  min-width:0;
+  font-size:14px;
+  font-weight:600;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.lineupPartKey{
+  flex-shrink:0;
+  font-size:12.5px;
+  font-style:italic;
+  color:#8a8a92;
+}
+
+.lineupEntryUpdateNote{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:11.5px;
+  color:#4da6ff;
+  font-weight:700;
+  padding-top:4px;
+}
+
+.lineupEntryUpdateNote .lineupUpdateDot{
+  margin-left:0;
+}
+
 </style>
 
 </head>
@@ -10441,6 +10508,66 @@ function handleLyricsImportFile(inputEl){
    SONG SECTION PARSER
 ========================================================= */
 
+/*
+  SECTION HEADER DETECTION
+
+  Two ways a line counts as a section header, shared by every
+  parser in the app (parseSections, guessTitleFromText, and the
+  live pill bar while editing) so they never disagree with each
+  other:
+
+  1. A known section word on its own line — "Tag", "Outro",
+     "Chorus 2", "Pre-Chorus" — optionally with a trailing
+     number and/or a colon. This list is intentionally broader
+     than just the common four (verse/chorus/bridge/intro) so
+     typing a section by its plain name just works.
+
+  2. ANY line wrapped in [brackets] — "[Tag]", "[Vamp]",
+     "[Ad Lib]", "[Breakdown 2]" — regardless of the word inside.
+     This is the escape hatch for a custom section name that
+     isn't on the list: bracket it and it's always treated as a
+     header, the same convention sites like Ultimate Guitar use.
+*/
+
+const SECTION_KEYWORD_PATTERN =
+  /^\s*\[?\s*(intro|verse(?:\s*\d+)?|pre[- ]?chorus|chorus|refrain|bridge|pre[- ]?bridge|interlude|instrumental|outro|ending|tag|hook|solo|vamp|coda|breakdown|turnaround|reprise|transition|pre[- ]?verse|post[- ]?chorus|spoken|rap|ad[- ]?lib|intro\/outro)(?:\s*\d+)?\s*:?\s*\]?\s*$/i;
+
+const SECTION_BRACKET_PATTERN =
+  /^\s*\[\s*([^\[\]]{1,40})\s*\]\s*$/;
+
+function isSectionHeaderLine(line){
+
+  const clean =
+    String(line || '').trim();
+
+  if(!clean)return false;
+
+  return (
+    SECTION_KEYWORD_PATTERN.test(clean) ||
+    SECTION_BRACKET_PATTERN.test(clean)
+  );
+
+}
+
+function extractSectionName(line){
+
+  const clean =
+    String(line || '').trim();
+
+  const bracketMatch =
+    clean.match(SECTION_BRACKET_PATTERN);
+
+  if(bracketMatch)return bracketMatch[1].replace(/:$/, '').trim();
+
+  return clean
+    .replace(/^\[\s*/, '')
+    .replace(/\s*\]$/, '')
+    .replace(/:$/, '')
+    .trim();
+
+}
+
+
 function parseSections(text){
 
   const lines =
@@ -10460,23 +10587,13 @@ function parseSections(text){
   };
 
 
-  const sectionPattern =
-    /^\s*\[?\s*(intro|verse(?:\s*\d+)?|pre[- ]?chorus|chorus|refrain|bridge|interlude|instrumental|outro|ending|tag|hook|solo)(?:\s*\d+)?\s*:?\s*\]?\s*$/i;
-
-
   lines.forEach(line => {
 
     const clean =
       line.trim();
 
 
-    const match =
-      clean.match(
-        sectionPattern
-      );
-
-
-    if(match){
+    if(isSectionHeaderLine(clean)){
 
       if(
         current.lines.length ||
@@ -10493,11 +10610,7 @@ function parseSections(text){
       current = {
 
         name:
-          clean
-            .replace(/^\[\s*/, '')
-            .replace(/\s*\]$/, '')
-            .replace(/:$/, '')
-            .trim(),
+          extractSectionName(clean),
 
         lines:[]
 
@@ -11078,9 +11191,6 @@ function extractChordTokens(text){
 
 function guessTitleFromText(text){
 
-  const sectionPattern =
-    /^\s*\[?\s*(intro|verse(?:\s*\d+)?|pre[- ]?chorus|chorus|refrain|bridge|interlude|instrumental|outro|ending|tag|hook|solo)(?:\s*\d+)?\s*:?\s*\]?\s*$/i;
-
   const lines =
     String(text || '').split(/\r?\n/);
 
@@ -11089,7 +11199,7 @@ function guessTitleFromText(text){
     const line = rawLine.trim();
 
     if(!line)continue;
-    if(sectionPattern.test(line))continue;
+    if(isSectionHeaderLine(line))continue;
     if(isChordOnlyLine(line))continue;
 
     return line.slice(0,80);
@@ -16641,8 +16751,29 @@ function sectionsToEditorText(sections){
       const body =
         section.lines.join('\n');
 
+      const rawName =
+        section.name || 'Section';
+
+      /*
+        A name like "Vamp" or "Breakdown 2" round-trips fine on
+        its own since it's in the known keyword list. A truly
+        custom name (typed via the "Custom…" picker option, or
+        renamed by hand into something off-list) wouldn't be
+        recognized as a header the next time this text gets
+        re-parsed — parseSections would silently fold it into
+        the previous section's body instead. Bracketing it
+        guarantees it always round-trips as its own section,
+        the same [Name] convention isSectionHeaderLine already
+        treats as an explicit header regardless of the word
+        inside.
+      */
+      const name =
+        isSectionHeaderLine(rawName)
+          ? rawName
+          : '[' + rawName + ']';
+
       return (
-        (section.name || 'Section') +
+        name +
         (body.length ? '\n' + body : '')
       );
 
@@ -16685,6 +16816,25 @@ let editorHistory = [];
 let editorHistoryIndex = -1;
 let editorHistoryDebounce = null;
 let editorApplyingHistory = false;
+let editorLivePillDebounce = null;
+
+function syncPillBarFromText(text){
+
+  editorSections =
+    parseSections(text);
+
+  refreshEditorPillBar();
+
+}
+
+function schedulePillBarLiveSync(text){
+
+  clearTimeout(editorLivePillDebounce);
+
+  editorLivePillDebounce =
+    setTimeout(() => syncPillBarFromText(text), 600);
+
+}
 
 function resetEditorHistory(text){
 
@@ -16729,6 +16879,8 @@ function scheduleEditorHistoryCommit(text){
 function applyEditorHistoryIndex(newIndex){
 
   if(newIndex < 0 || newIndex >= editorHistory.length)return;
+
+  clearTimeout(editorLivePillDebounce);
 
   editorHistoryIndex = newIndex;
 
@@ -16842,6 +16994,9 @@ function renderEditor(song){
   resetEditorHistory(
     sectionsToEditorText(editorSections)
   );
+
+  clearTimeout(editorLivePillDebounce);
+  editorLivePillDebounce = null;
 
 
   screen.innerHTML = `
@@ -16991,6 +17146,7 @@ function renderEditor(song){
     autoGrowEditorTextarea(textarea);
 
     scheduleEditorHistoryCommit(textarea.value);
+    schedulePillBarLiveSync(textarea.value);
 
   });
 
@@ -17030,18 +17186,18 @@ function renderEditor(song){
     /*
       Picks up any section the person typed by hand (a new
       header line, a renamed one) so the pill bar stays a
-      reasonably accurate reflection of the text without
-      re-parsing on every keystroke, which would be both
-      wasteful and liable to jitter the pills mid-type.
+      reasonably accurate reflection of the text. The live sync
+      already keeps this current while typing (see
+      schedulePillBarLiveSync) — this just flushes it
+      immediately instead of waiting out the debounce, so
+      leaving the field never shows stale pills.
     */
 
     clearTimeout(editorHistoryDebounce);
     commitEditorHistory(textarea.value);
 
-    editorSections =
-      parseSections(textarea.value);
-
-    refreshEditorPillBar();
+    clearTimeout(editorLivePillDebounce);
+    syncPillBarFromText(textarea.value);
 
   });
 
@@ -17148,6 +17304,13 @@ function showAddEditorSectionPicker(onPick){
           `).join('')
         }
 
+        <button
+          class="toolbarBtn"
+          type="button"
+          id="editorSectionCustomBtn"
+          style="width:100%;justify-content:flex-start;margin-bottom:8px;"
+        >Custom…</button>
+
         <div class="confirmBtnRow">
           <button class="toolbarBtn" id="pickerCancelBtn" type="button">Close</button>
         </div>
@@ -17179,6 +17342,26 @@ function showAddEditorSectionPicker(onPick){
       close();
     };
   });
+
+  const customBtn =
+    document.getElementById('editorSectionCustomBtn');
+
+  if(customBtn){
+    customBtn.onclick = () => {
+
+      const name =
+        prompt('Section name (e.g. Vamp, Ad Lib, Breakdown 2):');
+
+      if(!name || !name.trim()){
+        close();
+        return;
+      }
+
+      onPick(name.trim());
+      close();
+
+    };
+  }
 
   requestAnimationFrame(() => {
     back.classList.add('open');
@@ -18637,6 +18820,39 @@ function isLineupEntryNewerThanLocal(lineup, localSong){
 }
 
 
+/*
+  Live key label for one song (or one part of a merged song),
+  same computation renderSongViewer uses for its "Key: X" badge
+  — transpose the raw text by the part's own transposeSteps, then
+  detect the key from the resulting chords. Kept side-effect-free
+  (renderSongViewer mutates song.text as it goes; this must not,
+  since it just renders a listing) so it can be called freely for
+  every part of every lineup entry on every render, always
+  reflecting the current transpose state.
+*/
+function getSongKeyLabel(part){
+
+  if(!part)return null;
+
+  const amount =
+    part.transposeSteps || 0;
+
+  const displayedText =
+    transposeText(
+      part.originalText || part.text || '',
+      amount
+    );
+
+  const keyInfo =
+    detectKeyFromChords(
+      extractChordTokens(displayedText)
+    );
+
+  return keyInfo ? keyInfo.label : null;
+
+}
+
+
 function renderLineupDetail(){
 
   currentScreenName = 'lineupDetail';
@@ -18697,23 +18913,69 @@ function renderLineupDetail(){
 
       ${
         orderedSongs.length
-        ? orderedSongs.map(song => `
+        ? orderedSongs.map(song => {
 
-          <div class="setlistSongRow" data-lineup-song-row="${esc(song.id)}">
+            if(song.missing){
+              return `
+                <div class="lineupEntry" data-lineup-song-row="${esc(song.id)}">
+                  <div class="lineupEntryParts">
+                    <div class="lineupPartRow" data-open-lineup-song="${esc(song.id)}" style="color:#a7a7ae;">
+                      <span class="lineupPartTitle">${esc(song.title)} (not synced to this device yet)</span>
+                    </div>
+                  </div>
+                  <button class="setlistOrderBtn" type="button" data-remove-from-lineup="${esc(song.id)}" title="Remove from lineup" style="color:#ff8b8b;">✕</button>
+                </div>
+              `;
+            }
 
-            <div
-              class="setlistSongTitle"
-              data-open-lineup-song="${esc(song.id)}"
-              style="${song.missing ? 'color:#a7a7ae;' : ''}"
-            >
-              ${esc(song.title)}${song.missing ? ' (not synced to this device yet)' : ''}${(!song.missing && isLineupEntryNewerThanLocal(lineup, song)) ? '<span class="lineupUpdateDot" title="Newer version from the team available"></span>' : ''}
-            </div>
+            const isMerged =
+              Array.isArray(song.mergeParts) && song.mergeParts.length > 1;
 
-            <button class="setlistOrderBtn" type="button" data-remove-from-lineup="${esc(song.id)}" title="Remove from lineup" style="color:#ff8b8b;">✕</button>
+            const parts =
+              isMerged ? song.mergeParts : [song];
 
-          </div>
+            const newerAvailable =
+              isLineupEntryNewerThanLocal(lineup, song);
 
-        `).join('')
+            return `
+              <div class="lineupEntry" data-lineup-song-row="${esc(song.id)}">
+
+                <div class="lineupEntryParts">
+
+                  ${
+                    parts.map((part, index) => {
+
+                      const keyLabel =
+                        getSongKeyLabel(part);
+
+                      return `
+                        <div
+                          class="lineupPartRow"
+                          data-open-lineup-song="${esc(song.id)}"
+                          data-lineup-part-index="${index}"
+                        >
+                          <span class="lineupPartTitle">${esc(part.title || song.title)}</span>
+                          ${keyLabel ? `<span class="lineupPartKey">Key of ${esc(keyLabel)}</span>` : ''}
+                        </div>
+                      `;
+
+                    }).join('')
+                  }
+
+                  ${
+                    newerAvailable
+                      ? `<div class="lineupEntryUpdateNote"><span class="lineupUpdateDot"></span>Newer version from the team available</div>`
+                      : ''
+                  }
+
+                </div>
+
+                <button class="setlistOrderBtn" type="button" data-remove-from-lineup="${esc(song.id)}" title="Remove from lineup" style="color:#ff8b8b;">✕</button>
+
+              </div>
+            `;
+
+          }).join('')
         : `
           <div class="empty">
             ${emptyStateIconHTML('music')}
@@ -18758,6 +19020,22 @@ function renderLineupDetail(){
         songsById.get(songId);
 
       if(song){
+
+        /*
+          Tapping a specific part's row deep-links straight into
+          that part of the merge instead of always landing on
+          whichever part was last active.
+        */
+        if(
+          el.dataset.lineupPartIndex !== undefined &&
+          Array.isArray(song.mergeParts) &&
+          song.mergeParts.length > 1
+        ){
+
+          song.activePartIndex =
+            Number(el.dataset.lineupPartIndex) || 0;
+
+        }
 
         openSong(song);
         return;
