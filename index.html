@@ -2302,14 +2302,18 @@ button{
   pointer-events:auto;
 
   /*
-    Lets a second finger's scroll actually reach the browser's
-    native handling once JS stops calling preventDefault for it
-    — see the pointer-count check in attachAnnotateHandlers.
-    Single-finger drawing still works: JS calls preventDefault
-    on every pointermove while exactly one finger is down and a
-    stroke is active, which overrides this for that case.
+    Stays "none" the whole time annotate mode is on — that's
+    what freezes the page for a single finger so a vertical
+    stroke can never be hijacked mid-draw into a native scroll
+    (touch-action is decided by the browser the instant a touch
+    starts, so anything less strict than "none" here — like
+    pan-y — lets native scrolling win before JS ever gets a
+    chance to call preventDefault). With native scrolling off
+    the table entirely, two-finger scroll is driven manually in
+    JS instead — see the pointer-count branch in
+    attachAnnotateHandlers.
   */
-  touch-action:pan-y;
+  touch-action:none;
 }
 
 .annotateToggleBtn.active{
@@ -13905,21 +13909,25 @@ function attachAnnotateHandlers(annotationKey){
   */
 
   /*
-    Tracks how many fingers are currently down on the drawing
-    surface. One finger draws; the moment a second one lands,
-    whatever stroke was in progress is abandoned and control is
-    handed back to the browser's native scrolling (touch-action:
-    pan-y on .annotateSvg.active is what makes that native
-    scroll actually available to hand off to).
+    Tracks every finger currently down on the drawing surface,
+    keyed by pointerId, with each one's last Y position. One
+    finger draws — touch-action:none on .annotateSvg.active
+    keeps the browser from ever taking over that gesture, so the
+    stroke can't get hijacked into a scroll partway through no
+    matter which direction it moves. The moment a second finger
+    lands, whatever stroke was in progress is abandoned, and from
+    then on every finger's vertical movement drives a manual
+    window.scrollBy — native scrolling isn't available here, so
+    this is what actually moves the page.
   */
 
-  const activeAnnotatePointers = new Set();
+  const activeAnnotatePointers = new Map();
 
   svg.onpointerdown = (event) => {
 
     if(!annotateMode)return;
 
-    activeAnnotatePointers.add(event.pointerId);
+    activeAnnotatePointers.set(event.pointerId, event.clientY);
 
     if(activeAnnotatePointers.size > 1){
 
@@ -14005,15 +14013,31 @@ function attachAnnotateHandlers(annotationKey){
     if(!annotateMode)return;
 
     if(activeAnnotatePointers.size > 1){
-      /* Two-plus fingers — let native scrolling handle this move. */
+
+      /*
+        Two-plus fingers: native scrolling isn't available
+        (touch-action:none), so drive it manually off this
+        finger's vertical movement instead.
+      */
+
+      if(activeAnnotatePointers.has(event.pointerId)){
+
+        const previousY =
+          activeAnnotatePointers.get(event.pointerId);
+
+        window.scrollBy(0, previousY - event.clientY);
+
+        activeAnnotatePointers.set(event.pointerId, event.clientY);
+
+      }
+
       return;
+
     }
 
     if(!annotateDrawing)return;
 
     if(annotateTool === 'eraser'){
-
-      event.preventDefault();
 
       eraseAnnotationNear(
         annotationKey,
@@ -14025,15 +14049,6 @@ function attachAnnotateHandlers(annotationKey){
     }
 
     if(!annotateCurrentEl)return;
-
-    /*
-      Only reached with exactly one finger down and an active
-      stroke — this is the one case that should override the
-      element's own touch-action:pan-y and claim the gesture as
-      drawing instead of a native single-finger scroll.
-    */
-
-    event.preventDefault();
 
     const rect =
       svg.getBoundingClientRect();
