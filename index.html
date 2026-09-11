@@ -9370,6 +9370,20 @@ function persistCurrentSongVideo(){
     delete songs[index].video;
   }
 
+  /*
+    writeSongs() doesn't stamp this itself — every other edit path
+    (rename, transpose, save) sets it right before persisting, so
+    this needs to as well. Without it, syncOneSong's last-write-
+    wins comparison has no way to tell this device's copy is now
+    the newest, and a stale remote copy on the next sync could
+    silently overwrite the video that was just attached.
+  */
+  songs[index].updatedAt =
+    new Date().toISOString();
+
+  currentSong.updatedAt =
+    songs[index].updatedAt;
+
   writeSongs(songs);
 
   skipNextScreenTransition = true;
