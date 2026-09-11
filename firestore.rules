@@ -4,17 +4,29 @@ rules_version = '2';
 // → Rules, then click Publish.
 //
 // Only signed-in users (your ~10 team members, via Email/Password
-// auth) can read or write anything at all. They can touch two
+// auth) can read or write anything at all. They can touch four
 // things: the single shared "libraries/shared" document that
-// index.html reads/writes (SYNC_LIBRARY_DOC_ID), and their own
-// "profiles/{their own uid}" document (display name + photo) —
-// never anyone else's profile. Everything else is denied by
-// default.
+// index.html reads/writes (SYNC_LIBRARY_DOC_ID), the single shared
+// "lineups/shared" document (SYNC_LINEUP_DOC_ID — the Sunday
+// Worship lineup, its songs, and its YT Playlist links), the
+// single shared "videoArchive/shared" document (SYNC_VIDEO_ARCHIVE_
+// DOC_ID — every YouTube link anyone's ever pasted, shown on
+// Home), and their own "profiles/{their own uid}" document
+// (display name + photo) — never anyone else's profile. Everything
+// else is denied by default.
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     match /libraries/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /lineups/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /videoArchive/{docId} {
       allow read, write: if request.auth != null;
     }
 
@@ -29,3 +41,4 @@ service cloud.firestore {
 
   }
 }
+
