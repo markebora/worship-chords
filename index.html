@@ -2960,6 +2960,7 @@ button{
 .keyBadge{display:inline-block;margin:10px 0 4px;background:#1d3a2b;color:#7fe0a3;font-size:12px;font-weight:800;padding:5px 12px;border-radius:20px;border:1px solid #2c5a41;}
 .capoBadge{display:inline-block;margin:10px 0 4px 6px;background:#2a2410;color:#e8c66a;font-size:12px;font-weight:800;padding:5px 12px;border-radius:20px;border:1px solid #4a3f18;}
 .songHeaderKey{flex:0 0 auto;margin:0;font-size:11px;padding:4px 10px;white-space:nowrap;}
+.bpmHeaderBadge{display:inline-block;flex:0 0 auto;margin:0;background:#132a3d;color:#7fc4ff;font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;border:1px solid #1f4d70;white-space:nowrap;}
 .analysisTitle{margin:0;flex:1;min-width:0;font-size:17px;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .analysisTitle.untitled{color:#85858c;font-weight:700;font-style:italic;}
 .analysisRenameBtn{flex:0 0 auto;width:30px;height:30px;border:1px solid #303036;background:#18181b;color:#cfcfd4;border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .18s ease,color .18s ease,border-color .18s ease,backdrop-filter .18s ease;}
@@ -11644,6 +11645,47 @@ function metSetSongPresetBpm(songId, bpm){
 
 }
 
+/*
+  A "merge" song (a medley of several songs stitched together,
+  most commonly built for the Sunday lineup) is one currentSong
+  object holding multiple independent parts, each with its own
+  id/title/key — see mergeParts and clampMergedPartIndex() further
+  down. A single BPM for the whole merge would be wrong, since
+  each part is musically its own song, so every BPM-preset touch
+  point resolves through here to get whichever part is actually
+  on screen right now.
+*/
+function metActiveSongContext(){
+
+  if(!currentSong)return null;
+
+  const isMerged =
+    Array.isArray(currentSong.mergeParts) &&
+    currentSong.mergeParts.length > 1;
+
+  if(isMerged){
+
+    const part =
+      currentSong.mergeParts[clampMergedPartIndex(currentSong)];
+
+    if(part){
+
+      return {
+        id: part.id,
+        title: part.title || currentSong.title
+      };
+
+    }
+
+  }
+
+  return {
+    id: currentSong.id,
+    title: currentSong.title
+  };
+
+}
+
 function metLoadSettings(){
 
   try{
@@ -12345,10 +12387,13 @@ let metMiniPos = { left:null, top:null };
 */
 function metMiniPresetRowMarkup(){
 
-  if(!currentSong)return '';
+  const context =
+    metActiveSongContext();
+
+  if(!context)return '';
 
   const presetBpm =
-    metGetSongPresetBpm(currentSong.id);
+    metGetSongPresetBpm(context.id);
 
   return `
 
@@ -12379,8 +12424,13 @@ function metWireMiniPresetRow(){
 
     loadBtn.onclick = () => {
 
+      const context =
+        metActiveSongContext();
+
+      if(!context)return;
+
       const presetBpm =
-        metGetSongPresetBpm(currentSong.id);
+        metGetSongPresetBpm(context.id);
 
       if(presetBpm !== null)metSetTempo(presetBpm);
 
@@ -12390,9 +12440,14 @@ function metWireMiniPresetRow(){
 
   document.getElementById('metMiniPresetSaveBtn').onclick = () => {
 
-    metSetSongPresetBpm(currentSong.id, metTempo);
+    const context =
+      metActiveSongContext();
 
-    showToast(`Saved ${metTempo} BPM for ${currentSong.title || 'this song'}`, null, { small:true });
+    if(!context)return;
+
+    metSetSongPresetBpm(context.id, metTempo);
+
+    showToast(`Saved ${metTempo} BPM for ${context.title || 'this song'}`, null, { small:true });
 
     const presetSection =
       document.getElementById('metSongPresetSection');
@@ -12677,7 +12732,10 @@ function renderMetSongPresetSection(){
   const hostEl = document.getElementById('metSongPresetSection');
   if(!hostEl)return;
 
-  if(!currentSong){
+  const context =
+    metActiveSongContext();
+
+  if(!context){
 
     hostEl.innerHTML = '';
 
@@ -12686,7 +12744,7 @@ function renderMetSongPresetSection(){
   }
 
   const presetBpm =
-    metGetSongPresetBpm(currentSong.id);
+    metGetSongPresetBpm(context.id);
 
   hostEl.innerHTML = `
 
@@ -12694,7 +12752,7 @@ function renderMetSongPresetSection(){
 
     <div class="metPresetCard">
 
-      <div class="metPresetSongTitle">${esc(currentSong.title || 'This song')}</div>
+      <div class="metPresetSongTitle">${esc(context.title || 'This song')}</div>
 
       <div class="metPresetActions">
 
@@ -12714,9 +12772,9 @@ function renderMetSongPresetSection(){
 
   document.getElementById('metPresetSaveBtn').onclick = () => {
 
-    metSetSongPresetBpm(currentSong.id, metTempo);
+    metSetSongPresetBpm(context.id, metTempo);
 
-    showToast(`Saved ${metTempo} BPM for ${currentSong.title || 'this song'}`);
+    showToast(`Saved ${metTempo} BPM for ${context.title || 'this song'}`);
 
     renderMetSongPresetSection();
 
@@ -18427,6 +18485,7 @@ function renderSongViewer(){
   const sections=getViewerSections(song,displayedText);
   const keyInfo=detectKeyFromChords(extractChordTokens(displayedText));
   const capoInfo=getCapoSuggestion(keyInfo);
+  const metPresetBpm=metGetSongPresetBpm(song.id);
 
   const flowTarget=song;
   const hasCustomFlow=Array.isArray(flowTarget.flow)&&flowTarget.flow.length>0;
@@ -18448,6 +18507,7 @@ function renderSongViewer(){
           </button>
           ${renderLineupSyncButtonHTML(song)}
           ${keyInfo?`<div class="keyBadge songHeaderKey">Key: ${esc(keyInfo.label)}</div>`:''}
+          ${metPresetBpm!==null?`<div class="bpmHeaderBadge">${metPresetBpm} BPM</div>`:''}
           ${capoInfo?`<div class="capoBadge">Capo ${capoInfo.fret} → ${esc(capoInfo.shape)} shape</div>`:''}
         </div>
       </div>
@@ -18646,6 +18706,16 @@ function goToMergedPartIndex(index){
   skipNextScreenTransition=true;
   renderSongViewer();
   window.scrollTo(0,0);
+
+  /*
+    Switching parts inside a merge is an in-place re-render, not
+    a real screen navigation, so it never goes through
+    setActiveNav — the one place that otherwise keeps the mini
+    metronome widget in sync. Each part can have its own saved
+    BPM, so the widget's preset row needs an explicit nudge here.
+  */
+  if(typeof metRefreshMiniPresetRow === 'function')metRefreshMiniPresetRow();
+
 }
 
 function goToMergedPart(delta){
@@ -18710,6 +18780,7 @@ function renderMergedSongViewer(){
   const sections=getViewerSections(part,displayedText);
   const keyInfo=detectKeyFromChords(extractChordTokens(displayedText));
   const capoInfo=getCapoSuggestion(keyInfo);
+  const metPresetBpm=metGetSongPresetBpm(part.id);
 
   const flowTarget=part;
   const hasCustomFlow=Array.isArray(flowTarget.flow)&&flowTarget.flow.length>0;
@@ -18731,6 +18802,7 @@ function renderMergedSongViewer(){
           </div>
           ${renderLineupSyncButtonHTML(song)}
           ${keyInfo?`<div class="keyBadge songHeaderKey">Key: ${esc(keyInfo.label)}</div>`:''}
+          ${metPresetBpm!==null?`<div class="bpmHeaderBadge">${metPresetBpm} BPM</div>`:''}
           ${capoInfo?`<div class="capoBadge">Capo ${capoInfo.fret} → ${esc(capoInfo.shape)} shape</div>`:''}
         </div>
         <div class="mergePartPills" id="mergePartPills" aria-label="Songs in this merge">
