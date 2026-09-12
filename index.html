@@ -4604,6 +4604,635 @@ button{
   color:#707078;
 }
 
+
+/* =========================================================
+   METRONOME
+
+   Reuses the app's existing dark palette and the .libraryHead/
+   .searchBtn/.libraryTitle/.sectionLabel components for the
+   header and section labels; everything metronome-specific below
+   is prefixed `met` so it can't collide with anything elsewhere
+   in this stylesheet.
+========================================================= */
+
+.metronomePage{
+  padding:4px 0 30px;
+}
+
+.metSectionLabel{
+  margin:26px 0 10px;
+}
+
+.metBpmCard{
+  background:#151518;
+  border:1px solid #2d2d32;
+  border-radius:20px;
+  padding:22px 18px 18px;
+  text-align:center;
+}
+
+.metBpmRow{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:18px;
+}
+
+.metBpmStepBtn{
+  flex:0 0 auto;
+  width:48px;
+  height:48px;
+  border-radius:50%;
+  border:1px solid #2d2d32;
+  background:#1a1a1d;
+  color:#f7f7f7;
+  font-size:22px;
+  font-weight:800;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+
+.metBpmStepBtn:active{
+  background:#242428;
+  transform:scale(.94);
+}
+
+.metBpmDisplay{
+  min-width:150px;
+}
+
+.metBpmNumber{
+  font-family:'Poppins',sans-serif;
+  font-weight:800;
+  font-size:64px;
+  line-height:1;
+  font-variant-numeric:tabular-nums;
+}
+
+.metBpmUnit{
+  color:#8a8a92;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  margin-top:4px;
+}
+
+.metBpmSlider{
+  width:100%;
+  margin-top:18px;
+  -webkit-appearance:none;
+  appearance:none;
+  height:6px;
+  border-radius:999px;
+  background:#2d2d32;
+  outline:none;
+}
+
+.metBpmSlider::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  appearance:none;
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  background:#4da6ff;
+  border:3px solid #0a0a0b;
+  cursor:pointer;
+}
+
+.metBpmSlider::-moz-range-thumb{
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  background:#4da6ff;
+  border:3px solid #0a0a0b;
+  cursor:pointer;
+}
+
+.metTapBtn{
+  margin-top:16px;
+  width:100%;
+  padding:12px;
+  border-radius:14px;
+  border:1px solid #2d2d32;
+  background:#1a1a1d;
+  color:#e6e6e8;
+  font-size:14.5px;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.metTapBtn:active{
+  background:#242428;
+}
+
+.metTsRow{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  padding-bottom:2px;
+  scrollbar-width:none;
+  touch-action:pan-x;
+}
+
+.metTsRow::-webkit-scrollbar{
+  display:none;
+}
+
+.metTsPill{
+  flex:0 0 auto;
+  padding:9px 16px;
+  border-radius:999px;
+  border:1px solid #303036;
+  background:#1a1a1d;
+  color:#e6e6e8;
+  font-size:13.5px;
+  font-weight:800;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.metTsPill.active{
+  background:#fff;
+  color:#111;
+  border-color:#fff;
+}
+
+.metTsPill.presetActive{
+  background:#4da6ff;
+  color:#0a0a0b;
+  border-color:#4da6ff;
+}
+
+.metBeatRow{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  margin:26px 0 8px;
+  min-height:22px;
+}
+
+.metBeatDot{
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  background:#2d2d32;
+  transition:background .06s ease,transform .06s ease;
+}
+
+.metBeatDot.accent{
+  width:20px;
+  height:20px;
+}
+
+.metBeatDot.lit{
+  background:#4da6ff;
+  transform:scale(1.15);
+}
+
+.metBeatDot.accent.lit{
+  background:#ff5a5a;
+}
+
+.metBeatDot.ghostDot{
+  width:7px;
+  height:7px;
+  background:#202024;
+  align-self:center;
+}
+
+.metBeatDot.ghostDot.lit{
+  background:#8a8a92;
+  transform:scale(1.3);
+}
+
+.metPlayWrap{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:18px 0 26px;
+}
+
+.metPlayBtn{
+  width:126px;
+  height:126px;
+  border-radius:50%;
+  border:0;
+  background:#4da6ff;
+  color:#0a0a0b;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  box-shadow:0 14px 34px rgba(77,166,255,.35);
+}
+
+.metPlayBtn:active{
+  transform:scale(.96);
+}
+
+.metPlayBtn.playing{
+  background:#ff5a5a;
+  box-shadow:0 14px 34px rgba(255,90,90,.35);
+}
+
+.metPlayBtn svg{
+  width:44px;
+  height:44px;
+}
+
+.metVolRow{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:8px;
+}
+
+.metVolRow svg{
+  width:20px;
+  height:20px;
+  flex:0 0 auto;
+  color:#8a8a92;
+}
+
+.metVolSlider{
+  flex:1;
+  -webkit-appearance:none;
+  appearance:none;
+  height:6px;
+  border-radius:999px;
+  background:#2d2d32;
+  outline:none;
+}
+
+.metVolSlider::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  appearance:none;
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:#e6e6e8;
+  cursor:pointer;
+}
+
+.metVolSlider::-moz-range-thumb{
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:#e6e6e8;
+  cursor:pointer;
+}
+
+.metPreviewBtn{
+  border:1px solid #303036;
+  background:#1a1a1d;
+  color:#e6e6e8;
+  border-radius:999px;
+  padding:5px 12px;
+  font-size:11.5px;
+  font-weight:800;
+  letter-spacing:normal;
+  text-transform:none;
+  cursor:pointer;
+}
+
+.metPreviewBtn:active{
+  background:#242428;
+}
+
+.metSoundPresetWrap{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.metSoundPresetWrap .metTsRow{
+  flex:1;
+  min-width:0;
+}
+
+.metSoundEditBtn{
+  flex:0 0 auto;
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  border:1px solid #303036;
+  background:#1a1a1d;
+  color:#e6e6e8;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+
+.metSoundEditBtn svg{
+  width:18px;
+  height:18px;
+}
+
+.metSoundEditBtn:active{
+  background:#242428;
+}
+
+.metSoundEditBtn.active{
+  background:#4da6ff;
+  color:#0a0a0b;
+  border-color:#4da6ff;
+}
+
+.metSoundControls{
+  background:#151518;
+  border:1px solid #2d2d32;
+  border-radius:16px;
+  padding:16px 16px 18px;
+  margin-top:12px;
+}
+
+.metSoundControls.hidden{
+  display:none;
+}
+
+.metSoundControlRow + .metSoundControlRow{
+  margin-top:16px;
+}
+
+.metSoundControlLabel{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  font-size:13.5px;
+  font-weight:700;
+  color:#e6e6e8;
+  margin-bottom:6px;
+}
+
+.metSoundControlValue{
+  color:#8a8a92;
+  font-variant-numeric:tabular-nums;
+}
+
+.metTuneSlider{
+  width:100%;
+  -webkit-appearance:none;
+  appearance:none;
+  height:6px;
+  border-radius:999px;
+  background:#2d2d32;
+  outline:none;
+}
+
+.metTuneSlider::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  appearance:none;
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:#e6e6e8;
+  cursor:pointer;
+}
+
+.metTuneSlider::-moz-range-thumb{
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:#e6e6e8;
+  cursor:pointer;
+}
+
+.metSoundControlHint{
+  display:flex;
+  justify-content:space-between;
+  font-size:10.5px;
+  color:#5c5c62;
+  margin-top:3px;
+}
+
+.metNote{
+  margin-top:22px;
+  font-size:12px;
+  color:#5c5c62;
+  text-align:center;
+  line-height:1.5;
+}
+
+/* =========================================================
+   AUTO-SCROLL SATELLITE BUTTONS
+
+   Small circular buttons that fan out above the auto-scroll FAB
+   on long-press, alongside the speed arrows. Replaces the old
+   single centered .asDrawToggleBtn with a row so the metronome
+   shortcut can sit next to the draw toggle.
+========================================================= */
+
+.asSatelliteRow{
+  position:absolute;
+  left:50%;
+  bottom:100%;
+
+  display:flex;
+  gap:10px;
+
+  margin-bottom:10px;
+
+  transform:translateX(-50%) translateY(8px) scale(.85);
+  opacity:0;
+  pointer-events:none;
+
+  transition:opacity .2s ease, transform .2s ease;
+}
+
+.autoScrollFab.speedMode .asSatelliteRow{
+  opacity:1;
+  transform:translateX(-50%) translateY(0) scale(1);
+  pointer-events:auto;
+}
+
+.asSatelliteBtn{
+  width:40px;
+  height:40px;
+
+  border-radius:50%;
+  border:1px solid rgba(255,255,255,.14);
+
+  background:rgba(24,24,27,.94);
+  color:#cfcfd4;
+
+  font-size:16px;
+
+  display:grid;
+  place-items:center;
+
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  box-shadow:0 8px 22px rgba(0,0,0,.45);
+
+  transition:background .18s ease, color .18s ease, transform .15s ease;
+}
+
+.asSatelliteBtn svg{
+  width:18px;
+  height:18px;
+}
+
+.asSatelliteBtn:active{
+  transform:scale(.92);
+}
+
+.asSatelliteBtn.active{
+  background:#fff;
+  color:#111;
+  border-color:#fff;
+}
+
+
+/* =========================================================
+   METRONOME MINI WIDGET
+
+   A small floating, draggable control that survives screen
+   navigation (it lives in #metMiniOverlay, a sibling of #screen
+   that setActiveNav's per-screen overlay cleanup never touches)
+   so the metronome can keep running — and stay controllable —
+   while reading lyrics or browsing elsewhere.
+========================================================= */
+
+.metMiniCard{
+  position:fixed;
+  right:16px;
+  top:110px;
+  z-index:150;
+
+  width:176px;
+
+  background:rgba(21,21,24,.96);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:16px;
+
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  box-shadow:0 14px 34px rgba(0,0,0,.5);
+
+  overflow:hidden;
+  touch-action:none;
+}
+
+.metMiniHead{
+  display:flex;
+  align-items:center;
+  gap:6px;
+
+  padding:8px 8px 8px 10px;
+
+  cursor:grab;
+  border-bottom:1px solid rgba(255,255,255,.08);
+
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+.metMiniDrag{
+  color:#5c5c62;
+  font-size:13px;
+  line-height:1;
+}
+
+.metMiniTitle{
+  flex:1;
+  font-size:12.5px;
+  font-weight:800;
+  color:#e6e6e8;
+  cursor:pointer;
+}
+
+.metMiniCloseBtn{
+  flex:0 0 auto;
+  width:22px;
+  height:22px;
+
+  border:0;
+  background:transparent;
+  color:#8a8a92;
+  font-size:12px;
+
+  border-radius:6px;
+
+  display:grid;
+  place-items:center;
+
+  cursor:pointer;
+}
+
+.metMiniCloseBtn:active{
+  background:rgba(255,255,255,.08);
+}
+
+.metMiniBody{
+  display:flex;
+  align-items:center;
+  gap:6px;
+
+  padding:10px;
+}
+
+.metMiniStepBtn{
+  flex:0 0 auto;
+  width:26px;
+  height:26px;
+
+  border-radius:50%;
+  border:1px solid #303036;
+  background:#1a1a1d;
+  color:#f7f7f7;
+
+  font-size:15px;
+  font-weight:800;
+
+  display:grid;
+  place-items:center;
+
+  cursor:pointer;
+}
+
+.metMiniStepBtn:active{
+  background:#242428;
+}
+
+.metMiniBpm{
+  flex:1;
+  text-align:center;
+
+  font-size:16px;
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+}
+
+.metMiniPlayBtn{
+  flex:0 0 auto;
+  width:32px;
+  height:32px;
+
+  border-radius:50%;
+  border:0;
+  background:#4da6ff;
+  color:#0a0a0b;
+
+  display:grid;
+  place-items:center;
+
+  cursor:pointer;
+}
+
+.metMiniPlayBtn svg{
+  width:16px;
+  height:16px;
+}
+
+.metMiniPlayBtn.playing{
+  background:#ff5a5a;
+}
+
 </style>
 
 </head>
@@ -4677,6 +5306,7 @@ button{
   <div id="autoScrollOverlay"></div>
 
   <div id="ytPlayerOverlay"></div>
+  <div id="metMiniOverlay"></div>
   <div id="editorPillOverlay"></div>
   <div id="toastStack" aria-live="polite"></div>
   <div id="confirmOverlay"></div>
@@ -5803,6 +6433,20 @@ function updateLyricsNavIndicator(){
 ========================================================= */
 
 function setActiveNav(name){
+
+  /*
+    The metronome's scheduler runs on its own setTimeout loop,
+    independent of whatever's on screen, so it's free to keep
+    ticking in the background while the person browses elsewhere
+    — that's the point of the mini widget below. All this needs
+    to do on every navigation is show/hide that mini widget: it
+    stays hidden while the full Metronome screen itself is up
+    (no need for both at once), and reappears elsewhere if the
+    person had it open.
+  */
+  if(typeof metSyncMiniWidget === 'function'){
+    metSyncMiniWidget();
+  }
 
   document
     .querySelectorAll('.nav button')
@@ -10651,6 +11295,31 @@ function renderHome(){
 
           </div>
 
+
+          <div
+            class="homeCard"
+            id="homeMetronome"
+          >
+
+            <div class="homeCardIcon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M8.5 20 10.6 5 H13.4 L15.5 20 Z"/>
+                <circle cx="12" cy="5" r="1" style="fill:currentColor;stroke:none;"/>
+                <path d="M12 6.3 16 17.5"/>
+                <circle cx="14.3" cy="12.5" r="1.3" style="fill:currentColor;stroke:none;"/>
+              </svg>
+            </div>
+
+            <div class="homeCardTitle">
+              Metronome
+            </div>
+
+            <div class="homeCardText">
+              Keep tempo while you practice.
+            </div>
+
+          </div>
+
         </div>
 
       </div>
@@ -10670,6 +11339,12 @@ function renderHome(){
     .getElementById('homeLibrary')
     .onclick =
       renderLibrary;
+
+
+  document
+    .getElementById('homeMetronome')
+    .onclick =
+      renderMetronome;
 
 
   renderVideoCardRow();
@@ -10714,6 +11389,1170 @@ function renderHome(){
     };
 
   }
+
+}
+
+
+/* =========================================================
+   METRONOME
+
+   A practice click-track reached from the Home "Get Started"
+   row. Entirely self-contained: every global below is prefixed
+   `met`/`MET_` so nothing here can collide with the rest of the
+   app's state. Screens in this app are rebuilt via innerHTML on
+   every render, so — unlike a normal single-page script — none
+   of the DOM-wiring functions below cache element references
+   across renders; each one looks its elements up fresh.
+========================================================= */
+
+const MET_STORAGE_KEY = 'worshipChordsMetronome';
+
+const MET_TIME_SIGNATURES = [
+  { label:'2/4', beats:2 },
+  { label:'3/4', beats:3 },
+  { label:'4/4', beats:4 },
+  { label:'5/4', beats:5 },
+  { label:'6/8', beats:6 }
+];
+
+/*
+  Ghost notes: quieter subdivision ticks scheduled in between the
+  main beat clicks. "value" is how many ticks each beat is split
+  into — 1 = off, 2 = one ghost per beat (the "and"), 3 = triplet
+  feel, 4 = one ghost every 16th note.
+*/
+const MET_SUBDIVISIONS = [
+  { label:'Off', value:1 },
+  { label:'8th Notes', value:2 },
+  { label:'Triplets', value:3 },
+  { label:'16th Notes', value:4 }
+];
+
+/*
+  Starting points for the three tuning sliders, not fixed sounds —
+  picking one just sets Pitch/Tone/Decay to that preset's values,
+  and the sliders can still be nudged further from there.
+*/
+const MET_SOUND_PRESETS = {
+  wood: { label:'Wood', pitch:0, tone:35, decay:30 },
+  click: { label:'Click', pitch:6, tone:20, decay:8 },
+  beep: { label:'Beep', pitch:-2, tone:90, decay:65 },
+  rim: { label:'Rimshot', pitch:3, tone:50, decay:15 }
+};
+
+function metLoadSettings(){
+
+  try{
+
+    const saved =
+      JSON.parse(localStorage.getItem(MET_STORAGE_KEY) || 'null');
+
+    return {
+
+      tempo: (saved && saved.tempo) || 100,
+      beatsPerMeasure: (saved && saved.beatsPerMeasure) || 4,
+      volume: (saved && typeof saved.volume === 'number') ? saved.volume : 80,
+      pitch: (saved && typeof saved.pitch === 'number') ? saved.pitch : MET_SOUND_PRESETS.wood.pitch,
+      tone: (saved && typeof saved.tone === 'number') ? saved.tone : MET_SOUND_PRESETS.wood.tone,
+      decay: (saved && typeof saved.decay === 'number') ? saved.decay : MET_SOUND_PRESETS.wood.decay,
+      subdivision: (saved && saved.subdivision) || 1
+
+    };
+
+  }catch(error){
+
+    return {
+      tempo:100, beatsPerMeasure:4, volume:80,
+      pitch:MET_SOUND_PRESETS.wood.pitch, tone:MET_SOUND_PRESETS.wood.tone, decay:MET_SOUND_PRESETS.wood.decay,
+      subdivision:1
+    };
+
+  }
+
+}
+
+function metSaveSettings(){
+
+  localStorage.setItem(
+
+    MET_STORAGE_KEY,
+
+    JSON.stringify({
+
+      tempo: metTempo,
+      beatsPerMeasure: metBeatsPerMeasure,
+      volume: metVolume,
+      pitch: metPitch,
+      tone: metTone,
+      decay: metDecay,
+      subdivision: metSubdivision
+
+    })
+
+  );
+
+}
+
+let metTempo, metBeatsPerMeasure, metVolume, metPitch, metTone, metDecay, metSubdivision;
+
+(() => {
+  const loaded = metLoadSettings();
+  metTempo = loaded.tempo;
+  metBeatsPerMeasure = loaded.beatsPerMeasure;
+  metVolume = loaded.volume;
+  metPitch = loaded.pitch;
+  metTone = loaded.tone;
+  metDecay = loaded.decay;
+  metSubdivision = loaded.subdivision;
+})();
+
+let metIsPlaying = false;
+let metAudioCtx = null;
+let metMasterGain = null;
+let metWoodNoiseBuffer = null;
+let metTapTimes = [];
+
+/*
+  Standard Web Audio "lookahead" scheduling pattern — a plain
+  setInterval click loop drifts noticeably over a few minutes
+  because JS timers aren't sample-accurate. Scheduling actual note
+  times against audioCtx.currentTime and only using setTimeout to
+  decide *when to schedule next*, not *when to actually play*,
+  keeps tempo rock solid over a full practice session.
+*/
+const MET_LOOKAHEAD_MS = 25;
+const MET_SCHEDULE_AHEAD_SEC = 0.1;
+
+let metCurrentBeat = 0;
+let metCurrentSubStep = 0; // 0 = the main beat click; 1..subdivision-1 = ghost ticks
+let metNextNoteTime = 0;
+let metSchedulerTimer = null;
+let metNotesInQueue = [];
+let metLastDisplayedBeat = -1;
+
+function metCreateWoodNoiseBuffer(){
+
+  const duration = 0.2;
+
+  const buffer =
+    metAudioCtx.createBuffer(
+      1,
+      metAudioCtx.sampleRate * duration,
+      metAudioCtx.sampleRate
+    );
+
+  const data =
+    buffer.getChannelData(0);
+
+  for(let i = 0; i < data.length; i++){
+    data[i] = Math.random() * 2 - 1;
+  }
+
+  return buffer;
+
+}
+
+function metScheduleClick(beatNumber, time){
+
+  metNotesInQueue.push({ beat:beatNumber, time, ghost:false });
+
+  metPlayClickSound(beatNumber === 0, time);
+
+}
+
+function metScheduleGhost(beatNumber, subStep, time){
+
+  metNotesInQueue.push({ beat:beatNumber, subStep, time, ghost:true });
+
+  metPlayGhostClickSound(time);
+
+}
+
+function metPlayClickSound(isAccent, time){
+
+  const peak =
+    (metVolume / 100) * (isAccent ? 1 : 0.7);
+
+  const pitchFactor =
+    Math.pow(2, metPitch / 12);
+
+  /* tone: 0 = fully percussive (noise-dominant), 100 = fully
+     tonal (body-dominant) */
+  const noiseMix = 1 - (metTone / 100) * 0.75;
+  const bodyMix = 0.3 + (metTone / 100) * 0.9;
+
+  const noiseDecaySec = 0.015 + (metDecay / 100) * 0.08;
+  const bodyDecaySec = 0.02 + (metDecay / 100) * 0.12;
+
+  const noise =
+    metAudioCtx.createBufferSource();
+
+  noise.buffer = metWoodNoiseBuffer;
+  noise.loop = true;
+
+  const bandpass =
+    metAudioCtx.createBiquadFilter();
+
+  bandpass.type = 'bandpass';
+  bandpass.frequency.value = (isAccent ? 2200 : 1400) * pitchFactor;
+  bandpass.Q.value = 7;
+
+  const noiseEnvelope =
+    metAudioCtx.createGain();
+
+  noiseEnvelope.gain.setValueAtTime(peak * noiseMix, time);
+  noiseEnvelope.gain.exponentialRampToValueAtTime(0.001, time + noiseDecaySec);
+
+  noise.connect(bandpass);
+  bandpass.connect(noiseEnvelope);
+  noiseEnvelope.connect(metMasterGain);
+
+  noise.start(time);
+  noise.stop(time + noiseDecaySec + 0.02);
+
+  const body =
+    metAudioCtx.createOscillator();
+
+  body.type = 'triangle';
+
+  const bodyFreq =
+    (isAccent ? 1600 : 1000) * pitchFactor;
+
+  body.frequency.setValueAtTime(bodyFreq, time);
+  body.frequency.exponentialRampToValueAtTime(bodyFreq * 0.55, time + bodyDecaySec);
+
+  const bodyEnvelope =
+    metAudioCtx.createGain();
+
+  bodyEnvelope.gain.setValueAtTime(peak * 0.4 * bodyMix, time);
+  bodyEnvelope.gain.exponentialRampToValueAtTime(0.0001, time + bodyDecaySec);
+
+  body.connect(bodyEnvelope);
+  bodyEnvelope.connect(metMasterGain);
+
+  body.start(time);
+  body.stop(time + bodyDecaySec + 0.02);
+
+}
+
+/*
+  Ghost note — the quiet "and" tick between main beats. Just the
+  noise "crack" with no tonal thump underneath and a much shorter
+  decay, so it reads as a soft subdivision marker, not an accent.
+*/
+function metPlayGhostClickSound(time){
+
+  const peak =
+    (metVolume / 100) * 0.32;
+
+  const pitchFactor =
+    Math.pow(2, metPitch / 12);
+
+  const noiseMix = 1 - (metTone / 100) * 0.75;
+  const noiseDecaySec = 0.008 + (metDecay / 100) * 0.03;
+
+  const noise =
+    metAudioCtx.createBufferSource();
+
+  noise.buffer = metWoodNoiseBuffer;
+  noise.loop = true;
+
+  const bandpass =
+    metAudioCtx.createBiquadFilter();
+
+  bandpass.type = 'bandpass';
+  bandpass.frequency.value = 1700 * pitchFactor;
+  bandpass.Q.value = 7;
+
+  const noiseEnvelope =
+    metAudioCtx.createGain();
+
+  noiseEnvelope.gain.setValueAtTime(peak * noiseMix, time);
+  noiseEnvelope.gain.exponentialRampToValueAtTime(0.001, time + noiseDecaySec);
+
+  noise.connect(bandpass);
+  bandpass.connect(noiseEnvelope);
+  noiseEnvelope.connect(metMasterGain);
+
+  noise.start(time);
+  noise.stop(time + noiseDecaySec + 0.02);
+
+}
+
+function metAdvanceNote(){
+
+  const secondsPerBeat =
+    60.0 / metTempo;
+
+  const secondsPerTick =
+    secondsPerBeat / metSubdivision;
+
+  metNextNoteTime += secondsPerTick;
+  metCurrentSubStep++;
+
+  if(metCurrentSubStep >= metSubdivision){
+
+    metCurrentSubStep = 0;
+
+    metCurrentBeat =
+      (metCurrentBeat + 1) % metBeatsPerMeasure;
+
+  }
+
+}
+
+function metScheduler(){
+
+  while(metNextNoteTime < metAudioCtx.currentTime + MET_SCHEDULE_AHEAD_SEC){
+
+    if(metCurrentSubStep === 0){
+      metScheduleClick(metCurrentBeat, metNextNoteTime);
+    }else{
+      metScheduleGhost(metCurrentBeat, metCurrentSubStep, metNextNoteTime);
+    }
+
+    metAdvanceNote();
+
+  }
+
+  metSchedulerTimer =
+    setTimeout(metScheduler, MET_LOOKAHEAD_MS);
+
+}
+
+function metEnsureAudioReady(){
+
+  if(!metAudioCtx){
+
+    metAudioCtx =
+      new (window.AudioContext || window.webkitAudioContext)();
+
+    metMasterGain =
+      metAudioCtx.createGain();
+
+    metMasterGain.connect(metAudioCtx.destination);
+
+    metWoodNoiseBuffer =
+      metCreateWoodNoiseBuffer();
+
+  }
+
+  if(metAudioCtx.state === 'suspended'){
+    metAudioCtx.resume();
+  }
+
+}
+
+function metStartMetronome(){
+
+  if(metIsPlaying)return;
+
+  metEnsureAudioReady();
+
+  metIsPlaying = true;
+  metCurrentBeat = 0;
+  metCurrentSubStep = 0;
+  metNextNoteTime = metAudioCtx.currentTime + 0.05;
+  metNotesInQueue = [];
+
+  metScheduler();
+  requestAnimationFrame(metDrawLoop);
+
+  metUpdatePlayButton();
+
+  if(typeof metSyncMiniWidget === 'function')metSyncMiniWidget();
+
+}
+
+function metStopMetronome(){
+
+  if(!metIsPlaying)return;
+
+  metIsPlaying = false;
+
+  clearTimeout(metSchedulerTimer);
+  metSchedulerTimer = null;
+
+  metNotesInQueue = [];
+
+  metClearLitBeats();
+  metClearLitGhosts();
+  metUpdatePlayButton();
+
+  if(typeof metSyncMiniWidget === 'function')metSyncMiniWidget();
+
+}
+
+function metDrawLoop(){
+
+  if(!metIsPlaying)return;
+
+  let beatToShow = null;
+  let ghostToShow = null;
+
+  while(
+    metNotesInQueue.length &&
+    metNotesInQueue[0].time < metAudioCtx.currentTime
+  ){
+
+    const note = metNotesInQueue.shift();
+
+    if(note.ghost){
+      ghostToShow = note;
+    }else{
+      beatToShow = note.beat;
+    }
+
+  }
+
+  if(
+    beatToShow !== null &&
+    beatToShow !== metLastDisplayedBeat
+  ){
+
+    metLastDisplayedBeat = beatToShow;
+    metLitBeat(beatToShow);
+
+  }
+
+  if(ghostToShow){
+    metLitGhost(ghostToShow.beat, ghostToShow.subStep);
+  }
+
+  requestAnimationFrame(metDrawLoop);
+
+}
+
+
+/* ---------- UI helpers (each looks up its own elements fresh,
+   since #screen is rebuilt on every render) ---------- */
+
+function metSetTempo(value){
+
+  metTempo =
+    Math.min(240, Math.max(30, Math.round(value)));
+
+  const bpmNumberEl = document.getElementById('metBpmNumber');
+  const bpmSliderEl = document.getElementById('metBpmSlider');
+
+  if(bpmNumberEl)bpmNumberEl.textContent = metTempo;
+  if(bpmSliderEl)bpmSliderEl.value = metTempo;
+
+  metSaveSettings();
+
+  if(typeof metSyncMiniWidget === 'function')metSyncMiniWidget();
+
+}
+
+function metUpdatePlayButton(){
+
+  const playBtnEl = document.getElementById('metPlayBtn');
+  const playIconEl = document.getElementById('metPlayIcon');
+
+  if(!playBtnEl || !playIconEl)return;
+
+  playBtnEl.classList.toggle('playing', metIsPlaying);
+  playBtnEl.setAttribute('aria-label', metIsPlaying ? 'Stop' : 'Start');
+
+  playIconEl.innerHTML =
+    metIsPlaying
+      ? '<rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect>'
+      : '<path d="M8 5v14l11-7z"></path>';
+
+}
+
+function renderMetBeatDots(){
+
+  const beatRowEl = document.getElementById('metBeatRow');
+  if(!beatRowEl)return;
+
+  const parts = [];
+
+  for(let i = 0; i < metBeatsPerMeasure; i++){
+
+    parts.push(`<div class="metBeatDot${i === 0 ? ' accent' : ''}" data-beat="${i}"></div>`);
+
+    for(let s = 1; s < metSubdivision; s++){
+      parts.push(`<div class="metBeatDot ghostDot" data-ghost="${i}-${s}"></div>`);
+    }
+
+  }
+
+  beatRowEl.innerHTML = parts.join('');
+
+}
+
+function metLitBeat(beatNumber){
+
+  metClearLitBeats();
+
+  const beatRowEl = document.getElementById('metBeatRow');
+  if(!beatRowEl)return;
+
+  const dot =
+    beatRowEl.querySelector(`[data-beat="${beatNumber}"]`);
+
+  if(dot)dot.classList.add('lit');
+
+}
+
+function metClearLitBeats(){
+
+  const beatRowEl = document.getElementById('metBeatRow');
+  if(!beatRowEl)return;
+
+  beatRowEl.querySelectorAll('.metBeatDot:not(.ghostDot)').forEach(dot => {
+    dot.classList.remove('lit');
+  });
+
+}
+
+function metLitGhost(beatNumber, subStep){
+
+  metClearLitGhosts();
+
+  const beatRowEl = document.getElementById('metBeatRow');
+  if(!beatRowEl)return;
+
+  const dot =
+    beatRowEl.querySelector(`[data-ghost="${beatNumber}-${subStep}"]`);
+
+  if(dot)dot.classList.add('lit');
+
+}
+
+function metClearLitGhosts(){
+
+  const beatRowEl = document.getElementById('metBeatRow');
+  if(!beatRowEl)return;
+
+  beatRowEl.querySelectorAll('.ghostDot').forEach(dot => {
+    dot.classList.remove('lit');
+  });
+
+}
+
+function renderMetTimeSignatures(){
+
+  const tsRowEl = document.getElementById('metTsRow');
+  if(!tsRowEl)return;
+
+  tsRowEl.innerHTML =
+    MET_TIME_SIGNATURES.map(ts => `
+
+      <button
+        class="metTsPill${ts.beats === metBeatsPerMeasure ? ' active' : ''}"
+        type="button"
+        data-beats="${ts.beats}"
+      >${ts.label}</button>
+
+    `).join('');
+
+  tsRowEl.querySelectorAll('.metTsPill').forEach(btn => {
+
+    btn.onclick = () => {
+
+      metBeatsPerMeasure = Number(btn.dataset.beats);
+      metSaveSettings();
+
+      renderMetTimeSignatures();
+      renderMetBeatDots();
+
+      if(metIsPlaying){
+        metCurrentBeat = 0;
+        metLastDisplayedBeat = -1;
+      }
+
+    };
+
+  });
+
+}
+
+function renderMetSubdivisions(){
+
+  const subdivisionRowEl = document.getElementById('metSubdivisionRow');
+  if(!subdivisionRowEl)return;
+
+  subdivisionRowEl.innerHTML =
+    MET_SUBDIVISIONS.map(sub => `
+
+      <button
+        class="metTsPill${sub.value === metSubdivision ? ' active' : ''}"
+        type="button"
+        data-sub="${sub.value}"
+      >${sub.label}</button>
+
+    `).join('');
+
+  subdivisionRowEl.querySelectorAll('.metTsPill').forEach(btn => {
+
+    btn.onclick = () => {
+
+      metSubdivision = Number(btn.dataset.sub);
+      metSaveSettings();
+
+      renderMetSubdivisions();
+      renderMetBeatDots();
+
+      if(metIsPlaying){
+        metCurrentSubStep = 0;
+      }
+
+    };
+
+  });
+
+}
+
+function metMatchingPresetKey(){
+
+  return Object.keys(MET_SOUND_PRESETS).find(key => {
+
+    const preset = MET_SOUND_PRESETS[key];
+
+    return (
+      preset.pitch === metPitch &&
+      preset.tone === metTone &&
+      preset.decay === metDecay
+    );
+
+  }) || null;
+
+}
+
+function renderMetSoundPresets(){
+
+  const soundPresetRowEl = document.getElementById('metSoundPresetRow');
+  if(!soundPresetRowEl)return;
+
+  const activeKey =
+    metMatchingPresetKey();
+
+  soundPresetRowEl.innerHTML =
+    Object.keys(MET_SOUND_PRESETS).map(key => `
+
+      <button
+        class="metTsPill${key === activeKey ? ' presetActive' : ''}"
+        type="button"
+        data-preset="${key}"
+      >${MET_SOUND_PRESETS[key].label}</button>
+
+    `).join('');
+
+  soundPresetRowEl.querySelectorAll('[data-preset]').forEach(btn => {
+
+    btn.onclick = () => {
+
+      const preset =
+        MET_SOUND_PRESETS[btn.dataset.preset];
+
+      metPitch = preset.pitch;
+      metTone = preset.tone;
+      metDecay = preset.decay;
+
+      metSyncSoundSlidersFromState();
+      metSaveSettings();
+      renderMetSoundPresets();
+      metPreviewClick();
+
+    };
+
+  });
+
+}
+
+function metSyncSoundSlidersFromState(){
+
+  const pitchSliderEl = document.getElementById('metPitchSlider');
+  const toneSliderEl = document.getElementById('metToneSlider');
+  const decaySliderEl = document.getElementById('metDecaySlider');
+  const pitchValueEl = document.getElementById('metPitchValue');
+  const toneValueEl = document.getElementById('metToneValue');
+  const decayValueEl = document.getElementById('metDecayValue');
+
+  if(!pitchSliderEl)return;
+
+  pitchSliderEl.value = metPitch;
+  toneSliderEl.value = metTone;
+  decaySliderEl.value = metDecay;
+
+  pitchValueEl.textContent = (metPitch > 0 ? '+' : '') + metPitch;
+  toneValueEl.textContent = metTone;
+  decayValueEl.textContent = metDecay;
+
+}
+
+/*
+  Lets the person hear a change immediately without starting the
+  full metronome — essential for tuning these by ear.
+*/
+function metPreviewClick(){
+
+  metEnsureAudioReady();
+
+  metPlayClickSound(true, metAudioCtx.currentTime);
+
+}
+
+
+/* =========================================================
+   METRONOME MINI WIDGET
+
+   A small floating, draggable control reached via long-press on
+   the auto-scroll button while reading lyrics. It lives in
+   #metMiniOverlay — a sibling of #screen that survives every
+   screen navigation — so the metronome can keep ticking, and
+   stay controllable, in the background. metSyncMiniWidget() is
+   called from setActiveNav on every navigation to show/hide it;
+   it's rebuilt fresh only the first time it's shown, then just
+   patched in place so a mid-drag re-render never happens.
+========================================================= */
+
+let metMiniOpen = false;
+let metMiniPos = { left:null, top:null };
+
+function metOpenMiniWidget(){
+
+  metMiniOpen = true;
+
+  metSyncMiniWidget();
+
+}
+
+function metMiniPlayIconMarkup(){
+
+  return metIsPlaying
+    ? '<rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect>'
+    : '<path d="M8 5v14l11-7z"></path>';
+
+}
+
+/*
+  The one place that decides whether the mini widget should be
+  on screen right now, and keeps it up to date if it is. Safe to
+  call constantly (tempo changes, play/stop, every navigation) —
+  it only rebuilds the DOM the first time the widget appears,
+  otherwise it just patches the BPM number and play icon.
+*/
+function metSyncMiniWidget(){
+
+  const overlay =
+    document.getElementById('metMiniOverlay');
+
+  if(!overlay)return;
+
+  if(!metMiniOpen || currentScreenName === 'metronome'){
+
+    overlay.innerHTML = '';
+
+    return;
+
+  }
+
+  const existingCard =
+    document.getElementById('metMiniCard');
+
+  if(!existingCard){
+
+    const posStyle =
+      metMiniPos.left !== null
+        ? `left:${metMiniPos.left}px;top:${metMiniPos.top}px;right:auto;`
+        : '';
+
+    overlay.innerHTML = `
+
+      <div class="metMiniCard" id="metMiniCard" style="${posStyle}">
+
+        <div class="metMiniHead" id="metMiniHead">
+          <span class="metMiniDrag" aria-hidden="true">⠿</span>
+          <span class="metMiniTitle" id="metMiniTitle">Metronome</span>
+          <button type="button" class="metMiniCloseBtn" id="metMiniCloseBtn" aria-label="Hide metronome">✕</button>
+        </div>
+
+        <div class="metMiniBody">
+
+          <button type="button" class="metMiniStepBtn" id="metMiniDownBtn" aria-label="Decrease tempo">–</button>
+
+          <div class="metMiniBpm" id="metMiniBpm">${metTempo}</div>
+
+          <button type="button" class="metMiniStepBtn" id="metMiniUpBtn" aria-label="Increase tempo">+</button>
+
+          <button type="button" class="metMiniPlayBtn${metIsPlaying ? ' playing' : ''}" id="metMiniPlayBtn" aria-label="${metIsPlaying ? 'Stop' : 'Start'}">
+            <svg id="metMiniPlayIcon" viewBox="0 0 24 24" fill="currentColor">${metMiniPlayIconMarkup()}</svg>
+          </button>
+
+        </div>
+
+      </div>
+
+    `;
+
+    metWireMiniWidget();
+
+    return;
+
+  }
+
+  const bpmEl = document.getElementById('metMiniBpm');
+  const playBtnEl = document.getElementById('metMiniPlayBtn');
+  const playIconEl = document.getElementById('metMiniPlayIcon');
+
+  if(bpmEl)bpmEl.textContent = metTempo;
+
+  if(playBtnEl){
+    playBtnEl.classList.toggle('playing', metIsPlaying);
+    playBtnEl.setAttribute('aria-label', metIsPlaying ? 'Stop' : 'Start');
+  }
+
+  if(playIconEl)playIconEl.innerHTML = metMiniPlayIconMarkup();
+
+}
+
+function metWireMiniWidget(){
+
+  const cardEl = document.getElementById('metMiniCard');
+  const headEl = document.getElementById('metMiniHead');
+
+  if(!cardEl || !headEl)return;
+
+  document.getElementById('metMiniCloseBtn').onclick = () => {
+
+    metMiniOpen = false;
+    metSyncMiniWidget();
+
+  };
+
+  document.getElementById('metMiniTitle').onclick = () => {
+
+    renderMetronome();
+
+  };
+
+  document.getElementById('metMiniDownBtn').onclick = () => metSetTempo(metTempo - 1);
+  document.getElementById('metMiniUpBtn').onclick = () => metSetTempo(metTempo + 1);
+
+  document.getElementById('metMiniPlayBtn').onclick = () => {
+
+    if(metIsPlaying){
+      metStopMetronome();
+    }else{
+      metStartMetronome();
+    }
+
+  };
+
+
+  /* ---------- dragging ---------- */
+
+  let dragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  headEl.addEventListener('pointerdown', event => {
+
+    dragging = true;
+
+    const rect = cardEl.getBoundingClientRect();
+
+    offsetX = event.clientX - rect.left;
+    offsetY = event.clientY - rect.top;
+
+    headEl.setPointerCapture(event.pointerId);
+
+  });
+
+  headEl.addEventListener('pointermove', event => {
+
+    if(!dragging)return;
+
+    const maxLeft = window.innerWidth - cardEl.offsetWidth - 6;
+    const maxTop = window.innerHeight - cardEl.offsetHeight - 6;
+
+    const nextLeft = Math.min(maxLeft, Math.max(6, event.clientX - offsetX));
+    const nextTop = Math.min(maxTop, Math.max(6, event.clientY - offsetY));
+
+    cardEl.style.left = nextLeft + 'px';
+    cardEl.style.top = nextTop + 'px';
+    cardEl.style.right = 'auto';
+
+    metMiniPos = { left:nextLeft, top:nextTop };
+
+  });
+
+  const endDrag = () => { dragging = false; };
+
+  headEl.addEventListener('pointerup', endDrag);
+  headEl.addEventListener('pointercancel', endDrag);
+
+}
+
+
+function renderMetronome(){
+
+  currentScreenName = 'metronome';
+
+  setActiveNav('home');
+
+  screen.innerHTML = `
+
+    <div class="metronomePage">
+
+      <div class="libraryHead">
+
+        <button
+          class="searchBtn"
+          id="metBackBtn"
+          aria-label="Back to home"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+
+        <div class="libraryTitle" style="flex:1;">
+          Metronome
+        </div>
+
+      </div>
+
+
+      <div class="metBpmCard">
+
+        <div class="metBpmRow">
+
+          <button class="metBpmStepBtn" id="metBpmDownBtn" type="button" aria-label="Decrease tempo">–</button>
+
+          <div class="metBpmDisplay">
+            <div class="metBpmNumber" id="metBpmNumber">${metTempo}</div>
+            <div class="metBpmUnit">beats / min</div>
+          </div>
+
+          <button class="metBpmStepBtn" id="metBpmUpBtn" type="button" aria-label="Increase tempo">+</button>
+
+        </div>
+
+        <input class="metBpmSlider" id="metBpmSlider" type="range" min="30" max="240" value="${metTempo}">
+
+        <button class="metTapBtn" id="metTapBtn" type="button">Tap Tempo</button>
+
+      </div>
+
+
+      <div class="sectionLabel metSectionLabel">Time signature</div>
+      <div class="metTsRow" id="metTsRow"></div>
+
+      <div class="sectionLabel metSectionLabel">Subdivision</div>
+      <div class="metTsRow" id="metSubdivisionRow"></div>
+
+      <div class="metBeatRow" id="metBeatRow"></div>
+
+      <div class="metPlayWrap">
+        <button class="metPlayBtn" id="metPlayBtn" type="button" aria-label="Start">
+
+          <svg id="metPlayIcon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"></path>
+          </svg>
+
+        </button>
+      </div>
+
+      <div class="metVolRow">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1-3.29-2.5-4.03v8.05c1.5-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>
+        <input class="metVolSlider" id="metVolSlider" type="range" min="0" max="100" value="${metVolume}">
+      </div>
+
+      <div class="sectionLabel metSectionLabel" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>Sound</span>
+        <button class="metPreviewBtn" id="metPreviewBtn" type="button">▶ Preview</button>
+      </div>
+
+      <div class="metSoundPresetWrap">
+        <div class="metTsRow" id="metSoundPresetRow"></div>
+        <button class="metSoundEditBtn" id="metSoundEditBtn" type="button" aria-label="Edit tone" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1-3.29-2.5-4.03v8.05c1.5-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>
+        </button>
+      </div>
+
+      <div class="metSoundControls hidden" id="metSoundControls">
+
+        <div class="metSoundControlRow">
+          <div class="metSoundControlLabel">
+            <span>Pitch</span>
+            <span class="metSoundControlValue" id="metPitchValue">${metPitch}</span>
+          </div>
+          <input class="metTuneSlider" id="metPitchSlider" type="range" min="-12" max="12" step="1" value="${metPitch}">
+        </div>
+
+        <div class="metSoundControlRow">
+          <div class="metSoundControlLabel">
+            <span>Tone</span>
+            <span class="metSoundControlValue" id="metToneValue">${metTone}</span>
+          </div>
+          <input class="metTuneSlider" id="metToneSlider" type="range" min="0" max="100" step="1" value="${metTone}">
+          <div class="metSoundControlHint">
+            <span>Percussive</span>
+            <span>Tonal</span>
+          </div>
+        </div>
+
+        <div class="metSoundControlRow">
+          <div class="metSoundControlLabel">
+            <span>Decay</span>
+            <span class="metSoundControlValue" id="metDecayValue">${metDecay}</span>
+          </div>
+          <input class="metTuneSlider" id="metDecaySlider" type="range" min="0" max="100" step="1" value="${metDecay}">
+          <div class="metSoundControlHint">
+            <span>Tight</span>
+            <span>Ringing</span>
+          </div>
+        </div>
+
+      </div>
+
+      <p class="metNote">
+        Sample-accurate scheduling, so tempo stays steady over a
+        long practice run. Leaving this screen doesn't stop it —
+        long-press the auto-scroll button while viewing a song's
+        lyrics for a small floating control. Settings are saved
+        on this device.
+      </p>
+
+    </div>
+
+  `;
+
+
+  document.getElementById('metBackBtn').onclick = () => {
+    renderHome();
+  };
+
+
+  /* ---------- BPM ---------- */
+
+  document.getElementById('metBpmDownBtn').onclick = () => metSetTempo(metTempo - 1);
+  document.getElementById('metBpmUpBtn').onclick = () => metSetTempo(metTempo + 1);
+
+  document.getElementById('metBpmSlider').addEventListener('input', function(){
+    metSetTempo(Number(this.value));
+  });
+
+
+  /* ---------- tap tempo ---------- */
+
+  metTapTimes = [];
+
+  document.getElementById('metTapBtn').onclick = () => {
+
+    const now = performance.now();
+
+    metTapTimes.push(now);
+    metTapTimes = metTapTimes.filter(t => now - t < 2200);
+
+    if(metTapTimes.length < 2)return;
+
+    const intervals = [];
+
+    for(let i = 1; i < metTapTimes.length; i++){
+      intervals.push(metTapTimes[i] - metTapTimes[i - 1]);
+    }
+
+    const avgMs =
+      intervals.reduce((a, b) => a + b, 0) / intervals.length;
+
+    metSetTempo(60000 / avgMs);
+
+  };
+
+
+  /* ---------- time signature / subdivision / beat dots ---------- */
+
+  renderMetTimeSignatures();
+  renderMetSubdivisions();
+  renderMetBeatDots();
+
+
+  /* ---------- play button ---------- */
+
+  metUpdatePlayButton();
+
+  document.getElementById('metPlayBtn').onclick = () => {
+
+    if(metIsPlaying){
+      metStopMetronome();
+    }else{
+      metStartMetronome();
+    }
+
+  };
+
+
+  /* ---------- volume ---------- */
+
+  document.getElementById('metVolSlider').addEventListener('input', function(){
+    metVolume = Number(this.value);
+    metSaveSettings();
+  });
+
+
+  /* ---------- sound presets + tone editor ---------- */
+
+  renderMetSoundPresets();
+  metSyncSoundSlidersFromState();
+
+  document.getElementById('metPreviewBtn').onclick = metPreviewClick;
+
+  const soundControlsEl = document.getElementById('metSoundControls');
+  const soundEditBtnEl = document.getElementById('metSoundEditBtn');
+
+  soundEditBtnEl.onclick = () => {
+
+    const nowHidden =
+      soundControlsEl.classList.toggle('hidden');
+
+    soundEditBtnEl.classList.toggle('active', !nowHidden);
+    soundEditBtnEl.setAttribute('aria-expanded', String(!nowHidden));
+
+  };
+
+  const pitchSliderEl = document.getElementById('metPitchSlider');
+  const toneSliderEl = document.getElementById('metToneSlider');
+  const decaySliderEl = document.getElementById('metDecaySlider');
+  const pitchValueEl = document.getElementById('metPitchValue');
+  const toneValueEl = document.getElementById('metToneValue');
+  const decayValueEl = document.getElementById('metDecayValue');
+
+  pitchSliderEl.addEventListener('input', () => {
+
+    metPitch = Number(pitchSliderEl.value);
+    pitchValueEl.textContent = (metPitch > 0 ? '+' : '') + metPitch;
+
+    metSaveSettings();
+    renderMetSoundPresets();
+
+  });
+
+  toneSliderEl.addEventListener('input', () => {
+
+    metTone = Number(toneSliderEl.value);
+    toneValueEl.textContent = metTone;
+
+    metSaveSettings();
+    renderMetSoundPresets();
+
+  });
+
+  decaySliderEl.addEventListener('input', () => {
+
+    metDecay = Number(decaySliderEl.value);
+    decayValueEl.textContent = metDecay;
+
+    metSaveSettings();
+    renderMetSoundPresets();
+
+  });
+
+  [pitchSliderEl, toneSliderEl, decaySliderEl].forEach(el => {
+    el.addEventListener('change', metPreviewClick);
+  });
 
 }
 
@@ -16730,7 +18569,17 @@ function renderAutoScrollFab(){
   if(!overlay)return;
   overlay.innerHTML=`
     <div class="autoScrollFab idleFade" id="autoScrollFabRoot">
-      <button type="button" class="asDrawToggleBtn${annotateMode?' active':''}" id="asDrawToggleBtn" aria-label="${annotateMode?'Stop drawing':'Draw on this song'}" title="${annotateMode?'Stop drawing':'Draw on this song'}">✎</button>
+      <div class="asSatelliteRow" id="asSatelliteRow">
+        <button type="button" class="asSatelliteBtn" id="asMetronomeBtn" aria-label="Open metronome" title="Metronome">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8.5 20 10.6 5 H13.4 L15.5 20 Z"/>
+            <circle cx="12" cy="5" r="1" fill="currentColor" stroke="none"/>
+            <path d="M12 6.3 16 17.5"/>
+            <circle cx="14.3" cy="12.5" r="1.3" fill="currentColor" stroke="none"/>
+          </svg>
+        </button>
+        <button type="button" class="asSatelliteBtn${annotateMode?' active':''}" id="asDrawToggleBtn" aria-label="${annotateMode?'Stop drawing':'Draw on this song'}" title="${annotateMode?'Stop drawing':'Draw on this song'}">✎</button>
+      </div>
       <div class="asToggleWrap" id="asToggleWrap">
         <button type="button" class="asArrowBtn asArrowUp" id="asArrowUp" aria-label="Increase scroll speed">⌃</button>
         <button class="toolbarBtn asToggleBtn${autoScrollActive?' primary':''}" id="asToggle" aria-label="${autoScrollActive?'Pause auto-scroll':'Start auto-scroll'}">${autoScrollIconHTML()}</button>
@@ -16750,6 +18599,7 @@ function attachAutoScrollControls(){
   const upBtn=document.getElementById('asArrowUp');
   const downBtn=document.getElementById('asArrowDown');
   const drawBtn=document.getElementById('asDrawToggleBtn');
+  const metBtn=document.getElementById('asMetronomeBtn');
   if(!toggleBtn||!wrap)return;
 
   let pressTimer=null;
@@ -16786,6 +18636,12 @@ function attachAutoScrollControls(){
     drawBtn.setAttribute('aria-label',annotateMode?'Stop drawing':'Draw on this song');
     drawBtn.title=annotateMode?'Stop drawing':'Draw on this song';
     exitSpeedMode();
+  });
+
+  if(metBtn)metBtn.addEventListener('click',event=>{
+    event.stopPropagation();
+    exitSpeedMode();
+    if(typeof metOpenMiniWidget==='function')metOpenMiniWidget();
   });
 
   toggleBtn.addEventListener('pointerdown',event=>{
@@ -22413,6 +24269,12 @@ function handleHardwareBack(){
       return true;
 
     case 'lineupDetail':
+
+      renderHome();
+
+      return true;
+
+    case 'metronome':
 
       renderHome();
 
