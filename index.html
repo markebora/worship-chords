@@ -5018,6 +5018,50 @@ button{
   line-height:1.5;
 }
 
+.metPresetCard{
+  background:#151518;
+  border:1px solid #2d2d32;
+  border-radius:16px;
+  padding:14px 16px;
+}
+
+.metPresetSongTitle{
+  font-size:13.5px;
+  font-weight:800;
+  color:#e6e6e8;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  margin-bottom:10px;
+}
+
+.metPresetActions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.metPresetBtn{
+  border:1px solid #303036;
+  background:#1a1a1d;
+  color:#e6e6e8;
+  border-radius:999px;
+  padding:8px 14px;
+  font-size:12.5px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.metPresetBtn:active{
+  background:#242428;
+}
+
+.metPresetLoadBtn{
+  background:#4da6ff;
+  color:#0a0a0b;
+  border-color:#4da6ff;
+}
+
 /* =========================================================
    AUTO-SCROLL SATELLITE BUTTONS
 
@@ -5199,13 +5243,35 @@ button{
   background:#242428;
 }
 
-.metMiniBpm{
+.metMiniBpmInput{
   flex:1;
+  width:0;
   text-align:center;
 
+  font-family:inherit;
   font-size:16px;
   font-weight:800;
   font-variant-numeric:tabular-nums;
+
+  background:transparent;
+  border:0;
+  border-bottom:1px solid transparent;
+  color:#f7f7f7;
+
+  padding:2px 0;
+
+  -moz-appearance:textfield;
+}
+
+.metMiniBpmInput::-webkit-outer-spin-button,
+.metMiniBpmInput::-webkit-inner-spin-button{
+  -webkit-appearance:none;
+  margin:0;
+}
+
+.metMiniBpmInput:focus{
+  outline:none;
+  border-bottom-color:#4da6ff;
 }
 
 .metMiniPlayBtn{
@@ -5231,6 +5297,67 @@ button{
 
 .metMiniPlayBtn.playing{
   background:#ff5a5a;
+}
+
+.metMiniPresetRow{
+  display:flex;
+  align-items:center;
+  gap:6px;
+
+  padding:0 10px 10px;
+}
+
+.metMiniPresetHint{
+  flex:1;
+  font-size:11px;
+  color:#5c5c62;
+}
+
+.metMiniPresetBtn{
+  flex:1;
+  min-width:0;
+
+  border:1px solid #303036;
+  background:#1a1a1d;
+  color:#e6e6e8;
+
+  border-radius:999px;
+  padding:6px 10px;
+
+  font-size:11.5px;
+  font-weight:800;
+
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+
+  cursor:pointer;
+}
+
+.metMiniPresetBtn:active{
+  background:#242428;
+}
+
+.metMiniPresetSaveBtn{
+  flex:0 0 auto;
+  width:26px;
+  height:26px;
+
+  border:1px solid #303036;
+  background:#1a1a1d;
+  color:#e6e6e8;
+
+  border-radius:8px;
+  font-size:12px;
+
+  display:grid;
+  place-items:center;
+
+  cursor:pointer;
+}
+
+.metMiniPresetSaveBtn:active{
+  background:#242428;
 }
 
 </style>
@@ -11440,6 +11567,83 @@ const MET_SOUND_PRESETS = {
   rim: { label:'Rimshot', pitch:3, tone:50, decay:15 }
 };
 
+/*
+  A single user-saved click sound, captured from wherever the
+  Pitch/Tone/Decay sliders currently sit. Kept separate from
+  MET_SOUND_PRESETS (a const) so it can be overwritten any time
+  "Save Custom" is tapped.
+*/
+const MET_CUSTOM_PRESET_KEY = 'worshipChordsMetronomeCustomPreset';
+
+function metLoadCustomPreset(){
+
+  try{
+
+    return JSON.parse(localStorage.getItem(MET_CUSTOM_PRESET_KEY) || 'null');
+
+  }catch(error){
+
+    return null;
+
+  }
+
+}
+
+function metSaveCustomPreset(){
+
+  metCustomPreset = { pitch:metPitch, tone:metTone, decay:metDecay };
+
+  localStorage.setItem(
+    MET_CUSTOM_PRESET_KEY,
+    JSON.stringify(metCustomPreset)
+  );
+
+}
+
+/*
+  Per-song BPM presets, keyed by song id — kept in their own
+  local-only bucket rather than on the song object itself, so
+  saving a tempo here can never interact with the Library's
+  Drive sync/merge logic.
+*/
+const MET_SONG_PRESET_KEY = 'worshipChordsMetronomeSongPresets';
+
+function metLoadSongPresets(){
+
+  try{
+
+    return JSON.parse(localStorage.getItem(MET_SONG_PRESET_KEY) || '{}') || {};
+
+  }catch(error){
+
+    return {};
+
+  }
+
+}
+
+function metGetSongPresetBpm(songId){
+
+  if(!songId)return null;
+
+  const presets = metLoadSongPresets();
+
+  return typeof presets[songId] === 'number' ? presets[songId] : null;
+
+}
+
+function metSetSongPresetBpm(songId, bpm){
+
+  if(!songId)return;
+
+  const presets = metLoadSongPresets();
+
+  presets[songId] = bpm;
+
+  localStorage.setItem(MET_SONG_PRESET_KEY, JSON.stringify(presets));
+
+}
+
 function metLoadSettings(){
 
   try{
@@ -11511,6 +11715,7 @@ let metAudioCtx = null;
 let metMasterGain = null;
 let metWoodNoiseBuffer = null;
 let metTapTimes = [];
+let metCustomPreset = metLoadCustomPreset();
 
 /*
   Standard Web Audio "lookahead" scheduling pattern — a plain
@@ -11838,6 +12043,9 @@ function metSetTempo(value){
   if(bpmNumberEl)bpmNumberEl.textContent = metTempo;
   if(bpmSliderEl)bpmSliderEl.value = metTempo;
 
+  const presetSaveBtnEl = document.getElementById('metPresetSaveBtn');
+  if(presetSaveBtnEl)presetSaveBtnEl.textContent = `Save ${metTempo} BPM`;
+
   metSaveSettings();
 
   if(typeof metSyncMiniWidget === 'function')metSyncMiniWidget();
@@ -12005,11 +12213,25 @@ function renderMetSubdivisions(){
 
 }
 
+function metAllSoundPresets(){
+
+  const all = { ...MET_SOUND_PRESETS };
+
+  if(metCustomPreset){
+    all.custom = { label:'Custom', ...metCustomPreset };
+  }
+
+  return all;
+
+}
+
 function metMatchingPresetKey(){
 
-  return Object.keys(MET_SOUND_PRESETS).find(key => {
+  const all = metAllSoundPresets();
 
-    const preset = MET_SOUND_PRESETS[key];
+  return Object.keys(all).find(key => {
+
+    const preset = all[key];
 
     return (
       preset.pitch === metPitch &&
@@ -12026,17 +12248,20 @@ function renderMetSoundPresets(){
   const soundPresetRowEl = document.getElementById('metSoundPresetRow');
   if(!soundPresetRowEl)return;
 
+  const all =
+    metAllSoundPresets();
+
   const activeKey =
     metMatchingPresetKey();
 
   soundPresetRowEl.innerHTML =
-    Object.keys(MET_SOUND_PRESETS).map(key => `
+    Object.keys(all).map(key => `
 
       <button
         class="metTsPill${key === activeKey ? ' presetActive' : ''}"
         type="button"
         data-preset="${key}"
-      >${MET_SOUND_PRESETS[key].label}</button>
+      >${all[key].label}</button>
 
     `).join('');
 
@@ -12045,7 +12270,7 @@ function renderMetSoundPresets(){
     btn.onclick = () => {
 
       const preset =
-        MET_SOUND_PRESETS[btn.dataset.preset];
+        all[btn.dataset.preset];
 
       metPitch = preset.pitch;
       metTone = preset.tone;
@@ -12112,6 +12337,105 @@ function metPreviewClick(){
 let metMiniOpen = false;
 let metMiniPos = { left:null, top:null };
 
+/*
+  Builds just the preset row's markup — pulled out so both the
+  initial build and the patch path (currentSong can change while
+  the widget stays open, e.g. flipping to the next song) can
+  refresh it without touching the rest of the card.
+*/
+function metMiniPresetRowMarkup(){
+
+  if(!currentSong)return '';
+
+  const presetBpm =
+    metGetSongPresetBpm(currentSong.id);
+
+  return `
+
+    <div class="metMiniPresetRow" id="metMiniPresetRow">
+
+      ${
+        presetBpm !== null
+        ? `<button type="button" class="metMiniPresetBtn" id="metMiniPresetLoadBtn">▸ ${presetBpm} BPM</button>`
+        : `<span class="metMiniPresetHint">No saved BPM</span>`
+      }
+
+      <button type="button" class="metMiniPresetSaveBtn" id="metMiniPresetSaveBtn" aria-label="Save current tempo for this song" title="Save current tempo for this song">💾</button>
+
+    </div>
+
+  `;
+
+}
+
+function metWireMiniPresetRow(){
+
+  const rowEl = document.getElementById('metMiniPresetRow');
+  if(!rowEl)return;
+
+  const loadBtn = document.getElementById('metMiniPresetLoadBtn');
+
+  if(loadBtn){
+
+    loadBtn.onclick = () => {
+
+      const presetBpm =
+        metGetSongPresetBpm(currentSong.id);
+
+      if(presetBpm !== null)metSetTempo(presetBpm);
+
+    };
+
+  }
+
+  document.getElementById('metMiniPresetSaveBtn').onclick = () => {
+
+    metSetSongPresetBpm(currentSong.id, metTempo);
+
+    showToast(`Saved ${metTempo} BPM for ${currentSong.title || 'this song'}`, null, { small:true });
+
+    const presetSection =
+      document.getElementById('metSongPresetSection');
+
+    if(presetSection)renderMetSongPresetSection();
+
+    metRefreshMiniPresetRow();
+
+  };
+
+}
+
+/*
+  Re-renders just the preset row in place — used whenever the
+  underlying song or its saved preset might have changed, without
+  touching the BPM input (which could be mid-edit) or the rest of
+  the card.
+*/
+function metRefreshMiniPresetRow(){
+
+  const cardEl = document.getElementById('metMiniCard');
+  if(!cardEl)return;
+
+  const existingRow =
+    document.getElementById('metMiniPresetRow');
+
+  const markup =
+    metMiniPresetRowMarkup();
+
+  if(existingRow){
+
+    existingRow.outerHTML = markup;
+
+  }else if(markup){
+
+    cardEl.insertAdjacentHTML('beforeend', markup);
+
+  }
+
+  metWireMiniPresetRow();
+
+}
+
 function metOpenMiniWidget(){
 
   metMiniOpen = true;
@@ -12133,7 +12457,8 @@ function metMiniPlayIconMarkup(){
   on screen right now, and keeps it up to date if it is. Safe to
   call constantly (tempo changes, play/stop, every navigation) —
   it only rebuilds the DOM the first time the widget appears,
-  otherwise it just patches the BPM number and play icon.
+  otherwise it just patches the BPM input and play icon in place
+  (never overwriting the BPM field while it's actively focused).
 */
 function metSyncMiniWidget(){
 
@@ -12174,7 +12499,16 @@ function metSyncMiniWidget(){
 
           <button type="button" class="metMiniStepBtn" id="metMiniDownBtn" aria-label="Decrease tempo">–</button>
 
-          <div class="metMiniBpm" id="metMiniBpm">${metTempo}</div>
+          <input
+            class="metMiniBpmInput"
+            id="metMiniBpmInput"
+            type="number"
+            inputmode="numeric"
+            min="30"
+            max="240"
+            value="${metTempo}"
+            aria-label="Tempo in beats per minute"
+          >
 
           <button type="button" class="metMiniStepBtn" id="metMiniUpBtn" aria-label="Increase tempo">+</button>
 
@@ -12184,21 +12518,31 @@ function metSyncMiniWidget(){
 
         </div>
 
+        ${metMiniPresetRowMarkup()}
+
       </div>
 
     `;
 
     metWireMiniWidget();
+    metWireMiniPresetRow();
 
     return;
 
   }
 
-  const bpmEl = document.getElementById('metMiniBpm');
+  const bpmInputEl = document.getElementById('metMiniBpmInput');
   const playBtnEl = document.getElementById('metMiniPlayBtn');
   const playIconEl = document.getElementById('metMiniPlayIcon');
 
-  if(bpmEl)bpmEl.textContent = metTempo;
+  /*
+    Never stomp on the field while the person is actively typing
+    in it — this same function runs on every tempo change,
+    including the ones typing itself triggers.
+  */
+  if(bpmInputEl && document.activeElement !== bpmInputEl){
+    bpmInputEl.value = metTempo;
+  }
 
   if(playBtnEl){
     playBtnEl.classList.toggle('playing', metIsPlaying);
@@ -12206,6 +12550,8 @@ function metSyncMiniWidget(){
   }
 
   if(playIconEl)playIconEl.innerHTML = metMiniPlayIconMarkup();
+
+  metRefreshMiniPresetRow();
 
 }
 
@@ -12231,6 +12577,38 @@ function metWireMiniWidget(){
 
   document.getElementById('metMiniDownBtn').onclick = () => metSetTempo(metTempo - 1);
   document.getElementById('metMiniUpBtn').onclick = () => metSetTempo(metTempo + 1);
+
+
+  /* ---------- typable BPM ---------- */
+
+  const bpmInputEl =
+    document.getElementById('metMiniBpmInput');
+
+  bpmInputEl.addEventListener('focus', function(){
+    this.select();
+  });
+
+  bpmInputEl.addEventListener('keydown', function(event){
+
+    if(event.key === 'Enter'){
+      this.blur();
+    }
+
+  });
+
+  bpmInputEl.addEventListener('blur', function(){
+
+    const typed = Number(this.value);
+
+    if(!this.value || Number.isNaN(typed)){
+      this.value = metTempo;
+      return;
+    }
+
+    metSetTempo(typed);
+
+  });
+
 
   document.getElementById('metMiniPlayBtn').onclick = () => {
 
@@ -12288,6 +12666,77 @@ function metWireMiniWidget(){
 }
 
 
+/*
+  Only meaningful while a song is actually open (currentSong is
+  set from the Lyrics/song viewer) — lets a saved BPM per song be
+  captured and recalled without touching the song object itself,
+  so it can never interact with Library sync.
+*/
+function renderMetSongPresetSection(){
+
+  const hostEl = document.getElementById('metSongPresetSection');
+  if(!hostEl)return;
+
+  if(!currentSong){
+
+    hostEl.innerHTML = '';
+
+    return;
+
+  }
+
+  const presetBpm =
+    metGetSongPresetBpm(currentSong.id);
+
+  hostEl.innerHTML = `
+
+    <div class="sectionLabel metSectionLabel">Song Preset</div>
+
+    <div class="metPresetCard">
+
+      <div class="metPresetSongTitle">${esc(currentSong.title || 'This song')}</div>
+
+      <div class="metPresetActions">
+
+        <button type="button" class="metPresetBtn" id="metPresetSaveBtn">Save ${metTempo} BPM</button>
+
+        ${
+          presetBpm !== null
+          ? `<button type="button" class="metPresetBtn metPresetLoadBtn" id="metPresetLoadBtn">▸ ${presetBpm} BPM</button>`
+          : ''
+        }
+
+      </div>
+
+    </div>
+
+  `;
+
+  document.getElementById('metPresetSaveBtn').onclick = () => {
+
+    metSetSongPresetBpm(currentSong.id, metTempo);
+
+    showToast(`Saved ${metTempo} BPM for ${currentSong.title || 'this song'}`);
+
+    renderMetSongPresetSection();
+
+    if(typeof metSyncMiniWidget === 'function')metSyncMiniWidget();
+
+  };
+
+  const loadBtn =
+    document.getElementById('metPresetLoadBtn');
+
+  if(loadBtn){
+
+    loadBtn.onclick = () => {
+      metSetTempo(presetBpm);
+    };
+
+  }
+
+}
+
 function renderMetronome(){
 
   currentScreenName = 'metronome';
@@ -12337,6 +12786,9 @@ function renderMetronome(){
       </div>
 
 
+      <div id="metSongPresetSection"></div>
+
+
       <div class="sectionLabel metSectionLabel">Time signature</div>
       <div class="metTsRow" id="metTsRow"></div>
 
@@ -12362,7 +12814,10 @@ function renderMetronome(){
 
       <div class="sectionLabel metSectionLabel" style="display:flex;align-items:center;justify-content:space-between;">
         <span>Sound</span>
-        <button class="metPreviewBtn" id="metPreviewBtn" type="button">▶ Preview</button>
+        <div style="display:flex;gap:6px;">
+          <button class="metPreviewBtn" id="metSaveCustomBtn" type="button">💾 Save Custom</button>
+          <button class="metPreviewBtn" id="metPreviewBtn" type="button">▶ Preview</button>
+        </div>
       </div>
 
       <div class="metSoundPresetWrap">
@@ -12463,6 +12918,11 @@ function renderMetronome(){
   };
 
 
+  /* ---------- song preset ---------- */
+
+  renderMetSongPresetSection();
+
+
   /* ---------- time signature / subdivision / beat dots ---------- */
 
   renderMetTimeSignatures();
@@ -12499,6 +12959,15 @@ function renderMetronome(){
   metSyncSoundSlidersFromState();
 
   document.getElementById('metPreviewBtn').onclick = metPreviewClick;
+
+  document.getElementById('metSaveCustomBtn').onclick = () => {
+
+    metSaveCustomPreset();
+    renderMetSoundPresets();
+
+    showToast('Saved your custom click sound');
+
+  };
 
   const soundControlsEl = document.getElementById('metSoundControls');
   const soundEditBtnEl = document.getElementById('metSoundEditBtn');
