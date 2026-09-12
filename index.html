@@ -11686,6 +11686,36 @@ function metActiveSongContext(){
 
 }
 
+/*
+  Called whenever the "current song" changes — opening a song
+  from anywhere, or flipping to a different part of a merge.
+  If that song/part has a saved BPM, it becomes the tempo right
+  away rather than just being available to tap on; if it doesn't,
+  the mini widget's preset row still needs refreshing so it stops
+  showing the previous song's info.
+*/
+function metApplySongPresetIfAny(){
+
+  const context =
+    metActiveSongContext();
+
+  if(!context)return;
+
+  const presetBpm =
+    metGetSongPresetBpm(context.id);
+
+  if(presetBpm !== null){
+
+    metSetTempo(presetBpm);
+
+  }else if(typeof metRefreshMiniPresetRow === 'function'){
+
+    metRefreshMiniPresetRow();
+
+  }
+
+}
+
 function metLoadSettings(){
 
   try{
@@ -16167,6 +16197,8 @@ function openSong(song){
 
   renderSongViewer();
 
+  if(typeof metApplySongPresetIfAny === 'function')metApplySongPresetIfAny();
+
 }
 
 
@@ -18712,9 +18744,11 @@ function goToMergedPartIndex(index){
     a real screen navigation, so it never goes through
     setActiveNav — the one place that otherwise keeps the mini
     metronome widget in sync. Each part can have its own saved
-    BPM, so the widget's preset row needs an explicit nudge here.
+    BPM, so it needs an explicit nudge here: apply that part's
+    preset if it has one, or at least refresh the mini widget's
+    preset row so it stops showing the previous part's info.
   */
-  if(typeof metRefreshMiniPresetRow === 'function')metRefreshMiniPresetRow();
+  if(typeof metApplySongPresetIfAny === 'function')metApplySongPresetIfAny();
 
 }
 
