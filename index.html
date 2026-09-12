@@ -6482,6 +6482,135 @@ let currentSong = null;
 */
 let currentScreenName = 'home';
 
+/*
+  Which setlist renderSetlistDetail() is currently showing.
+  setlistId itself is just a function parameter, so this is the
+  only way outside that function to know which one is open —
+  used by snapshotScreen() below to rebuild the "go back to this
+  setlist" entry.
+*/
+let activeSetlistId = null;
+
+/* =========================================================
+   NAVIGATION HISTORY (for the on-screen "<" back arrow)
+
+   Every drill-down screen used to hard-code its own back
+   destination (song viewer always -> Lyrics tab, setlist detail
+   always -> Library/Setlists, lineup detail always -> Home,
+   etc). That's wrong whenever a screen was actually opened from
+   somewhere else — e.g. tapping a setlist card on Home, then
+   pressing back, landed on the Library tab instead of Home.
+
+   Instead, each of the 8 top-level render* functions calls
+   recordNavHistory('itsOwnScreenName') as the very first thing
+   it does, before overwriting currentScreenName. That lets
+   recordNavHistory look at whatever currentScreenName still
+   says — the screen being left — and push a small closure onto
+   navHistory that knows how to redraw exactly that screen,
+   capturing any id (like a setlist id) by value so a later
+   change to the live variable can't corrupt an older stack
+   entry. goBack() then just pops the most recent closure and
+   calls it, so the back arrow always returns to wherever the
+   user actually came from.
+
+   Same-screen refreshes (re-rendering the song viewer after a
+   transpose, a real-time lineup sync update while already on
+   that screen, etc.) are not real navigation, so they're
+   skipped — either because the "from" and "to" screen names are
+   identical, or because skipNextScreenTransition is already set
+   true for that in-place redraw.
+========================================================= */
+
+let navHistory = [];
+
+function snapshotScreen(name){
+
+  switch(name){
+
+    case 'home':
+      return () => renderHome();
+
+    case 'metronome':
+      return () => renderMetronome();
+
+    case 'profile':
+      return () => renderProfile();
+
+    case 'lyrics':
+      return () => renderLyrics();
+
+    case 'library':{
+      const tab = libraryTab;
+      return () => { libraryTab = tab; renderLibrary(); };
+    }
+
+    case 'setlistDetail':{
+      const id = activeSetlistId;
+      if(!id)return null;
+      return () => renderSetlistDetail(id);
+    }
+
+    case 'lineupDetail':
+      return () => renderLineupDetail();
+
+    case 'songViewer':{
+      const song = currentSong;
+      if(!song)return null;
+      return () => { currentSong = song; renderSongViewer(); };
+    }
+
+    default:
+      return null;
+
+  }
+
+}
+
+function recordNavHistory(nextScreenName){
+
+  if(skipNextScreenTransition){
+    return;
+  }
+
+  if(currentScreenName === nextScreenName){
+    return;
+  }
+
+  const snapshot = snapshotScreen(currentScreenName);
+
+  if(snapshot){
+    navHistory.push(snapshot);
+  }
+
+}
+
+/*
+  Pops the most recent screen off navHistory and redraws it. If
+  there's nothing to go back to (a fresh app open, or a screen
+  reached in a way that never recorded history), falls back to
+  whatever the caller passes in, or Home as a last resort — the
+  same destinations the old hard-coded back buttons used, so
+  behavior never regresses, it just gets smarter when there IS
+  real history to use.
+*/
+function goBack(fallback){
+
+  const restore = navHistory.pop();
+
+  if(restore){
+    restore();
+    return;
+  }
+
+  if(fallback){
+    fallback();
+    return;
+  }
+
+  renderHome();
+
+}
+
 
 /*
   Whether the song viewer shows chords above the lyrics
@@ -11250,6 +11379,8 @@ function renderVideoCardRow(filterText){
 
 function renderHome(){
 
+  recordNavHistory('home');
+
   currentScreenName = 'home';
 
   setActiveNav('home');
@@ -12827,6 +12958,8 @@ function renderMetSongPresetSection(){
 
 function renderMetronome(){
 
+  recordNavHistory('metronome');
+
   currentScreenName = 'metronome';
 
   setActiveNav('home');
@@ -12965,7 +13098,7 @@ function renderMetronome(){
 
 
   document.getElementById('metBackBtn').onclick = () => {
-    renderHome();
+    goBack(renderHome);
   };
 
 
@@ -13140,6 +13273,8 @@ function profileInitials(name){
 
 
 function renderProfile(){
+
+  recordNavHistory('profile');
 
   currentScreenName = 'profile';
 
@@ -14041,6 +14176,8 @@ function renderProfile(){
 ========================================================= */
 
 function renderLyrics(){
+
+  recordNavHistory('lyrics');
 
   currentScreenName = 'lyrics';
 
@@ -18488,6 +18625,8 @@ function wireAnnotateToolbarButtons(){
 
 function renderSongViewer(){
 
+  recordNavHistory('songViewer');
+
   currentScreenName = 'songViewer';
 
   /*
@@ -18612,7 +18751,7 @@ function renderSongViewer(){
     maybeShowLongPressHint();
   }
   updateLyricsNavIndicator();
-  document.getElementById('songBackBtn').onclick=()=>{if(currentSong){flushLineupAutoSync(currentSong.id);if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);}stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
+  document.getElementById('songBackBtn').onclick=()=>{if(currentSong){flushLineupAutoSync(currentSong.id);if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);}stopAutoScroll();songFlowMode=false;currentSong=null;goBack(renderLyrics);};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);skipNextScreenTransition=true;renderSongViewer();};}
   attachLineupSyncButton(currentSong);
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
@@ -18913,7 +19052,7 @@ function renderMergedSongViewer(){
     maybeShowLongPressHint();
   }
   updateLyricsNavIndicator();
-  document.getElementById('songBackBtn').onclick=()=>{if(currentSong){flushLineupAutoSync(currentSong.id);if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);}stopAutoScroll();songFlowMode=false;currentSong=null;renderLyrics();};
+  document.getElementById('songBackBtn').onclick=()=>{if(currentSong){flushLineupAutoSync(currentSong.id);if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);}stopAutoScroll();songFlowMode=false;currentSong=null;goBack(renderLyrics);};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);skipNextScreenTransition=true;renderSongViewer();};}
   attachLineupSyncButton(song);
   document.getElementById('transposeDown').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)-1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
@@ -21717,6 +21856,8 @@ function saveEditorChanges(){
 
 function renderLibrary(){
 
+  recordNavHistory('library');
+
   currentScreenName = 'library';
 
   setActiveNav('library');
@@ -22647,7 +22788,10 @@ function renderSetlistsTab(){
 
 function renderSetlistDetail(setlistId){
 
+  recordNavHistory('setlistDetail');
+
   currentScreenName = 'setlistDetail';
+  activeSetlistId = setlistId;
 
   setActiveNav('library');
 
@@ -22733,8 +22877,10 @@ function renderSetlistDetail(setlistId){
 
 
   document.getElementById('setlistBackBtn').onclick = () => {
-    libraryTab = 'setlists';
-    renderLibrary();
+    goBack(() => {
+      libraryTab = 'setlists';
+      renderLibrary();
+    });
   };
 
   document.getElementById('setlistRenameBtn').onclick = () => {
@@ -22834,6 +22980,8 @@ function getSongKeyLabel(part){
 
 
 function renderLineupDetail(){
+
+  recordNavHistory('lineupDetail');
 
   currentScreenName = 'lineupDetail';
 
@@ -23018,7 +23166,7 @@ function renderLineupDetail(){
 
 
   document.getElementById('lineupBackBtn').onclick = () => {
-    renderHome();
+    goBack(renderHome);
   };
 
   document.getElementById('lineupClearBtn').onclick = async () => {
@@ -24789,8 +24937,9 @@ if('serviceWorker' in navigator){
    This mirrors whatever the on-screen back button already does
    for the current screen (see currentScreenName, set at the top
    of each render* function above): closes an open song menu or
-   dialog first if one is open, otherwise goes to that screen's
-   logical parent, and only lets the app actually exit once
+   dialog first if one is open, otherwise goes back through
+   goBack()/navHistory to whichever screen was actually open
+   before this one, and only lets the app actually exit once
    already on Home — same as tapping back manually would.
 */
 
@@ -24832,26 +24981,28 @@ function handleHardwareBack(){
       stopAutoScroll();
       songFlowMode = false;
       currentSong = null;
-      renderLyrics();
+      goBack(renderLyrics);
 
       return true;
 
     case 'setlistDetail':
 
-      libraryTab = 'setlists';
-      renderLibrary();
+      goBack(() => {
+        libraryTab = 'setlists';
+        renderLibrary();
+      });
 
       return true;
 
     case 'lineupDetail':
 
-      renderHome();
+      goBack(renderHome);
 
       return true;
 
     case 'metronome':
 
-      renderHome();
+      goBack(renderHome);
 
       return true;
 
