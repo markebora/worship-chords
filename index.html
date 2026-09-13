@@ -12209,36 +12209,34 @@ function renderHome(){
       }
 
 
-      ${
-        lineup.songs.length
-        ? `
-          <div class="homeSection">
+      <div class="homeSection">
 
-            <div class="sectionLabel">
-              ${esc(formatLineupWeekdayLabel(lineup.date))}'s Lineup
-            </div>
+        <div class="sectionLabel">
+          ${esc(formatLineupWeekdayLabel(lineup.date))}'s Lineup
+        </div>
 
-            <div class="setlistCard" data-home-lineup="1" style="margin:0;">
+        <div class="setlistCard" data-home-lineup="1" style="margin:0;">
 
-              <div class="songIcon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="3" y="4" width="18" height="17" rx="2"/>
-                  <path d="M3 9h18" style="stroke-linecap:round;"/>
-                  <path d="M8 2v4M16 2v4" style="stroke-linecap:round;"/>
-                </svg>
-              </div>
-
-              <div class="songInfo">
-                <div class="setlistCardTitle">${esc(lineup.title || 'Worship Lineup')}</div>
-                <div class="setlistCardMeta">${lineup.songs.length} song${lineup.songs.length===1?'':'s'}${lineup.updatedBy ? ' · sent by ' + esc(lineup.updatedBy) : ''}</div>
-              </div>
-
-            </div>
-
+          <div class="songIcon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="17" rx="2"/>
+              <path d="M3 9h18" style="stroke-linecap:round;"/>
+              <path d="M8 2v4M16 2v4" style="stroke-linecap:round;"/>
+            </svg>
           </div>
-        `
-        : ''
-      }
+
+          <div class="songInfo">
+            <div class="setlistCardTitle">${esc(lineup.title || 'Worship Lineup')}</div>
+            <div class="setlistCardMeta">${
+              lineup.songs.length
+              ? `${lineup.songs.length} song${lineup.songs.length===1?'':'s'}${lineup.updatedBy ? ' · sent by ' + esc(lineup.updatedBy) : ''}`
+              : 'Nothing set yet — tap to plan ahead'
+            }</div>
+          </div>
+
+        </div>
+
+      </div>
 
 
       ${
