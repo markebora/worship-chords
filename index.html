@@ -3937,6 +3937,294 @@ button{
 
 
 /* =========================================================
+   SUNDAY LINEUP CALENDAR
+========================================================= */
+
+.lineupTopWidget{
+  background:#151518;
+  border:1px solid #2d2d32;
+  border-radius:16px;
+  padding:16px;
+  margin-bottom:18px;
+}
+
+.lineupTopWidgetHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:4px;
+}
+
+.lineupTopWidgetLabel{
+  font-size:13px;
+  font-weight:700;
+  color:#a7a7ae;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+
+.lineupTopWidgetTitle{
+  font-size:17px;
+  font-weight:800;
+  color:#f7f7f7;
+  margin:2px 0 10px;
+}
+
+.lineupTopWidgetSong{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:9px 0;
+  border-top:1px solid #232327;
+  font-size:14px;
+  color:#e6e6ea;
+}
+
+.lineupTopWidgetSong:first-of-type{
+  border-top:0;
+}
+
+.lineupCalCard{
+  background:#151518;
+  border:1px solid #2d2d32;
+  border-radius:16px;
+  padding:16px;
+}
+
+.lineupCalHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:14px;
+}
+
+.lineupCalMonthLabel{
+  font-size:15px;
+  font-weight:800;
+  color:#f7f7f7;
+}
+
+.lineupCalNavBtn{
+  background:#232327;
+  border:0;
+  border-radius:9px;
+  width:32px;
+  height:32px;
+  color:#e6e6ea;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.lineupCalNavBtn svg{
+  width:18px;
+  height:18px;
+}
+
+.lineupCalWeekdays{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  margin-bottom:6px;
+}
+
+.lineupCalWeekdays span{
+  text-align:center;
+  font-size:11px;
+  font-weight:700;
+  color:#6f6f77;
+}
+
+.lineupCalGrid{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:4px;
+}
+
+.lineupCalCell{
+  position:relative;
+  aspect-ratio:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:0;
+  border-radius:10px;
+  background:transparent;
+  color:#e6e6ea;
+  font-size:13.5px;
+  font-weight:600;
+}
+
+.lineupCalCell.otherMonth{
+  color:#48484e;
+}
+
+.lineupCalCell.today{
+  box-shadow:inset 0 0 0 1.5px #4c8bf5;
+}
+
+.lineupCalCell.hasLineup{
+  background:#4c8bf5;
+  color:#fff;
+  font-weight:800;
+}
+
+.lineupCalCell.hasLineup.today{
+  box-shadow:inset 0 0 0 1.5px #fff;
+}
+
+
+/* =========================================================
+   LINEUP DAY SHEET (tapping a calendar date)
+========================================================= */
+
+.lineupSheetBack{
+  position:fixed;
+  inset:0;
+  z-index:2100;
+
+  background:rgba(0,0,0,0);
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+
+  transition:
+    opacity .2s ease,
+    background .2s ease,
+    visibility 0s linear .2s;
+}
+
+.lineupSheetBack.open{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+  background:rgba(0,0,0,.68);
+
+  transition:
+    opacity .2s ease,
+    background .2s ease,
+    visibility 0s linear 0s;
+}
+
+.lineupSheetBox{
+  width:100%;
+  max-width:480px;
+  max-height:80vh;
+  overflow-y:auto;
+  background:#151518;
+  border:1px solid #2d2d32;
+  border-bottom:0;
+  border-radius:18px 18px 0 0;
+  padding:10px 20px 24px;
+
+  transform:translateY(16px);
+  transition:transform .2s ease;
+}
+
+.lineupSheetBack.open .lineupSheetBox{
+  transform:translateY(0);
+}
+
+.lineupSheetHandle{
+  width:36px;
+  height:4px;
+  border-radius:99px;
+  background:#3a3a40;
+  margin:0 auto 14px;
+}
+
+.lineupSheetDate{
+  font-size:17px;
+  font-weight:800;
+  color:#f7f7f7;
+  margin-bottom:2px;
+}
+
+.lineupSheetMeta{
+  font-size:13px;
+  color:#a7a7ae;
+  margin-bottom:16px;
+}
+
+.lineupSheetSongRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 0;
+  border-top:1px solid #232327;
+  font-size:14.5px;
+  color:#e6e6ea;
+}
+
+.lineupSheetSongRow:first-of-type{
+  border-top:0;
+}
+
+.lineupSetNowBtn{
+  width:100%;
+  margin-top:4px;
+}
+
+
+/* =========================================================
+   LINEUP SONG PICKER ("Set now?")
+========================================================= */
+
+.lineupPickerRow{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 4px;
+  border-bottom:1px solid #232327;
+}
+
+.lineupPickerCheck{
+  width:20px;
+  height:20px;
+  border-radius:6px;
+  border:1.5px solid #4a4a52;
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.lineupPickerRow.checked .lineupPickerCheck{
+  background:#4c8bf5;
+  border-color:#4c8bf5;
+}
+
+.lineupPickerRow.checked .lineupPickerCheck svg{
+  width:13px;
+  height:13px;
+  stroke:#fff;
+}
+
+.lineupPickerTitle{
+  font-size:14.5px;
+  color:#e6e6ea;
+  flex:1;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.lineupPickerBar{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+  background:#151518;
+  border-top:1px solid #2d2d32;
+  z-index:40;
+}
+
+
+/* =========================================================
    FAVORITES
 ========================================================= */
 
@@ -5559,6 +5847,7 @@ button{
   <div id="editorPillOverlay"></div>
   <div id="toastStack" aria-live="polite"></div>
   <div id="confirmOverlay"></div>
+  <div id="lineupSheetOverlay"></div>
 
 
   <!-- =====================================================
@@ -5839,9 +6128,12 @@ const query =
 const SYNC_LIBRARY_DOC_ID = 'shared';
 
 /*
-  Same idea as SYNC_LIBRARY_DOC_ID, but for the "Sunday Worship"
-  lineup — one shared doc everyone reads/writes at
-  lineups/{SYNC_LINEUP_DOC_ID}. See downloadLineup/uploadLineup.
+  Legacy single-doc lineup id. The app used to keep exactly one
+  shared lineup at lineups/{SYNC_LINEUP_DOC_ID}. It's now one doc
+  per date (lineups/{dateKey}, dateKey = 'YYYY-MM-DD') so the team
+  can set up several upcoming Sundays in advance — see the SUNDAY
+  LINEUP section below. This id is kept only so a one-time
+  migration can find and copy over whatever was in the old doc.
 */
 const SYNC_LINEUP_DOC_ID = 'current';
 
@@ -6671,8 +6963,19 @@ function snapshotScreen(name){
       return () => renderSetlistDetail(id);
     }
 
-    case 'lineupDetail':
-      return () => renderLineupDetail();
+    case 'lineupDetail':{
+      const date = currentLineupDate;
+      return () => renderLineupDetail(date);
+    }
+
+    case 'lineupCalendar':
+      return () => renderLineupCalendar();
+
+    case 'lineupPicker':{
+      const date = lineupPickerDate;
+      if(!date)return null;
+      return () => renderLineupSongPicker(date);
+    }
 
     case 'songViewer':{
       const song = currentSong;
@@ -7672,15 +7975,20 @@ function refreshLineupDetailIfOpen(){
     renderLineupDetail();
   }
 
+  if(currentScreenName === 'lineupCalendar'){
+    renderLineupCalendar();
+  }
+
 }
 
 
 /*
-  Realtime watch on the shared lineup doc — this is what makes
-  "someone else uploaded a change" show up on every other screen
-  within moments instead of waiting for the next manual sync.
-  Started once, on sign-in and on app boot (see initSyncOnLoad),
-  and just keeps running for the rest of the session.
+  Realtime watch on the whole 'lineups' collection — one doc per
+  date — so "someone else set up next Sunday" or "someone added
+  a song to a date" shows up on every other screen within
+  moments instead of waiting for the next manual sync. Started
+  once, on sign-in and on app boot (see initSyncOnLoad), and
+  just keeps running for the rest of the session.
 */
 
 let lineupLiveStarted = false;
@@ -7697,17 +8005,40 @@ async function startLineupLiveListener(){
 
     firestoreDb
       .collection('lineups')
-      .doc(SYNC_LINEUP_DOC_ID)
       .onSnapshot(
-        docSnap => {
+        querySnapshot => {
 
-          const data =
-            docSnap.exists ? docSnap.data() : null;
+          const map = {};
 
-          const songs =
-            Array.isArray(data && data.songs) ? data.songs : [];
+          querySnapshot.forEach(docSnap => {
 
-          handleLineupSnapshot(songs);
+            const data =
+              docSnap.data() || {};
+
+            map[docSnap.id] = {
+
+              date: docSnap.id,
+              title: data.title || 'Sunday Worship',
+              songs: Array.isArray(data.songs) ? data.songs : [],
+              videos: Array.isArray(data.videos) ? data.videos : [],
+              updatedBy: data.updatedBy || ''
+
+            };
+
+            handleLineupSnapshot(map[docSnap.id].songs);
+
+          });
+
+          setAllLocalLineups(map);
+          refreshLineupDetailIfOpen();
+
+          if(
+            document.getElementById('screen') &&
+            screen.querySelector('.homePage')
+          ){
+            skipNextScreenTransition = true;
+            renderHome();
+          }
 
         },
         error => {
@@ -9010,31 +9341,33 @@ function dedupeLibrarySongs(){
 
   }
 
-  /* Point the local Sunday Worship lineup at the survivor too */
+  /* Point every date's local lineup at the survivor too */
 
-  const lineup =
-    getLocalLineup();
+  const allLineups =
+    getAllLocalLineups();
 
-  let lineupChanged = false;
+  let anyLineupChanged = false;
 
-  if(lineup && Array.isArray(lineup.songs)){
+  Object.values(allLineups).forEach(lineup => {
+
+    if(!lineup || !Array.isArray(lineup.songs))return;
 
     lineup.songs.forEach(entry => {
 
       if(entry && idRemap.has(entry.id)){
 
         entry.id = idRemap.get(entry.id);
-        lineupChanged = true;
+        anyLineupChanged = true;
 
       }
 
     });
 
-    if(lineupChanged){
+  });
 
-      setLocalLineup(lineup);
+  if(anyLineupChanged){
 
-    }
+    setAllLocalLineups(allLineups);
 
   }
 
@@ -9760,54 +10093,250 @@ async function pullNewSongsFromDrive(){
 /* =========================================================
    SUNDAY LINEUP
 
-   A second shared Firestore doc, same pattern as the library
-   sync above: everyone reads/writes lineups/{SYNC_LINEUP_DOC_ID}.
-   Cached locally as 'worshipChordsLineup' so the Home screen
-   can render it instantly without waiting on a network round
-   trip; that cache gets refreshed on sign-in and app open (see
-   pullLineupFromDrive, called alongside pullNewSongsFromDrive),
-   and updated immediately by whoever sends/removes a song so
-   their own Home reflects it right away too.
+   One shared Firestore doc PER DATE, all living in the
+   'lineups' collection with the doc id as the date key
+   ('YYYY-MM-DD', see dateKey()). This is what lets the team
+   set up several upcoming dates in advance instead of only
+   ever having one lineup.
+
+   Everything is cached locally as one map under
+   'worshipChordsLineups' (dateKey -> lineup) so Home and the
+   calendar can render instantly without a network round trip;
+   that cache gets refreshed on sign-in and app open (see
+   pullLineupFromDrive) and updated immediately by whoever
+   sends/removes a song so their own screen reflects it right
+   away too.
+
+   MOST existing code (song viewer "Send to Team", the old
+   single-lineup screen, etc.) never needs to know which date
+   it's touching — getLocalLineup()/downloadLineup()/
+   uploadLineup()/setLocalLineup()/clearLineup() all resolve a
+   date automatically via resolveLineupDateKey() when called
+   with no argument: whichever date's screen is currently open
+   (currentLineupDate), otherwise the nearest upcoming date
+   that already has songs on it, otherwise next Sunday. Only
+   the calendar/day-sheet code below needs to pass an explicit
+   dateKey, since it's the one place several dates are visible
+   at once.
 ========================================================= */
 
-function getLocalLineup(){
+function pad2(n){
+  return String(n).padStart(2, '0');
+}
+
+function dateKey(date){
+  return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+}
+
+function dateFromKey(key){
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function todayDateKey(){
+  return dateKey(new Date());
+}
+
+function nextSundayDateKey(from){
+  const d = from ? new Date(from) : new Date();
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? 0 : 7 - day));
+  return dateKey(d);
+}
+
+function formatLineupDateLabel(key){
+
+  const date =
+    dateFromKey(key);
+
+  const isToday =
+    key === todayDateKey();
+
+  if(isToday)return 'Today';
+
+  return date.toLocaleDateString(
+    undefined,
+    { weekday:'long', month:'short', day:'numeric' }
+  );
+
+}
+
+/*
+  Short version for widget headers — "Today's Lineup" or, say,
+  "Sunday's Lineup" rather than the fuller "Sunday, Sep 20's
+  Lineup" that formatLineupDateLabel() would read as there.
+*/
+function formatLineupWeekdayLabel(key){
+
+  if(key === todayDateKey())return 'Today';
+
+  return dateFromKey(key).toLocaleDateString(
+    undefined,
+    { weekday:'long' }
+  );
+
+}
+
+function emptyLineup(key){
+  return { date:key, title:'Sunday Worship', songs:[], videos:[], updatedBy:'', updatedAt:'' };
+}
+
+/*
+  Currently open per-date lineup screen, if any — set by
+  renderLineupDetail(dateKey) below, cleared when leaving it.
+  Lets every legacy call site keep calling getLocalLineup() /
+  downloadLineup() / uploadLineup() with no argument and still
+  land on the right date.
+*/
+let currentLineupDate = null;
+
+function getAllLocalLineups(){
 
   try{
 
     const raw =
       JSON.parse(
+        localStorage.getItem('worshipChordsLineups')
+      );
+
+    if(raw && typeof raw === 'object' && !Array.isArray(raw)){
+      return raw;
+    }
+
+  }catch(error){}
+
+  /* One-time migration from the old single-lineup cache. */
+
+  try{
+
+    const legacy =
+      JSON.parse(
         localStorage.getItem('worshipChordsLineup')
       );
 
-    return {
+    const hasContent =
+      legacy && (
+        (Array.isArray(legacy.songs) && legacy.songs.length) ||
+        (Array.isArray(legacy.videos) && legacy.videos.length)
+      );
 
-      title: (raw && raw.title) || 'Sunday Worship',
-      songs: Array.isArray(raw && raw.songs) ? raw.songs : [],
-      videos: Array.isArray(raw && raw.videos) ? raw.videos : [],
-      updatedBy: (raw && raw.updatedBy) || ''
+    if(hasContent){
 
-    };
+      const key =
+        nextSundayDateKey();
 
-  }catch(error){
+      const migrated =
+        {
+          [key]: {
+            date: key,
+            title: legacy.title || 'Sunday Worship',
+            songs: legacy.songs || [],
+            videos: legacy.videos || [],
+            updatedBy: legacy.updatedBy || '',
+            updatedAt: new Date().toISOString()
+          }
+        };
 
-    return { title:'Sunday Worship', songs:[], videos:[], updatedBy:'' };
+      localStorage.setItem('worshipChordsLineups', JSON.stringify(migrated));
 
-  }
+      return migrated;
+
+    }
+
+  }catch(error){}
+
+  return {};
 
 }
 
-
-function setLocalLineup(lineup){
+function setAllLocalLineups(map){
 
   localStorage.setItem(
-    'worshipChordsLineup',
-    JSON.stringify(lineup)
+    'worshipChordsLineups',
+    JSON.stringify(map)
   );
 
 }
 
+/*
+  Nearest upcoming date (today counts) that already has at
+  least one song on it. Falls back to next Sunday — an empty
+  shell, nothing saved yet — when nothing's set up ahead.
+*/
+function getActiveLineupDateKey(){
 
-async function downloadLineup(){
+  const lineups =
+    getAllLocalLineups();
+
+  const today =
+    todayDateKey();
+
+  const upcoming =
+    Object.keys(lineups)
+      .filter(key => {
+        const entry = lineups[key];
+        return entry && Array.isArray(entry.songs) && entry.songs.length && key >= today;
+      })
+      .sort();
+
+  return upcoming.length ? upcoming[0] : nextSundayDateKey();
+
+}
+
+function resolveLineupDateKey(explicit){
+  return explicit || currentLineupDate || getActiveLineupDateKey();
+}
+
+/*
+  Every date, chronological, that currently has a lineup with
+  at least one song — used to highlight the calendar.
+*/
+function getLineupDateKeysWithSongs(){
+
+  const lineups =
+    getAllLocalLineups();
+
+  return Object.keys(lineups)
+    .filter(key => {
+      const entry = lineups[key];
+      return entry && Array.isArray(entry.songs) && entry.songs.length;
+    })
+    .sort();
+
+}
+
+function getLocalLineup(explicitDateKey){
+
+  const key =
+    resolveLineupDateKey(explicitDateKey);
+
+  const lineups =
+    getAllLocalLineups();
+
+  return lineups[key]
+    ? { ...emptyLineup(key), ...lineups[key] }
+    : emptyLineup(key);
+
+}
+
+
+function setLocalLineup(lineup, explicitDateKey){
+
+  const key =
+    resolveLineupDateKey(explicitDateKey);
+
+  const lineups =
+    getAllLocalLineups();
+
+  lineups[key] = { ...lineup, date:key };
+
+  setAllLocalLineups(lineups);
+
+}
+
+
+async function downloadLineup(explicitDateKey){
 
   /*
     Deliberately no try/catch here — a real Firestore failure
@@ -9825,10 +10354,13 @@ async function downloadLineup(){
     like "the server says there's nothing here."
   */
 
+  const key =
+    resolveLineupDateKey(explicitDateKey);
+
   const docSnap =
     await firestoreDb
       .collection('lineups')
-      .doc(SYNC_LINEUP_DOC_ID)
+      .doc(key)
       .get();
 
   const payload =
@@ -9836,6 +10368,7 @@ async function downloadLineup(){
 
   return {
 
+    date: key,
     title: (payload && payload.title) || 'Sunday Worship',
     songs: Array.isArray(payload && payload.songs) ? payload.songs : [],
     videos: Array.isArray(payload && payload.videos) ? payload.videos : [],
@@ -9846,13 +10379,53 @@ async function downloadLineup(){
 }
 
 
-async function uploadLineup(state){
+/*
+  Whole-collection pull, used by the calendar/Home so every
+  date with a lineup can be shown, not just whichever one is
+  currently open. Same no-swallowed-failure reasoning as
+  downloadLineup() above.
+*/
+async function downloadAllLineups(){
+
+  const snapshot =
+    await firestoreDb
+      .collection('lineups')
+      .get();
+
+  const map = {};
+
+  snapshot.forEach(docSnap => {
+
+    const payload =
+      docSnap.data() || {};
+
+    map[docSnap.id] = {
+
+      date: docSnap.id,
+      title: payload.title || 'Sunday Worship',
+      songs: Array.isArray(payload.songs) ? payload.songs : [],
+      videos: Array.isArray(payload.videos) ? payload.videos : [],
+      updatedBy: payload.updatedBy || ''
+
+    };
+
+  });
+
+  return map;
+
+}
+
+
+async function uploadLineup(state, explicitDateKey){
+
+  const key =
+    resolveLineupDateKey(explicitDateKey);
 
   try{
 
     await firestoreDb
       .collection('lineups')
-      .doc(SYNC_LINEUP_DOC_ID)
+      .doc(key)
       .set({
 
         title: state.title || 'Sunday Worship',
@@ -10790,9 +11363,9 @@ async function pullLineupFromDrive(){
   try{
 
     const remote =
-      await downloadLineup();
+      await downloadAllLineups();
 
-    setLocalLineup(remote);
+    setAllLocalLineups(remote);
 
     if(
       document.getElementById('screen') &&
@@ -10802,6 +11375,8 @@ async function pullLineupFromDrive(){
       renderHome();
 
     }
+
+    refreshLineupDetailIfOpen();
 
   }catch(error){
 
@@ -10846,9 +11421,12 @@ async function sendCurrentSongToLineup(song){
 
   }
 
+  const targetDateKey =
+    resolveLineupDateKey();
+
   const confirmed =
     await showConfirmDialog(
-      `Add "${song.title}" to the Sunday Worship lineup for the whole team to see?`,
+      `Add "${song.title}" to the ${formatLineupDateLabel(targetDateKey)} lineup for the whole team to see?`,
       { confirmLabel:'Send to Team' }
     );
 
@@ -11089,7 +11667,7 @@ async function removeSongFromLineup(songId){
 }
 
 
-async function clearLineup(){
+async function clearLineup(explicitDateKey){
 
   if(!await requireFirebaseConfigured())return;
 
@@ -11100,9 +11678,9 @@ async function clearLineup(){
     const cleared =
       { title:'Sunday Worship', songs:[], videos:[], updatedBy:'' };
 
-    await uploadLineup(cleared);
+    await uploadLineup(cleared, explicitDateKey);
 
-    setLocalLineup(cleared);
+    setLocalLineup(cleared, explicitDateKey);
 
   }catch(error){
 
@@ -11562,7 +12140,7 @@ function renderHome(){
           <div class="homeSection">
 
             <div class="sectionLabel">
-              Sunday Worship
+              ${esc(formatLineupWeekdayLabel(lineup.date))}'s Lineup
             </div>
 
             <div class="setlistCard" data-home-lineup="1" style="margin:0;">
@@ -11768,7 +12346,7 @@ function renderHome(){
 
     lineupCard.onclick = () => {
 
-      renderLineupDetail();
+      renderLineupCalendar();
 
     };
 
@@ -20944,7 +21522,7 @@ function generatePdfFromOptions(){
   const doc =
     new jsPDF({
       unit:'pt',
-      format:pdfExportPageSize === 'a4' ? 'a4' : pdfExportPageSize === 'legal' ? 'legal' : 'letter'
+      format:pdfExportPageSize === 'a4' ? 'a4' : pdfExportPageSize === 'legal' ? [612, 936] : 'letter'
     });
 
   const columns = pdfExportColumns;
@@ -21201,6 +21779,15 @@ let editorSections = [];
 */
 let editorEditingTarget = null;
 
+/*
+  The transposeSteps that were in effect on editorEditingTarget
+  when the editor opened — captured once here rather than
+  re-read from the target at save time, so a save can't be
+  thrown off if anything else touched that field while the
+  editor was open. See renderEditor() and saveEditorChanges().
+*/
+let editorTransposeStepsAtOpen = 0;
+
 
 function sectionsToEditorText(sections){
 
@@ -21443,11 +22030,34 @@ function renderEditor(song){
       : song;
 
 
+  /*
+    THE FIX: this used to always parse editorEditingTarget's
+    untransposed originalText, so editing a song that had been
+    transposed (e.g. shown at Key: A) silently dropped the user
+    back into its original key (e.g. G) with no way to tell.
+    Now it applies the same transposeSteps the viewer is
+    currently showing before parsing, so what's on screen here
+    matches what the person just saw and expects to edit.
+    saveEditorChanges() below reverses this before writing back,
+    so the stored originalText stays untransposed as always.
+  */
+
+  editorTransposeStepsAtOpen =
+    editorEditingTarget.transposeSteps || 0;
+
+  const editorBaselineText =
+    editorEditingTarget.originalText ||
+    editorEditingTarget.text ||
+    '';
+
+  const editorDisplayText =
+    editorTransposeStepsAtOpen !== 0
+      ? transposeText(editorBaselineText, editorTransposeStepsAtOpen)
+      : editorBaselineText;
+
   editorSections =
     parseSections(
-      editorEditingTarget.originalText ||
-      editorEditingTarget.text ||
-      ''
+      editorDisplayText
     );
 
   resetEditorHistory(
@@ -21486,6 +22096,12 @@ function renderEditor(song){
           ${isMergedEdit ? `
           <p class="editorMergeContext">
             Song ${clampMergedPartIndex(song) + 1} of ${song.mergeParts.length} in "${esc(song.title || 'this merge')}" — saving only updates this song
+          </p>
+          ` : ''}
+
+          ${editorTransposeStepsAtOpen !== 0 ? `
+          <p class="editorMergeContext">
+            Showing this in its current transposed key (${editorTransposeStepsAtOpen > 0 ? '+' : ''}${editorTransposeStepsAtOpen}) — saving keeps that transpose in place
           </p>
           ` : ''}
 
@@ -22134,21 +22750,37 @@ function saveEditorChanges(){
     currentSong;
 
 
+  /*
+    THE FIX: the textarea holds whatever key the editor opened
+    in — editorTransposeStepsAtOpen (see renderEditor()) — not
+    necessarily the song's original key. Reversing that same
+    amount here converts the edited text back down to the
+    untransposed baseline that originalText has always stored,
+    so the song's actual key never silently shifts just because
+    it happened to be viewed transposed while edited.
+  */
+
+  const normalizedText =
+    editorTransposeStepsAtOpen !== 0
+      ? transposeText(text, -editorTransposeStepsAtOpen)
+      : text;
+
+
   target.originalText =
-    text;
+    normalizedText;
 
 
   target.text =
-    text;
+    normalizedText;
 
 
   target.analysis =
     analyzeFocusedSong(
-      text
+      normalizedText
     );
 
   target.sectionOrder =
-    parseSections(text).map((section,index) =>
+    parseSections(normalizedText).map((section,index) =>
       String(index) + '|' + String(section.name || 'Section').trim().toLowerCase()
     );
 
@@ -23319,7 +23951,10 @@ function getSongKeyLabel(part){
 }
 
 
-function renderLineupDetail(){
+function renderLineupDetail(dateKey){
+
+  currentLineupDate =
+    dateKey || currentLineupDate || getActiveLineupDateKey();
 
   recordNavHistory('lineupDetail');
 
@@ -23379,7 +24014,7 @@ function renderLineupDetail(){
     <div class="librarySection">
 
       <div class="sectionLabel">
-        ${orderedSongs.length} song${orderedSongs.length===1?'':'s'}${lineup.updatedBy ? ' · sent by ' + esc(lineup.updatedBy) : ''}
+        ${esc(formatLineupDateLabel(currentLineupDate))} · ${orderedSongs.length} song${orderedSongs.length===1?'':'s'}${lineup.updatedBy ? ' · sent by ' + esc(lineup.updatedBy) : ''}
       </div>
 
       ${
@@ -23506,14 +24141,15 @@ function renderLineupDetail(){
 
 
   document.getElementById('lineupBackBtn').onclick = () => {
-    goBack(renderHome);
+    currentLineupDate = null;
+    goBack(renderLineupCalendar);
   };
 
   document.getElementById('lineupClearBtn').onclick = async () => {
 
     const confirmed =
       await showConfirmDialog(
-        `Clear the "${lineup.title || 'Sunday Worship'}" lineup for the whole team?`,
+        `Clear the "${lineup.title || 'Sunday Worship'}" lineup for ${formatLineupDateLabel(currentLineupDate)}?`,
         { confirmLabel:'Clear', danger:true }
       );
 
@@ -23521,7 +24157,8 @@ function renderLineupDetail(){
 
     await clearLineup();
 
-    renderHome();
+    currentLineupDate = null;
+    renderLineupCalendar();
 
   };
 
@@ -23635,6 +24272,514 @@ function renderLineupDetail(){
       removeVideoFromLineup(btn.dataset.removeYt);
     };
   });
+
+}
+
+
+/* =========================================================
+   SUNDAY WORSHIP CALENDAR
+
+   The Home entry point for lineups. Shows the nearest upcoming
+   lineup that already has songs on it, then a month calendar
+   with every date that has a lineup highlighted. Tapping a date
+   opens a small sheet (openLineupDaySheet) instead of drilling
+   straight into the full editor — that's still reachable from
+   the sheet via "Open full lineup", or by tapping the top
+   widget.
+========================================================= */
+
+let lineupCalendarViewDate = null;
+
+function renderLineupCalendar(){
+
+  recordNavHistory('lineupCalendar');
+
+  currentScreenName = 'lineupCalendar';
+
+  setActiveNav('home');
+
+  if(!lineupCalendarViewDate){
+    lineupCalendarViewDate = new Date();
+  }
+
+  const activeDateKey =
+    getActiveLineupDateKey();
+
+  const activeLineup =
+    getLocalLineup(activeDateKey);
+
+  const highlightedDates =
+    new Set(getLineupDateKeysWithSongs());
+
+  const viewYear =
+    lineupCalendarViewDate.getFullYear();
+
+  const viewMonth =
+    lineupCalendarViewDate.getMonth();
+
+  const firstOfMonth =
+    new Date(viewYear, viewMonth, 1);
+
+  const startWeekday =
+    firstOfMonth.getDay();
+
+  const daysInMonth =
+    new Date(viewYear, viewMonth + 1, 0).getDate();
+
+  const cells = [];
+
+  for(let i = 0; i < startWeekday; i++){
+    cells.push({ date:new Date(viewYear, viewMonth, i - startWeekday + 1), otherMonth:true });
+  }
+
+  for(let d = 1; d <= daysInMonth; d++){
+    cells.push({ date:new Date(viewYear, viewMonth, d), otherMonth:false });
+  }
+
+  const trailing =
+    (7 - (cells.length % 7)) % 7;
+
+  for(let d = 1; d <= trailing; d++){
+    cells.push({ date:new Date(viewYear, viewMonth, daysInMonth + d), otherMonth:true });
+  }
+
+  const monthLabel =
+    firstOfMonth.toLocaleDateString(undefined, { month:'long', year:'numeric' });
+
+  const today =
+    todayDateKey();
+
+  const weekdayLabels =
+    ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+  screen.innerHTML = `
+
+    <div class="libraryHead">
+
+      <button class="searchBtn" id="lineupCalBackBtn" aria-label="Back to home">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+
+      <div class="libraryTitle" style="flex:1;">Sunday Worship</div>
+
+    </div>
+
+
+    <div class="librarySection">
+
+      <div class="lineupTopWidget" id="lineupTopWidget">
+
+        <div class="lineupTopWidgetHead">
+          <div class="lineupTopWidgetLabel">${esc(formatLineupWeekdayLabel(activeDateKey))}'s Lineup</div>
+        </div>
+
+        <div class="lineupTopWidgetTitle">${esc(activeLineup.title || 'Sunday Worship')}</div>
+
+        ${
+          activeLineup.songs.length
+          ? activeLineup.songs.map(entry => `
+              <div class="lineupTopWidgetSong">
+                <span>${esc(entry.title || 'Untitled Song')}</span>
+              </div>
+            `).join('')
+          : `<div class="lineupTopWidgetSong" style="color:#6f6f77;border-top:0;">Nothing set yet — tap a date below to plan ahead.</div>`
+        }
+
+      </div>
+
+
+      <div class="lineupCalCard">
+
+        <div class="lineupCalHead">
+
+          <button class="lineupCalNavBtn" type="button" id="lineupCalPrev" aria-label="Previous month">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg>
+          </button>
+
+          <div class="lineupCalMonthLabel">${esc(monthLabel)}</div>
+
+          <button class="lineupCalNavBtn" type="button" id="lineupCalNext" aria-label="Next month">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+          </button>
+
+        </div>
+
+        <div class="lineupCalWeekdays">
+          ${weekdayLabels.map(w => `<span>${w}</span>`).join('')}
+        </div>
+
+        <div class="lineupCalGrid">
+          ${
+            cells.map(cell => {
+
+              const key =
+                dateKey(cell.date);
+
+              return `
+                <button
+                  type="button"
+                  class="lineupCalCell${cell.otherMonth ? ' otherMonth' : ''}${highlightedDates.has(key) ? ' hasLineup' : ''}${key === today ? ' today' : ''}"
+                  data-lineup-day="${key}"
+                >${cell.date.getDate()}</button>
+              `;
+
+            }).join('')
+          }
+        </div>
+
+      </div>
+
+    </div>
+
+  `;
+
+  document.getElementById('lineupCalBackBtn').onclick = () => {
+    goBack(renderHome);
+  };
+
+  document.getElementById('lineupCalPrev').onclick = () => {
+    lineupCalendarViewDate = new Date(viewYear, viewMonth - 1, 1);
+    skipNextScreenTransition = true;
+    renderLineupCalendar();
+  };
+
+  document.getElementById('lineupCalNext').onclick = () => {
+    lineupCalendarViewDate = new Date(viewYear, viewMonth + 1, 1);
+    skipNextScreenTransition = true;
+    renderLineupCalendar();
+  };
+
+  screen.querySelectorAll('[data-lineup-day]').forEach(el => {
+    el.onclick = () => openLineupDaySheet(el.dataset.lineupDay);
+  });
+
+  const topWidget =
+    document.getElementById('lineupTopWidget');
+
+  topWidget.style.cursor = 'pointer';
+
+  topWidget.onclick = () => {
+    renderLineupDetail(activeDateKey);
+  };
+
+}
+
+
+/*
+  Small "tab" that pops up from the bottom when a calendar date
+  is tapped — shows what's set for that date, or a "Set now?"
+  button when nothing is. Deliberately its own overlay (like
+  showConfirmDialog) rather than a full screen, so tapping
+  around the calendar to check a few dates stays quick.
+*/
+
+function closeLineupDaySheet(){
+
+  const back =
+    document.getElementById('lineupSheetBackEl');
+
+  if(!back)return;
+
+  back.classList.remove('open');
+
+  setTimeout(() => {
+
+    const host =
+      document.getElementById('lineupSheetOverlay');
+
+    if(host)host.innerHTML = '';
+
+  }, 200);
+
+}
+
+function openLineupDaySheet(key){
+
+  const host =
+    document.getElementById('lineupSheetOverlay');
+
+  if(!host)return;
+
+  const lineup =
+    getLocalLineup(key);
+
+  const hasSongs =
+    lineup.songs.length > 0;
+
+  const longDate =
+    dateFromKey(key).toLocaleDateString(
+      undefined,
+      { weekday:'long', year:'numeric', month:'long', day:'numeric' }
+    );
+
+  host.innerHTML = `
+
+    <div class="lineupSheetBack" id="lineupSheetBackEl">
+
+      <div class="lineupSheetBox">
+
+        <div class="lineupSheetHandle"></div>
+
+        <div class="lineupSheetDate">${esc(formatLineupDateLabel(key))}</div>
+        <div class="lineupSheetMeta">${esc(longDate)}</div>
+
+        ${
+          hasSongs
+          ? lineup.songs.map(entry => `
+              <div class="lineupSheetSongRow">
+                <span>${esc(entry.title || 'Untitled Song')}</span>
+              </div>
+            `).join('')
+          : `<div class="lineupSheetMeta" style="margin-bottom:18px;">No lineup set under it — set now?</div>`
+        }
+
+        <button class="toolbarBtn primary lineupSetNowBtn" type="button" id="lineupSheetSetNowBtn">
+          ${hasSongs ? 'Add more songs' : 'Set now?'}
+        </button>
+
+        ${
+          hasSongs
+          ? `<button class="toolbarBtn lineupSetNowBtn" type="button" id="lineupSheetOpenBtn" style="margin-top:8px;">Open full lineup</button>`
+          : ''
+        }
+
+      </div>
+
+    </div>
+
+  `;
+
+  const back =
+    document.getElementById('lineupSheetBackEl');
+
+  back.onclick = (event) => {
+    if(event.target === back)closeLineupDaySheet();
+  };
+
+  document.getElementById('lineupSheetSetNowBtn').onclick = () => {
+    closeLineupDaySheet();
+    renderLineupSongPicker(key);
+  };
+
+  const openBtn =
+    document.getElementById('lineupSheetOpenBtn');
+
+  if(openBtn){
+    openBtn.onclick = () => {
+      closeLineupDaySheet();
+      renderLineupDetail(key);
+    };
+  }
+
+  requestAnimationFrame(() => {
+    back.classList.add('open');
+  });
+
+}
+
+
+/*
+  Adds a batch of song ids to a specific date's lineup in one
+  round trip (download → merge in whatever isn't already there →
+  upload), then syncs the local cache. Used by the "Set now?"
+  song picker below.
+*/
+async function addSongsToLineupDate(key, songIds){
+
+  if(!await requireFirebaseConfigured())return false;
+
+  if(!(await ensureSyncSession())){
+    showToast('Sign in first to set up this lineup.', 'error');
+    return false;
+  }
+
+  try{
+
+    const remote =
+      await downloadLineup(key);
+
+    const songsById =
+      new Map(getSongs().map(song => [song.id, song]));
+
+    songIds.forEach(id => {
+
+      if(remote.songs.some(item => item.id === id))return;
+
+      const song =
+        songsById.get(id);
+
+      if(!song)return;
+
+      remote.songs.push({
+        id: song.id,
+        title: song.title,
+        updatedAt: song.updatedAt || song.savedAt || new Date().toISOString()
+      });
+
+    });
+
+    const user =
+      getGoogleUser();
+
+    remote.updatedBy =
+      (user && user.name) || '';
+
+    await uploadLineup(remote, key);
+
+    setLocalLineup(remote, key);
+
+    return true;
+
+  }catch(error){
+
+    console.error(error);
+
+    showToast(
+      'Could not set up that lineup: ' + error.message,
+      'error'
+    );
+
+    return false;
+
+  }
+
+}
+
+
+/*
+  "Set now?" picker — every library song with a checkbox, tap to
+  toggle, fixed bottom bar to confirm. Kept deliberately separate
+  from the Library screen's own long-press select mode (that one's
+  wired for rename/delete/merge, not this), so nothing there needs
+  to change.
+*/
+
+let lineupPickerDate = null;
+let lineupPickerSelectedIds = new Set();
+
+function renderLineupSongPicker(dateKey){
+
+  lineupPickerDate = dateKey;
+  lineupPickerSelectedIds = new Set();
+
+  recordNavHistory('lineupPicker');
+
+  currentScreenName = 'lineupPicker';
+
+  setActiveNav('home');
+
+  const songs =
+    getSongs().slice().sort(
+      (a, b) => (a.title || '').localeCompare(b.title || '')
+    );
+
+  screen.innerHTML = `
+
+    <div class="libraryHead">
+
+      <button class="searchBtn" id="lineupPickerBackBtn" aria-label="Back">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+
+      <div class="libraryTitle" style="flex:1;">
+        Add songs · ${esc(formatLineupDateLabel(dateKey))}
+      </div>
+
+    </div>
+
+    <div class="librarySection" style="padding-bottom:80px;">
+
+      ${
+        songs.length
+        ? songs.map(song => `
+            <div class="lineupPickerRow" data-picker-row="${esc(song.id)}">
+              <span class="lineupPickerCheck">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>
+              </span>
+              <span class="lineupPickerTitle">${esc(song.title || 'Untitled Song')}</span>
+            </div>
+          `).join('')
+        : `
+          <div class="empty">
+            ${emptyStateIconHTML('music')}
+            No songs in your library yet.
+          </div>
+        `
+      }
+
+    </div>
+
+    <div class="lineupPickerBar">
+      <button class="toolbarBtn primary" id="lineupPickerConfirmBtn" type="button" style="width:100%;" disabled>
+        Add to lineup
+      </button>
+    </div>
+
+  `;
+
+  document.getElementById('lineupPickerBackBtn').onclick = () => {
+    goBack(() => renderLineupCalendar());
+  };
+
+  const confirmBtn =
+    document.getElementById('lineupPickerConfirmBtn');
+
+  const updateConfirmLabel = () => {
+
+    const count =
+      lineupPickerSelectedIds.size;
+
+    confirmBtn.disabled = count === 0;
+
+    confirmBtn.textContent =
+      count ? `Add ${count} song${count === 1 ? '' : 's'} to lineup` : 'Add to lineup';
+
+  };
+
+  screen.querySelectorAll('[data-picker-row]').forEach(row => {
+
+    row.onclick = () => {
+
+      const id =
+        row.dataset.pickerRow;
+
+      if(lineupPickerSelectedIds.has(id)){
+        lineupPickerSelectedIds.delete(id);
+        row.classList.remove('checked');
+      }else{
+        lineupPickerSelectedIds.add(id);
+        row.classList.add('checked');
+      }
+
+      updateConfirmLabel();
+
+    };
+
+  });
+
+  confirmBtn.onclick = async () => {
+
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Adding…';
+
+    const ok =
+      await addSongsToLineupDate(dateKey, [...lineupPickerSelectedIds]);
+
+    if(ok){
+
+      showToast('Lineup set for ' + formatLineupDateLabel(dateKey) + '.', 'success');
+
+      currentLineupDate = dateKey;
+
+      goBack(() => renderLineupDetail(dateKey));
+
+    }else{
+
+      updateConfirmLabel();
+
+    }
+
+  };
 
 }
 
@@ -25314,6 +26459,17 @@ function handleHardwareBack(){
 
   }
 
+  const lineupSheetBack =
+    document.getElementById('lineupSheetBackEl');
+
+  if(lineupSheetBack && lineupSheetBack.classList.contains('open')){
+
+    closeLineupDaySheet();
+
+    return true;
+
+  }
+
   switch(currentScreenName){
 
     case 'songViewer':
@@ -25336,7 +26492,20 @@ function handleHardwareBack(){
 
     case 'lineupDetail':
 
+      currentLineupDate = null;
+      goBack(renderLineupCalendar);
+
+      return true;
+
+    case 'lineupCalendar':
+
       goBack(renderHome);
+
+      return true;
+
+    case 'lineupPicker':
+
+      goBack(renderLineupCalendar);
 
       return true;
 
