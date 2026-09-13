@@ -5361,6 +5361,126 @@ button{
   background:#242428;
 }
 
+
+/* =========================================================
+   METRONOME MEDIUM WINDOW
+
+   A bigger, floating version of the metronome — everything the
+   full screen has, in a draggable window instead of a page
+   navigation. Sits in #metMediumOverlay, a sibling of #screen,
+   same survives-navigation idea as the mini widget above. The
+   dim backdrop makes it read as a focused window rather than a
+   passive control like the mini pill.
+========================================================= */
+
+#metMediumOverlay:empty{
+  display:none;
+}
+
+#metMediumOverlay{
+  position:fixed;
+  inset:0;
+  z-index:170;
+  background:rgba(0,0,0,.55);
+}
+
+.metMediumCard{
+  position:fixed;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+
+  width:min(92vw, 400px);
+  max-height:86vh;
+
+  display:flex;
+  flex-direction:column;
+
+  background:rgba(17,17,20,.98);
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:20px;
+
+  box-shadow:0 24px 60px rgba(0,0,0,.55);
+
+  overflow:hidden;
+}
+
+.metMediumChrome{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:8px;
+
+  padding:10px 10px;
+
+  cursor:grab;
+  border-bottom:1px solid rgba(255,255,255,.08);
+
+  user-select:none;
+  -webkit-user-select:none;
+  touch-action:none;
+}
+
+.metMediumWinBtn{
+  flex:0 0 auto;
+  width:28px;
+  height:28px;
+
+  border:0;
+  background:rgba(255,255,255,.08);
+  color:#c8c8cc;
+
+  border-radius:8px;
+
+  display:grid;
+  place-items:center;
+
+  cursor:pointer;
+}
+
+.metMediumWinBtn svg{
+  width:14px;
+  height:14px;
+}
+
+.metMediumWinBtn:active{
+  background:rgba(255,255,255,.16);
+}
+
+.metMediumCloseBtn{
+  color:#ff8080;
+}
+
+.metMediumDragBar{
+  flex:1;
+  display:flex;
+  justify-content:center;
+}
+
+.metMediumDragBar::after{
+  content:'';
+  width:44px;
+  height:4px;
+  border-radius:999px;
+  background:rgba(255,255,255,.22);
+}
+
+.metMediumTitleRow{
+  flex:0 0 auto;
+  padding:2px 16px 10px;
+  font-size:13.5px;
+  font-weight:800;
+  color:#e6e6e8;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+
+.metMediumBody{
+  flex:1 1 auto;
+  overflow-y:auto;
+  padding:16px;
+  touch-action:pan-y;
+}
+
 </style>
 
 </head>
@@ -5435,6 +5555,7 @@ button{
 
   <div id="ytPlayerOverlay"></div>
   <div id="metMiniOverlay"></div>
+  <div id="metMediumOverlay"></div>
   <div id="editorPillOverlay"></div>
   <div id="toastStack" aria-live="polite"></div>
   <div id="confirmOverlay"></div>
@@ -6703,6 +6824,10 @@ function setActiveNav(name){
   */
   if(typeof metSyncMiniWidget === 'function'){
     metSyncMiniWidget();
+  }
+
+  if(typeof metSyncMediumWindow === 'function'){
+    metSyncMediumWindow();
   }
 
   document
@@ -12541,6 +12666,17 @@ let metMiniOpen = false;
 let metMiniPos = { left:null, top:null };
 
 /*
+  The medium metronome window — an in-between size opened by
+  tapping the mini pill's title/drag area. Shows everything the
+  full Metronome screen has (metronomeBodyMarkup() above), just
+  inside a draggable floating card instead of navigating away.
+  Independent of metMiniOpen: when this is true the medium
+  window is shown instead of the small pill, not alongside it.
+*/
+let metMediumOpen = false;
+let metMediumPos = { left:null, top:null };
+
+/*
   Builds just the preset row's markup — pulled out so both the
   initial build and the patch path (currentSong can change while
   the widget stays open, e.g. flipping to the next song) can
@@ -12683,7 +12819,7 @@ function metSyncMiniWidget(){
 
   if(!overlay)return;
 
-  if(!metMiniOpen || currentScreenName === 'metronome'){
+  if(!metMiniOpen || currentScreenName === 'metronome' || metMediumOpen){
 
     overlay.innerHTML = '';
 
@@ -12706,7 +12842,7 @@ function metSyncMiniWidget(){
       <div class="metMiniCard" id="metMiniCard" style="${posStyle}">
 
         <div class="metMiniHead" id="metMiniHead">
-          <span class="metMiniDrag" aria-hidden="true">⠿</span>
+          <span class="metMiniDrag" id="metMiniDrag" aria-label="Expand metronome" role="button">⠿</span>
           <span class="metMiniTitle" id="metMiniTitle">Metronome</span>
           <button type="button" class="metMiniCloseBtn" id="metMiniCloseBtn" aria-label="Hide metronome">✕</button>
         </div>
@@ -12787,7 +12923,13 @@ function metWireMiniWidget(){
 
   document.getElementById('metMiniTitle').onclick = () => {
 
-    renderMetronome();
+    openMetMediumWindow();
+
+  };
+
+  document.getElementById('metMiniDrag').onclick = () => {
+
+    openMetMediumWindow();
 
   };
 
@@ -12882,6 +13024,176 @@ function metWireMiniWidget(){
 }
 
 
+/* =========================================================
+   METRONOME MEDIUM WINDOW
+
+   Opened from the mini pill's drag-dot / title. Shows the same
+   metronomeBodyMarkup() the full screen uses, inside a draggable
+   floating card (#metMediumOverlay, a sibling of #screen — same
+   survives-navigation approach as the mini widget). Independent
+   of metMiniOpen so the pill and this window are never both
+   visible at once — see the metMediumOpen check added to
+   metSyncMiniWidget() above.
+========================================================= */
+
+function openMetMediumWindow(){
+
+  metMediumOpen = true;
+
+  metSyncMiniWidget();
+  metSyncMediumWindow();
+
+}
+
+function metSyncMediumWindow(){
+
+  const overlay =
+    document.getElementById('metMediumOverlay');
+
+  if(!overlay)return;
+
+  if(!metMediumOpen || currentScreenName === 'metronome'){
+
+    overlay.innerHTML = '';
+
+    return;
+
+  }
+
+  if(document.getElementById('metMediumCard'))return;
+
+  renderMetMediumWindow();
+
+}
+
+function renderMetMediumWindow(){
+
+  const overlay =
+    document.getElementById('metMediumOverlay');
+
+  if(!overlay)return;
+
+  const posStyle =
+    metMediumPos.left !== null
+      ? `left:${metMediumPos.left}px;top:${metMediumPos.top}px;transform:none;`
+      : '';
+
+  overlay.innerHTML = `
+
+    <div class="metMediumCard" id="metMediumCard" style="${posStyle}">
+
+      <div class="metMediumChrome" id="metMediumChrome">
+
+        <button type="button" class="metMediumWinBtn" id="metMediumExpandBtn" aria-label="Open full screen">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
+        </button>
+
+        <button type="button" class="metMediumWinBtn" id="metMediumMinimizeBtn" aria-label="Shrink to mini pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+
+        <span class="metMediumDragBar" aria-hidden="true"></span>
+
+        <button type="button" class="metMediumWinBtn metMediumCloseBtn" id="metMediumCloseBtn" aria-label="Close metronome">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg>
+        </button>
+
+      </div>
+
+      <div class="metMediumTitleRow">Metronome</div>
+
+      <div class="metMediumBody" id="metMediumBody">
+        ${metronomeBodyMarkup()}
+      </div>
+
+    </div>
+
+  `;
+
+  wireMetronomeBody();
+  metWireMediumWindowChrome();
+
+}
+
+function metWireMediumWindowChrome(){
+
+  const cardEl = document.getElementById('metMediumCard');
+  const chromeEl = document.getElementById('metMediumChrome');
+
+  if(!cardEl || !chromeEl)return;
+
+  document.getElementById('metMediumExpandBtn').onclick = () => {
+
+    renderMetronome();
+
+  };
+
+  document.getElementById('metMediumMinimizeBtn').onclick = () => {
+
+    metMediumOpen = false;
+
+    metSyncMediumWindow();
+    metSyncMiniWidget();
+
+  };
+
+  document.getElementById('metMediumCloseBtn').onclick = () => {
+
+    metMediumOpen = false;
+    metMiniOpen = false;
+
+    metSyncMediumWindow();
+    metSyncMiniWidget();
+
+  };
+
+
+  /* ---------- dragging (by the chrome bar only, not the body) ---------- */
+
+  let dragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  chromeEl.addEventListener('pointerdown', event => {
+
+    dragging = true;
+
+    const rect = cardEl.getBoundingClientRect();
+
+    offsetX = event.clientX - rect.left;
+    offsetY = event.clientY - rect.top;
+
+    cardEl.style.transform = 'none';
+
+    chromeEl.setPointerCapture(event.pointerId);
+
+  });
+
+  chromeEl.addEventListener('pointermove', event => {
+
+    if(!dragging)return;
+
+    const maxLeft = window.innerWidth - cardEl.offsetWidth - 6;
+    const maxTop = window.innerHeight - cardEl.offsetHeight - 6;
+
+    const nextLeft = Math.min(maxLeft, Math.max(6, event.clientX - offsetX));
+    const nextTop = Math.min(maxTop, Math.max(6, event.clientY - offsetY));
+
+    cardEl.style.left = nextLeft + 'px';
+    cardEl.style.top = nextTop + 'px';
+
+    metMediumPos = { left:nextLeft, top:nextTop };
+
+  });
+
+  const endDrag = () => { dragging = false; };
+
+  chromeEl.addEventListener('pointerup', endDrag);
+  chromeEl.addEventListener('pointercancel', endDrag);
+
+}
+
+
 /*
   Only meaningful while a song is actually open (currentSong is
   set from the Lyrics/song viewer) — lets a saved BPM per song be
@@ -12956,151 +13268,136 @@ function renderMetSongPresetSection(){
 
 }
 
-function renderMetronome(){
+/*
+  The actual metronome controls (BPM, presets, time signature,
+  subdivision, beat dots, play button, volume, sound/tone) —
+  factored out of renderMetronome() so the exact same markup and
+  wiring can also drive the medium floating window
+  (renderMetMediumWindow() below) without duplicating any of it.
+  Both callers provide their own header/chrome around this.
+*/
+function metronomeBodyMarkup(){
 
-  recordNavHistory('metronome');
+  return `
 
-  currentScreenName = 'metronome';
+    <div class="metBpmCard">
 
-  setActiveNav('home');
+      <div class="metBpmRow">
 
-  screen.innerHTML = `
+        <button class="metBpmStepBtn" id="metBpmDownBtn" type="button" aria-label="Decrease tempo">–</button>
 
-    <div class="metronomePage">
-
-      <div class="libraryHead">
-
-        <button
-          class="searchBtn"
-          id="metBackBtn"
-          aria-label="Back to home"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
-        </button>
-
-        <div class="libraryTitle" style="flex:1;">
-          Metronome
+        <div class="metBpmDisplay">
+          <div class="metBpmNumber" id="metBpmNumber">${metTempo}</div>
+          <div class="metBpmUnit">beats / min</div>
         </div>
 
-      </div>
-
-
-      <div class="metBpmCard">
-
-        <div class="metBpmRow">
-
-          <button class="metBpmStepBtn" id="metBpmDownBtn" type="button" aria-label="Decrease tempo">–</button>
-
-          <div class="metBpmDisplay">
-            <div class="metBpmNumber" id="metBpmNumber">${metTempo}</div>
-            <div class="metBpmUnit">beats / min</div>
-          </div>
-
-          <button class="metBpmStepBtn" id="metBpmUpBtn" type="button" aria-label="Increase tempo">+</button>
-
-        </div>
-
-        <input class="metBpmSlider" id="metBpmSlider" type="range" min="30" max="240" value="${metTempo}">
-
-        <button class="metTapBtn" id="metTapBtn" type="button">Tap Tempo</button>
+        <button class="metBpmStepBtn" id="metBpmUpBtn" type="button" aria-label="Increase tempo">+</button>
 
       </div>
 
+      <input class="metBpmSlider" id="metBpmSlider" type="range" min="30" max="240" value="${metTempo}">
 
-      <div id="metSongPresetSection"></div>
-
-
-      <div class="sectionLabel metSectionLabel">Time signature</div>
-      <div class="metTsRow" id="metTsRow"></div>
-
-      <div class="sectionLabel metSectionLabel">Subdivision</div>
-      <div class="metTsRow" id="metSubdivisionRow"></div>
-
-      <div class="metBeatRow" id="metBeatRow"></div>
-
-      <div class="metPlayWrap">
-        <button class="metPlayBtn" id="metPlayBtn" type="button" aria-label="Start">
-
-          <svg id="metPlayIcon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M8 5v14l11-7z"></path>
-          </svg>
-
-        </button>
-      </div>
-
-      <div class="metVolRow">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1-3.29-2.5-4.03v8.05c1.5-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>
-        <input class="metVolSlider" id="metVolSlider" type="range" min="0" max="100" value="${metVolume}">
-      </div>
-
-      <div class="sectionLabel metSectionLabel" style="display:flex;align-items:center;justify-content:space-between;">
-        <span>Sound</span>
-        <div style="display:flex;gap:6px;">
-          <button class="metPreviewBtn" id="metSaveCustomBtn" type="button">💾 Save Custom</button>
-          <button class="metPreviewBtn" id="metPreviewBtn" type="button">▶ Preview</button>
-        </div>
-      </div>
-
-      <div class="metSoundPresetWrap">
-        <div class="metTsRow" id="metSoundPresetRow"></div>
-        <button class="metSoundEditBtn" id="metSoundEditBtn" type="button" aria-label="Edit tone" aria-expanded="false">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1-3.29-2.5-4.03v8.05c1.5-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>
-        </button>
-      </div>
-
-      <div class="metSoundControls hidden" id="metSoundControls">
-
-        <div class="metSoundControlRow">
-          <div class="metSoundControlLabel">
-            <span>Pitch</span>
-            <span class="metSoundControlValue" id="metPitchValue">${metPitch}</span>
-          </div>
-          <input class="metTuneSlider" id="metPitchSlider" type="range" min="-12" max="12" step="1" value="${metPitch}">
-        </div>
-
-        <div class="metSoundControlRow">
-          <div class="metSoundControlLabel">
-            <span>Tone</span>
-            <span class="metSoundControlValue" id="metToneValue">${metTone}</span>
-          </div>
-          <input class="metTuneSlider" id="metToneSlider" type="range" min="0" max="100" step="1" value="${metTone}">
-          <div class="metSoundControlHint">
-            <span>Percussive</span>
-            <span>Tonal</span>
-          </div>
-        </div>
-
-        <div class="metSoundControlRow">
-          <div class="metSoundControlLabel">
-            <span>Decay</span>
-            <span class="metSoundControlValue" id="metDecayValue">${metDecay}</span>
-          </div>
-          <input class="metTuneSlider" id="metDecaySlider" type="range" min="0" max="100" step="1" value="${metDecay}">
-          <div class="metSoundControlHint">
-            <span>Tight</span>
-            <span>Ringing</span>
-          </div>
-        </div>
-
-      </div>
-
-      <p class="metNote">
-        Sample-accurate scheduling, so tempo stays steady over a
-        long practice run. Leaving this screen doesn't stop it —
-        long-press the auto-scroll button while viewing a song's
-        lyrics for a small floating control. Settings are saved
-        on this device.
-      </p>
+      <button class="metTapBtn" id="metTapBtn" type="button">Tap Tempo</button>
 
     </div>
 
+
+    <div id="metSongPresetSection"></div>
+
+
+    <div class="sectionLabel metSectionLabel">Time signature</div>
+    <div class="metTsRow" id="metTsRow"></div>
+
+    <div class="sectionLabel metSectionLabel">Subdivision</div>
+    <div class="metTsRow" id="metSubdivisionRow"></div>
+
+    <div class="metBeatRow" id="metBeatRow"></div>
+
+    <div class="metPlayWrap">
+      <button class="metPlayBtn" id="metPlayBtn" type="button" aria-label="Start">
+
+        <svg id="metPlayIcon" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M8 5v14l11-7z"></path>
+        </svg>
+
+      </button>
+    </div>
+
+    <div class="metVolRow">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1-3.29-2.5-4.03v8.05c1.5-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>
+      <input class="metVolSlider" id="metVolSlider" type="range" min="0" max="100" value="${metVolume}">
+    </div>
+
+    <div class="sectionLabel metSectionLabel" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>Sound</span>
+      <div style="display:flex;gap:6px;">
+        <button class="metPreviewBtn" id="metSaveCustomBtn" type="button">💾 Save Custom</button>
+        <button class="metPreviewBtn" id="metPreviewBtn" type="button">▶ Preview</button>
+      </div>
+    </div>
+
+    <div class="metSoundPresetWrap">
+      <div class="metTsRow" id="metSoundPresetRow"></div>
+      <button class="metSoundEditBtn" id="metSoundEditBtn" type="button" aria-label="Edit tone" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1-3.29-2.5-4.03v8.05c1.5-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>
+      </button>
+    </div>
+
+    <div class="metSoundControls hidden" id="metSoundControls">
+
+      <div class="metSoundControlRow">
+        <div class="metSoundControlLabel">
+          <span>Pitch</span>
+          <span class="metSoundControlValue" id="metPitchValue">${metPitch}</span>
+        </div>
+        <input class="metTuneSlider" id="metPitchSlider" type="range" min="-12" max="12" step="1" value="${metPitch}">
+      </div>
+
+      <div class="metSoundControlRow">
+        <div class="metSoundControlLabel">
+          <span>Tone</span>
+          <span class="metSoundControlValue" id="metToneValue">${metTone}</span>
+        </div>
+        <input class="metTuneSlider" id="metToneSlider" type="range" min="0" max="100" step="1" value="${metTone}">
+        <div class="metSoundControlHint">
+          <span>Percussive</span>
+          <span>Tonal</span>
+        </div>
+      </div>
+
+      <div class="metSoundControlRow">
+        <div class="metSoundControlLabel">
+          <span>Decay</span>
+          <span class="metSoundControlValue" id="metDecayValue">${metDecay}</span>
+        </div>
+        <input class="metTuneSlider" id="metDecaySlider" type="range" min="0" max="100" step="1" value="${metDecay}">
+        <div class="metSoundControlHint">
+          <span>Tight</span>
+          <span>Ringing</span>
+        </div>
+      </div>
+
+    </div>
+
+    <p class="metNote">
+      Sample-accurate scheduling, so tempo stays steady over a
+      long practice run. Leaving this screen doesn't stop it —
+      long-press the auto-scroll button while viewing a song's
+      lyrics for a small floating control. Settings are saved
+      on this device.
+    </p>
+
   `;
 
+}
 
-  document.getElementById('metBackBtn').onclick = () => {
-    goBack(renderHome);
-  };
-
+/*
+  Wires every control inside metronomeBodyMarkup(). Safe to call
+  once per time that markup is inserted into the DOM — used by
+  both renderMetronome() (full screen) and renderMetMediumWindow()
+  (the medium floating window), never both at once.
+*/
+function wireMetronomeBody(){
 
   /* ---------- BPM ---------- */
 
@@ -13243,6 +13540,49 @@ function renderMetronome(){
   [pitchSliderEl, toneSliderEl, decaySliderEl].forEach(el => {
     el.addEventListener('change', metPreviewClick);
   });
+
+}
+
+function renderMetronome(){
+
+  recordNavHistory('metronome');
+
+  currentScreenName = 'metronome';
+
+  setActiveNav('home');
+
+  screen.innerHTML = `
+
+    <div class="metronomePage">
+
+      <div class="libraryHead">
+
+        <button
+          class="searchBtn"
+          id="metBackBtn"
+          aria-label="Back to home"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+
+        <div class="libraryTitle" style="flex:1;">
+          Metronome
+        </div>
+
+      </div>
+
+      ${metronomeBodyMarkup()}
+
+    </div>
+
+  `;
+
+
+  document.getElementById('metBackBtn').onclick = () => {
+    goBack(renderHome);
+  };
+
+  wireMetronomeBody();
 
 }
 
