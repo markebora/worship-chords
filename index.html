@@ -2859,6 +2859,16 @@ button{
 .mergePartPill.active{background:#fff;color:#111;border-color:#fff;}
 .mergedLyricsView{touch-action:pan-y;}
 
+/* Shared header "meta row": numbered song pills (merge or
+   lineup) and the Key/BPM/Capo badges live together on their
+   own scrollable row below the title, instead of crowding into
+   songHeaderTop and truncating the title. */
+.songHeaderMetaRow{display:flex;align-items:center;gap:6px;margin-top:9px;padding:0 1px 1px;overflow-x:auto;scrollbar-width:none;}
+.songHeaderMetaRow::-webkit-scrollbar{display:none;}
+.songHeaderMetaRow .keyBadge{flex:0 0 auto;margin:0;font-size:11px;padding:4px 10px;white-space:nowrap;}
+.songHeaderMetaRow .capoBadge{flex:0 0 auto;margin:0;font-size:11px;padding:4px 10px;white-space:nowrap;}
+.songHeaderMetaRow .bpmHeaderBadge{margin:0;}
+
 
 .songSectionFloatBar{position:fixed;bottom:calc(82px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:620px;z-index:99;background:transparent;border:0;box-shadow:none;padding:0;transition:opacity .3s ease,transform .3s ease;}
 .songSectionFloatBar.idle{opacity:.4;transform:translateX(-50%) scale(.95);}
@@ -19663,14 +19673,14 @@ function renderSongViewer(){
             <svg viewBox="0 0 24 24" fill="${song.favorite?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M12 17.3 6.2 20.6l1.1-6.6-4.8-4.7 6.6-1 3-6 3 6 6.6 1-4.8 4.7 1.1 6.6z"/></svg>
           </button>
           ${renderLineupSyncButtonHTML(song)}
-          ${keyInfo?`<div class="keyBadge songHeaderKey">Key: ${esc(keyInfo.label)}</div>`:''}
-          ${metPresetBpm!==null?`<div class="bpmHeaderBadge">${metPresetBpm} BPM</div>`:''}
-          ${capoInfo?`<div class="capoBadge">Capo ${capoInfo.fret} → ${esc(capoInfo.shape)} shape</div>`:''}
         </div>
         ${
-          lineupPillSongs ? `
-            <div class="mergePartPills" id="lineupSongPills" aria-label="Songs in this lineup">
-              ${lineupPillSongs.map((entry,index)=>`<button type="button" class="mergePartPill${entry.id===song.id?' active':''}" data-lineup-pill-song="${esc(entry.id)}" aria-label="Song ${index+1}: ${esc(entry.title||'Untitled Song')}">${index+1}</button>`).join('')}
+          (lineupPillSongs||keyInfo||metPresetBpm!==null||capoInfo) ? `
+            <div class="songHeaderMetaRow" id="lineupSongPills" aria-label="${lineupPillSongs?'Songs in this lineup':'Song details'}">
+              ${lineupPillSongs?lineupPillSongs.map((entry,index)=>`<button type="button" class="mergePartPill${entry.id===song.id?' active':''}" data-lineup-pill-song="${esc(entry.id)}" aria-label="Song ${index+1}: ${esc(entry.title||'Untitled Song')}">${index+1}</button>`).join(''):''}
+              ${keyInfo?`<div class="keyBadge songHeaderKey">Key: ${esc(keyInfo.label)}</div>`:''}
+              ${metPresetBpm!==null?`<div class="bpmHeaderBadge">${metPresetBpm} BPM</div>`:''}
+              ${capoInfo?`<div class="capoBadge">Capo ${capoInfo.fret} → ${esc(capoInfo.shape)} shape</div>`:''}
             </div>
           ` : ''
         }
@@ -19720,7 +19730,7 @@ function renderSongViewer(){
         </div>
       </div>
       `:`
-      <div class="lyricsView" id="lyricsText" style="font-size:${song.fontSize}px;"><div class="annotateWrap" id="annotateWrap"><div class="songStructure${showChords?'':' chordsHidden'}" id="songStructure">
+      <div class="lyricsView${lineupPillSongs?' mergedLyricsView':''}" id="lyricsText" style="font-size:${song.fontSize}px;"><div class="annotateWrap" id="annotateWrap"><div class="songStructure${showChords?'':' chordsHidden'}" id="songStructure">
         ${renderSongStructureHTML(displayBlocks)}
       </div><svg class="annotateSvg" id="annotateSvg"></svg></div></div>
       `}
@@ -19750,18 +19760,10 @@ function renderSongViewer(){
   if(lineupPillSongs){
     screen.querySelectorAll('[data-lineup-pill-song]').forEach(btn=>{
       btn.onclick=()=>{
-        const targetId=btn.dataset.lineupPillSong;
-        if(targetId===song.id)return;
-        const targetSong=getSongs().find(item=>item.id===targetId);
-        if(!targetSong){
-          showToast('That song is no longer in your library.','error');
-          return;
-        }
-        if(currentSong){flushLineupAutoSync(currentSong.id);if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);}
-        stopAutoScroll();
-        openSong(targetSong);
+        goToLineupSongById(btn.dataset.lineupPillSong);
       };
     });
+    attachLineupSwipeHandlers();
   }
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
   document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
@@ -19842,6 +19844,112 @@ function renderSongViewer(){
       attachAnnotateToolbar(annotationKey);
     });
   }
+}
+
+/* =========================================================
+   LINEUP SONG SWITCHING (separate songs, not merged)
+   Mirrors the merged-song part switching below so that
+   distinct songs sent together in a lineup (e.g. Sunday
+   Worship) flip between each other the same way — swipe, tap
+   a numbered pill, no full-screen transition or flicker —
+   without actually combining them into one song object with
+   mergeParts. Each song keeps its own id, transpose, flow,
+   annotations, etc.
+========================================================= */
+
+function goToLineupSongById(targetId){
+  if(!currentSong||targetId===currentSong.id)return;
+  const activeLineup=getLocalLineup();
+  const lineupSongs=activeLineup.songs;
+  if(!Array.isArray(lineupSongs)||lineupSongs.length<2)return;
+  if(!lineupSongs.some(entry=>entry.id===targetId))return;
+  const targetSong=getSongs().find(item=>item.id===targetId);
+  if(!targetSong){
+    showToast('That song is no longer in your library.','error');
+    return;
+  }
+
+  flushLineupAutoSync(currentSong.id);
+  if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);
+  stopAutoScroll();
+
+  /*
+    Same setup openSong() does, but without setActiveNav or the
+    modal-close call — we're already on the song viewer screen,
+    so this is an in-place swap, not a real navigation.
+  */
+  currentSong=targetSong;
+  currentSong.originalText=decodeHtmlEntities(currentSong.originalText||currentSong.text||'');
+  currentSong.text=currentSong.originalText;
+  if(!currentSong.originalText)currentSong.originalText=currentSong.text||'';
+  if(typeof currentSong.transposeSteps!=='number')currentSong.transposeSteps=0;
+  if(typeof currentSong.fontSize!=='number')currentSong.fontSize=getSettings().defaultFontSize;
+  recordRecentView(currentSong);
+
+  skipNextScreenTransition=true;
+  renderSongViewer();
+  window.scrollTo(0,0);
+  if(typeof metApplySongPresetIfAny==='function')metApplySongPresetIfAny();
+}
+
+function goToLineupSong(delta){
+  if(!currentSong)return;
+  const activeLineup=getLocalLineup();
+  const lineupSongs=activeLineup.songs;
+  if(!Array.isArray(lineupSongs)||lineupSongs.length<2)return;
+  const idx=lineupSongs.findIndex(entry=>entry.id===currentSong.id);
+  if(idx===-1)return;
+  const targetIdx=Math.max(0,Math.min(lineupSongs.length-1,idx+delta));
+  if(targetIdx===idx)return;
+  goToLineupSongById(lineupSongs[targetIdx].id);
+}
+
+function attachLineupSwipeHandlers(){
+  const el=document.getElementById('lyricsText');
+  if(!el)return;
+  let startX=0,startY=0,tracking=false,horizontal=false;
+
+  el.addEventListener('touchstart',event=>{
+    if(annotateMode)return;
+    if(event.touches.length!==1)return;
+    const touch=event.touches[0];
+    startX=touch.clientX;
+    startY=touch.clientY;
+    tracking=true;
+    horizontal=false;
+  },{passive:true});
+  el.addEventListener('touchmove',event=>{
+    if(annotateMode)return;
+    if(!tracking)return;
+    const dx=event.touches[0].clientX-startX;
+    const dy=event.touches[0].clientY-startY;
+    if(!horizontal&&Math.abs(dx)>16&&Math.abs(dx)>Math.abs(dy)*1.3){
+      horizontal=true;
+    }
+    if(horizontal){
+      event.preventDefault();
+      el.style.transform=`translateX(${dx}px)`;
+    }
+  },{passive:false});
+  const finishSwipe=event=>{
+    if(annotateMode)return;
+    if(!tracking)return;
+    tracking=false;
+    if(horizontal){
+      const touch=event.changedTouches?event.changedTouches[0]:null;
+      const dx=touch?touch.clientX-startX:0;
+      el.style.transform='';
+      /*
+        Only a real drag (past the 60px threshold) navigates —
+        matches attachMergedSwipeHandlers so both feel the same.
+      */
+      if(dx<-60)goToLineupSong(1);
+      else if(dx>60)goToLineupSong(-1);
+    }
+    horizontal=false;
+  };
+  el.addEventListener('touchend',finishSwipe);
+  el.addEventListener('touchcancel',finishSwipe);
 }
 
 /* =========================================================
@@ -19983,12 +20091,12 @@ function renderMergedSongViewer(){
             <div class="mergeSongSubtitle">Song ${activeIndex+1} of ${total} — ${esc(song.title||'Merged Song')}</div>
           </div>
           ${renderLineupSyncButtonHTML(song)}
+        </div>
+        <div class="songHeaderMetaRow" id="mergePartPills" aria-label="Songs in this merge">
+          ${song.mergeParts.map((mergePart,index)=>`<button type="button" class="mergePartPill${index===activeIndex?' active':''}" data-part-index="${index}" aria-label="Song ${index+1}: ${esc(mergePart.title)}">${index+1}</button>`).join('')}
           ${keyInfo?`<div class="keyBadge songHeaderKey">Key: ${esc(keyInfo.label)}</div>`:''}
           ${metPresetBpm!==null?`<div class="bpmHeaderBadge">${metPresetBpm} BPM</div>`:''}
           ${capoInfo?`<div class="capoBadge">Capo ${capoInfo.fret} → ${esc(capoInfo.shape)} shape</div>`:''}
-        </div>
-        <div class="mergePartPills" id="mergePartPills" aria-label="Songs in this merge">
-          ${song.mergeParts.map((mergePart,index)=>`<button type="button" class="mergePartPill${index===activeIndex?' active':''}" data-part-index="${index}" aria-label="Song ${index+1}: ${esc(mergePart.title)}">${index+1}</button>`).join('')}
         </div>
       </div>
       <div class="songToolbar">
