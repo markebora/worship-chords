@@ -4327,7 +4327,7 @@ button{
 
 /* =========================================================
    LINEUP SONG SYNC INDICATOR
-   Shown only on songs that are part of the Sunday Worship
+   Shown only on songs that are part of the Worship Lineup
    lineup. Doubles as a status readout and a manual "upload
    now" button — tap it any time to push immediately instead
    of waiting on the quiet background auto-sync.
@@ -7470,7 +7470,7 @@ function writeSongs(songs){
     reaches Drive when someone taps that song's Sync button,
     or Profile → Sync Now.
 
-    Exception: a song that's on the shared Sunday Worship
+    Exception: a song that's on the shared Worship Lineup
     lineup auto-syncs on every edit — see scheduleLineupAutoSync
     below. That's the one list everyone on the team is expected
     to be looking at the same live version of, so it shouldn't
@@ -7524,7 +7524,7 @@ function writeSongs(songs){
 
 
 /*
-  Debounced per-song trigger for the Sunday Worship auto-sync
+  Debounced per-song trigger for the Worship Lineup auto-sync
   exception above. Coalesces bursts of edits (dragging the flow
   around, typing out chord fixes) into a single upload instead
   of hammering Firestore on every keystroke, and runs silently —
@@ -7533,7 +7533,7 @@ function writeSongs(songs){
 */
 
 /*
-  Debounced per-song trigger for the Sunday Worship auto-sync
+  Debounced per-song trigger for the Worship Lineup auto-sync
   exception above. Coalesces bursts of edits (dragging the flow
   around, typing out chord fixes) into a single upload instead
   of hammering Firestore on every keystroke, and runs silently —
@@ -7794,7 +7794,7 @@ function flushAllLineupAutoSyncs(){
 /*
   Backgrounding the app, switching tabs, or the page unloading
   are exactly the moments a live edit is at risk — flush any
-  pending Sunday Worship auto-sync immediately rather than
+  pending Worship Lineup auto-sync immediately rather than
   trusting the debounce timer to survive it.
 */
 
@@ -7813,7 +7813,7 @@ window.addEventListener('pagehide', () => {
 
 /*
   The sync indicator/upload button shown in the song header for
-  any song that's part of the Sunday Worship lineup. Same markup
+  any song that's part of the Worship Lineup. Same markup
   function is used both to build the initial header HTML and to
   patch just this one button afterward — patching in place (never
   a full re-render) so the spinner-to-check transition doesn't
@@ -8093,7 +8093,7 @@ async function startLineupLiveListener(){
             map[docSnap.id] = {
 
               date: docSnap.id,
-              title: data.title || 'Sunday Worship',
+              title: data.title || 'Worship Lineup',
               songs: Array.isArray(data.songs) ? data.songs : [],
               videos: Array.isArray(data.videos) ? data.videos : [],
               updatedBy: data.updatedBy || ''
@@ -9293,7 +9293,7 @@ function recordDeletedSongs(ids){
   together by the team sync) end up as two separate Library
   entries with different ids but identical title + lyrics/chords.
   This finds those and quietly keeps only the most recently
-  updated copy, remapping any Setlist or the Sunday Worship
+  updated copy, remapping any Setlist or the Worship Lineup
   lineup that pointed at the one being removed so nothing breaks.
   Merged songs (mergeParts) are left alone — being a *combination*
   of songs, they're never "the same song" as a single one.
@@ -10254,7 +10254,7 @@ function formatLineupWeekdayLabel(key){
 }
 
 function emptyLineup(key){
-  return { date:key, title:'Sunday Worship', songs:[], videos:[], updatedBy:'', updatedAt:'' };
+  return { date:key, title:'Worship Lineup', songs:[], videos:[], updatedBy:'', updatedAt:'' };
 }
 
 /*
@@ -10305,7 +10305,7 @@ function getAllLocalLineups(){
         {
           [key]: {
             date: key,
-            title: legacy.title || 'Sunday Worship',
+            title: legacy.title || 'Worship Lineup',
             songs: legacy.songs || [],
             videos: legacy.videos || [],
             updatedBy: legacy.updatedBy || '',
@@ -10444,7 +10444,7 @@ async function downloadLineup(explicitDateKey){
   return {
 
     date: key,
-    title: (payload && payload.title) || 'Sunday Worship',
+    title: (payload && payload.title) || 'Worship Lineup',
     songs: Array.isArray(payload && payload.songs) ? payload.songs : [],
     videos: Array.isArray(payload && payload.videos) ? payload.videos : [],
     updatedBy: (payload && payload.updatedBy) || ''
@@ -10477,7 +10477,7 @@ async function downloadAllLineups(){
     map[docSnap.id] = {
 
       date: docSnap.id,
-      title: payload.title || 'Sunday Worship',
+      title: payload.title || 'Worship Lineup',
       songs: Array.isArray(payload.songs) ? payload.songs : [],
       videos: Array.isArray(payload.videos) ? payload.videos : [],
       updatedBy: payload.updatedBy || ''
@@ -10503,7 +10503,7 @@ async function uploadLineup(state, explicitDateKey){
       .doc(key)
       .set({
 
-        title: state.title || 'Sunday Worship',
+        title: state.title || 'Worship Lineup',
         songs: state.songs || [],
         videos: state.videos || [],
         updatedBy: state.updatedBy || '',
@@ -11550,7 +11550,7 @@ async function sendCurrentSongToLineup(song){
       song.updatedAt || song.savedAt
     );
 
-    showToast('Added to the Sunday Worship lineup.', 'success');
+    showToast('Added to the Worship Lineup.', 'success');
 
     /*
       The sync/upload indicator only shows once a song is in the
@@ -11751,7 +11751,7 @@ async function clearLineup(explicitDateKey){
   try{
 
     const cleared =
-      { title:'Sunday Worship', songs:[], videos:[], updatedBy:'' };
+      { title:'Worship Lineup', songs:[], videos:[], updatedBy:'' };
 
     await uploadLineup(cleared, explicitDateKey);
 
@@ -12229,7 +12229,7 @@ function renderHome(){
               </div>
 
               <div class="songInfo">
-                <div class="setlistCardTitle">${esc(lineup.title || 'Sunday Worship')}</div>
+                <div class="setlistCardTitle">${esc(lineup.title || 'Worship Lineup')}</div>
                 <div class="setlistCardMeta">${lineup.songs.length} song${lineup.songs.length===1?'':'s'}${lineup.updatedBy ? ' · sent by ' + esc(lineup.updatedBy) : ''}</div>
               </div>
 
@@ -24093,7 +24093,7 @@ function renderSetlistDetail(setlistId){
 
 
 /*
-  The "Sunday Worship" screen, reached from the Home card. Same
+  The "Worship Lineup" screen, reached from the Home card. Same
   shape as a setlist detail screen, but backed by the shared
   lineup (see the SUNDAY LINEUP section above) instead of a
   personal, per-device setlist — so removing a song here removes
@@ -24202,7 +24202,7 @@ function renderLineupDetail(dateKey){
       </button>
 
       <div class="libraryTitle" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-        ${esc(lineup.title || 'Sunday Worship')}
+        ${esc(lineup.title || 'Worship Lineup')}
       </div>
 
       <button class="searchBtn" id="lineupClearBtn" aria-label="Clear lineup" style="font-size:13px;color:#ff8b8b;">✕</button>
@@ -24348,7 +24348,7 @@ function renderLineupDetail(dateKey){
 
     const confirmed =
       await showConfirmDialog(
-        `Clear the "${lineup.title || 'Sunday Worship'}" lineup for ${formatLineupDateLabel(currentLineupDate)}?`,
+        `Clear the "${lineup.title || 'Worship Lineup'}" lineup for ${formatLineupDateLabel(currentLineupDate)}?`,
         { confirmLabel:'Clear', danger:true }
       );
 
@@ -24612,7 +24612,7 @@ function renderLineupCalendar(){
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
       </button>
 
-      <div class="libraryTitle" style="flex:1;">Sunday Worship</div>
+      <div class="libraryTitle" style="flex:1;">Worship Lineup</div>
 
     </div>
 
@@ -24628,7 +24628,7 @@ function renderLineupCalendar(){
           </button>
         </div>
 
-        <div class="lineupTopWidgetTitle">${esc(activeLineup.title || 'Sunday Worship')}</div>
+        <div class="lineupTopWidgetTitle">${esc(activeLineup.title || 'Worship Lineup')}</div>
         <div class="lineupTopWidgetDate">${esc(dateFromKey(activeDateKey).toLocaleDateString(undefined, { weekday:'long', month:'long', day:'numeric' }))}</div>
 
         ${
@@ -24763,7 +24763,7 @@ function renderLineupCalendar(){
     const nextTitle =
       await showPromptDialog(
         'Rename this lineup',
-        activeLineup.title || 'Sunday Worship'
+        activeLineup.title || 'Worship Lineup'
       );
 
     if(nextTitle === null || !nextTitle.trim())return;
@@ -26535,7 +26535,7 @@ async function notifyNewSong(title){
 
 /*
   Same endpoint as notifyNewSong, just with a heading override
-  so the push says "Sunday Worship lineup updated" instead of
+  so the push says "Worship Lineup updated" instead of
   "New song added" — see the optional `heading` field handled
   in api/notify-new-song.js.
 */
@@ -26557,7 +26557,7 @@ async function notifyLineupUpdate(songTitle){
       body: JSON.stringify({
 
         title: songTitle,
-        heading: 'Sunday Worship lineup updated'
+        heading: 'Worship Lineup updated'
 
       })
 
