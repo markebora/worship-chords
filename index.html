@@ -3964,24 +3964,83 @@ button{
 }
 
 .lineupTopWidgetTitle{
-  font-size:17px;
+  font-size:22px;
   font-weight:800;
   color:#f7f7f7;
-  margin:2px 0 10px;
+  margin:2px 0 2px;
 }
 
-.lineupTopWidgetSong{
+.lineupTopWidgetDate{
+  font-size:14px;
+  color:#a7a7ae;
+}
+
+.lineupTopWidgetEditBtn{
+  background:#232327;
+  border:0;
+  border-radius:9px;
+  width:32px;
+  height:32px;
+  flex-shrink:0;
   display:flex;
   align-items:center;
-  justify-content:space-between;
-  padding:9px 0;
-  border-top:1px solid #232327;
-  font-size:14px;
-  color:#e6e6ea;
+  justify-content:center;
+  color:#a7a7ae;
 }
 
-.lineupTopWidgetSong:first-of-type{
-  border-top:0;
+.lineupTopWidgetEditBtn svg{
+  width:16px;
+  height:16px;
+}
+
+.lineupTopWidgetDivider{
+  border-top:1px solid #232327;
+  margin:14px 0 4px;
+}
+
+.lineupTopWidgetList{
+  list-style:none;
+  margin:0;
+  padding:0;
+  counter-reset:lineupSong;
+}
+
+.lineupTopWidgetList li{
+  counter-increment:lineupSong;
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  padding:9px 0;
+  font-size:14.5px;
+  color:#e6e6ea;
+  cursor:pointer;
+}
+
+.lineupTopWidgetList li::before{
+  content:counter(lineupSong) ". ";
+  color:#6f6f77;
+  font-weight:700;
+  margin-right:2px;
+}
+
+.lineupTopWidgetSongTitle{
+  flex:1;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.lineupTopWidgetSongMeta{
+  font-size:12.5px;
+  color:#6f6f77;
+  flex-shrink:0;
+}
+
+.lineupTopWidgetEmpty{
+  font-size:13.5px;
+  color:#6f6f77;
+  margin-top:10px;
 }
 
 .lineupCalCard{
@@ -4214,13 +4273,19 @@ button{
 
 .lineupPickerBar{
   position:fixed;
-  left:0;
-  right:0;
-  bottom:0;
-  padding:12px 16px calc(12px + env(safe-area-inset-bottom));
-  background:#151518;
-  border-top:1px solid #2d2d32;
-  z-index:40;
+  left:50%;
+  transform:translateX(-50%);
+  bottom:calc(82px + env(safe-area-inset-bottom, 0px));
+  width:calc(100% - 24px);
+  max-width:620px;
+  padding:10px;
+  background:rgba(28,28,32,.92);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:17px;
+  backdrop-filter:blur(24px);
+  -webkit-backdrop-filter:blur(24px);
+  box-shadow:0 10px 30px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.06);
+  z-index:99;
 }
 
 
@@ -19583,6 +19648,9 @@ function renderSongViewer(){
   const navBlocks=displayBlocks.filter(block=>!block.isNote);
   const annotationKey=getAnnotationKey(song);
 
+  const activeLineupForPills=getLocalLineup();
+  const lineupPillSongs=(activeLineupForPills.songs.length>1&&activeLineupForPills.songs.some(entry=>entry.id===song.id))?activeLineupForPills.songs:null;
+
   screen.innerHTML=`
     <div class="songPage">
       <div class="songFixedHeader">
@@ -19599,6 +19667,13 @@ function renderSongViewer(){
           ${metPresetBpm!==null?`<div class="bpmHeaderBadge">${metPresetBpm} BPM</div>`:''}
           ${capoInfo?`<div class="capoBadge">Capo ${capoInfo.fret} → ${esc(capoInfo.shape)} shape</div>`:''}
         </div>
+        ${
+          lineupPillSongs ? `
+            <div class="mergePartPills" id="lineupSongPills" aria-label="Songs in this lineup">
+              ${lineupPillSongs.map((entry,index)=>`<button type="button" class="mergePartPill${entry.id===song.id?' active':''}" data-lineup-pill-song="${esc(entry.id)}" aria-label="Song ${index+1}: ${esc(entry.title||'Untitled Song')}">${index+1}</button>`).join('')}
+            </div>
+          ` : ''
+        }
       </div>
       <div class="songToolbar">
         <div class="toolbarRow">
@@ -19672,6 +19747,22 @@ function renderSongViewer(){
   document.getElementById('songBackBtn').onclick=()=>{if(currentSong){flushLineupAutoSync(currentSong.id);if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);}stopAutoScroll();songFlowMode=false;currentSong=null;goBack(renderLyrics);};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);skipNextScreenTransition=true;renderSongViewer();};}
   attachLineupSyncButton(currentSong);
+  if(lineupPillSongs){
+    screen.querySelectorAll('[data-lineup-pill-song]').forEach(btn=>{
+      btn.onclick=()=>{
+        const targetId=btn.dataset.lineupPillSong;
+        if(targetId===song.id)return;
+        const targetSong=getSongs().find(item=>item.id===targetId);
+        if(!targetSong){
+          showToast('That song is no longer in your library.','error');
+          return;
+        }
+        if(currentSong){flushLineupAutoSync(currentSong.id);if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);}
+        stopAutoScroll();
+        openSong(targetSong);
+      };
+    });
+  }
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
   document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
   document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
@@ -24288,6 +24379,56 @@ function renderLineupDetail(dateKey){
    widget.
 ========================================================= */
 
+/*
+  Small "(bpm, key)" hint next to a song in the lineup — key is
+  derived the same way the transpose toast derives it (from the
+  song's own chords, honoring any transpose already applied), so
+  it's always in sync with the song itself, no separate field to
+  keep updated. BPM is whatever's saved as that song's metronome
+  preset; it's stored per device (not synced with the team yet),
+  so it may only show up on whoever saved it.
+*/
+function getSongKeyLabel(song){
+
+  if(!song || song.missing)return null;
+
+  const info =
+    detectKeyFromChords(
+      extractChordTokens(
+        transposeText(song.originalText || song.text || '', song.transposeSteps || 0)
+      )
+    );
+
+  return info ? info.label : null;
+
+}
+
+function getSongBpmLabel(song){
+
+  if(!song || song.missing)return null;
+
+  return metGetSongPresetBpm(song.id);
+
+}
+
+function formatLineupSongMeta(song){
+
+  const bpm =
+    getSongBpmLabel(song);
+
+  const key =
+    getSongKeyLabel(song);
+
+  const parts =
+    [
+      bpm ? bpm + ' BPM' : null,
+      key
+    ].filter(Boolean);
+
+  return parts.length ? parts.join(', ') : '';
+
+}
+
 let lineupCalendarViewDate = null;
 
 function renderLineupCalendar(){
@@ -24307,6 +24448,9 @@ function renderLineupCalendar(){
 
   const activeLineup =
     getLocalLineup(activeDateKey);
+
+  const activeSongsById =
+    new Map(getSongs().map(song => [song.id, song]));
 
   const highlightedDates =
     new Set(getLineupDateKeysWithSongs());
@@ -24371,18 +24515,40 @@ function renderLineupCalendar(){
 
         <div class="lineupTopWidgetHead">
           <div class="lineupTopWidgetLabel">${esc(formatLineupWeekdayLabel(activeDateKey))}'s Lineup</div>
+          <button class="lineupTopWidgetEditBtn" type="button" id="lineupTopWidgetEditBtn" aria-label="Rename lineup">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          </button>
         </div>
 
         <div class="lineupTopWidgetTitle">${esc(activeLineup.title || 'Sunday Worship')}</div>
+        <div class="lineupTopWidgetDate">${esc(dateFromKey(activeDateKey).toLocaleDateString(undefined, { weekday:'long', month:'long', day:'numeric' }))}</div>
 
         ${
           activeLineup.songs.length
-          ? activeLineup.songs.map(entry => `
-              <div class="lineupTopWidgetSong">
-                <span>${esc(entry.title || 'Untitled Song')}</span>
-              </div>
-            `).join('')
-          : `<div class="lineupTopWidgetSong" style="color:#6f6f77;border-top:0;">Nothing set yet — tap a date below to plan ahead.</div>`
+          ? `
+            <div class="lineupTopWidgetDivider"></div>
+            <ol class="lineupTopWidgetList">
+              ${
+                activeLineup.songs.map(entry => {
+
+                  const song =
+                    activeSongsById.get(entry.id);
+
+                  const meta =
+                    song ? formatLineupSongMeta(song) : '';
+
+                  return `
+                    <li data-open-lineup-widget-song="${esc(entry.id)}">
+                      <span class="lineupTopWidgetSongTitle">${esc(entry.title || 'Untitled Song')}</span>
+                      ${meta ? `<span class="lineupTopWidgetSongMeta">${esc(meta)}</span>` : ''}
+                    </li>
+                  `;
+
+                }).join('')
+              }
+            </ol>
+          `
+          : `<div class="lineupTopWidgetEmpty">Nothing set yet — tap a date below to plan ahead.</div>`
         }
 
       </div>
@@ -24460,6 +24626,65 @@ function renderLineupCalendar(){
 
   topWidget.onclick = () => {
     renderLineupDetail(activeDateKey);
+  };
+
+  screen.querySelectorAll('[data-open-lineup-widget-song]').forEach(row => {
+
+    row.onclick = (event) => {
+
+      event.stopPropagation();
+
+      const song =
+        activeSongsById.get(row.dataset.openLineupWidgetSong);
+
+      if(!song){
+        showToast('That song is no longer in your library.', 'error');
+        return;
+      }
+
+      openSong(song);
+
+    };
+
+  });
+
+  document.getElementById('lineupTopWidgetEditBtn').onclick = async (event) => {
+
+    event.stopPropagation();
+
+    const nextTitle =
+      await showPromptDialog(
+        'Rename this lineup',
+        activeLineup.title || 'Sunday Worship'
+      );
+
+    if(nextTitle === null || !nextTitle.trim())return;
+
+    if(!await requireFirebaseConfigured())return;
+
+    if(!(await ensureSyncSession()))return;
+
+    try{
+
+      const remote =
+        await downloadLineup(activeDateKey);
+
+      remote.title = nextTitle.trim();
+
+      await uploadLineup(remote, activeDateKey);
+
+      setLocalLineup(remote, activeDateKey);
+
+      renderLineupCalendar();
+
+    }catch(error){
+
+      console.error(error);
+
+      showToast('Could not rename the lineup: ' + error.message, 'error');
+
+    }
+
   };
 
 }
@@ -24687,7 +24912,7 @@ function renderLineupSongPicker(dateKey){
 
     </div>
 
-    <div class="librarySection" style="padding-bottom:80px;">
+    <div class="librarySection" style="padding-bottom:170px;">
 
       ${
         songs.length
