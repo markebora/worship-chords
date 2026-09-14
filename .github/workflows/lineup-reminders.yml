@@ -1,1 +1,29 @@
+name: Lineup reminders
 
+on:
+  schedule:
+    # Every 15 minutes. GitHub's scheduler can run a bit late when
+    # it's busy — that's fine, the script's 15-min window covers it.
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {} # lets you click "Run workflow" manually to test
+
+jobs:
+  check-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install firebase-admin luxon
+
+      - name: Run reminder check
+        env:
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          NOTIFY_SECRET: ${{ secrets.NOTIFY_SECRET }}
+          CHURCH_TIMEZONE: ${{ secrets.CHURCH_TIMEZONE }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        run: node scripts/lineup-reminders.js
