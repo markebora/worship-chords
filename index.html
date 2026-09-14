@@ -49,6 +49,10 @@
   need a touch more contrast to read as "pressed".
 */
 :root{
+  --accent: #E8B923;
+  --accent-strong: #F5CB3C;
+  --accent-ink: #171200;
+  --accent-glow: rgba(232,185,35,.35);
   --liquid-press:
     radial-gradient(120% 140% at 30% -10%, rgba(255,255,255,.30), rgba(255,255,255,.06) 55%, rgba(255,255,255,0) 80%),
     rgba(255,255,255,.05);
@@ -152,11 +156,11 @@ button{
 
   background:linear-gradient(
     90deg,
-    #f7f4ee 0%,
-    #f7f4ee 42%,
-    #fffef9 50%,
-    #f7f4ee 58%,
-    #f7f4ee 100%
+    #C99A1E 0%,
+    #C99A1E 42%,
+    #FDE08A 50%,
+    #C99A1E 58%,
+    #C99A1E 100%
   );
   background-size:300% 100%;
   -webkit-background-clip:text;
@@ -254,7 +258,7 @@ button{
   letter-spacing:0.12em;
   text-transform:uppercase;
   text-align:center;
-  color:#f7f4ee;
+  color:var(--accent);
 }
 
 #loginGateTagline{
@@ -349,6 +353,8 @@ button{
   line-height:1.05;
 
   font-weight:800;
+
+  color:var(--accent);
 }
 
 .hero p{
@@ -430,8 +436,8 @@ button{
 }
 
 .toolbarBtn.primary{
-  background:#fff;
-  color:#111;
+  background:var(--accent);
+  color:var(--accent-ink);
 }
 
 
@@ -564,15 +570,15 @@ button{
 }
 
 .nav button.active{
-  color:#fff;
+  color:var(--accent);
 
-  background:rgba(255,255,255,.07);
+  background:rgba(232,185,35,.09);
 
-  border:1px solid rgba(255,255,255,.09);
+  border:1px solid rgba(232,185,35,.22);
 
   box-shadow:
-    0 0 14px rgba(255,255,255,.12),
-    inset 0 1px 0 rgba(255,255,255,.08);
+    0 0 14px var(--accent-glow),
+    inset 0 1px 0 rgba(232,185,35,.12);
 }
 
 .nav .icon{
@@ -606,12 +612,12 @@ button{
 }
 
 .nav button.active .icon{
-  color:#fff;
+  color:var(--accent);
 
   filter:
-    drop-shadow(0 0 4px rgba(255,255,255,1))
-    drop-shadow(0 0 9px rgba(255,255,255,.75))
-    drop-shadow(0 0 18px rgba(255,255,255,.35));
+    drop-shadow(0 0 4px rgba(232,185,35,.9))
+    drop-shadow(0 0 9px rgba(232,185,35,.6))
+    drop-shadow(0 0 18px rgba(232,185,35,.3));
 
   transform:translateY(-1px);
 }
@@ -1319,8 +1325,8 @@ button{
   border:0;
   border-radius:11px;
 
-  background:#fff;
-  color:#111;
+  background:var(--accent);
+  color:var(--accent-ink);
 
   font-size:13px;
   font-weight:800;
@@ -1453,6 +1459,12 @@ button{
   padding:13px 14px;
 
   outline:none;
+
+  transition:border-color .15s ease;
+}
+
+.searchInput:focus{
+  border-color:var(--accent);
 }
 
 .goBtn{
@@ -1462,9 +1474,9 @@ button{
 
   padding:0 16px;
 
-  background:#fff;
+  background:var(--accent);
 
-  color:#111;
+  color:var(--accent-ink);
 
   font-weight:800;
 }
@@ -1702,8 +1714,8 @@ button{
 }
 
 .viewModeBtn.active{
-  background:#fff;
-  color:#111;
+  background:var(--accent);
+  color:var(--accent-ink);
 }
 
 .mdModeBadge{
@@ -2317,8 +2329,8 @@ button{
 }
 
 .annotateToggleBtn.active{
-  background:#fff;
-  color:#111;
+  background:var(--accent);
+  color:var(--accent-ink);
 }
 
 .annotateToolbar{
@@ -2377,8 +2389,8 @@ button{
 }
 
 .annotateToolBtn.active{
-  background:#fff;
-  color:#111;
+  background:var(--accent);
+  color:var(--accent-ink);
 }
 
 .annotateToolBtn:disabled{
@@ -2805,10 +2817,10 @@ button{
 }
 
 .asToggleWrap.speedMode .asToggleBtn{
-  background:#fff;
-  color:#111;
+  background:var(--accent);
+  color:var(--accent-ink);
 
-  border-color:#fff;
+  border-color:var(--accent);
 }
 
 .lyricsView{
@@ -2856,7 +2868,7 @@ button{
 .mergePartPills{display:flex;gap:6px;margin-top:9px;padding:0 1px 1px;overflow-x:auto;scrollbar-width:none;}
 .mergePartPills::-webkit-scrollbar{display:none;}
 .mergePartPill{flex:0 0 auto;width:26px;height:26px;border-radius:50%;border:1px solid #303036;background:#18181b;color:#a7a7ad;font-size:12px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .18s ease,color .18s ease,border-color .18s ease;}
-.mergePartPill.active{background:#fff;color:#111;border-color:#fff;}
+.mergePartPill.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
 .mergedLyricsView{touch-action:pan-y;}
 
 /* Shared header "meta row": numbered song pills (merge or
@@ -2957,9 +2969,9 @@ button{
 }
 
 .asDrawToggleBtn.active{
-  background:#fff;
-  color:#111;
-  border-color:#fff;
+  background:var(--accent);
+  color:var(--accent-ink);
+  border-color:var(--accent);
 }
 
 /* =========================================================
@@ -2987,10 +2999,10 @@ button{
 .songCheck{display:none;position:absolute;left:12px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;border:1.5px solid #46464d;background:#000000;align-items:center;justify-content:center;}
 .songCard.selectable .songCheck{display:flex;}
 .songCard.selected{background:#1c1c22;border-color:#4a4a55;}
-.songCard.selected .songCheck{background:#fff;border-color:#fff;}
-.songCheck svg{width:13px;height:13px;fill:none;stroke:#111;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0;}
+.songCard.selected .songCheck{background:var(--accent);border-color:var(--accent);}
+.songCheck svg{width:13px;height:13px;fill:none;stroke:var(--accent-ink);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0;}
 .songCard.selected .songCheck svg{opacity:1;}
-.songCheckNumber{font-size:11px;font-weight:800;color:#111;line-height:1;animation:songCheckPop .16s ease;}
+.songCheckNumber{font-size:11px;font-weight:800;color:var(--accent-ink);line-height:1;animation:songCheckPop .16s ease;}
 @keyframes songCheckPop{from{transform:scale(.4);opacity:0;}to{transform:scale(1);opacity:1;}}
 
 .songSyncBtn{
@@ -3035,7 +3047,7 @@ button{
 .songSectionNav{display:flex;gap:7px;overflow-x:auto;padding:0 1px 3px;scrollbar-width:none;touch-action:pan-x;}
 .songSectionNav::-webkit-scrollbar{display:none;}
 .songSectionNav button{flex:0 0 auto;border:1px solid #303036;border-left:3px solid var(--nav-accent,#303036);background:#18181b;color:#a7a7ad;border-radius:10px;padding:8px 11px 8px 9px;font-size:11px;font-weight:800;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:pan-x;transition:background .18s ease,color .18s ease,border-color .18s ease;}
-.songSectionNav button.active{background:#fff;color:#111;border-color:#fff;}
+.songSectionNav button.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
 .songSectionNav button.longPressing{transform:scale(.96);background:#303036;}
 .songSectionNav button.dragging{opacity:.45;}
 
@@ -3359,7 +3371,7 @@ button{
 
 .editorTextarea:focus{
   outline:none;
-  border-color:#4a4a52;
+  border-color:rgba(232,185,35,.45);
 }
 
 .editorMergeContext{
@@ -3463,8 +3475,8 @@ button{
 }
 
 .editorPill.dragging{
-  background:#fff;
-  color:#111;
+  background:var(--accent);
+  color:var(--accent-ink);
   transform:scale(1.06);
   box-shadow:0 8px 20px rgba(0,0,0,.5);
   z-index:5;
@@ -3935,7 +3947,7 @@ button{
 }
 
 .confirmInput:focus{
-  outline:2px solid #4c8bf5;
+  outline:2px solid var(--accent);
   outline-offset:-1px;
 }
 
@@ -4407,9 +4419,9 @@ button{
 }
 
 .libraryTab.active{
-  background:#fff;
-  color:#111;
-  border-color:#fff;
+  background:var(--accent);
+  color:var(--accent-ink);
+  border-color:var(--accent);
 }
 
 .setlistCard{
@@ -4465,9 +4477,9 @@ button{
 }
 
 .categoryPill.active{
-  background:#fff;
-  color:#111;
-  border-color:#fff;
+  background:var(--accent);
+  color:var(--accent-ink);
+  border-color:var(--accent);
 }
 
 .setlistCardTitle{
@@ -4998,6 +5010,11 @@ button{
   color:#6f6f78;
 }
 
+.videoSearchInput:focus{
+  outline:none;
+  border-color:var(--accent);
+}
+
 .videoRowEmpty{
   padding:14px 2px;
 
@@ -5012,9 +5029,9 @@ button{
   badge read as "tap to add" instead of "tap to play".
 */
 .videoCardThumb[data-video-add] .videoCardPlayBtn{
-  background:#fff;
-  border-color:#fff;
-  color:#111;
+  background:var(--accent);
+  border-color:var(--accent);
+  color:var(--accent-ink);
   font-size:15px;
   font-weight:700;
 }
@@ -5171,9 +5188,9 @@ button{
 }
 
 .metTsPill.active{
-  background:#fff;
-  color:#111;
-  border-color:#fff;
+  background:var(--accent);
+  color:var(--accent-ink);
+  border-color:var(--accent);
 }
 
 .metTsPill.presetActive{
@@ -5541,9 +5558,9 @@ button{
 }
 
 .asSatelliteBtn.active{
-  background:#fff;
-  color:#111;
-  border-color:#fff;
+  background:var(--accent);
+  color:var(--accent-ink);
+  border-color:var(--accent);
 }
 
 
@@ -5686,7 +5703,7 @@ button{
 
 .metMiniBpmInput:focus{
   outline:none;
-  border-bottom-color:#4da6ff;
+  border-bottom-color:var(--accent);
 }
 
 .metMiniPlayBtn{
