@@ -4996,6 +4996,20 @@ button{
   color:#707078;
 }
 
+/*
+  YouTube search results appended to the row (see
+  addSearchedVideoToArchive/buildVideoCardHtml) reuse .videoCard
+  entirely but swap the ▶ badge for a + — this just makes that +
+  badge read as "tap to add" instead of "tap to play".
+*/
+.videoCardThumb[data-video-add] .videoCardPlayBtn{
+  background:#fff;
+  border-color:#fff;
+  color:#111;
+  font-size:15px;
+  font-weight:700;
+}
+
 
 /* =========================================================
    METRONOME
@@ -6285,7 +6299,7 @@ const API_BASE_URL = 'https://worship-chords-rho.vercel.app';
   place just makes the search box show an error toast instead of
   results — pasting a link directly still works either way.
 */
-const YOUTUBE_API_KEY = 'PASTE_YOUR_YOUTUBE_DATA_API_KEY_HERE';
+const YOUTUBE_API_KEY = 'AIzaSyAJaUYLSv1DopGOB7PuyJoqe5fIMyCCYjU';
 
 let FIREBASE_CONFIGURED = false;
 let firebaseApp = null;
@@ -13057,6 +13071,89 @@ async function performDriveSync(){
   on screen. No-ops if Home (or its video row) isn't currently
   showing.
 */
+/*
+  Home's "Search by title..." box searches two things at once:
+  the local/shared video archive (instant, as-you-type — same as
+  before) AND, after a short pause, live YouTube (same
+  searchYouTube() used by showAddYouTubeVideoDialog). YT-only hits
+  are appended to the same row with a "+" badge instead of the
+  usual play button; tapping one archives it immediately, same as
+  picking a result in the "Add Video Link" dialog, so it lands in
+  Worship Videos and survives an app restart like any other saved
+  video. Cache is keyed by query so a stale in-flight response
+  never paints over a newer one.
+*/
+let homeYouTubeSearchDebounce = null;
+let homeYouTubeSearchQuery = '';
+let homeYouTubeSearchResults = [];
+
+function buildVideoCardHtml(entry, isSearchOnly){
+
+  const label =
+    isSearchOnly
+      ? entry.title
+      : (entry.songTitle || entry.youtubeTitle || 'YouTube video');
+
+  const thumbSrc =
+    isSearchOnly && entry.thumbnail
+      ? entry.thumbnail
+      : `https://i.ytimg.com/vi/${esc(entry.id)}/mqdefault.jpg`;
+
+  return `
+
+    <div class="videoCard">
+
+      <div
+        class="videoCardThumb"
+        ${isSearchOnly ? `data-video-add="${esc(entry.id)}"` : `data-video-play="${esc(entry.id)}"`}
+      >
+        <img src="${esc(thumbSrc)}" alt="" loading="lazy">
+        <span class="videoCardPlayBtn">${isSearchOnly ? '+' : '▶'}</span>
+      </div>
+
+      <div
+        class="videoCardTitle"
+        ${
+          isSearchOnly
+          ? `data-video-add-title="${esc(entry.id)}"`
+          : `data-video-title-id="${esc(entry.id)}" data-video-song-id="${esc(entry.songId || '')}"`
+        }
+      >
+        ${esc(label)}
+      </div>
+
+    </div>
+
+  `;
+
+}
+
+function addSearchedVideoToArchive(item){
+
+  const user =
+    getGoogleUser();
+
+  archiveVideo({
+    id: item.id,
+    url: 'https://www.youtube.com/watch?v=' + item.id,
+    songTitle: item.title,
+    addedBy: (user && user.name) || ''
+  });
+
+  showToast('Added to Worship Videos', 'success');
+
+  /*
+    archiveVideo() already re-renders the row, but unfiltered —
+    redo it with whatever's still in the search box so the person
+    doesn't lose their place mid-search.
+  */
+  const videoSearchInput =
+    document.getElementById('videoSearchInput');
+
+  renderVideoCardRow(videoSearchInput ? videoSearchInput.value : '');
+
+}
+
 function renderVideoCardRow(filterText){
 
   const rowEl =
@@ -13069,6 +13166,9 @@ function renderVideoCardRow(filterText){
 
   const allVideos =
     getLocalVideoArchive().videos.slice();
+
+  const localIds =
+    new Set(allVideos.map(entry => entry.id));
 
   const filtered =
     query
@@ -13085,7 +13185,17 @@ function renderVideoCardRow(filterText){
   const shown =
     filtered.slice(0,30);
 
-  if(!shown.length){
+  /*
+    Only append the cached YouTube results if they're still for
+    the query currently in the box — stops a slow response from a
+    previous search painting stale "+" cards over a new one.
+  */
+  const ytShown =
+    (query && homeYouTubeSearchQuery === query)
+      ? homeYouTubeSearchResults.filter(item => !localIds.has(item.id)).slice(0,8)
+      : [];
+
+  if(!shown.length && !ytShown.length){
 
     rowEl.innerHTML = `
       <div class="videoRowEmpty">
@@ -13098,33 +13208,8 @@ function renderVideoCardRow(filterText){
   }
 
   rowEl.innerHTML =
-    shown.map(entry => {
-
-      const label =
-        entry.songTitle || entry.youtubeTitle || 'YouTube video';
-
-      return `
-
-        <div class="videoCard">
-
-          <div class="videoCardThumb" data-video-play="${esc(entry.id)}">
-            <img src="https://i.ytimg.com/vi/${esc(entry.id)}/mqdefault.jpg" alt="" loading="lazy">
-            <span class="videoCardPlayBtn">▶</span>
-          </div>
-
-          <div
-            class="videoCardTitle"
-            data-video-title-id="${esc(entry.id)}"
-            data-video-song-id="${esc(entry.songId || '')}"
-          >
-            ${esc(label)}
-          </div>
-
-        </div>
-
-      `;
-
-    }).join('');
+    shown.map(entry => buildVideoCardHtml(entry, false)).join('') +
+    ytShown.map(item => buildVideoCardHtml(item, true)).join('');
 
   rowEl.querySelectorAll('[data-video-play]').forEach(thumb => {
 
@@ -13149,6 +13234,32 @@ function renderVideoCardRow(filterText){
       }else{
         openYouTubePlayer(titleEl.dataset.videoTitleId);
       }
+
+    };
+
+  });
+
+  rowEl.querySelectorAll('[data-video-add]').forEach(thumb => {
+
+    thumb.onclick = () => {
+
+      const item =
+        homeYouTubeSearchResults.find(entry => entry.id === thumb.dataset.videoAdd);
+
+      if(item)addSearchedVideoToArchive(item);
+
+    };
+
+  });
+
+  rowEl.querySelectorAll('[data-video-add-title]').forEach(titleEl => {
+
+    titleEl.onclick = () => {
+
+      const item =
+        homeYouTubeSearchResults.find(entry => entry.id === titleEl.dataset.videoAddTitle);
+
+      if(item)addSearchedVideoToArchive(item);
 
     };
 
@@ -13392,7 +13503,41 @@ function renderHome(){
   if(videoSearchInput){
 
     videoSearchInput.oninput = () => {
-      renderVideoCardRow(videoSearchInput.value);
+
+      const value =
+        videoSearchInput.value;
+
+      const trimmed =
+        value.trim().toLowerCase();
+
+      /* Instant local filter, same as before. */
+      renderVideoCardRow(value);
+
+      clearTimeout(homeYouTubeSearchDebounce);
+
+      if(trimmed.length < 2){
+        homeYouTubeSearchQuery = '';
+        homeYouTubeSearchResults = [];
+        return;
+      }
+
+      homeYouTubeSearchDebounce = setTimeout(async () => {
+
+        const items =
+          await searchYouTube(trimmed);
+
+        /* Only paint if the box still holds this exact query. */
+        if(videoSearchInput.value.trim().toLowerCase() === trimmed){
+
+          homeYouTubeSearchQuery = trimmed;
+          homeYouTubeSearchResults = items;
+
+          renderVideoCardRow(videoSearchInput.value);
+
+        }
+
+      }, 450);
+
     };
 
   }
