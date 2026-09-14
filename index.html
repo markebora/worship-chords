@@ -4518,6 +4518,34 @@ button{
   border-radius:12px;
   padding:10px 12px;
   margin:0 16px 8px;
+
+  touch-action:pan-y;
+  user-select:none;
+  -webkit-user-select:none;
+
+  transition:
+    background .18s ease,
+    transform .12s ease,
+    opacity .18s ease,
+    box-shadow .18s ease;
+}
+
+.lineupEntry.longPressing{
+  background:#1c1c20;
+  transform:scale(.98);
+}
+
+.lineupEntry.dragging{
+  opacity:.6;
+  box-shadow:0 8px 20px rgba(0,0,0,.5);
+  position:relative;
+  z-index:5;
+}
+
+.lineupReorderHint{
+  margin:-2px 16px 10px;
+  font-size:11.5px;
+  color:#66666d;
 }
 
 .lineupEntry .setlistOrderBtn{
@@ -6195,10 +6223,12 @@ const query =
 ========================================================= */
 
 /*
-  Every device reads/writes this one document — that's what
-  makes it a shared library instead of a per-person one.
-  Firestore Security Rules (not this constant) are what
-  actually keep randoms off it; see firestore.rules.
+  Every device on a team reads/writes to libraries/{teamId} —
+  that's what makes it a shared team library instead of a
+  per-person one, and what keeps two different teams' libraries
+  fully separate from each other. Firestore Security Rules (not
+  this constant) are what actually keep a team's docs off-limits
+  to non-members; see firestore.rules.
 */
 const SYNC_LIBRARY_DOC_ID = 'shared';
 
@@ -7031,6 +7061,9 @@ function snapshotScreen(name){
       const tab = libraryTab;
       return () => { libraryTab = tab; renderLibrary(); };
     }
+
+    case 'communityDirectory':
+      return () => renderCommunityDirectory();
 
     case 'setlistDetail':{
       const id = activeSetlistId;
@@ -8074,12 +8107,13 @@ async function startLineupLiveListener(){
 
   if(!await requireFirebaseConfigured())return;
 
+  if(!getActiveTeamId())return;
+
   lineupLiveStarted = true;
 
   try{
 
-    firestoreDb
-      .collection('lineups')
+    teamCollection('lineups')
       .onSnapshot(
         querySnapshot => {
 
@@ -8945,6 +8979,17 @@ async function onAuthReady(user){
 
   }
 
+  const hasTeam =
+    await ensureActiveTeam(user.uid);
+
+  if(!hasTeam){
+
+    renderTeamOnboarding();
+
+    return;
+
+  }
+
   /*
     After signing in, pull in any songs already in the shared
     library that aren't in this Library yet (additive only —
@@ -8974,6 +9019,8 @@ async function handleAuthSignOut(){
 
   setGoogleUser(null);
   setSyncStatus('idle');
+  setActiveTeam(null, '', '');
+  lineupLiveStarted = false;
 
   renderProfile();
 
@@ -9745,6 +9792,331 @@ async function ensureSyncSession(){
 
 
 /* =========================================================
+   TEAMS (multi-tenancy)
+
+   Everything above this app used to be one single shared pool —
+   every signed-in device saw the same library, lineups, and
+   video archive, no matter who they actually were. This section
+   turns that into real, separate teams: a team is a Firestore
+   doc at teams/{teamId} (name, an invite code, the list of
+   member uids), and every place elsewhere in the app that reads
+   or writes shared data now scopes that read/write to the
+   signed-in person's activeTeamId — so two teams' libraries and
+   lineups never see each other, while everyone *within* a team
+   still shares one pool exactly like before.
+
+   A person's team membership is remembered two ways: locally
+   (localStorage, so the app doesn't need a round-trip on every
+   load) and on their profiles/{uid} doc (so signing in on a new
+   device finds the right team automatically). ensureActiveTeam()
+   is the single entry point that resolves both and is called
+   right after sign-in, before any team-scoped sync starts.
+
+   The Community Directory (communitySongs collection, see
+   above) is deliberately NOT team-scoped — it's the one
+   cross-team space, by design.
+========================================================= */
+
+const TEAM_ID_STORAGE_KEY = 'worshipChordsTeamId';
+const TEAM_NAME_STORAGE_KEY = 'worshipChordsTeamName';
+const TEAM_INVITE_CODE_STORAGE_KEY = 'worshipChordsTeamInviteCode';
+
+let activeTeamId =
+  localStorage.getItem(TEAM_ID_STORAGE_KEY) || null;
+
+let activeTeamName =
+  localStorage.getItem(TEAM_NAME_STORAGE_KEY) || '';
+
+let activeTeamInviteCode =
+  localStorage.getItem(TEAM_INVITE_CODE_STORAGE_KEY) || '';
+
+function getActiveTeamId(){
+  return activeTeamId;
+}
+
+function getActiveTeamName(){
+  return activeTeamName;
+}
+
+function getActiveTeamInviteCode(){
+  return activeTeamInviteCode;
+}
+
+function setActiveTeam(id, name, inviteCode){
+
+  activeTeamId = id || null;
+  activeTeamName = name || '';
+  activeTeamInviteCode = inviteCode || '';
+
+  if(activeTeamId){
+
+    localStorage.setItem(TEAM_ID_STORAGE_KEY, activeTeamId);
+    localStorage.setItem(TEAM_NAME_STORAGE_KEY, activeTeamName);
+    localStorage.setItem(TEAM_INVITE_CODE_STORAGE_KEY, activeTeamInviteCode);
+
+  }else{
+
+    localStorage.removeItem(TEAM_ID_STORAGE_KEY);
+    localStorage.removeItem(TEAM_NAME_STORAGE_KEY);
+    localStorage.removeItem(TEAM_INVITE_CODE_STORAGE_KEY);
+
+  }
+
+}
+
+/*
+  Every team-scoped collection (library, lineups, video archive)
+  lives at teams/{teamId}/{name} — a Firestore subcollection —
+  so a single Security Rule keyed on membership of the parent
+  team doc locks down all of them at once. See firestore.rules.
+*/
+function teamCollection(name){
+
+  if(!activeTeamId){
+    throw new Error('No active team selected yet.');
+  }
+
+  return firestoreDb
+    .collection('teams')
+    .doc(activeTeamId)
+    .collection(name);
+
+}
+
+function generateInviteCode(){
+
+  /* No 0/O/1/I — easy to read aloud and type in without mixing
+     up characters that look alike. */
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+  let code = '';
+
+  for(let i = 0; i < 6; i++){
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+
+  return code;
+
+}
+
+async function createTeam(name){
+
+  if(!await requireFirebaseConfigured())return null;
+
+  if(!(await ensureSyncSession()))return null;
+
+  const uid =
+    firebaseAuth.currentUser.uid;
+
+  const teamName =
+    (name || '').trim() || "My Team";
+
+  const inviteCode =
+    generateInviteCode();
+
+  try{
+
+    const docRef =
+      await firestoreDb.collection('teams').add({
+
+        name: teamName,
+        inviteCode,
+        createdBy: uid,
+        createdAt: new Date().toISOString(),
+        memberUids: [uid]
+
+      });
+
+    setActiveTeam(docRef.id, teamName, inviteCode);
+
+    const user = getGoogleUser();
+
+    await saveUserProfile(uid, {
+      name: (user && user.name) || '',
+      photo: (user && user.picture) || '',
+      teamId: docRef.id
+    });
+
+    return { id: docRef.id, name: teamName, inviteCode };
+
+  }catch(error){
+
+    console.error(error);
+
+    showToast(
+      'Could not create the team: ' + error.message,
+      'error'
+    );
+
+    return null;
+
+  }
+
+}
+
+async function joinTeamByInviteCode(code){
+
+  if(!await requireFirebaseConfigured())return null;
+
+  if(!(await ensureSyncSession()))return null;
+
+  const cleanCode =
+    (code || '').trim().toUpperCase();
+
+  if(!cleanCode){
+
+    showToast('Enter an invite code first.', 'error');
+
+    return null;
+
+  }
+
+  const uid =
+    firebaseAuth.currentUser.uid;
+
+  try{
+
+    const snapshot =
+      await firestoreDb
+        .collection('teams')
+        .where('inviteCode', '==', cleanCode)
+        .limit(1)
+        .get();
+
+    if(snapshot.empty){
+
+      showToast('No team found with that invite code.', 'error');
+
+      return null;
+
+    }
+
+    const teamDoc = snapshot.docs[0];
+    const teamData = teamDoc.data();
+
+    await teamDoc.ref.update({
+      memberUids: firebase.firestore.FieldValue.arrayUnion(uid)
+    });
+
+    setActiveTeam(teamDoc.id, teamData.name || '', teamData.inviteCode || cleanCode);
+
+    const user = getGoogleUser();
+
+    await saveUserProfile(uid, {
+      name: (user && user.name) || '',
+      photo: (user && user.picture) || '',
+      teamId: teamDoc.id
+    });
+
+    return { id: teamDoc.id, ...teamData };
+
+  }catch(error){
+
+    console.error(error);
+
+    showToast(
+      'Could not join that team: ' + error.message,
+      'error'
+    );
+
+    return null;
+
+  }
+
+}
+
+/*
+  Resolves whether the signed-in person already belongs to a
+  team — checking the fast local cache first, then falling back
+  to their profile doc (e.g. a fresh install on a new device).
+  Returns true/false rather than redirecting anywhere itself, so
+  the caller (onAuthReady / initSyncOnLoad) decides what to do
+  next: proceed with syncing, or show renderTeamOnboarding().
+*/
+async function ensureActiveTeam(uid){
+
+  if(activeTeamId)return true;
+
+  try{
+
+    const profile = await loadUserProfile(uid);
+
+    if(profile && profile.teamId){
+
+      let teamName = '';
+      let inviteCode = '';
+
+      const teamSnap =
+        await firestoreDb
+          .collection('teams')
+          .doc(profile.teamId)
+          .get();
+
+      if(teamSnap.exists){
+        teamName = teamSnap.data().name || '';
+        inviteCode = teamSnap.data().inviteCode || '';
+      }
+
+      setActiveTeam(profile.teamId, teamName, inviteCode);
+
+      return true;
+
+    }
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+  return false;
+
+}
+
+async function leaveActiveTeam(){
+
+  if(!activeTeamId)return;
+
+  if(!await requireFirebaseConfigured()){
+    setActiveTeam(null, '');
+    return;
+  }
+
+  const uid =
+    firebaseAuth.currentUser && firebaseAuth.currentUser.uid;
+
+  try{
+
+    if(uid){
+
+      await firestoreDb
+        .collection('teams')
+        .doc(activeTeamId)
+        .update({
+          memberUids: firebase.firestore.FieldValue.arrayRemove(uid)
+        });
+
+      await saveUserProfile(uid, {
+        name: (getGoogleUser() && getGoogleUser().name) || '',
+        photo: (getGoogleUser() && getGoogleUser().picture) || '',
+        teamId: null
+      });
+
+    }
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+  setActiveTeam(null, '');
+  lineupLiveStarted = false;
+
+}
+
+
+/* =========================================================
    USER PROFILE (display name + photo)
 
    One small doc per person at profiles/{uid} — separate from
@@ -9786,16 +10158,26 @@ async function saveUserProfile(uid, profile){
 
   try{
 
+    const payload = {
+
+      name: profile.name || '',
+      photo: profile.photo || '',
+      updatedAt: new Date().toISOString()
+
+    };
+
+    /* Only touch teamId when the caller actually passed one in
+       (including explicit null, for leaving a team) — omitting
+       the key entirely here means ordinary name/photo saves
+       never accidentally wipe someone's team membership. */
+    if('teamId' in profile){
+      payload.teamId = profile.teamId;
+    }
+
     await firestoreDb
       .collection('profiles')
       .doc(uid)
-      .set({
-
-        name: profile.name || '',
-        photo: profile.photo || '',
-        updatedAt: new Date().toISOString()
-
-      }, { merge:true });
+      .set(payload, { merge:true });
 
     return true;
 
@@ -9951,7 +10333,7 @@ async function downloadLibrary(){
     const docSnap =
       await firestoreDb
         .collection('libraries')
-        .doc(SYNC_LIBRARY_DOC_ID)
+        .doc(getActiveTeamId())
         .get();
 
     const payload =
@@ -9982,7 +10364,7 @@ async function uploadLibrary(state){
 
     await firestoreDb
       .collection('libraries')
-      .doc(SYNC_LIBRARY_DOC_ID)
+      .doc(getActiveTeamId())
       .set({
 
         songs: state.songs,
@@ -9998,6 +10380,225 @@ async function uploadLibrary(state){
     throw new Error(error.message);
 
   }
+
+}
+
+
+/* =========================================================
+   COMMUNITY DIRECTORY
+
+   A separate, opt-in space from the shared team library above.
+   Anyone on the team can publish one of their own songs here
+   with "Share to Community" in the song's ⋮ menu; anyone can
+   then browse/search everything published and pull a copy into
+   their own library with one tap.
+
+   The whole app is one shared team today, so in practice this
+   is a lightweight "songs worth surfacing" shelf rather than a
+   cross-team catalog — but the data model (one doc per
+   published song, keyed by its own id, carrying who published
+   it and when) is deliberately shaped so that when the app
+   grows real, separate teams, this same collection can become
+   an actual cross-team directory without changing its shape,
+   just its access rules.
+========================================================= */
+
+async function downloadCommunityDirectory(){
+
+  try{
+
+    const snapshot =
+      await firestoreDb
+        .collection('communitySongs')
+        .get();
+
+    const items =
+      snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    items.sort((a, b) =>
+      (b.publishedAt || '').localeCompare(a.publishedAt || '')
+    );
+
+    return items;
+
+  }catch(error){
+
+    console.error(error);
+
+    return [];
+
+  }
+
+}
+
+
+async function publishSongToDirectory(song){
+
+  if(!await requireFirebaseConfigured())return false;
+
+  if(!(await ensureSyncSession()))return false;
+
+  const user =
+    getGoogleUser();
+
+  try{
+
+    await firestoreDb
+      .collection('communitySongs')
+      .doc(song.id)
+      .set({
+
+        title: song.title || 'Untitled Song',
+        text: song.text || '',
+        originalText: song.originalText || song.text || '',
+        analysis: song.analysis || null,
+        sourceUrl: song.sourceUrl || '',
+
+        publishedByName:
+          (user && user.name) || '',
+
+        publishedByUid:
+          (firebaseAuth.currentUser && firebaseAuth.currentUser.uid) || '',
+
+        teamId: getActiveTeamId() || '',
+        teamName: getActiveTeamName() || '',
+
+        publishedAt: new Date().toISOString()
+
+      });
+
+    const songs =
+      getSongs();
+
+    const match =
+      songs.find(item => item.id === song.id);
+
+    if(match){
+      match.publishedToDirectory = true;
+      writeSongs(songs);
+    }
+
+    return true;
+
+  }catch(error){
+
+    console.error(error);
+
+    showToast(
+      'Could not share that song: ' + error.message,
+      'error'
+    );
+
+    return false;
+
+  }
+
+}
+
+
+async function unpublishSongFromDirectory(song){
+
+  if(!await requireFirebaseConfigured())return false;
+
+  if(!(await ensureSyncSession()))return false;
+
+  try{
+
+    await firestoreDb
+      .collection('communitySongs')
+      .doc(song.id)
+      .delete();
+
+    const songs =
+      getSongs();
+
+    const match =
+      songs.find(item => item.id === song.id);
+
+    if(match){
+      match.publishedToDirectory = false;
+      writeSongs(songs);
+    }
+
+    return true;
+
+  }catch(error){
+
+    console.error(error);
+
+    showToast(
+      'Could not remove that song: ' + error.message,
+      'error'
+    );
+
+    return false;
+
+  }
+
+}
+
+
+/*
+  Copies a published community song into the signed-in user's
+  own library as a brand-new local song — its own id, its own
+  edit history from here on, so publishing again later never
+  reaches back and mutates someone else's imported copy. Warns
+  instead of silently duplicating if a same-titled song is
+  already saved, but still lets the person add it anyway.
+*/
+async function importCommunitySong(entry){
+
+  const songs =
+    getSongs();
+
+  const existing =
+    songs.find(item =>
+      (item.title || '').trim().toLowerCase() ===
+      (entry.title || '').trim().toLowerCase()
+    );
+
+  if(existing){
+
+    const proceed =
+      await showConfirmDialog(
+        `You already have a song called "${entry.title}". Add this copy anyway?`,
+        { confirmLabel:'Add Anyway' }
+      );
+
+    if(!proceed)return null;
+
+  }
+
+  const item = {
+
+    id:
+      window.crypto && crypto.randomUUID
+        ? crypto.randomUUID()
+        : String(Date.now() + Math.random()),
+
+    title: entry.title || 'Untitled Song',
+    text: entry.text || '',
+    originalText: entry.originalText || entry.text || '',
+    sourceUrl: entry.sourceUrl || '',
+    savedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    kind: 'analyzed',
+    analysis: entry.analysis || null,
+    transposeSteps: 0,
+    fontSize: getSettings().defaultFontSize
+
+  };
+
+  songs.unshift(item);
+
+  writeSongs(songs.slice(0, MAX_SONGS));
+
+  showToast(
+    `Added "${item.title}" to your library.`,
+    'success'
+  );
+
+  return item;
 
 }
 
@@ -10433,8 +11034,7 @@ async function downloadLineup(explicitDateKey){
     resolveLineupDateKey(explicitDateKey);
 
   const docSnap =
-    await firestoreDb
-      .collection('lineups')
+    await teamCollection('lineups')
       .doc(key)
       .get();
 
@@ -10463,8 +11063,7 @@ async function downloadLineup(explicitDateKey){
 async function downloadAllLineups(){
 
   const snapshot =
-    await firestoreDb
-      .collection('lineups')
+    await teamCollection('lineups')
       .get();
 
   const map = {};
@@ -10498,8 +11097,7 @@ async function uploadLineup(state, explicitDateKey){
 
   try{
 
-    await firestoreDb
-      .collection('lineups')
+    await teamCollection('lineups')
       .doc(key)
       .set({
 
@@ -10915,7 +11513,7 @@ async function downloadVideoArchive(){
   const docSnap =
     await firestoreDb
       .collection('videoArchive')
-      .doc(SYNC_VIDEO_ARCHIVE_DOC_ID)
+      .doc(getActiveTeamId())
       .get();
 
   const payload =
@@ -10934,7 +11532,7 @@ async function uploadVideoArchive(state){
 
     await firestoreDb
       .collection('videoArchive')
-      .doc(SYNC_VIDEO_ARCHIVE_DOC_ID)
+      .doc(getActiveTeamId())
       .set({
 
         videos: state.videos || [],
@@ -14263,6 +14861,143 @@ function profileInitials(name){
 }
 
 
+/* =========================================================
+   TEAM ONBOARDING SCREEN
+
+   Shown in place of the normal app the first time someone signs
+   in without a team on their profile yet — no nav bar, no way
+   to skip past it into a screen that would try to sync data for
+   a team that doesn't exist. Two paths: create a brand-new team
+   (becomes its invite code's first member), or join one with a
+   code a teammate shares. Either path hands off to
+   finishTeamOnboarding(), which kicks off the same sync calls
+   onAuthReady()/initSyncOnLoad() would have run directly.
+========================================================= */
+
+function renderTeamOnboarding(){
+
+  currentScreenName = 'teamOnboarding';
+
+  navHistory = [];
+
+  setActiveNav('');
+
+  screen.innerHTML = `
+
+    <div class="libraryHead">
+      <div class="libraryTitle" style="flex:1;">Set Up Your Team</div>
+    </div>
+
+    <div class="librarySection">
+
+      <div class="empty" style="text-align:left;padding:0 4px 16px;">
+        Songs, lineups, and sync are shared within a team.
+        Create a new one, or join a teammate's team with their
+        invite code.
+      </div>
+
+      <div class="setlistCard" style="margin:0 0 12px;flex-direction:column;align-items:stretch;gap:8px;">
+
+        <div class="setlistCardTitle">Create a New Team</div>
+
+        <input
+          type="text"
+          class="searchInput"
+          id="teamCreateNameInput"
+          placeholder="Team name (e.g. St. Mark's Worship)"
+          style="width:100%;"
+        >
+
+        <button type="button" class="toolbarBtn" id="teamCreateBtn" style="width:100%;">
+          Create Team
+        </button>
+
+      </div>
+
+      <div class="setlistCard" style="margin:0;flex-direction:column;align-items:stretch;gap:8px;">
+
+        <div class="setlistCardTitle">Join an Existing Team</div>
+
+        <input
+          type="text"
+          class="searchInput"
+          id="teamJoinCodeInput"
+          placeholder="Invite code"
+          style="width:100%;text-transform:uppercase;"
+        >
+
+        <button type="button" class="toolbarBtn" id="teamJoinBtn" style="width:100%;">
+          Join Team
+        </button>
+
+      </div>
+
+    </div>
+
+  `;
+
+  document.getElementById('teamCreateBtn').onclick = async () => {
+
+    const input = document.getElementById('teamCreateNameInput');
+    const btn = document.getElementById('teamCreateBtn');
+
+    btn.disabled = true;
+
+    const team = await createTeam(input.value);
+
+    btn.disabled = false;
+
+    if(team){
+
+      showToast(
+        `Team "${team.name}" created. Invite code: ${team.inviteCode}`,
+        'success'
+      );
+
+      finishTeamOnboarding();
+
+    }
+
+  };
+
+  document.getElementById('teamJoinBtn').onclick = async () => {
+
+    const input = document.getElementById('teamJoinCodeInput');
+    const btn = document.getElementById('teamJoinBtn');
+
+    btn.disabled = true;
+
+    const team = await joinTeamByInviteCode(input.value);
+
+    btn.disabled = false;
+
+    if(team){
+
+      showToast(`Joined "${team.name}".`, 'success');
+
+      finishTeamOnboarding();
+
+    }
+
+  };
+
+}
+
+function finishTeamOnboarding(){
+
+  pullNewSongsFromDrive();
+
+  pullLineupFromDrive();
+
+  pullVideoArchiveFromDrive();
+
+  startLineupLiveListener();
+
+  renderHome();
+
+}
+
+
 function renderProfile(){
 
   recordNavHistory('profile');
@@ -14444,6 +15179,51 @@ function renderProfile(){
         </div>
 
       </div>
+
+
+      ${
+        user && getActiveTeamId()
+        ? `
+          <div class="profileSection">
+
+            <div class="sectionLabel">
+              Team
+            </div>
+
+            <div class="settingsCard">
+
+              <div class="settingsRow">
+                <div>
+                  <div class="settingsRowLabel">
+                    ${esc(getActiveTeamName() || 'Your Team')}
+                  </div>
+                  <div class="settingsRowSub">
+                    Share this code so teammates can join
+                  </div>
+                </div>
+                <div class="settingsRowValue" style="font-family:monospace;letter-spacing:1px;">
+                  ${esc(getActiveTeamInviteCode() || '—')}
+                </div>
+              </div>
+
+              <div class="settingsRow">
+                <div>
+                  <div class="settingsRowLabel">Leave Team</div>
+                  <div class="settingsRowSub">
+                    You'll be asked to create or join a team again
+                  </div>
+                </div>
+                <button class="toolbarBtn" id="leaveTeamBtn">
+                  Leave
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+        `
+        : ''
+      }
 
 
       <div class="profileSection">
@@ -14794,6 +15574,31 @@ function renderProfile(){
   if(signOutBtn){
 
     signOutBtn.onclick = handleAuthSignOut;
+
+  }
+
+  const leaveTeamBtn =
+    document.getElementById('leaveTeamBtn');
+
+  if(leaveTeamBtn){
+
+    leaveTeamBtn.onclick = async () => {
+
+      const proceed =
+        await showConfirmDialog(
+          `Leave "${getActiveTeamName() || 'this team'}"? You'll need an invite code to get back in.`,
+          { confirmLabel:'Leave', danger:true }
+        );
+
+      if(!proceed)return;
+
+      leaveTeamBtn.disabled = true;
+
+      await leaveActiveTeam();
+
+      renderTeamOnboarding();
+
+    };
 
   }
 
@@ -19703,6 +20508,7 @@ function renderSongViewer(){
               <button class="songMenuItem" type="button" id="menuCategoryBtn" role="menuitem">Set Category</button>
               <button class="songMenuItem" type="button" id="menuSyncBtn" role="menuitem">Sync This Song</button>
               <button class="songMenuItem" type="button" id="menuSendToTeamBtn" role="menuitem">Send to Team</button>
+              <button class="songMenuItem" type="button" id="menuShareCommunityBtn" role="menuitem">${song.publishedToDirectory?'Remove from Community':'Share to Community'}</button>
               <button class="songMenuItem" type="button" id="menuAddVideoBtn" role="menuitem">${song.video?'Change Video Link':'Add Video Link'}</button>
               <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
               <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
@@ -20117,6 +20923,7 @@ function renderMergedSongViewer(){
               <button class="songMenuItem" type="button" id="menuCategoryBtn" role="menuitem">Set Category</button>
               <button class="songMenuItem" type="button" id="menuSyncBtn" role="menuitem">Sync This Song</button>
               <button class="songMenuItem" type="button" id="menuSendToTeamBtn" role="menuitem">Send to Team</button>
+              <button class="songMenuItem" type="button" id="menuShareCommunityBtn" role="menuitem">${song.publishedToDirectory?'Remove from Community':'Share to Community'}</button>
               <button class="songMenuItem" type="button" id="menuAddVideoBtn" role="menuitem">${song.video?'Change Video Link':'Add Video Link'}</button>
               <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
               <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
@@ -20852,6 +21659,44 @@ function attachSongMenuControls(){
       sendCurrentSongToLineup(currentSong);
 
     };
+
+
+  const menuShareCommunityBtn =
+    document.getElementById('menuShareCommunityBtn');
+
+  if(menuShareCommunityBtn){
+
+    menuShareCommunityBtn.onclick = async () => {
+
+      closeSongMenu();
+
+      if(!currentSong)return;
+
+      const wasPublished =
+        !!currentSong.publishedToDirectory;
+
+      const ok =
+        wasPublished
+          ? await unpublishSongFromDirectory(currentSong)
+          : await publishSongToDirectory(currentSong);
+
+      if(!ok)return;
+
+      currentSong.publishedToDirectory = !wasPublished;
+
+      showToast(
+        wasPublished
+          ? 'Removed from the Community Directory.'
+          : 'Shared to the Community Directory — anyone on the team can add it now.',
+        'success'
+      );
+
+      skipNextScreenTransition = true;
+      renderSongViewer();
+
+    };
+
+  }
 
 
   const menuAddVideoBtn =
@@ -23100,6 +23945,18 @@ function renderLibrary(){
       <div class="libraryHeadActions">
 
         <button
+          class="searchBtn"
+          id="openCommunityDirectory"
+          aria-label="Discover shared songs"
+          title="Discover"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" style="stroke-linecap:round;"/>
+          </svg>
+        </button>
+
+        <button
           class="searchBtn syncCloudBtn"
           id="librarySyncNow"
           aria-label="Sync library"
@@ -23334,6 +24191,12 @@ function renderLibrary(){
     )
     .onclick =
       () => openSearch('all');
+
+  document.getElementById('openCommunityDirectory').onclick = () => {
+    communityDirectoryCache = null;
+    communityDirectorySearch = '';
+    renderCommunityDirectory();
+  };
 
   const emptyLibrarySearchBtn =
     document.getElementById('emptyLibrarySearchBtn');
@@ -23831,6 +24694,197 @@ function renderLibrary(){
 
 
 /* =========================================================
+   COMMUNITY DIRECTORY SCREEN
+
+   Reached from Library → the globe icon in the header, or from
+   a song's ⋮ menu after publishing. Lists everything anyone on
+   the team has opted to share, newest first, with a simple
+   title search. "Add to My Library" copies a chosen song in via
+   importCommunitySong() without touching the original.
+========================================================= */
+
+let communityDirectorySearch = '';
+let communityDirectoryCache = null;
+
+async function renderCommunityDirectory(){
+
+  recordNavHistory('communityDirectory');
+
+  currentScreenName = 'communityDirectory';
+
+  setActiveNav('library');
+
+  const loading = communityDirectoryCache === null;
+
+  if(loading){
+
+    screen.innerHTML = `
+
+      <div class="libraryHead">
+        <button class="searchBtn" id="communityBackBtn" aria-label="Back to library">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <div class="libraryTitle" style="flex:1;">Discover</div>
+      </div>
+
+      <div class="librarySection">
+        <div class="empty">Loading shared songs…</div>
+      </div>
+
+    `;
+
+    document.getElementById('communityBackBtn').onclick = () => {
+      goBack(renderLibrary);
+    };
+
+    communityDirectoryCache =
+      await downloadCommunityDirectory();
+
+    renderCommunityDirectory();
+
+    return;
+
+  }
+
+  const mySongIds =
+    new Set(getSongs().map(song => song.id));
+
+  const query =
+    communityDirectorySearch.trim().toLowerCase();
+
+  const entries =
+    communityDirectoryCache.filter(entry =>
+      !query ||
+      (entry.title || '').toLowerCase().includes(query)
+    );
+
+  screen.innerHTML = `
+
+    <div class="libraryHead">
+
+      <button class="searchBtn" id="communityBackBtn" aria-label="Back to library">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+
+      <div class="libraryTitle" style="flex:1;">Discover</div>
+
+      <button class="searchBtn syncCloudBtn" id="communityRefreshBtn" aria-label="Refresh shared songs" title="Refresh">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 18a4.2 4.2 0 0 1-.6-8.35 5.5 5.5 0 0 1 10.6-1.9A4 4 0 0 1 17 18H7Z"/>
+        </svg>
+      </button>
+
+    </div>
+
+    <div class="librarySection">
+
+      <input
+        type="text"
+        class="searchInput"
+        id="communitySearchInput"
+        placeholder="Search shared songs…"
+        value="${esc(communityDirectorySearch)}"
+        autocomplete="off"
+        style="display:block;width:100%;margin-bottom:10px;"
+      >
+
+      ${
+        entries.length
+        ? entries.map(entry => `
+
+          <div class="setlistCard" style="margin:0 0 8px;">
+
+            <div class="songIcon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" style="stroke-linecap:round;"/>
+              </svg>
+            </div>
+
+            <div class="songInfo">
+              <div class="setlistCardTitle">${esc(entry.title || 'Untitled Song')}</div>
+              <div class="setlistCardMeta">
+                ${
+                  [
+                    entry.teamName ? 'from ' + esc(entry.teamName) : '',
+                    entry.publishedByName ? 'by ' + esc(entry.publishedByName) : ''
+                  ].filter(Boolean).join(' · ') || 'Shared'
+                }${entry.publishedAt ? ' · ' + esc(formatRelativeTime(entry.publishedAt)) : ''}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="toolbarBtn"
+              data-import-community="${esc(entry.id)}"
+              style="flex:none;"
+            >${mySongIds.has(entry.id) ? 'Re-add' : 'Add'}</button>
+
+          </div>
+
+        `).join('')
+        : `
+          <div class="empty">
+            ${emptyStateIconHTML('music')}
+            ${
+              query
+              ? 'No shared songs match that search.'
+              : 'Nothing shared yet.<br>Open a song, tap ⋮, then "Share to Community".'
+            }
+          </div>
+        `
+      }
+
+    </div>
+
+  `;
+
+  document.getElementById('communityBackBtn').onclick = () => {
+    goBack(renderLibrary);
+  };
+
+  document.getElementById('communityRefreshBtn').onclick = () => {
+    communityDirectoryCache = null;
+    renderCommunityDirectory();
+  };
+
+  const searchInput =
+    document.getElementById('communitySearchInput');
+
+  searchInput.oninput = () => {
+    communityDirectorySearch = searchInput.value;
+    skipNextScreenTransition = true;
+    renderCommunityDirectory();
+  };
+
+  searchInput.focus();
+  searchInput.selectionStart = searchInput.selectionEnd = searchInput.value.length;
+
+  screen.querySelectorAll('[data-import-community]').forEach(btn => {
+
+    btn.onclick = async () => {
+
+      const entry =
+        communityDirectoryCache.find(
+          item => item.id === btn.dataset.importCommunity
+        );
+
+      if(!entry)return;
+
+      btn.disabled = true;
+
+      await importCommunitySong(entry);
+
+      btn.disabled = false;
+
+    };
+
+  });
+
+}
+
+
+/* =========================================================
    SETLISTS TAB
 ========================================================= */
 
@@ -24214,9 +25268,11 @@ function renderLineupDetail(dateKey){
         ${esc(formatLineupDateLabel(currentLineupDate))} · ${orderedSongs.length} song${orderedSongs.length===1?'':'s'}${lineup.updatedBy ? ' · sent by ' + esc(lineup.updatedBy) : ''}
       </div>
 
+      ${orderedSongs.length > 1 ? `<div class="lineupReorderHint">Long-press a song to reorder</div>` : ''}
+
       ${
         orderedSongs.length
-        ? orderedSongs.map(song => {
+        ? `<div class="lineupSongList" id="lineupSongList">` + orderedSongs.map(song => {
 
             if(song.missing){
               return `
@@ -24278,7 +25334,7 @@ function renderLineupDetail(dateKey){
               </div>
             `;
 
-          }).join('')
+          }).join('') + `</div>`
         : `
           <div class="empty">
             ${emptyStateIconHTML('music')}
@@ -24448,6 +25504,8 @@ function renderLineupDetail(dateKey){
     };
   });
 
+  attachLineupSongDragging();
+
   const ytAddLinkBtn =
     document.getElementById('ytAddLinkBtn');
 
@@ -24469,6 +25527,237 @@ function renderLineupDetail(dateKey){
       removeVideoFromLineup(btn.dataset.removeYt);
     };
   });
+
+}
+
+
+/*
+  Long-press-then-drag reordering for the lineup song list —
+  same gesture used elsewhere in the app (Flow sections, the
+  editor pill bar): hold a row still for 500ms to pick it up,
+  then drag it up/down among its siblings. A quick tap is left
+  alone entirely, so it still opens the song or hits the remove
+  button exactly as before. Reordering is skipped if the press
+  started on the remove button, and a `justDragged` flag on the
+  row suppresses the click a drag would otherwise leave behind.
+
+  On drop, the new order is pushed to Firestore the same way
+  removeSongFromLineup() does (download latest, mutate, upload,
+  cache locally) so the whole team sees it. If that fails —
+  offline, signed out, a real Firestore error — the screen is
+  simply re-rendered from the still-unchanged local cache,
+  which snaps the list back to the last known-good order.
+*/
+function attachLineupSongDragging(){
+
+  const list =
+    document.getElementById('lineupSongList');
+
+  if(!list)return;
+
+  let pressTimer = null;
+  let draggingRow = null;
+  let dragStartIndex = -1;
+
+  const clearPress = () => {
+    clearTimeout(pressTimer);
+    pressTimer = null;
+  };
+
+  const onMove = event => {
+
+    if(!draggingRow)return;
+
+    event.preventDefault();
+
+    const rows =
+      [...list.querySelectorAll('.lineupEntry')];
+
+    const target =
+      rows.find(row => {
+
+        if(row === draggingRow)return false;
+
+        const rect =
+          row.getBoundingClientRect();
+
+        return (
+          event.clientY >= rect.top &&
+          event.clientY <= rect.bottom
+        );
+
+      });
+
+    if(!target)return;
+
+    const currentIndex =
+      [...list.children].indexOf(draggingRow);
+
+    const targetIndex =
+      [...list.children].indexOf(target);
+
+    if(targetIndex > currentIndex){
+      list.insertBefore(draggingRow, target.nextSibling);
+    }else{
+      list.insertBefore(draggingRow, target);
+    }
+
+  };
+
+  const onUp = () => {
+
+    if(!draggingRow)return;
+
+    draggingRow.classList.remove('dragging');
+    draggingRow.dataset.justDragged = '1';
+
+    setTimeout(() => {
+      if(draggingRow)delete draggingRow.dataset.justDragged;
+    }, 0);
+
+    const finalIndex =
+      [...list.children].indexOf(draggingRow);
+
+    if(finalIndex !== dragStartIndex){
+
+      const orderedIds =
+        [...list.querySelectorAll('.lineupEntry')]
+          .map(row => row.dataset.lineupSongRow);
+
+      reorderLineupSongs(orderedIds);
+
+    }
+
+    draggingRow = null;
+    dragStartIndex = -1;
+
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', onUp);
+
+  };
+
+  list.querySelectorAll('.lineupEntry').forEach(row => {
+
+    row.addEventListener('pointerdown', event => {
+
+      if(event.target.closest('[data-remove-from-lineup]'))return;
+
+      clearPress();
+      row.classList.add('longPressing');
+
+      pressTimer = setTimeout(() => {
+
+        row.classList.remove('longPressing');
+        row.classList.add('dragging');
+
+        draggingRow = row;
+        dragStartIndex = [...list.children].indexOf(row);
+
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+        document.addEventListener('pointercancel', onUp);
+
+      }, 500);
+
+    });
+
+    row.addEventListener('pointerup', () => {
+      clearPress();
+      row.classList.remove('longPressing');
+    });
+
+    row.addEventListener('pointercancel', () => {
+      clearPress();
+      row.classList.remove('longPressing');
+    });
+
+    row.addEventListener('pointermove', event => {
+
+      /* Cancel the pending long-press if the finger moves before
+         it fires — that's a scroll, not a hold. Once dragging has
+         actually started this is a no-op since the document-level
+         onMove above already takes over. */
+
+      if(pressTimer && !draggingRow){
+        clearPress();
+        row.classList.remove('longPressing');
+      }
+
+    });
+
+    /*
+      Swallow the click a drag leaves behind, so lifting the
+      finger after a reorder doesn't also open the song or count
+      as a tap on whatever row it landed on.
+    */
+    row.addEventListener('click', event => {
+      if(row.dataset.justDragged){
+        event.stopPropagation();
+        event.preventDefault();
+      }
+    }, true);
+
+  });
+
+}
+
+
+async function reorderLineupSongs(orderedIds){
+
+  const revert = () => renderLineupDetail();
+
+  if(!await requireFirebaseConfigured()){
+    revert();
+    return;
+  }
+
+  if(!(await ensureSyncSession())){
+    revert();
+    return;
+  }
+
+  try{
+
+    const remote =
+      await downloadLineup();
+
+    const byId =
+      new Map(remote.songs.map(item => [item.id, item]));
+
+    const reordered =
+      orderedIds
+        .map(id => byId.get(id))
+        .filter(Boolean);
+
+    /* Safety net: if a song landed in the shared lineup between
+       the drag starting and this upload (someone else sent one
+       mid-reorder), keep it rather than silently dropping it —
+       just tack it onto the end. */
+    remote.songs.forEach(item => {
+      if(!orderedIds.includes(item.id)){
+        reordered.push(item);
+      }
+    });
+
+    remote.songs = reordered;
+
+    await uploadLineup(remote);
+
+    setLocalLineup(remote);
+
+  }catch(error){
+
+    console.error(error);
+
+    showToast(
+      'Could not save the new order: ' + error.message,
+      'error'
+    );
+
+    revert();
+
+  }
 
 }
 
@@ -26399,6 +27688,17 @@ async function initSyncOnLoad(){
   }
 
   refreshUserProfile(user);
+
+  const hasTeam =
+    await ensureActiveTeam(user.uid);
+
+  if(!hasTeam){
+
+    renderTeamOnboarding();
+
+    return;
+
+  }
 
   pullNewSongsFromDrive();
 
