@@ -4155,6 +4155,100 @@ button{
 
 
 /* =========================================================
+   LINEUP TIMES (rehearsal + service, for reminder pushes)
+========================================================= */
+
+.lineupTimesCard{
+  margin-bottom:18px;
+
+  padding:14px;
+
+  background:#111113;
+  border:1px solid #2a2a2f;
+  border-radius:14px;
+}
+
+.lineupTimesLabel{
+  margin-bottom:10px;
+
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:#8a8a92;
+}
+
+.lineupTimesRow{
+  display:flex;
+  gap:10px;
+}
+
+.lineupTimeField{
+  flex:1;
+  min-width:0;
+}
+
+.lineupTimeFieldLabel{
+  margin-bottom:6px;
+  font-size:12px;
+  color:#a7a7ad;
+}
+
+.lineupTimeInput{
+  width:100%;
+
+  background:#0e0e10;
+  border:1px solid #34343a;
+  color:#fff;
+
+  border-radius:10px;
+
+  padding:10px 11px;
+
+  outline:none;
+
+  transition:border-color .15s ease;
+
+  /* Force the native picker icon to read on a dark background */
+  color-scheme:dark;
+}
+
+.lineupTimeInput:focus{
+  border-color:var(--accent);
+}
+
+.lineupTimesSaveBtn{
+  width:100%;
+  margin-top:12px;
+
+  border:0;
+  border-radius:10px;
+
+  padding:10px;
+
+  background:var(--accent);
+  color:var(--accent-ink);
+
+  font-size:13px;
+  font-weight:800;
+
+  cursor:pointer;
+}
+
+.lineupTimesSaveBtn:disabled{
+  background:#2a2a2f;
+  color:#63636a;
+  cursor:default;
+}
+
+.lineupTimesHint{
+  margin-top:10px;
+  font-size:11.5px;
+  color:#66666d;
+}
+
+
+/* =========================================================
    LINEUP DAY SHEET (tapping a calendar date)
 ========================================================= */
 
@@ -11299,7 +11393,24 @@ function formatLineupWeekdayLabel(key){
 }
 
 function emptyLineup(key){
-  return { date:key, title:'Worship Lineup', songs:[], videos:[], updatedBy:'', updatedAt:'' };
+  return {
+    date:key,
+    title:'Worship Lineup',
+    songs:[],
+    videos:[],
+    updatedBy:'',
+    updatedAt:'',
+    /*
+      HH:MM (24h, local time) for the two reminder pushes below.
+      rehearsalTime is assumed to fall the evening BEFORE this
+      lineup's date (Saturday, if `key` is a Sunday); serviceTime
+      is assumed to fall ON this lineup's date. Both blank until
+      someone sets them on the Lineup screen — the reminder cron
+      just skips any lineup missing the relevant time.
+    */
+    rehearsalTime:'',
+    serviceTime:''
+  };
 }
 
 /*
@@ -11491,7 +11602,9 @@ async function downloadLineup(explicitDateKey){
     title: (payload && payload.title) || 'Worship Lineup',
     songs: Array.isArray(payload && payload.songs) ? payload.songs : [],
     videos: Array.isArray(payload && payload.videos) ? payload.videos : [],
-    updatedBy: (payload && payload.updatedBy) || ''
+    updatedBy: (payload && payload.updatedBy) || '',
+    rehearsalTime: (payload && payload.rehearsalTime) || '',
+    serviceTime: (payload && payload.serviceTime) || ''
 
   };
 
@@ -11523,7 +11636,9 @@ async function downloadAllLineups(){
       title: payload.title || 'Worship Lineup',
       songs: Array.isArray(payload.songs) ? payload.songs : [],
       videos: Array.isArray(payload.videos) ? payload.videos : [],
-      updatedBy: payload.updatedBy || ''
+      updatedBy: payload.updatedBy || '',
+      rehearsalTime: payload.rehearsalTime || '',
+      serviceTime: payload.serviceTime || ''
 
     };
 
@@ -11549,9 +11664,20 @@ async function uploadLineup(state, explicitDateKey){
         songs: state.songs || [],
         videos: state.videos || [],
         updatedBy: state.updatedBy || '',
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        rehearsalTime: state.rehearsalTime || '',
+        serviceTime: state.serviceTime || ''
 
-      });
+        /*
+          merge:true so this never wipes out the
+          rehearsalReminderSentAt / serviceReminderSentAt
+          bookkeeping fields the reminder cron writes to this
+          same doc (see api/cron-lineup-reminders.js) — otherwise
+          every edit here (adding a song, renaming, etc.) would
+          reset that bookkeeping and cause a duplicate reminder.
+        */
+
+      }, { merge:true });
 
   }catch(error){
 
@@ -25996,6 +26122,43 @@ function renderLineupDetail(dateKey){
     </div>
 
 
+    <div class="lineupTimesCard">
+
+      <div class="lineupTimesLabel">Rehearsal &amp; service times</div>
+
+      <div class="lineupTimesRow">
+
+        <div class="lineupTimeField">
+          <div class="lineupTimeFieldLabel">Rehearsal (Sat)</div>
+          <input
+            type="time"
+            class="lineupTimeInput"
+            id="lineupRehearsalTimeInput"
+            value="${esc(lineup.rehearsalTime || '')}"
+          >
+        </div>
+
+        <div class="lineupTimeField">
+          <div class="lineupTimeFieldLabel">Service</div>
+          <input
+            type="time"
+            class="lineupTimeInput"
+            id="lineupServiceTimeInput"
+            value="${esc(lineup.serviceTime || '')}"
+          >
+        </div>
+
+      </div>
+
+      <button class="lineupTimesSaveBtn" type="button" id="lineupTimesSaveBtn" disabled>Save times</button>
+
+      <div class="lineupTimesHint">
+        The team gets pushed: 5 hrs before rehearsal, 3 hrs before service, and again 20 min before service starts.
+      </div>
+
+    </div>
+
+
     <div class="librarySection">
 
       <div class="sectionLabel">
@@ -26146,6 +26309,67 @@ function renderLineupDetail(dateKey){
 
     currentLineupDate = null;
     renderLineupCalendar();
+
+  };
+
+  /*
+    Rehearsal/service time fields — Save only lights up once
+    either value actually changes, and saving re-renders this
+    same screen (not the calendar) so the person stays put.
+  */
+
+  const rehearsalTimeInput =
+    document.getElementById('lineupRehearsalTimeInput');
+
+  const serviceTimeInput =
+    document.getElementById('lineupServiceTimeInput');
+
+  const timesSaveBtn =
+    document.getElementById('lineupTimesSaveBtn');
+
+  const markTimesDirty = () => {
+    timesSaveBtn.disabled = false;
+  };
+
+  rehearsalTimeInput.oninput = markTimesDirty;
+  serviceTimeInput.oninput = markTimesDirty;
+
+  timesSaveBtn.onclick = async () => {
+
+    if(!await requireFirebaseConfigured())return;
+    if(!(await ensureSyncSession()))return;
+
+    timesSaveBtn.disabled = true;
+    timesSaveBtn.textContent = 'Saving…';
+
+    const dateKeyBeingSaved = currentLineupDate;
+
+    try{
+
+      const remote =
+        await downloadLineup(dateKeyBeingSaved);
+
+      remote.rehearsalTime = rehearsalTimeInput.value || '';
+      remote.serviceTime = serviceTimeInput.value || '';
+
+      await uploadLineup(remote, dateKeyBeingSaved);
+
+      setLocalLineup(remote, dateKeyBeingSaved);
+
+      showToast('Reminder times saved.', 'success', { small:true });
+
+      renderLineupDetail(dateKeyBeingSaved);
+
+    }catch(error){
+
+      console.error(error);
+
+      showToast('Could not save times: ' + error.message, 'error');
+
+      timesSaveBtn.disabled = false;
+      timesSaveBtn.textContent = 'Save times';
+
+    }
 
   };
 
