@@ -4901,6 +4901,15 @@ button{
   scroll-snap-align:start;
 }
 
+.videoCard[data-video-card-id] .videoCardThumb{
+  transition:transform .12s ease, opacity .12s ease;
+}
+
+.videoCard.longPressing .videoCardThumb{
+  transform:scale(.94);
+  opacity:.75;
+}
+
 .videoCardThumb{
   position:relative;
   width:100%;
@@ -12139,6 +12148,58 @@ async function archiveVideo(entryInput){
 }
 
 
+/*
+  Long-press-to-remove counterpart to archiveVideo() above — same
+  local-first-then-best-effort-remote-sync shape, just pulling one
+  entry out instead of adding/refreshing one. Only ever removes
+  the archive record itself; deliberately doesn't touch a song's
+  own attached video or the lineup's YT playlist, since the
+  archive is independent of both by design (see the block comment
+  above SYNC_VIDEO_ARCHIVE_DOC_ID).
+*/
+async function removeVideoFromArchive(id){
+
+  if(!id)return;
+
+  const localArchive =
+    getLocalVideoArchive();
+
+  setLocalVideoArchive({
+    videos: localArchive.videos.filter(entry => entry.id !== id)
+  });
+
+  renderVideoCardRow(
+    (document.getElementById('videoSearchInput') || {}).value
+  );
+
+  showToast('Removed from Worship Videos.', 'success');
+
+  if(!firebaseAuth || !firestoreDb)return;
+  if(!getGoogleUser())return;
+
+  try{
+
+    if(!(await ensureSyncSession()))return;
+
+    const remote =
+      await downloadVideoArchive();
+
+    remote.videos =
+      remote.videos.filter(entry => entry.id !== id);
+
+    await uploadVideoArchive(remote);
+
+    setLocalVideoArchive(remote);
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+
 async function addVideoToLineupPrompt(){
 
   const localLineup =
@@ -13101,7 +13162,7 @@ function buildVideoCardHtml(entry, isSearchOnly){
 
   return `
 
-    <div class="videoCard">
+    <div class="videoCard"${isSearchOnly ? '' : ` data-video-card-id="${esc(entry.id)}"`}>
 
       <div
         class="videoCardThumb"
@@ -13211,31 +13272,114 @@ function renderVideoCardRow(filterText){
     shown.map(entry => buildVideoCardHtml(entry, false)).join('') +
     ytShown.map(item => buildVideoCardHtml(item, true)).join('');
 
-  rowEl.querySelectorAll('[data-video-play]').forEach(thumb => {
+  /*
+    Saved cards: single pointerdown/pointerup pair per card powers
+    both the normal tap (play / open song) and a 420ms long-press
+    that offers to remove the video from the archive — same timing
+    and pointercancel-on-scroll safety as attachFlowControls()
+    elsewhere in the app. A long-press suppresses the tap that
+    follows it so releasing the hold doesn't also open the video.
+  */
+  rowEl.querySelectorAll('[data-video-card-id]').forEach(card => {
 
-    thumb.onclick = () => {
-      openYouTubePlayer(thumb.dataset.videoPlay);
+    const id =
+      card.dataset.videoCardId;
+
+    const thumb =
+      card.querySelector('[data-video-play]');
+
+    const titleEl =
+      card.querySelector('[data-video-title-id]');
+
+    let pressTimer = null;
+    let longPressed = false;
+
+    const clearPress = () => {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+      card.classList.remove('longPressing');
     };
 
-  });
+    card.addEventListener('pointerdown', () => {
 
-  rowEl.querySelectorAll('[data-video-title-id]').forEach(titleEl => {
+      longPressed = false;
+      clearPress();
 
-    titleEl.onclick = () => {
+      card.classList.add('longPressing');
 
-      const songId =
-        titleEl.dataset.videoSongId;
+      pressTimer = setTimeout(async () => {
 
-      const liveSong =
-        songId ? getSongs().find(item => item.id === songId) : null;
+        longPressed = true;
 
-      if(liveSong){
-        openSong(liveSong);
-      }else{
-        openYouTubePlayer(titleEl.dataset.videoTitleId);
-      }
+        card.classList.remove('longPressing');
 
-    };
+        if(navigator.vibrate)navigator.vibrate(8);
+
+        const entry =
+          getLocalVideoArchive().videos.find(item => item.id === id);
+
+        const label =
+          (entry && (entry.songTitle || entry.youtubeTitle)) || 'this video';
+
+        const confirmed =
+          await showConfirmDialog(
+            `Remove "${label}" from Worship Videos?`,
+            { confirmLabel:'Remove', danger:true }
+          );
+
+        if(confirmed)removeVideoFromArchive(id);
+
+      }, 420);
+
+    });
+
+    ['pointerup','pointerleave','pointercancel'].forEach(evt => {
+      card.addEventListener(evt, clearPress);
+    });
+
+    card.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+    });
+
+    if(thumb){
+
+      thumb.onclick = () => {
+
+        if(longPressed){
+          longPressed = false;
+          return;
+        }
+
+        openYouTubePlayer(thumb.dataset.videoPlay);
+
+      };
+
+    }
+
+    if(titleEl){
+
+      titleEl.onclick = () => {
+
+        if(longPressed){
+          longPressed = false;
+          return;
+        }
+
+        const songId =
+          titleEl.dataset.videoSongId;
+
+        const liveSong =
+          songId ? getSongs().find(item => item.id === songId) : null;
+
+        if(liveSong){
+          openSong(liveSong);
+        }else{
+          openYouTubePlayer(titleEl.dataset.videoTitleId);
+        }
+
+      };
+
+    }
 
   });
 
