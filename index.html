@@ -4158,6 +4158,36 @@ button{
    LINEUP TIMES (rehearsal + service, for reminder pushes)
 ========================================================= */
 
+.eventTypePills{
+  display:flex;
+  gap:8px;
+  margin-bottom:14px;
+}
+
+.eventTypePill{
+  flex:1;
+
+  padding:10px 6px;
+
+  border:1px solid #303036;
+  border-radius:10px;
+
+  background:#1a1a1d;
+  color:#a7a7ad;
+
+  font-size:12.5px;
+  font-weight:700;
+  text-align:center;
+
+  cursor:pointer;
+}
+
+.eventTypePill.active{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:var(--accent-ink);
+}
+
 .lineupTimesCard{
   margin-bottom:18px;
 
@@ -8592,7 +8622,9 @@ async function startLineupLiveListener(){
 
   try{
 
-    teamCollection('lineups')
+    firestoreDb
+      .collection('lineups')
+      .where('teamId', '==', getActiveTeamId())
       .onSnapshot(
         querySnapshot => {
 
@@ -8603,17 +8635,23 @@ async function startLineupLiveListener(){
             const data =
               docSnap.data() || {};
 
-            map[docSnap.id] = {
+            const dateKey =
+              data.dateKey || docSnap.id;
 
-              date: docSnap.id,
+            map[dateKey] = {
+
+              date: dateKey,
               title: data.title || 'Worship Lineup',
               songs: Array.isArray(data.songs) ? data.songs : [],
               videos: Array.isArray(data.videos) ? data.videos : [],
-              updatedBy: data.updatedBy || ''
+              updatedBy: data.updatedBy || '',
+              eventType: data.eventType || 'sunday-worship',
+              rehearsalTime: data.rehearsalTime || '',
+              serviceTime: data.serviceTime || ''
 
             };
 
-            handleLineupSnapshot(map[docSnap.id].songs);
+            handleLineupSnapshot(map[dateKey].songs);
 
           });
 
@@ -10367,6 +10405,33 @@ function teamCollection(name){
 
 }
 
+/*
+  NOTE: despite the comment above, this app's actual deployed
+  firestore.rules does NOT have a `teams/**` rule at all — only
+  flat top-level `libraries/{docId}`, `lineups/{docId}`,
+  `videoArchive/{docId}`, `profiles/{uid}`, with everything else
+  denied. teamCollection() (teams/{teamId}/{name}) doesn't match
+  any of those, so anything still calling it for lineups would
+  get a silent permission-denied. Library/video archive sidestep
+  this by living directly at libraries/{teamId} and
+  videoArchive/{teamId} instead (see downloadLibrary/uploadLibrary
+  above) — flat collection, team-scoped only via the document ID.
+  Lineups now follow that same working pattern below, since a
+  single lineup doc can't hold every upcoming Sunday: the doc ID
+  is `{teamId}_{dateKey}` and a `teamId` field on each doc is what
+  scopes downloadAllLineups()'s query, instead of a real
+  subcollection.
+*/
+function lineupDocId(dateKey){
+
+  if(!activeTeamId){
+    throw new Error('No active team selected yet.');
+  }
+
+  return activeTeamId + '_' + dateKey;
+
+}
+
 function generateInviteCode(){
 
   /* No 0/O/1/I — easy to read aloud and type in without mixing
@@ -11474,12 +11539,28 @@ function emptyLineup(key){
     updatedBy:'',
     updatedAt:'',
     /*
-      HH:MM (24h, local time) for the two reminder pushes below.
-      rehearsalTime is assumed to fall the evening BEFORE this
-      lineup's date (Saturday, if `key` is a Sunday); serviceTime
-      is assumed to fall ON this lineup's date. Both blank until
-      someone sets them on the Lineup screen — the reminder cron
-      just skips any lineup missing the relevant time.
+      What kind of entry this is — changes which time field(s)
+      apply and what the reminder cron says:
+        'sunday-worship' (default) — rehearsalTime (the evening
+          BEFORE this date) + serviceTime (ON this date). Two
+          reminder pushes: "Rehearsal na mamaya!" w/ setlist
+          before rehearsal, "See you on the other side,
+          Disciples!" before service.
+        'rehearsal' — a standalone rehearsal, not tied to a
+          Sunday. rehearsalTime falls ON this date instead of
+          the day before. One reminder: "Rehearsal na mamaya!"
+          w/ setlist.
+        'event' — anything else (a program, outreach, etc).
+          serviceTime falls ON this date. One reminder: "See you
+          on the other side, Disciples!"
+    */
+    eventType:'sunday-worship',
+    /*
+      HH:MM (24h, local time) for the reminder pushes above. Which
+      day each one is anchored to depends on eventType (see
+      above) — resolved in the reminder cron, not here. Both
+      blank until someone sets them on the Lineup screen — the
+      cron just skips any lineup missing the relevant time.
     */
     rehearsalTime:'',
     serviceTime:''
@@ -11662,8 +11743,9 @@ async function downloadLineup(explicitDateKey){
     resolveLineupDateKey(explicitDateKey);
 
   const docSnap =
-    await teamCollection('lineups')
-      .doc(key)
+    await firestoreDb
+      .collection('lineups')
+      .doc(lineupDocId(key))
       .get();
 
   const payload =
@@ -11676,6 +11758,7 @@ async function downloadLineup(explicitDateKey){
     songs: Array.isArray(payload && payload.songs) ? payload.songs : [],
     videos: Array.isArray(payload && payload.videos) ? payload.videos : [],
     updatedBy: (payload && payload.updatedBy) || '',
+    eventType: (payload && payload.eventType) || 'sunday-worship',
     rehearsalTime: (payload && payload.rehearsalTime) || '',
     serviceTime: (payload && payload.serviceTime) || ''
 
@@ -11688,12 +11771,17 @@ async function downloadLineup(explicitDateKey){
   Whole-collection pull, used by the calendar/Home so every
   date with a lineup can be shown, not just whichever one is
   currently open. Same no-swallowed-failure reasoning as
-  downloadLineup() above.
+  downloadLineup() above. Filters to this team's own docs via
+  the `teamId` field (see lineupDocId() below for why it's a
+  field and not just baked into the doc's path) — a plain
+  equality filter, no composite index needed.
 */
 async function downloadAllLineups(){
 
   const snapshot =
-    await teamCollection('lineups')
+    await firestoreDb
+      .collection('lineups')
+      .where('teamId', '==', getActiveTeamId())
       .get();
 
   const map = {};
@@ -11703,13 +11791,17 @@ async function downloadAllLineups(){
     const payload =
       docSnap.data() || {};
 
-    map[docSnap.id] = {
+    const dateKey =
+      payload.dateKey || docSnap.id;
 
-      date: docSnap.id,
+    map[dateKey] = {
+
+      date: dateKey,
       title: payload.title || 'Worship Lineup',
       songs: Array.isArray(payload.songs) ? payload.songs : [],
       videos: Array.isArray(payload.videos) ? payload.videos : [],
       updatedBy: payload.updatedBy || '',
+      eventType: payload.eventType || 'sunday-worship',
       rehearsalTime: payload.rehearsalTime || '',
       serviceTime: payload.serviceTime || ''
 
@@ -11729,15 +11821,19 @@ async function uploadLineup(state, explicitDateKey){
 
   try{
 
-    await teamCollection('lineups')
-      .doc(key)
+    await firestoreDb
+      .collection('lineups')
+      .doc(lineupDocId(key))
       .set({
 
+        teamId: getActiveTeamId(),
+        dateKey: key,
         title: state.title || 'Worship Lineup',
         songs: state.songs || [],
         videos: state.videos || [],
         updatedBy: state.updatedBy || '',
         updatedAt: new Date().toISOString(),
+        eventType: state.eventType || 'sunday-worship',
         rehearsalTime: state.rehearsalTime || '',
         serviceTime: state.serviceTime || ''
 
@@ -11745,7 +11841,7 @@ async function uploadLineup(state, explicitDateKey){
           merge:true so this never wipes out the
           rehearsalReminderSentAt / serviceReminderSentAt
           bookkeeping fields the reminder cron writes to this
-          same doc (see api/cron-lineup-reminders.js) — otherwise
+          same doc (see scripts/lineup-reminders.js) — otherwise
           every edit here (adding a song, renaming, etc.) would
           reset that bookkeeping and cause a duplicate reminder.
         */
@@ -26219,36 +26315,78 @@ function renderLineupDetail(dateKey){
 
     <div class="lineupTimesCard">
 
-      <div class="lineupTimesLabel">Rehearsal &amp; service times</div>
+      <div class="lineupTimesLabel">Event type</div>
+
+      <div class="eventTypePills">
+        <button
+          class="eventTypePill${(lineup.eventType || 'sunday-worship') === 'sunday-worship' ? ' active' : ''}"
+          type="button"
+          data-event-type="sunday-worship"
+        >Sunday Worship</button>
+        <button
+          class="eventTypePill${lineup.eventType === 'rehearsal' ? ' active' : ''}"
+          type="button"
+          data-event-type="rehearsal"
+        >Rehearsal</button>
+        <button
+          class="eventTypePill${lineup.eventType === 'event' ? ' active' : ''}"
+          type="button"
+          data-event-type="event"
+        >Event</button>
+      </div>
+
+      <div class="lineupTimesLabel">
+        ${
+          lineup.eventType === 'rehearsal'
+            ? 'Rehearsal time'
+            : lineup.eventType === 'event'
+              ? 'Event time'
+              : 'Rehearsal &amp; service times'
+        }
+      </div>
 
       <div class="lineupTimesRow">
 
-        <div class="lineupTimeField">
-          <div class="lineupTimeFieldLabel">Rehearsal (Sat)</div>
-          <input
-            type="time"
-            class="lineupTimeInput"
-            id="lineupRehearsalTimeInput"
-            value="${esc(lineup.rehearsalTime || '')}"
-          >
-        </div>
+        ${
+          lineup.eventType !== 'event' ? `
+            <div class="lineupTimeField">
+              <div class="lineupTimeFieldLabel">${lineup.eventType === 'rehearsal' ? 'Rehearsal' : 'Rehearsal (Sat)'}</div>
+              <input
+                type="time"
+                class="lineupTimeInput"
+                id="lineupRehearsalTimeInput"
+                value="${esc(lineup.rehearsalTime || '')}"
+              >
+            </div>
+          ` : ''
+        }
 
-        <div class="lineupTimeField">
-          <div class="lineupTimeFieldLabel">Service</div>
-          <input
-            type="time"
-            class="lineupTimeInput"
-            id="lineupServiceTimeInput"
-            value="${esc(lineup.serviceTime || '')}"
-          >
-        </div>
+        ${
+          lineup.eventType !== 'rehearsal' ? `
+            <div class="lineupTimeField">
+              <div class="lineupTimeFieldLabel">${lineup.eventType === 'event' ? 'Event' : 'Service'}</div>
+              <input
+                type="time"
+                class="lineupTimeInput"
+                id="lineupServiceTimeInput"
+                value="${esc(lineup.serviceTime || '')}"
+              >
+            </div>
+          ` : ''
+        }
 
       </div>
 
       <button class="lineupTimesSaveBtn" type="button" id="lineupTimesSaveBtn" disabled>Save times</button>
 
       <div class="lineupTimesHint">
-        The team gets pushed: 5 hrs before rehearsal, 3 hrs before service, and again 20 min before service starts.
+        ${
+          lineup.eventType === 'rehearsal'
+            ? 'The team gets pushed "Rehearsal na mamaya!" with the setlist, 5 hrs before this time.'
+            : lineup.eventType === 'event'
+              ? 'The team gets pushed "See you on the other side, Disciples!" 3 hrs and again 20 min before this time.'
+              : 'The team gets pushed: "Rehearsal na mamaya!" (w/ setlist) 5 hrs before rehearsal, then "See you on the other side, Disciples!" 3 hrs and 20 min before service.'
+        }
       </div>
 
     </div>
@@ -26409,8 +26547,11 @@ function renderLineupDetail(dateKey){
 
   /*
     Rehearsal/service time fields — Save only lights up once
-    either value actually changes, and saving re-renders this
-    same screen (not the calendar) so the person stays put.
+    either value (or the event type) actually changes, and
+    saving re-renders this same screen (not the calendar) so the
+    person stays put. Only one or both time inputs exist in the
+    DOM depending on eventType (see the markup above), so these
+    stay optional throughout.
   */
 
   const rehearsalTimeInput =
@@ -26426,8 +26567,42 @@ function renderLineupDetail(dateKey){
     timesSaveBtn.disabled = false;
   };
 
-  rehearsalTimeInput.oninput = markTimesDirty;
-  serviceTimeInput.oninput = markTimesDirty;
+  if(rehearsalTimeInput)rehearsalTimeInput.oninput = markTimesDirty;
+  if(serviceTimeInput)serviceTimeInput.oninput = markTimesDirty;
+
+  screen.querySelectorAll('[data-event-type]').forEach(pill => {
+
+    pill.onclick = async () => {
+
+      if(!await requireFirebaseConfigured())return;
+      if(!(await ensureSyncSession()))return;
+
+      const dateKeyBeingSet = currentLineupDate;
+
+      try{
+
+        const remote =
+          await downloadLineup(dateKeyBeingSet);
+
+        remote.eventType = pill.dataset.eventType;
+
+        await uploadLineup(remote, dateKeyBeingSet);
+
+        setLocalLineup(remote, dateKeyBeingSet);
+
+        renderLineupDetail(dateKeyBeingSet);
+
+      }catch(error){
+
+        console.error(error);
+
+        showToast('Could not change event type: ' + error.message, 'error');
+
+      }
+
+    };
+
+  });
 
   timesSaveBtn.onclick = async () => {
 
@@ -26444,8 +26619,8 @@ function renderLineupDetail(dateKey){
       const remote =
         await downloadLineup(dateKeyBeingSaved);
 
-      remote.rehearsalTime = rehearsalTimeInput.value || '';
-      remote.serviceTime = serviceTimeInput.value || '';
+      if(rehearsalTimeInput)remote.rehearsalTime = rehearsalTimeInput.value || '';
+      if(serviceTimeInput)remote.serviceTime = serviceTimeInput.value || '';
 
       await uploadLineup(remote, dateKeyBeingSaved);
 
