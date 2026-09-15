@@ -2,32 +2,47 @@
   api/youtube-search.js
 
   Proxies YouTube Data API search requests so the API key never
-  ships to the browser or sits in the repo. The client calls this
-  with just a query string; this holds the real key (as a Vercel
-  env var) and forwards the request to Google.
+  ships to the browser or sits in the repo. The client (see
+  searchYouTube() in index.html) calls this with just a query
+  string; this holds the real key (as a Vercel env var) and
+  forwards the request to Google.
 
   Requires a YOUTUBE_API_KEY environment variable — Vercel
   Project → Settings → Environment Variables. Get a key at
   https://console.cloud.google.com → APIs & Services → Credentials
-  (enable "YouTube Data API v3" first). Restrict the key to that
-  one API — cheap extra safety even though it's server-side only now.
+  (enable "YouTube Data API v3" first). Since this now runs
+  server-side, set Application restrictions to "None" on the key
+  (there's no browser referrer to restrict by from here) — keep
+  API restrictions limited to YouTube Data API v3 as the safety net.
 */
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res){
+
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if(req.method === 'OPTIONS')return res.status(204).end();
 
   const query = req.query.q;
 
-  if (!query) {
-    res.status(400).json({ error: 'Missing q parameter' });
-    return;
+  if(!query){
+
+    return res.status(400).json({
+      error:'Missing q parameter'
+    });
+
   }
 
-  if (!process.env.YOUTUBE_API_KEY) {
-    res.status(500).json({ error: 'YOUTUBE_API_KEY is not configured on the server' });
-    return;
+  if(!process.env.YOUTUBE_API_KEY){
+
+    return res.status(500).json({
+      error:'YOUTUBE_API_KEY is not configured on the server'
+    });
+
   }
 
-  try {
+  try{
 
     const url =
       'https://www.googleapis.com/youtube/v3/search' +
@@ -38,24 +53,32 @@ module.exports = async function handler(req, res) {
     const googleResponse = await fetch(url);
     const data = await googleResponse.json();
 
-    if (!googleResponse.ok) {
-      res.status(googleResponse.status).json({
+    if(!googleResponse.ok){
+
+      return res.status(googleResponse.status).json({
         error: (data && data.error && data.error.message) || 'YouTube search failed'
       });
-      return;
+
     }
 
     // Cache briefly — search terms repeat often within a session
     // and this cuts into your free daily quota (10,000 units/day,
     // 100 per search).
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
-    res.status(200).json(data);
 
-  } catch (error) {
+    return res.status(200).json(data);
 
-    console.error('youtube-search failed:', error);
-    res.status(500).json({ error: error.message });
+  }catch(error){
+
+    console.error(
+      'youtube-search failed:',
+      error
+    );
+
+    return res.status(500).json({
+      error: error.message || 'YouTube search failed.'
+    });
 
   }
 
-};
+}
