@@ -27321,12 +27321,15 @@ function renderLineupCalendar(){
   around the calendar to check a few dates stays quick.
 */
 
-function closeLineupDaySheet(){
+function closeLineupDaySheet(onClosed){
 
   const back =
     document.getElementById('lineupSheetBackEl');
 
-  if(!back)return;
+  if(!back){
+    if(onClosed)onClosed();
+    return;
+  }
 
   back.classList.remove('open');
 
@@ -27336,6 +27339,17 @@ function closeLineupDaySheet(){
       document.getElementById('lineupSheetOverlay');
 
     if(host)host.innerHTML = '';
+
+    /*
+      Wait until the sheet has actually faded out before
+      swapping the screen underneath it — firing onClosed
+      synchronously (right after removing 'open') used to swap
+      #screen's whole innerHTML instantly while the dim overlay
+      was still mid fade-out on top of it, so the background
+      content visibly jumped/flickered through the still-visible
+      dim layer instead of a clean crossfade.
+    */
+    if(onClosed)onClosed();
 
   }, 200);
 
@@ -27405,8 +27419,7 @@ function openLineupDaySheet(key){
   };
 
   document.getElementById('lineupSheetSetNowBtn').onclick = () => {
-    closeLineupDaySheet();
-    renderLineupSongPicker(key);
+    closeLineupDaySheet(() => renderLineupSongPicker(key));
   };
 
   const openBtn =
@@ -27414,8 +27427,7 @@ function openLineupDaySheet(key){
 
   if(openBtn){
     openBtn.onclick = () => {
-      closeLineupDaySheet();
-      renderLineupDetail(key);
+      closeLineupDaySheet(() => renderLineupDetail(key));
     };
   }
 
