@@ -7336,6 +7336,79 @@ function showOnboardingModal(user){
 
 
 /*
+  Reached from "+ Add Song" on a specific category tab in the
+  Library. A quick two-option chooser between the two ways a
+  song actually gets created (write/paste your own via the
+  Analyzer, or import from Ultimate Guitar) — whichever the
+  person picks, the currently active category tab is remembered
+  in pendingNewSongCategory so saveSong() assigns it
+  automatically instead of needing a separate "Set Category"
+  step afterward.
+*/
+function openAddSongChooser(category, categoryLabel){
+
+  pendingNewSongCategory =
+    (category && category !== 'all') ? category : null;
+
+  const host =
+    document.getElementById('confirmOverlay');
+
+  if(!host)return;
+
+  host.innerHTML = `
+
+    <div class="confirmBack" id="confirmBack">
+      <div class="confirmBox">
+
+        <p class="confirmMessage">
+          Add a song${pendingNewSongCategory ? ' to ' + esc(categoryLabel || category) : ''}
+        </p>
+
+        <div class="confirmBtnRow" style="flex-direction:column;gap:10px;">
+          <button class="toolbarBtn primary" id="addSongWriteBtn" type="button" style="width:100%;">
+            Write / Paste a Song
+          </button>
+          <button class="toolbarBtn" id="addSongImportBtn" type="button" style="width:100%;">
+            Import from Ultimate Guitar
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  `;
+
+  const back =
+    document.getElementById('confirmBack');
+
+  const close = () => {
+    back.classList.remove('open');
+    setTimeout(() => { host.innerHTML = ''; }, 200);
+  };
+
+  document.getElementById('addSongWriteBtn').onclick = () => {
+    close();
+    renderAnalyzer('');
+  };
+
+  document.getElementById('addSongImportBtn').onclick = () => {
+    close();
+    openSearch('ug');
+  };
+
+  back.onclick = (event) => {
+    if(event.target === back){
+      pendingNewSongCategory = null;
+      close();
+    }
+  };
+
+  requestAnimationFrame(() => back.classList.add('open'));
+
+}
+
+
+/*
   Replays a soft fade/slide-in animation on #screen every time
   its content is swapped out, so navigating between tabs/pages
   (and opening the song viewer, editor, etc.) always feels
@@ -7577,6 +7650,15 @@ let libraryTab = 'songs';
 */
 let libraryFavoritesOnly = false;
 let libraryCategoryFilter = 'all';
+
+/*
+  Set right before opening the Analyzer or Search from the
+  "+ Add Song" button on a specific category tab, so the song
+  that gets created lands directly in that category instead of
+  needing a separate "Set Category" step afterward. Read once
+  by saveSong() and cleared immediately after.
+*/
+let pendingNewSongCategory = null;
 
 
 /*
@@ -8914,9 +8996,14 @@ function saveSong(
       0,
 
     fontSize:
-      getSettings().defaultFontSize
+      getSettings().defaultFontSize,
+
+    category:
+      pendingNewSongCategory || undefined
 
   };
+
+  pendingNewSongCategory = null;
 
 
   songs.unshift(item);
@@ -16963,9 +17050,9 @@ function renderLyrics(){
                         ? '<span class="unsavedDot" aria-hidden="true"></span>'
                         : ''
                     }${
-                      song.analysis
-                        ? 'Analyzed'
-                        : 'Imported'
+                      song.theme
+                        ? esc(song.theme) + (detectSongKeyLabel(song) ? ' · Key of ' + esc(detectSongKeyLabel(song)) : '')
+                        : (song.analysis ? 'Analyzed' : 'Imported')
                     }
                     ·
                     ${
@@ -18571,7 +18658,10 @@ function renderAnalyzer(
       'backAnalyzer'
     )
     .onclick =
-      renderLyrics;
+      () => {
+        pendingNewSongCategory = null;
+        renderLyrics();
+      };
 
 
   document
@@ -21351,7 +21441,7 @@ function renderSongViewer(){
               <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
               <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
               <button class="songMenuItem" type="button" id="menuAddToSetlistBtn" role="menuitem">Add to Setlist</button>
-              <button class="songMenuItem" type="button" id="menuCategoryBtn" role="menuitem">Set Category</button>
+              <button class="songMenuItem" type="button" id="menuCategoryBtn" role="menuitem">Category & Theme</button>
               <button class="songMenuItem" type="button" id="menuSyncBtn" role="menuitem">Sync This Song</button>
               <button class="songMenuItem" type="button" id="menuSendToTeamBtn" role="menuitem">Send to Team</button>
               <button class="songMenuItem" type="button" id="menuShareCommunityBtn" role="menuitem">${song.publishedToDirectory?'Remove from Community':'Share to Community'}</button>
@@ -21766,7 +21856,7 @@ function renderMergedSongViewer(){
               <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
               <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
               <button class="songMenuItem" type="button" id="menuAddToSetlistBtn" role="menuitem">Add to Setlist</button>
-              <button class="songMenuItem" type="button" id="menuCategoryBtn" role="menuitem">Set Category</button>
+              <button class="songMenuItem" type="button" id="menuCategoryBtn" role="menuitem">Category & Theme</button>
               <button class="songMenuItem" type="button" id="menuSyncBtn" role="menuitem">Sync This Song</button>
               <button class="songMenuItem" type="button" id="menuSendToTeamBtn" role="menuitem">Send to Team</button>
               <button class="songMenuItem" type="button" id="menuShareCommunityBtn" role="menuitem">${song.publishedToDirectory?'Remove from Community':'Share to Community'}</button>
@@ -24858,6 +24948,13 @@ function renderLibrary(){
         `).join('')
       }
 
+      <button
+        type="button"
+        class="categoryPill"
+        id="libraryAddSongBtn"
+        style="flex:0 0 auto;font-weight:600;"
+      >+ Add Song</button>
+
     </div>
 
 
@@ -24910,9 +25007,9 @@ function renderLibrary(){
               <div class="songMeta">
 
                 ${
-                  song.analysis
-                    ? 'Analyzed'
-                    : 'Imported'
+                  song.theme
+                    ? esc(song.theme) + (detectSongKeyLabel(song) ? ' · Key of ' + esc(detectSongKeyLabel(song)) : '')
+                    : (song.analysis ? 'Analyzed' : 'Imported')
                 }
 
                 ${
@@ -25037,6 +25134,18 @@ function renderLibrary(){
     )
     .onclick =
       () => openSearch('all');
+
+  document.getElementById('libraryAddSongBtn').onclick = () => {
+
+    const activeCat =
+      CATEGORIES.find(cat => cat.id === libraryCategoryFilter);
+
+    openAddSongChooser(
+      libraryCategoryFilter,
+      activeCat ? activeCat.label : ''
+    );
+
+  };
 
   document.getElementById('openCommunityDirectory').onclick = () => {
     communityDirectoryCache = null;
@@ -27355,6 +27464,92 @@ function renderLineupSongPicker(dateKey){
   one and adds the song to it in the same step.
 */
 
+/*
+  Song themes — a simple, user-extensible list stored locally
+  (not per-song; this is the pool of choices offered in the
+  picker below). Starts with four defaults; "+ Add Theme" in
+  the picker appends to this list so new themes are available
+  for every song from then on, not just the one being tagged.
+*/
+function getThemesList(){
+
+  try{
+
+    const stored =
+      JSON.parse(
+        localStorage.getItem('worshipChordsThemes')
+      );
+
+    if(Array.isArray(stored) && stored.length)return stored;
+
+  }catch(error){}
+
+  return ['Adoration','Devotional','Faithfulness','Celebration'];
+
+}
+
+
+function saveThemesList(list){
+
+  localStorage.setItem(
+    'worshipChordsThemes',
+    JSON.stringify(list)
+  );
+
+}
+
+
+function addCustomTheme(name){
+
+  const trimmed =
+    (name || '').trim();
+
+  if(!trimmed)return null;
+
+  const list =
+    getThemesList();
+
+  const existing =
+    list.find(
+      theme => theme.toLowerCase() === trimmed.toLowerCase()
+    );
+
+  if(existing)return existing;
+
+  list.push(trimmed);
+
+  saveThemesList(list);
+
+  return trimmed;
+
+}
+
+
+/*
+  Same key-detection used by the transpose toast (see
+  showTransposeKeyToast) — reused here so the Library card and
+  Recently Viewed list can show a song's actual key instead of
+  just "Analyzed"/"Imported".
+*/
+function detectSongKeyLabel(song){
+
+  if(!song)return '';
+
+  const info =
+    detectKeyFromChords(
+      extractChordTokens(
+        transposeText(
+          song.originalText || song.text || '',
+          song.transposeSteps || 0
+        )
+      )
+    );
+
+  return info ? info.label : '';
+
+}
+
+
 function showCategoryPicker(song){
 
   const host =
@@ -27369,38 +27564,175 @@ function showCategoryPicker(song){
     { id: 'hymn', label: 'Hymn' }
   ];
 
-  host.innerHTML = `
+  const persistSong = () => {
 
-    <div class="confirmBack" id="confirmBack">
-      <div class="confirmBox">
+    song.updatedAt =
+      new Date().toISOString();
 
-        <p class="confirmMessage">Category for "${esc(song.title)}":</p>
+    const songs =
+      getSongs();
+
+    const index =
+      songs.findIndex(item => item.id === song.id);
+
+    if(index !== -1){
+
+      songs[index] = song;
+
+      writeSongs(songs);
+
+    }
+
+    if(currentSong && currentSong.id === song.id){
+
+      currentSong.category = song.category;
+      currentSong.theme = song.theme;
+
+    }
+
+  };
+
+  const renderBody = () => {
+
+    const box =
+      document.querySelector('#confirmOverlay .confirmBox');
+
+    if(!box)return;
+
+    const themes =
+      getThemesList();
+
+    box.innerHTML = `
+
+      <p class="confirmMessage">Category for "${esc(song.title)}":</p>
+
+      ${
+        categories.map(cat => `
+          <button
+            class="toolbarBtn${song.category === cat.id ? ' primary' : ''}"
+            type="button"
+            data-pick-category="${esc(cat.id)}"
+            style="width:100%;justify-content:flex-start;margin-bottom:8px;"
+          >${esc(cat.label)}</button>
+        `).join('')
+      }
+
+      <button
+        class="toolbarBtn${!song.category ? ' primary' : ''}"
+        type="button"
+        data-pick-category=""
+        style="width:100%;justify-content:flex-start;margin-bottom:8px;${!song.category?'':'color:#a7a7ae;'}"
+      >No Category</button>
+
+
+      <p class="confirmMessage" style="margin-top:18px;">Theme:</p>
+
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
 
         ${
-          categories.map(cat => `
+          themes.map(theme => `
             <button
-              class="toolbarBtn${song.category === cat.id ? ' primary' : ''}"
+              class="toolbarBtn${song.theme === theme ? ' primary' : ''}"
               type="button"
-              data-pick-category="${esc(cat.id)}"
-              style="width:100%;justify-content:flex-start;margin-bottom:8px;"
-            >${esc(cat.label)}</button>
+              data-pick-theme="${esc(theme)}"
+              style="width:auto;padding:8px 14px;"
+            >${esc(theme)}</button>
           `).join('')
         }
 
         <button
-          class="toolbarBtn"
+          class="toolbarBtn${!song.theme ? ' primary' : ''}"
           type="button"
-          data-pick-category=""
-          style="width:100%;justify-content:flex-start;margin-bottom:8px;color:#a7a7ae;"
-        >No Category</button>
-
-        <div class="confirmBtnRow">
-          <button class="toolbarBtn" id="pickerCancelBtn" type="button">Close</button>
-        </div>
+          data-pick-theme=""
+          style="width:auto;padding:8px 14px;${!song.theme?'':'color:#a7a7ae;'}"
+        >No Theme</button>
 
       </div>
-    </div>
 
+      <div style="display:flex;gap:8px;margin-bottom:4px;">
+
+        <input
+          class="confirmInput"
+          id="newThemeInput"
+          type="text"
+          placeholder="Add a new theme…"
+          style="flex:1;margin-bottom:0;"
+        >
+
+        <button class="toolbarBtn" id="addThemeBtn" type="button" style="width:auto;">
+          Add
+        </button>
+
+      </div>
+
+
+      <div class="confirmBtnRow" style="margin-top:18px;">
+        <button class="toolbarBtn primary" id="pickerCancelBtn" type="button" style="width:100%;">Done</button>
+      </div>
+
+    `;
+
+    box.querySelectorAll('[data-pick-category]').forEach(btn => {
+      btn.onclick = () => {
+
+        song.category =
+          btn.dataset.pickCategory || null;
+
+        persistSong();
+        renderBody();
+
+      };
+    });
+
+    box.querySelectorAll('[data-pick-theme]').forEach(btn => {
+      btn.onclick = () => {
+
+        song.theme =
+          btn.dataset.pickTheme || null;
+
+        persistSong();
+        renderBody();
+
+      };
+    });
+
+    const addThemeBtn =
+      box.querySelector('#addThemeBtn');
+
+    const newThemeInput =
+      box.querySelector('#newThemeInput');
+
+    const commitNewTheme = () => {
+
+      const added =
+        addCustomTheme(newThemeInput.value);
+
+      if(!added)return;
+
+      song.theme = added;
+
+      persistSong();
+      renderBody();
+
+    };
+
+    addThemeBtn.onclick = commitNewTheme;
+
+    newThemeInput.onkeydown = (event) => {
+      if(event.key === 'Enter'){
+        event.preventDefault();
+        commitNewTheme();
+      }
+    };
+
+    box.querySelector('#pickerCancelBtn').onclick = close;
+
+  };
+
+  host.innerHTML = `
+    <div class="confirmBack" id="confirmBack">
+      <div class="confirmBox" style="max-height:80vh;overflow-y:auto;"></div>
+    </div>
   `;
 
   const back =
@@ -27411,58 +27743,13 @@ function showCategoryPicker(song){
     setTimeout(() => { host.innerHTML = ''; }, 200);
   };
 
-  document.getElementById('pickerCancelBtn').onclick = close;
-
   back.onclick = (event) => {
     if(event.target === back){
       close();
     }
   };
 
-  document.querySelectorAll('[data-pick-category]').forEach(btn => {
-    btn.onclick = () => {
-
-      const categoryId =
-        btn.dataset.pickCategory;
-
-      song.category =
-        categoryId || null;
-
-      song.updatedAt =
-        new Date().toISOString();
-
-      const songs =
-        getSongs();
-
-      const index =
-        songs.findIndex(item => item.id === song.id);
-
-      if(index !== -1){
-
-        songs[index] = song;
-
-        writeSongs(songs);
-
-      }
-
-      if(currentSong && currentSong.id === song.id){
-
-        currentSong.category =
-          song.category;
-
-      }
-
-      close();
-
-      showToast(
-        categoryId
-          ? `Category set to ${categories.find(c => c.id === categoryId).label}.`
-          : 'Category removed.',
-        'success'
-      );
-
-    };
-  });
+  renderBody();
 
   requestAnimationFrame(() => {
     back.classList.add('open');
