@@ -4711,7 +4711,7 @@ button{
 
 /*
   Full-screen "See you on the other side, Disciples!" moment,
-  shown inside the app 5 minutes before a service starts while
+  shown inside the app a few minutes before a service starts while
   someone is on the song viewer. Dismissed only by the Amen!
   button, once per service.
 */
@@ -26807,8 +26807,8 @@ function renderLineupDetail(dateKey){
           lineup.eventType === 'rehearsal'
             ? 'The team gets pushed "Rehearsal na mamaya!" with the setlist, 5 hrs before this time.'
             : lineup.eventType === 'event'
-              ? 'The team gets pushed "Worship mamaya ha?" 3 hrs before, then "See you on the other side, Disciples!" 5 min before this time.'
-              : 'The team gets pushed: "Rehearsal na mamaya!" (w/ setlist) 5 hrs before rehearsal, "Worship mamaya ha?" 3 hrs before service, then "See you on the other side, Disciples!" 5 min before.'
+              ? 'The team gets pushed "Worship mamaya ha?" 3 hrs before this time. Anyone with the app open also sees "See you on the other side, Disciples!" 3 min before, in-app.'
+              : 'The team gets pushed: "Rehearsal na mamaya!" (w/ setlist) 5 hrs before rehearsal, then "Worship mamaya ha?" 3 hrs before service. Anyone with the app open also sees "See you on the other side, Disciples!" 3 min before service, in-app.'
         }
       </div>
 
@@ -29779,7 +29779,7 @@ async function notifyLineupUpdate(songTitle){
 
    The push notifications handled by scripts/lineup-reminders.js
    stop at 3 hrs out ("Worship mamaya ha?"). The final call —
-   5 minutes before a service actually starts — is shown here
+   a few minutes before a service actually starts — is shown here
    instead, as a full-screen moment inside the app, so it lands
    while the team already has the lyrics open.
 
@@ -29790,7 +29790,7 @@ async function notifyLineupUpdate(songTitle){
    transpose).
 ========================================================= */
 
-const SERVICE_CALL_MINUTES_BEFORE = 5;
+const SERVICE_CALL_MINUTES_BEFORE = 3;
 
 function serviceCallDismissedKey(){
   return 'worshipChordsServiceCallSeen';
@@ -29812,9 +29812,9 @@ function markServiceCallSeen(stamp){
 
 /*
   Returns a stable id for today's service start if we're inside
-  the 5-minute window leading up to it, otherwise null. The
-  window closes at the service time itself, so opening the app
-  mid-service doesn't trigger it.
+  the SERVICE_CALL_MINUTES_BEFORE window leading up to it,
+  otherwise null. The window closes at the service time itself,
+  so opening the app mid-service doesn't trigger it.
 */
 function pendingServiceCallStamp(){
 
