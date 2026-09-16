@@ -7585,6 +7585,9 @@ function snapshotScreen(name){
     case 'profile':
       return () => renderProfile();
 
+    case 'profileSettings':
+      return () => renderProfileSettings();
+
     case 'lyrics':
       return () => renderLyrics();
 
@@ -16081,9 +16084,6 @@ function renderProfile(){
 
   setActiveNav('profile');
 
-  const settings =
-    getSettings();
-
   const user =
     getGoogleUser();
 
@@ -16099,9 +16099,6 @@ function renderProfile(){
         Array.isArray(song.mergeParts) &&
         song.mergeParts.length > 1
     ).length;
-
-  const recentCount =
-    getRecentViews().length;
 
   const syncStatus =
     getSyncStatus();
@@ -16303,209 +16300,22 @@ function renderProfile(){
 
       <div class="profileSection">
 
-        <div class="sectionLabel">
-          Library
-        </div>
-
         <div class="settingsCard">
 
-          <div class="settingsRow">
-            <div class="settingsRowLabel">Saved Songs</div>
-            <div class="settingsRowValue">${songCount}</div>
-          </div>
-
-          <div class="settingsRow">
-            <div class="settingsRowLabel">Recently Viewed</div>
-            <div class="settingsRowValue">${recentCount}</div>
-          </div>
-
-        </div>
-
-      </div>
-
-
-      <div class="profileSection">
-
-        <div class="sectionLabel">
-          Lyrics Viewer
-        </div>
-
-        <div class="settingsCard">
-
-          <div class="settingsRow">
+          <div class="settingsRow" id="openProfileSettingsRow" style="cursor:pointer;">
 
             <div>
-              <div class="settingsRowLabel">Default Font Size</div>
-              <div class="settingsRowSub">Used for newly opened songs</div>
+              <div class="settingsRowLabel">Settings</div>
+              <div class="settingsRowSub">Library, Lyrics Viewer, Chords, Notifications, Data</div>
             </div>
 
-            <div class="stepper">
-              <button class="stepperBtn" id="fontSizeDown" type="button">–</button>
-              <span class="stepperValue" id="fontSizeValue">${settings.defaultFontSize}px</span>
-              <button class="stepperBtn" id="fontSizeUp" type="button">+</button>
-            </div>
-
-          </div>
-
-          <div class="settingsRow">
-
-            <div>
-              <div class="settingsRowLabel">Default Auto-Scroll Speed</div>
-              <div class="settingsRowSub">Level 1 (slow) – 5 (fast)</div>
-            </div>
-
-            <div class="stepper">
-              <button class="stepperBtn" id="scrollSpeedDown" type="button">–</button>
-              <span class="stepperValue" id="scrollSpeedValue">${settings.autoScrollSpeed}</span>
-              <button class="stepperBtn" id="scrollSpeedUp" type="button">+</button>
-            </div>
+            <span style="color:#77777f;font-size:19px;line-height:1;">›</span>
 
           </div>
 
         </div>
 
       </div>
-
-
-      <div class="profileSection">
-
-        <div class="sectionLabel">
-          Chords
-        </div>
-
-        <div class="settingsCard">
-
-          ${
-            ENHARMONIC_PAIRS.map(pair => `
-
-              <div class="settingsRow">
-
-                <div>
-                  <div class="settingsRowLabel">${pair.sharp} / ${pair.flat}</div>
-                  <div class="settingsRowSub">How this chord is shown in Lyrics &amp; Chords</div>
-                </div>
-
-                <div class="chordSpellToggle" data-note="${pair.sharp}">
-
-                  <button
-                    type="button"
-                    class="chordSpellBtn${(settings.chordSpelling[pair.sharp] || 'sharp') === 'sharp' ? ' active' : ''}"
-                    data-value="sharp"
-                  >${pair.sharp}</button>
-
-                  <button
-                    type="button"
-                    class="chordSpellBtn${settings.chordSpelling[pair.sharp] === 'flat' ? ' active' : ''}"
-                    data-value="flat"
-                  >${pair.flat}</button>
-
-                </div>
-
-              </div>
-
-            `).join('')
-          }
-
-        </div>
-
-      </div>
-
-
-      <div class="profileSection">
-
-        <div class="sectionLabel">
-          Notifications
-        </div>
-
-        <div class="settingsCard">
-
-          <div class="settingsRow">
-
-            <div>
-              <div class="settingsRowLabel">New Song Alerts</div>
-              <div class="settingsRowSub" id="notificationStatusSub">
-                ${esc(notificationStatusText())}
-              </div>
-            </div>
-
-            <button
-              class="toolbarBtn${notificationsCurrentlyOn() ? ' danger' : ' primary'}"
-              id="notificationToggleBtn"
-              type="button"
-            >
-              ${notificationsCurrentlyOn() ? 'Turn Off' : 'Turn On'}
-            </button>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-      <div class="profileSection">
-
-        <div class="sectionLabel">
-          Data
-        </div>
-
-        <div class="settingsCard">
-
-          <div class="settingsRow">
-
-            <div>
-              <div class="settingsRowLabel">Export Library</div>
-              <div class="settingsRowSub">Download all saved songs as a backup file</div>
-            </div>
-
-            <button class="toolbarBtn" id="exportLibraryBtn" type="button">Export</button>
-
-          </div>
-
-          <div class="settingsRow">
-
-            <div>
-              <div class="settingsRowLabel">Import Backup</div>
-              <div class="settingsRowSub">A full library backup (.json), or a song (or merge) exported as text (.txt)</div>
-            </div>
-
-            <button class="toolbarBtn" id="importLibraryBtn" type="button">Import</button>
-
-          </div>
-
-          <div class="settingsRow">
-
-            <div>
-              <div class="settingsRowLabel">Clear Recent Songs</div>
-              <div class="settingsRowSub">Doesn't touch your saved Library</div>
-            </div>
-
-            <button class="toolbarBtn danger" id="clearRecentBtn" type="button">Clear</button>
-
-          </div>
-
-          <div class="settingsRow">
-
-            <div>
-              <div class="settingsRowLabel">Clear Library</div>
-              <div class="settingsRowSub">Permanently deletes all saved songs</div>
-            </div>
-
-            <button class="toolbarBtn danger" id="clearLibraryBtn" type="button">Clear</button>
-
-          </div>
-
-        </div>
-
-      </div>
-
-
-      <input
-        type="file"
-        id="importLibraryFile"
-        accept="application/json,.json,text/plain,.txt"
-        style="display:none;"
-      >
 
 
       <div class="profileAbout">
@@ -16733,6 +16543,278 @@ function renderProfile(){
     };
 
   }
+
+
+  const openSettingsRow =
+    document.getElementById('openProfileSettingsRow');
+
+  if(openSettingsRow){
+
+    openSettingsRow.onclick = () => {
+
+      renderProfileSettings();
+
+    };
+
+  }
+
+}
+
+
+function renderProfileSettings(){
+
+  recordNavHistory('profileSettings');
+
+  currentScreenName = 'profileSettings';
+
+  setActiveNav('profile');
+
+  const settings =
+    getSettings();
+
+  const songCount =
+    getSongs().length;
+
+  const recentCount =
+    getRecentViews().length;
+
+  screen.innerHTML = `
+
+    <div class="profilePage">
+
+      <div class="libraryHead">
+
+        <button
+          class="searchBtn"
+          id="profileSettingsBackBtn"
+          aria-label="Back to profile"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+
+        <div class="libraryTitle" style="flex:1;">
+          Settings
+        </div>
+
+      </div>
+
+
+      <div class="profileSection">
+
+        <div class="sectionLabel">
+          Library
+        </div>
+
+        <div class="settingsCard">
+
+          <div class="settingsRow">
+            <div class="settingsRowLabel">Saved Songs</div>
+            <div class="settingsRowValue">${songCount}</div>
+          </div>
+
+          <div class="settingsRow">
+            <div class="settingsRowLabel">Recently Viewed</div>
+            <div class="settingsRowValue">${recentCount}</div>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="profileSection">
+
+        <div class="sectionLabel">
+          Lyrics Viewer
+        </div>
+
+        <div class="settingsCard">
+
+          <div class="settingsRow">
+
+            <div>
+              <div class="settingsRowLabel">Default Font Size</div>
+              <div class="settingsRowSub">Used for newly opened songs</div>
+            </div>
+
+            <div class="stepper">
+              <button class="stepperBtn" id="fontSizeDown" type="button">–</button>
+              <span class="stepperValue" id="fontSizeValue">${settings.defaultFontSize}px</span>
+              <button class="stepperBtn" id="fontSizeUp" type="button">+</button>
+            </div>
+
+          </div>
+
+          <div class="settingsRow">
+
+            <div>
+              <div class="settingsRowLabel">Default Auto-Scroll Speed</div>
+              <div class="settingsRowSub">Level 1 (slow) – 5 (fast)</div>
+            </div>
+
+            <div class="stepper">
+              <button class="stepperBtn" id="scrollSpeedDown" type="button">–</button>
+              <span class="stepperValue" id="scrollSpeedValue">${settings.autoScrollSpeed}</span>
+              <button class="stepperBtn" id="scrollSpeedUp" type="button">+</button>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="profileSection">
+
+        <div class="sectionLabel">
+          Chords
+        </div>
+
+        <div class="settingsCard">
+
+          ${
+            ENHARMONIC_PAIRS.map(pair => `
+
+              <div class="settingsRow">
+
+                <div>
+                  <div class="settingsRowLabel">${pair.sharp} / ${pair.flat}</div>
+                  <div class="settingsRowSub">How this chord is shown in Lyrics &amp; Chords</div>
+                </div>
+
+                <div class="chordSpellToggle" data-note="${pair.sharp}">
+
+                  <button
+                    type="button"
+                    class="chordSpellBtn${(settings.chordSpelling[pair.sharp] || 'sharp') === 'sharp' ? ' active' : ''}"
+                    data-value="sharp"
+                  >${pair.sharp}</button>
+
+                  <button
+                    type="button"
+                    class="chordSpellBtn${settings.chordSpelling[pair.sharp] === 'flat' ? ' active' : ''}"
+                    data-value="flat"
+                  >${pair.flat}</button>
+
+                </div>
+
+              </div>
+
+            `).join('')
+          }
+
+        </div>
+
+      </div>
+
+
+      <div class="profileSection">
+
+        <div class="sectionLabel">
+          Notifications
+        </div>
+
+        <div class="settingsCard">
+
+          <div class="settingsRow">
+
+            <div>
+              <div class="settingsRowLabel">New Song Alerts</div>
+              <div class="settingsRowSub" id="notificationStatusSub">
+                ${esc(notificationStatusText())}
+              </div>
+            </div>
+
+            <button
+              class="toolbarBtn${notificationsCurrentlyOn() ? ' danger' : ' primary'}"
+              id="notificationToggleBtn"
+              type="button"
+            >
+              ${notificationsCurrentlyOn() ? 'Turn Off' : 'Turn On'}
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="profileSection">
+
+        <div class="sectionLabel">
+          Data
+        </div>
+
+        <div class="settingsCard">
+
+          <div class="settingsRow">
+
+            <div>
+              <div class="settingsRowLabel">Export Library</div>
+              <div class="settingsRowSub">Download all saved songs as a backup file</div>
+            </div>
+
+            <button class="toolbarBtn" id="exportLibraryBtn" type="button">Export</button>
+
+          </div>
+
+          <div class="settingsRow">
+
+            <div>
+              <div class="settingsRowLabel">Import Backup</div>
+              <div class="settingsRowSub">A full library backup (.json), or a song (or merge) exported as text (.txt)</div>
+            </div>
+
+            <button class="toolbarBtn" id="importLibraryBtn" type="button">Import</button>
+
+          </div>
+
+          <div class="settingsRow">
+
+            <div>
+              <div class="settingsRowLabel">Clear Recent Songs</div>
+              <div class="settingsRowSub">Doesn't touch your saved Library</div>
+            </div>
+
+            <button class="toolbarBtn danger" id="clearRecentBtn" type="button">Clear</button>
+
+          </div>
+
+          <div class="settingsRow">
+
+            <div>
+              <div class="settingsRowLabel">Clear Library</div>
+              <div class="settingsRowSub">Permanently deletes all saved songs</div>
+            </div>
+
+            <button class="toolbarBtn danger" id="clearLibraryBtn" type="button">Clear</button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <input
+        type="file"
+        id="importLibraryFile"
+        accept="application/json,.json,text/plain,.txt"
+        style="display:none;"
+      >
+
+    </div>
+
+  `;
+
+
+  document.getElementById('profileSettingsBackBtn').onclick = () => {
+
+    goBack(() => renderProfile());
+
+  };
 
 
   /* ---------- Notifications ---------- */
@@ -17056,7 +17138,7 @@ function renderProfile(){
 
         }
 
-        renderProfile();
+        renderProfileSettings();
 
       }catch(error){
 
@@ -17096,7 +17178,7 @@ function renderProfile(){
 
       writeRecentViews([]);
 
-      renderProfile();
+      renderProfileSettings();
 
     };
 
@@ -17122,7 +17204,7 @@ function renderProfile(){
 
       writeSongs([]);
 
-      renderProfile();
+      renderProfileSettings();
 
     };
 
@@ -29493,7 +29575,7 @@ async function enableSongNotifications(){
 
       writeSettings({ songNotifications:false });
 
-      renderProfile();
+      renderProfileSettings();
 
       return;
 
@@ -29563,7 +29645,7 @@ async function enableSongNotifications(){
 
   }
 
-  renderProfile();
+  renderProfileSettings();
 
 }
 
@@ -29614,7 +29696,7 @@ async function disableSongNotifications(){
 
   writeSettings({ songNotifications:false });
 
-  renderProfile();
+  renderProfileSettings();
 
 }
 
@@ -29742,6 +29824,12 @@ function handleHardwareBack(){
     case 'metronome':
 
       goBack(renderHome);
+
+      return true;
+
+    case 'profileSettings':
+
+      goBack(renderProfile);
 
       return true;
 
