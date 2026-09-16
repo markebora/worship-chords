@@ -906,6 +906,37 @@ button{
   color:#eee;
 }
 
+.chordSpellToggle{
+  display:flex;
+
+  gap:6px;
+
+  flex:0 0 auto;
+}
+
+.chordSpellBtn{
+  border:1px solid #303036;
+
+  background:#1a1a1d;
+
+  color:#a7a7ad;
+
+  border-radius:9px;
+
+  padding:7px 12px;
+
+  font-size:12.5px;
+  font-weight:800;
+
+  cursor:pointer;
+}
+
+.chordSpellBtn.active{
+  background:var(--accent);
+  color:var(--accent-ink);
+  border-color:var(--accent);
+}
+
 .toolbarBtn.danger{
   background:#3a2020;
   color:#ff8b8b;
@@ -9167,7 +9198,22 @@ function getSettings(){
 
     songNotifications: false,
 
-    hasSeenLongPressHint: false
+    hasSeenLongPressHint: false,
+
+    /*
+      Which spelling to display for the 5 black-key chords that
+      have two valid names. Per-note so e.g. A#/Bb can be set to
+      'flat' while C#/Db stays 'sharp'. Defaults match the old
+      hardcoded behavior (the transpose engine always rendered
+      these as sharps).
+    */
+    chordSpelling: {
+      'C#':'sharp',
+      'D#':'sharp',
+      'F#':'sharp',
+      'G#':'sharp',
+      'A#':'sharp'
+    }
 
   };
 
@@ -16324,6 +16370,50 @@ function renderProfile(){
       <div class="profileSection">
 
         <div class="sectionLabel">
+          Chords
+        </div>
+
+        <div class="settingsCard">
+
+          ${
+            ENHARMONIC_PAIRS.map(pair => `
+
+              <div class="settingsRow">
+
+                <div>
+                  <div class="settingsRowLabel">${pair.sharp} / ${pair.flat}</div>
+                  <div class="settingsRowSub">How this chord is shown in Lyrics &amp; Chords</div>
+                </div>
+
+                <div class="chordSpellToggle" data-note="${pair.sharp}">
+
+                  <button
+                    type="button"
+                    class="chordSpellBtn${(settings.chordSpelling[pair.sharp] || 'sharp') === 'sharp' ? ' active' : ''}"
+                    data-value="sharp"
+                  >${pair.sharp}</button>
+
+                  <button
+                    type="button"
+                    class="chordSpellBtn${settings.chordSpelling[pair.sharp] === 'flat' ? ' active' : ''}"
+                    data-value="flat"
+                  >${pair.flat}</button>
+
+                </div>
+
+              </div>
+
+            `).join('')
+          }
+
+        </div>
+
+      </div>
+
+
+      <div class="profileSection">
+
+        <div class="sectionLabel">
           Notifications
         </div>
 
@@ -16732,6 +16822,49 @@ function renderProfile(){
         String(next);
 
     };
+
+
+  /* ---------- Chord spelling (sharp/flat) ---------- */
+
+  document
+    .querySelectorAll('.chordSpellBtn')
+    .forEach(btn => {
+
+      btn.onclick = () => {
+
+        const row =
+          btn.closest('.chordSpellToggle');
+
+        const note =
+          row.dataset.note;
+
+        const value =
+          btn.dataset.value;
+
+        const chordSpelling = {
+
+          ...(getSettings().chordSpelling || {}),
+
+          [note]: value
+
+        };
+
+        writeSettings({ chordSpelling });
+
+        row
+          .querySelectorAll('.chordSpellBtn')
+          .forEach(b => {
+
+            b.classList.toggle(
+              'active',
+              b.dataset.value === value
+            );
+
+          });
+
+      };
+
+    });
 
 
   /* ---------- Data management ---------- */
@@ -18920,6 +19053,47 @@ const flatToSharp = {
 };
 
 
+/*
+  The 5 black keys that have two valid names. Used to let the
+  person choose, per note, which spelling should be shown
+  everywhere a chord is displayed (see chordSpelling in
+  getSettings()) — set from Profile → Chords.
+*/
+const ENHARMONIC_PAIRS = [
+
+  { sharp:'C#', flat:'Db' },
+  { sharp:'D#', flat:'Eb' },
+  { sharp:'F#', flat:'Gb' },
+  { sharp:'G#', flat:'Ab' },
+  { sharp:'A#', flat:'Bb' }
+
+];
+
+
+function applyChordSpelling(sharpNote){
+
+  const pair =
+    ENHARMONIC_PAIRS.find(
+      p => p.sharp === sharpNote
+    );
+
+  if(!pair)return sharpNote;
+
+  const chordSpelling =
+    getSettings().chordSpelling || {};
+
+  const preference =
+    chordSpelling[pair.sharp] || 'sharp';
+
+  return (
+    preference === 'flat'
+      ? pair.flat
+      : pair.sharp
+  );
+
+}
+
+
 function normalizeNote(note){
 
   return (
@@ -18959,7 +19133,9 @@ function transposeNote(
     ) % 12;
 
 
-  return chromatic[newIndex];
+  return applyChordSpelling(
+    chromatic[newIndex]
+  );
 
 }
 
@@ -19040,12 +19216,17 @@ function transposeText(
   amount
 ){
 
-  if(!amount){
+  amount = amount || 0;
 
-    return text;
-
-  }
-
+  /*
+    Previously this returned `text` unchanged whenever amount
+    was 0, which meant an untransposed chord displayed exactly
+    as typed (e.g. "Bb" stayed "Bb", "A#" stayed "A#") — the
+    per-note chordSpelling preference below only ever kicked in
+    once a song had been transposed. Now it always runs through
+    the chord parser so the chosen spelling (Profile → Chords)
+    applies everywhere a chord is shown, transposed or not.
+  */
 
   /*
     Matches chord-like tokens including:
