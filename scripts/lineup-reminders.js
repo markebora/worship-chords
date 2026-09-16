@@ -25,8 +25,9 @@
       lineup's date) + serviceTime (ON the date).
         5 hrs before rehearsal → "Rehearsal na mamaya!" with the
           actual setlist song titles.
-        3 hrs AND 20 min before service → "See you on the other
-          side, Disciples!"
+        3 hrs before service → "Worship mamaya ha?"
+        5 min before service → "See you on the other side,
+          Disciples!"
 
     rehearsal — a standalone rehearsal, not tied to a Sunday.
       rehearsalTime falls ON the lineup's date instead of the
@@ -35,8 +36,8 @@
 
     event — anything else (a program, outreach, etc).
       serviceTime falls ON the lineup's date.
-        3 hrs AND 20 min before → "See you on the other side,
-          Disciples!"
+        3 hrs before → "Worship mamaya ha?"
+        5 min before → "See you on the other side, Disciples!"
 
   Needed as GitHub Actions repo secrets (Settings → Secrets and
   variables → Actions — NOT committed to the repo):
@@ -62,8 +63,8 @@ const db = admin.firestore();
 const CHURCH_TIMEZONE = process.env.CHURCH_TIMEZONE || 'Asia/Manila';
 const REHEARSAL_HOURS_BEFORE = 5;
 const SERVICE_HOURS_BEFORE = 3;
-const SERVICE_MINUTES_BEFORE = 20;
-const WINDOW_MINUTES = 15; // should match the workflow's cron interval
+const SERVICE_MINUTES_BEFORE = 5;
+const WINDOW_MINUTES = 5; // should match the workflow's cron interval
 const API_BASE_URL = process.env.API_BASE_URL || 'https://worship-chords-rho.vercel.app';
 
 async function sendBroadcast(title, heading) {
@@ -146,21 +147,21 @@ async function main() {
 
     }
 
-    // service — 3 hrs out — "See you on the other side, Disciples!"
+    // service — 3 hrs out — "Worship mamaya ha?"
     if (isDue(serviceReminderAt, now, WINDOW_MINUTES) && data.serviceReminderSentFor !== serviceAt.toISO()) {
 
       const body = setlist
         ? `Starts in ${SERVICE_HOURS_BEFORE} hours — set list: ${setlist}`
         : `Starts in ${SERVICE_HOURS_BEFORE} hours — no lineup set yet.`;
 
-      await sendBroadcast(body, 'See you on the other side, Disciples!');
+      await sendBroadcast(body, 'Worship mamaya ha?');
 
       await lineupDoc.ref.set({ serviceReminderSentFor: serviceAt.toISO() }, { merge: true });
       results.push(`${dateKey} (${eventType}): 3-hr reminder sent`);
 
     }
 
-    // service — 20 min out — "See you on the other side, Disciples!"
+    // service — 5 min out — "See you on the other side, Disciples!"
     if (isDue(serviceSoonReminderAt, now, WINDOW_MINUTES) && data.serviceSoonReminderSentFor !== serviceAt.toISO()) {
 
       await sendBroadcast(
@@ -169,7 +170,7 @@ async function main() {
       );
 
       await lineupDoc.ref.set({ serviceSoonReminderSentFor: serviceAt.toISO() }, { merge: true });
-      results.push(`${dateKey} (${eventType}): 20-min reminder sent`);
+      results.push(`${dateKey} (${eventType}): 5-min reminder sent`);
 
     }
 
