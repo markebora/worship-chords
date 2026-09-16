@@ -26,8 +26,6 @@
         5 hrs before rehearsal → "Rehearsal na mamaya!" with the
           actual setlist song titles.
         3 hrs before service → "Worship mamaya ha?"
-        5 min before service → "See you on the other side,
-          Disciples!"
 
     rehearsal — a standalone rehearsal, not tied to a Sunday.
       rehearsalTime falls ON the lineup's date instead of the
@@ -37,7 +35,16 @@
     event — anything else (a program, outreach, etc).
       serviceTime falls ON the lineup's date.
         3 hrs before → "Worship mamaya ha?"
-        5 min before → "See you on the other side, Disciples!"
+
+  There's no push for the final "See you on the other side,
+  Disciples!" moment right before a service — that one lives
+  entirely client-side in index.html (see maybeShowServiceCall),
+  checking lineup.serviceTime every 30s and showing a full-screen
+  in-app moment 5 minutes out. It's deliberately not here: a push
+  fires on the next cron tick at or after its target, so on this
+  script's 15-min schedule a 5-min-out reminder could land up to
+  ~10 min AFTER the service already started. The in-app version
+  doesn't have that problem, and needs no deploy to tweak later.
 
   Needed as GitHub Actions repo secrets (Settings → Secrets and
   variables → Actions — NOT committed to the repo):
@@ -63,8 +70,9 @@ const db = admin.firestore();
 const CHURCH_TIMEZONE = process.env.CHURCH_TIMEZONE || 'Asia/Manila';
 const REHEARSAL_HOURS_BEFORE = 5;
 const SERVICE_HOURS_BEFORE = 3;
-const SERVICE_MINUTES_BEFORE = 5;
-const WINDOW_MINUTES = 5; // should match the workflow's cron interval
+
+/* Should match the workflow's cron interval. */
+const WINDOW_MINUTES = 15;
 const API_BASE_URL = process.env.API_BASE_URL || 'https://worship-chords-rho.vercel.app';
 
 async function sendBroadcast(title, heading) {
@@ -131,7 +139,6 @@ async function main() {
 
     const rehearsalReminderAt = rehearsalAt ? rehearsalAt.minus({ hours: REHEARSAL_HOURS_BEFORE }) : null;
     const serviceReminderAt = serviceAt ? serviceAt.minus({ hours: SERVICE_HOURS_BEFORE }) : null;
-    const serviceSoonReminderAt = serviceAt ? serviceAt.minus({ minutes: SERVICE_MINUTES_BEFORE }) : null;
 
     // rehearsal reminder — "Rehearsal na mamaya!" w/ setlist
     if (isDue(rehearsalReminderAt, now, WINDOW_MINUTES) && data.rehearsalReminderSentFor !== rehearsalAt.toISO()) {
@@ -158,19 +165,6 @@ async function main() {
 
       await lineupDoc.ref.set({ serviceReminderSentFor: serviceAt.toISO() }, { merge: true });
       results.push(`${dateKey} (${eventType}): 3-hr reminder sent`);
-
-    }
-
-    // service — 5 min out — "See you on the other side, Disciples!"
-    if (isDue(serviceSoonReminderAt, now, WINDOW_MINUTES) && data.serviceSoonReminderSentFor !== serviceAt.toISO()) {
-
-      await sendBroadcast(
-        `Starts in ${SERVICE_MINUTES_BEFORE} minutes.`,
-        'See you on the other side, Disciples!'
-      );
-
-      await lineupDoc.ref.set({ serviceSoonReminderSentFor: serviceAt.toISO() }, { merge: true });
-      results.push(`${dateKey} (${eventType}): 5-min reminder sent`);
 
     }
 
