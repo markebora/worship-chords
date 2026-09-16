@@ -5332,6 +5332,276 @@ button{
   padding:4px 0 30px;
 }
 
+.keyBridgePage{
+  padding:4px 0 30px;
+}
+
+.keyBridgeIntro{
+  font-size:13.5px;
+
+  color:#a7a7ae;
+
+  line-height:1.5;
+
+  margin-bottom:18px;
+}
+
+.keyBridgePickers{
+  display:flex;
+
+  align-items:center;
+
+  gap:8px;
+
+  margin-bottom:20px;
+}
+
+.keyPickerCard{
+  flex:1 1 0;
+  min-width:0;
+
+  background:#151518;
+  border:1px solid #2d2d32;
+  border-radius:16px;
+
+  padding:12px;
+}
+
+.keyPickerLabel{
+  font-size:11px;
+  font-weight:800;
+
+  text-transform:uppercase;
+  letter-spacing:.04em;
+
+  color:#77777f;
+
+  margin-bottom:8px;
+}
+
+.keyPickerNotes{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+
+  gap:5px;
+
+  margin-bottom:10px;
+}
+
+.keyPickerNoteBtn{
+  padding:8px 0;
+
+  border:1px solid #303036;
+  border-radius:8px;
+
+  background:#1a1a1d;
+  color:#c9c9d1;
+
+  font-size:12px;
+  font-weight:700;
+
+  cursor:pointer;
+}
+
+.keyPickerNoteBtn.active{
+  background:var(--accent);
+  color:var(--accent-ink);
+  border-color:var(--accent);
+}
+
+.keyPickerModeToggle{
+  display:flex;
+
+  gap:5px;
+}
+
+.keyPickerModeBtn{
+  flex:1;
+
+  padding:7px 0;
+
+  border:1px solid #303036;
+  border-radius:8px;
+
+  background:#1a1a1d;
+  color:#a7a7ad;
+
+  font-size:11.5px;
+  font-weight:800;
+
+  cursor:pointer;
+}
+
+.keyPickerModeBtn.active{
+  background:var(--accent);
+  color:var(--accent-ink);
+  border-color:var(--accent);
+}
+
+.keyBridgeSwapBtn{
+  flex:0 0 auto;
+
+  width:36px;
+  height:36px;
+
+  border:1px solid #303036;
+  border-radius:11px;
+
+  background:#1a1a1d;
+  color:#c9c9d1;
+
+  font-size:16px;
+
+  cursor:pointer;
+}
+
+.keyBridgeRelationship{
+  background:#151518;
+  border:1px solid #2d2d32;
+  border-radius:16px;
+
+  padding:16px;
+
+  font-size:13.5px;
+
+  color:#c9c9d1;
+
+  line-height:1.5;
+
+  margin-bottom:18px;
+}
+
+.keyBridgeRelationshipTitle{
+  font-size:18px;
+  font-weight:800;
+
+  color:#fff;
+
+  margin-bottom:4px;
+}
+
+.keyBridgeDiatonicRow{
+  display:flex;
+
+  gap:10px;
+}
+
+.keyBridgeDiatonicCol{
+  flex:1 1 0;
+  min-width:0;
+}
+
+.keyBridgeDiatonicLabel{
+  font-size:11px;
+  font-weight:800;
+
+  text-transform:uppercase;
+  letter-spacing:.04em;
+
+  color:#77777f;
+
+  margin-bottom:8px;
+}
+
+.keyBridgeChipRow{
+  display:flex;
+  flex-wrap:wrap;
+
+  gap:6px;
+}
+
+.keyBridgeChip{
+  display:flex;
+  flex-direction:column;
+
+  align-items:center;
+
+  min-width:42px;
+
+  padding:6px 7px;
+
+  border:1px solid #2d2d32;
+  border-radius:9px;
+
+  background:#1a1a1d;
+
+  font-size:12.5px;
+  font-weight:700;
+
+  color:#e5e5ea;
+}
+
+.keyBridgeChipDegree{
+  font-size:9.5px;
+  font-weight:800;
+
+  color:#77777f;
+
+  margin-bottom:1px;
+}
+
+.keyBridgeSuggestion{
+  background:#151518;
+  border:1px solid #2d2d32;
+  border-radius:16px;
+
+  padding:16px;
+
+  margin-bottom:12px;
+}
+
+.keyBridgeSuggestionTitle{
+  font-size:13px;
+  font-weight:800;
+
+  color:var(--accent);
+
+  margin-bottom:6px;
+}
+
+.keyBridgeSuggestionChords{
+  font-size:19px;
+  font-weight:800;
+
+  color:#fff;
+
+  margin-bottom:8px;
+}
+
+.keyBridgeSuggestionTip{
+  font-size:12.5px;
+
+  color:#a7a7ae;
+
+  line-height:1.45;
+}
+
+.lineupBridgeChip{
+  display:flex;
+
+  align-items:center;
+  justify-content:center;
+
+  gap:6px;
+
+  width:100%;
+
+  padding:9px;
+
+  margin:4px 0 8px;
+
+  border:1px dashed #3a3a42;
+  border-radius:12px;
+
+  background:transparent;
+  color:#c9c9d1;
+
+  font-size:12.5px;
+  font-weight:700;
+
+  cursor:pointer;
+}
+
 .metSectionLabel{
   margin:26px 0 10px;
 }
@@ -7723,6 +7993,9 @@ function snapshotScreen(name){
 
     case 'metronome':
       return () => renderMetronome();
+
+    case 'keyBridge':
+      return () => renderKeyBridge();
 
     case 'profile':
       return () => renderProfile();
@@ -14129,6 +14402,30 @@ function renderHome(){
 
           </div>
 
+
+          <div
+            class="homeCard"
+            id="homeKeyBridge"
+          >
+
+            <div class="homeCardIcon">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="7" cy="8" r="3.4"/>
+                <path d="M9.4 10.4 20 21" style="stroke-linecap:round;"/>
+                <path d="M15.5 15.5 18 13 M17.5 17.5 20 15" style="stroke-linecap:round;"/>
+              </svg>
+            </div>
+
+            <div class="homeCardTitle">
+              Key Bridge
+            </div>
+
+            <div class="homeCardText">
+              Smooth chord ideas for moving from one song's key to the next.
+            </div>
+
+          </div>
+
         </div>
 
       </div>
@@ -14154,6 +14451,12 @@ function renderHome(){
     .getElementById('homeMetronome')
     .onclick =
       renderMetronome;
+
+
+  document
+    .getElementById('homeKeyBridge')
+    .onclick =
+      () => renderKeyBridge();
 
 
   renderVideoCardRow();
@@ -16042,6 +16345,265 @@ function renderMetronome(){
   };
 
   wireMetronomeBody();
+
+}
+
+
+/* =========================================================
+   KEY BRIDGE
+========================================================= */
+
+let keyBridgeState = {
+  fromRoot: 0,
+  fromMinor: false,
+  toRoot: 7,
+  toMinor: false
+};
+
+function renderKeyPickerCardHTML(side, rootIndex, isMinor, label){
+
+  const noteLabels =
+    chromatic.map(note => applyChordSpelling(note));
+
+  return `
+    <div class="keyPickerCard">
+
+      <div class="keyPickerLabel">${esc(label)}</div>
+
+      <div class="keyPickerNotes">
+        ${
+          chromatic.map((note, i) => `
+            <button
+              type="button"
+              class="keyPickerNoteBtn${i === rootIndex ? ' active' : ''}"
+              data-key-picker="${side}"
+              data-note-index="${i}"
+            >${esc(noteLabels[i])}</button>
+          `).join('')
+        }
+      </div>
+
+      <div class="keyPickerModeToggle">
+        <button
+          type="button"
+          class="keyPickerModeBtn${!isMinor ? ' active' : ''}"
+          data-key-picker-mode="${side}"
+          data-mode="major"
+        >Major</button>
+        <button
+          type="button"
+          class="keyPickerModeBtn${isMinor ? ' active' : ''}"
+          data-key-picker-mode="${side}"
+          data-mode="minor"
+        >Minor</button>
+      </div>
+
+    </div>
+  `;
+
+}
+
+function renderKeyBridge(prefill){
+
+  recordNavHistory('keyBridge');
+
+  currentScreenName = 'keyBridge';
+
+  setActiveNav('home');
+
+  if(prefill){
+
+    keyBridgeState = {
+      fromRoot: prefill.fromRoot,
+      fromMinor: !!prefill.fromMinor,
+      toRoot: prefill.toRoot,
+      toMinor: !!prefill.toMinor
+    };
+
+  }
+
+  screen.innerHTML = `
+
+    <div class="keyBridgePage">
+
+      <div class="libraryHead">
+
+        <button
+          class="searchBtn"
+          id="keyBridgeBackBtn"
+          aria-label="Back to home"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+
+        <div class="libraryTitle" style="flex:1;">
+          Key Bridge
+        </div>
+
+      </div>
+
+      <div class="keyBridgeIntro">
+        Moving from one song's key to the next? Pick both keys below for a few smooth ways to get there — instead of jumping straight in.
+      </div>
+
+      <div class="keyBridgePickers">
+
+        ${renderKeyPickerCardHTML('from', keyBridgeState.fromRoot, keyBridgeState.fromMinor, 'From')}
+
+        <button class="keyBridgeSwapBtn" id="keyBridgeSwapBtn" type="button" aria-label="Swap keys">⇅</button>
+
+        ${renderKeyPickerCardHTML('to', keyBridgeState.toRoot, keyBridgeState.toMinor, 'To')}
+
+      </div>
+
+      <div id="keyBridgeResults"></div>
+
+    </div>
+
+  `;
+
+  document.getElementById('keyBridgeBackBtn').onclick = () => {
+    goBack(renderHome);
+  };
+
+  document.getElementById('keyBridgeSwapBtn').onclick = () => {
+
+    keyBridgeState = {
+      fromRoot: keyBridgeState.toRoot,
+      fromMinor: keyBridgeState.toMinor,
+      toRoot: keyBridgeState.fromRoot,
+      toMinor: keyBridgeState.fromMinor
+    };
+
+    skipNextScreenTransition = true;
+
+    renderKeyBridge();
+
+  };
+
+  wireKeyPickerCard('from');
+  wireKeyPickerCard('to');
+
+  renderKeyBridgeResults();
+
+}
+
+function wireKeyPickerCard(side){
+
+  screen.querySelectorAll(`[data-key-picker="${side}"]`).forEach(btn => {
+
+    btn.onclick = () => {
+
+      const noteIndex =
+        Number(btn.dataset.noteIndex);
+
+      if(side === 'from'){
+        keyBridgeState.fromRoot = noteIndex;
+      }else{
+        keyBridgeState.toRoot = noteIndex;
+      }
+
+      screen.querySelectorAll(`[data-key-picker="${side}"]`).forEach(b => {
+        b.classList.toggle('active', b === btn);
+      });
+
+      renderKeyBridgeResults();
+
+    };
+
+  });
+
+  screen.querySelectorAll(`[data-key-picker-mode="${side}"]`).forEach(btn => {
+
+    btn.onclick = () => {
+
+      const isMinor =
+        btn.dataset.mode === 'minor';
+
+      if(side === 'from'){
+        keyBridgeState.fromMinor = isMinor;
+      }else{
+        keyBridgeState.toMinor = isMinor;
+      }
+
+      screen.querySelectorAll(`[data-key-picker-mode="${side}"]`).forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === btn.dataset.mode);
+      });
+
+      renderKeyBridgeResults();
+
+    };
+
+  });
+
+}
+
+function renderKeyBridgeResults(){
+
+  const host =
+    document.getElementById('keyBridgeResults');
+
+  if(!host)return;
+
+  const { fromRoot, fromMinor, toRoot, toMinor } =
+    keyBridgeState;
+
+  const fromChords =
+    getDiatonicChords(fromRoot, fromMinor);
+
+  const toChords =
+    getDiatonicChords(toRoot, toMinor);
+
+  const relationship =
+    describeKeyRelationship(fromRoot, fromMinor, toRoot, toMinor);
+
+  const suggestions =
+    suggestKeyBridges(fromRoot, fromMinor, toRoot, toMinor);
+
+  const fromLabel =
+    formatKeyLabel(fromRoot, fromMinor);
+
+  const toLabel =
+    formatKeyLabel(toRoot, toMinor);
+
+  host.innerHTML = `
+
+    <div class="keyBridgeRelationship">
+      <div class="keyBridgeRelationshipTitle">${esc(fromLabel)} → ${esc(toLabel)}</div>
+      ${esc(relationship)}
+    </div>
+
+    <div class="keyBridgeDiatonicRow">
+
+      <div class="keyBridgeDiatonicCol">
+        <div class="keyBridgeDiatonicLabel">${esc(fromLabel)} chords</div>
+        <div class="keyBridgeChipRow">
+          ${fromChords.map(c => `<span class="keyBridgeChip"><span class="keyBridgeChipDegree">${esc(c.degree)}</span>${esc(c.label)}</span>`).join('')}
+        </div>
+      </div>
+
+      <div class="keyBridgeDiatonicCol">
+        <div class="keyBridgeDiatonicLabel">${esc(toLabel)} chords</div>
+        <div class="keyBridgeChipRow">
+          ${toChords.map(c => `<span class="keyBridgeChip"><span class="keyBridgeChipDegree">${esc(c.degree)}</span>${esc(c.label)}</span>`).join('')}
+        </div>
+      </div>
+
+    </div>
+
+    <div class="sectionLabel" style="margin-top:22px;">Ways to Bridge</div>
+
+    ${
+      suggestions.map(s => `
+        <div class="keyBridgeSuggestion">
+          <div class="keyBridgeSuggestionTitle">${esc(s.title)}</div>
+          <div class="keyBridgeSuggestionChords">${s.chords.map(esc).join('  →  ')}</div>
+          <div class="keyBridgeSuggestionTip">${esc(s.tip)}</div>
+        </div>
+      `).join('')
+    }
+
+  `;
 
 }
 
@@ -18437,6 +18999,228 @@ function getCapoSuggestion(keyInfo){
   });
 
   return best;
+
+}
+
+
+/* =========================================================
+   KEY BRIDGE — modulation helper
+
+   Reuses the diatonic building blocks above (MAJOR/MINOR_SCALE_
+   STEPS, MAJOR/MINOR_KEY_QUALITIES) to answer "I'm ending this
+   song in key X, the next one starts in key Y — how do I get
+   there without just jumping?" Everything here is derived, not
+   stored: chord spelling always goes through applyChordSpelling
+   so it respects the sharp/flat choice from Profile → Chords.
+========================================================= */
+
+const ROMAN_NUMERALS_MAJOR =
+  ['I','ii','iii','IV','V','vi','vii°'];
+
+const ROMAN_NUMERALS_MINOR =
+  ['i','ii°','III','iv','v','VI','VII'];
+
+const KEY_INTERVAL_NAMES = [
+  'Unison','Minor 2nd','Major 2nd','Minor 3rd','Major 3rd',
+  'Perfect 4th','Tritone','Perfect 5th','Minor 6th','Major 6th',
+  'Minor 7th','Major 7th'
+];
+
+function chordLabelForQuality(rootIndex, quality){
+
+  const rootName =
+    applyChordSpelling(chromatic[rootIndex]);
+
+  if(quality === 'minor')return rootName + 'm';
+  if(quality === 'diminished')return rootName + 'dim';
+  if(quality === 'augmented')return rootName + 'aug';
+
+  return rootName;
+
+}
+
+function formatKeyLabel(rootIndex, isMinor){
+
+  return (
+    applyChordSpelling(chromatic[rootIndex]) +
+    (isMinor ? ' Minor' : ' Major')
+  );
+
+}
+
+/*
+  The 7 diatonic triads of a key, in scale-degree order, e.g.
+  for C Major: [{degree:'I',label:'C',...}, {degree:'ii',
+  label:'Dm',...}, ...].
+*/
+function getDiatonicChords(rootIndex, isMinor){
+
+  const steps =
+    isMinor ? MINOR_SCALE_STEPS : MAJOR_SCALE_STEPS;
+
+  const qualities =
+    isMinor ? MINOR_KEY_QUALITIES : MAJOR_KEY_QUALITIES;
+
+  const romans =
+    isMinor ? ROMAN_NUMERALS_MINOR : ROMAN_NUMERALS_MAJOR;
+
+  return steps.map((step, index) => {
+
+    const noteIndex =
+      (rootIndex + step) % 12;
+
+    return {
+
+      degree: romans[index],
+
+      rootIndex: noteIndex,
+
+      quality: qualities[index],
+
+      label:
+        chordLabelForQuality(
+          noteIndex,
+          qualities[index]
+        )
+
+    };
+
+  });
+
+}
+
+/*
+  Plain-language description of how far apart two keys are —
+  flags the relationships that are naturally easy (relative,
+  parallel, up a 4th/5th) versus ones that need real bridging.
+*/
+function describeKeyRelationship(fromRoot, fromMinor, toRoot, toMinor){
+
+  const distance =
+    ((toRoot - fromRoot) % 12 + 12) % 12;
+
+  if(distance === 0 && fromMinor === toMinor){
+    return 'Same key — no bridge needed, just keep going.';
+  }
+
+  if(distance === 0){
+    return 'Parallel ' + (toMinor ? 'minor' : 'major') + ' — same tonic note, different mode. The shared tonic itself can be the pivot; this one can often be played almost directly.';
+  }
+
+  const relativeMinorRoot = (fromRoot + 9) % 12;
+  const relativeMajorRoot = (fromRoot + 3) % 12;
+
+  if(!fromMinor && toMinor && toRoot === relativeMinorRoot){
+    return 'Relative minor — shares the exact same key signature, so every chord in the old key already belongs to the new one too. About as smooth as a modulation gets.';
+  }
+
+  if(fromMinor && !toMinor && toRoot === relativeMajorRoot){
+    return 'Relative major — shares the exact same key signature, so every chord in the old key already belongs to the new one too. About as smooth as a modulation gets.';
+  }
+
+  const intervalName =
+    KEY_INTERVAL_NAMES[distance];
+
+  let tip = '';
+
+  if(distance === 7)tip = ' — moving toward the dominant, one of the smoothest, most natural-sounding modulations.';
+  else if(distance === 5)tip = ' — moving toward the subdominant, also very smooth.';
+  else if(distance === 2)tip = ' — the classic worship "step-up" modulation, usually for a final chorus.';
+  else if(distance === 1)tip = ' — a half-step lift, dramatic and effective, but the most jarring if played without a bridge.';
+  else tip = ' — less common; lean on the ii–V–I turnaround below rather than jumping straight in.';
+
+  return 'Up a ' + intervalName + tip;
+
+}
+
+/*
+  A few concrete, playable ways to get from one key to another.
+  Always includes a turnaround (works for any pair of keys) and
+  a pivot chord when the two keys genuinely share one.
+*/
+function suggestKeyBridges(fromRoot, fromMinor, toRoot, toMinor){
+
+  const fromChords =
+    getDiatonicChords(fromRoot, fromMinor);
+
+  const toChords =
+    getDiatonicChords(toRoot, toMinor);
+
+  const iChord = toChords[0];
+  const vChord = toChords[4];
+
+  const suggestions = [];
+
+  suggestions.push({
+
+    title: 'Quick Bridge',
+
+    tip: 'The simplest option — vamp briefly on the new key\u2019s V chord, then land on the new I to start the song.',
+
+    chords: [vChord.label, iChord.label]
+
+  });
+
+  if(!toMinor){
+
+    suggestions.push({
+
+      title: 'ii–V–I Turnaround',
+
+      tip: 'A smoother, more musical lead-in — play these as a short walk-up (an adlib bar or two) right before the next song starts.',
+
+      chords: [toChords[1].label, vChord.label, iChord.label]
+
+    });
+
+  }else{
+
+    suggestions.push({
+
+      title: 'iv–V–i Turnaround',
+
+      tip: 'A smoother, more musical lead-in — play these as a short walk-up (an adlib bar or two) right before the next song starts.',
+
+      chords: [toChords[3].label, vChord.label, iChord.label]
+
+    });
+
+  }
+
+  const fromSet =
+    new Set(
+      fromChords.map(c => c.rootIndex + '_' + c.quality)
+    );
+
+  const pivotCandidates =
+    toChords.filter(c =>
+      fromSet.has(c.rootIndex + '_' + c.quality) &&
+      c.degree !== iChord.degree
+    );
+
+  const preferredPivotDegrees =
+    ['ii','IV','vi','iv','VI'];
+
+  const pivot =
+    pivotCandidates.find(
+      c => preferredPivotDegrees.includes(c.degree)
+    ) || pivotCandidates[0];
+
+  if(pivot){
+
+    suggestions.push({
+
+      title: 'Pivot Chord',
+
+      tip: pivot.label + ' (' + pivot.degree + ') belongs to both keys — play it as a natural hinge, then resolve through the V into the new I.',
+
+      chords: [pivot.label, vChord.label, iChord.label]
+
+    });
+
+  }
+
+  return suggestions;
 
 }
 
@@ -26878,6 +27662,52 @@ function renderLineupDetail(dateKey){
             const newerAvailable =
               isLineupEntryNewerThanLocal(lineup, song);
 
+            /*
+              Key Bridge chip — only between two songs that both
+              have a detectable key AND actually differ (same key
+              back-to-back needs no bridge, so stays quiet).
+            */
+            const nextSong =
+              orderedSongs[songIndex + 1];
+
+            const bridgeChip = (() => {
+
+              if(!nextSong || nextSong.missing)return '';
+
+              const exitKey =
+                getSongEdgeKeyInfo(song, 'last');
+
+              const entryKey =
+                getSongEdgeKeyInfo(nextSong, 'first');
+
+              if(!exitKey || !entryKey)return '';
+
+              if(
+                exitKey.tonic === entryKey.tonic &&
+                exitKey.mode === entryKey.mode
+              ){
+                return '';
+              }
+
+              const fromRootIndex =
+                chromatic.indexOf(exitKey.tonic);
+
+              const toRootIndex =
+                chromatic.indexOf(entryKey.tonic);
+
+              return `
+                <button
+                  class="lineupBridgeChip"
+                  type="button"
+                  data-key-bridge-from-root="${fromRootIndex}"
+                  data-key-bridge-from-minor="${exitKey.mode === 'minor' ? '1' : '0'}"
+                  data-key-bridge-to-root="${toRootIndex}"
+                  data-key-bridge-to-minor="${entryKey.mode === 'minor' ? '1' : '0'}"
+                >🔑 ${esc(formatKeyLabel(fromRootIndex, exitKey.mode === 'minor'))} → ${esc(formatKeyLabel(toRootIndex, entryKey.mode === 'minor'))} · Bridge</button>
+              `;
+
+            })();
+
             return `
               <div class="lineupEntry" data-lineup-song-row="${esc(song.id)}">
 
@@ -26916,6 +27746,7 @@ function renderLineupDetail(dateKey){
                 <button class="setlistOrderBtn" type="button" data-remove-from-lineup="${esc(song.id)}" title="Remove from lineup" style="color:#ff8b8b;">✕</button>
 
               </div>
+              ${bridgeChip}
             `;
 
           }).join('') + `</div>`
@@ -27184,6 +28015,23 @@ function renderLineupDetail(dateKey){
     btn.onclick = () => {
       removeSongFromLineup(btn.dataset.removeFromLineup);
     };
+  });
+
+  screen.querySelectorAll('[data-key-bridge-from-root]').forEach(btn => {
+
+    btn.onclick = () => {
+
+      renderKeyBridge({
+
+        fromRoot: Number(btn.dataset.keyBridgeFromRoot),
+        fromMinor: btn.dataset.keyBridgeFromMinor === '1',
+        toRoot: Number(btn.dataset.keyBridgeToRoot),
+        toMinor: btn.dataset.keyBridgeToMinor === '1'
+
+      });
+
+    };
+
   });
 
   /*
@@ -27497,18 +28345,48 @@ async function reorderLineupSongs(orderedIds){
   preset; it's stored per device (not synced with the team yet),
   so it may only show up on whoever saved it.
 */
-function getSongKeyLabel(song){
+function getSongKeyInfo(song){
 
   if(!song || song.missing)return null;
 
+  return detectKeyFromChords(
+    extractChordTokens(
+      transposeText(song.originalText || song.text || '', song.transposeSteps || 0)
+    )
+  );
+
+}
+
+function getSongKeyLabel(song){
+
   const info =
-    detectKeyFromChords(
-      extractChordTokens(
-        transposeText(song.originalText || song.text || '', song.transposeSteps || 0)
-      )
-    );
+    getSongKeyInfo(song);
 
   return info ? info.label : null;
+
+}
+
+/*
+  Which key a song is IN or OUT of, for Key Bridge — a merged
+  song's first part is what the next act starts on; its last
+  part is what you'll be ending on before the following song.
+  Used to auto-fill the Key Bridge chip between two lineup
+  entries (see renderLineupDetail).
+*/
+function getSongEdgeKeyInfo(song, edge){
+
+  if(!song || song.missing)return null;
+
+  const isMerged =
+    Array.isArray(song.mergeParts) && song.mergeParts.length > 1;
+
+  const parts =
+    isMerged ? song.mergeParts : [song];
+
+  const part =
+    edge === 'last' ? parts[parts.length - 1] : parts[0];
+
+  return getSongKeyInfo(part);
 
 }
 
@@ -30186,6 +31064,12 @@ function handleHardwareBack(){
       return true;
 
     case 'metronome':
+
+      goBack(renderHome);
+
+      return true;
+
+    case 'keyBridge':
 
       goBack(renderHome);
 
