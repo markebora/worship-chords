@@ -4709,6 +4709,132 @@ button{
   z-index:5;
 }
 
+/*
+  Full-screen "See you on the other side, Disciples!" moment,
+  shown inside the app 5 minutes before a service starts while
+  someone is on the song viewer. Dismissed only by the Amen!
+  button, once per service.
+*/
+.serviceCallBack{
+  position:fixed;
+  inset:0;
+
+  z-index:3000;
+
+  background:rgba(0,0,0,.86);
+
+  backdrop-filter:blur(3px);
+
+  display:grid;
+  place-items:center;
+
+  padding:28px;
+
+  opacity:0;
+
+  pointer-events:none;
+
+  transition:opacity .28s ease;
+}
+
+.serviceCallBack.open{
+  opacity:1;
+
+  pointer-events:auto;
+}
+
+.serviceCallBox{
+  width:100%;
+  max-width:360px;
+
+  text-align:center;
+
+  transform:translateY(10px) scale(.97);
+
+  transition:transform .28s ease;
+}
+
+.serviceCallBack.open .serviceCallBox{
+  transform:none;
+}
+
+.serviceCallTitle{
+  font-size:29px;
+  font-weight:800;
+
+  line-height:1.2;
+
+  color:var(--accent);
+
+  margin-bottom:12px;
+}
+
+.serviceCallSub{
+  font-size:14px;
+
+  color:#b9b9c2;
+
+  line-height:1.5;
+
+  margin-bottom:26px;
+}
+
+.serviceCallBtn{
+  width:100%;
+
+  padding:15px;
+
+  border:0;
+
+  border-radius:14px;
+
+  background:var(--accent);
+  color:var(--accent-ink);
+
+  font-size:16px;
+  font-weight:800;
+
+  cursor:pointer;
+}
+
+.lineupMoveBtns{
+  display:flex;
+  flex-direction:column;
+
+  gap:2px;
+
+  flex:0 0 auto;
+
+  margin-right:2px;
+}
+
+.lineupMoveBtn{
+  width:28px;
+  height:22px;
+
+  border:1px solid #303036;
+
+  border-radius:7px;
+
+  background:#1a1a1d;
+
+  color:#c9c9d1;
+
+  font-size:9px;
+  line-height:1;
+
+  display:grid;
+  place-items:center;
+
+  cursor:pointer;
+}
+
+.lineupMoveBtn:disabled{
+  opacity:.3;
+
+  cursor:default;
+}
+
 .lineupReorderHint{
   margin:-2px 16px 10px;
   font-size:11.5px;
@@ -7572,6 +7698,22 @@ let activeSetlistId = null;
 
 let navHistory = [];
 
+/*
+  True only while goBack() is replaying a popped screen.
+
+  Without this, going back was a ping-pong loop: leaving the
+  lineup detail for the calendar pushes "lineupDetail" onto the
+  stack, so the calendar's own back arrow popped straight back
+  into the detail screen — which in turn had pushed "calendar"
+  on the way in. Back then just alternated between the two
+  forever instead of unwinding.
+
+  Replaying a screen you already visited isn't new navigation,
+  so recordNavHistory() below ignores anything that happens
+  while this flag is up.
+*/
+let navigatingBack = false;
+
 function snapshotScreen(name){
 
   switch(name){
@@ -7634,6 +7776,10 @@ function snapshotScreen(name){
 
 function recordNavHistory(nextScreenName){
 
+  if(navigatingBack){
+    return;
+  }
+
   if(skipNextScreenTransition){
     return;
   }
@@ -7663,17 +7809,27 @@ function goBack(fallback){
 
   const restore = navHistory.pop();
 
-  if(restore){
-    restore();
-    return;
-  }
+  navigatingBack = true;
 
-  if(fallback){
-    fallback();
-    return;
-  }
+  try{
 
-  renderHome();
+    if(restore){
+      restore();
+      return;
+    }
+
+    if(fallback){
+      fallback();
+      return;
+    }
+
+    renderHome();
+
+  }finally{
+
+    navigatingBack = false;
+
+  }
 
 }
 
@@ -21720,6 +21876,10 @@ function renderSongViewer(){
 
   currentScreenName = 'songViewer';
 
+  /* Deferred so this render finishes first — the overlay lives
+     on <body>, not #screen, so it survives the swap. */
+  setTimeout(maybeShowServiceCall, 0);
+
   /*
     The editor's arrangement pill bar lives in its own fixed
     overlay (editorPillOverlay) so it isn't broken by #screen's
@@ -26647,8 +26807,8 @@ function renderLineupDetail(dateKey){
           lineup.eventType === 'rehearsal'
             ? 'The team gets pushed "Rehearsal na mamaya!" with the setlist, 5 hrs before this time.'
             : lineup.eventType === 'event'
-              ? 'The team gets pushed "See you on the other side, Disciples!" 3 hrs and again 20 min before this time.'
-              : 'The team gets pushed: "Rehearsal na mamaya!" (w/ setlist) 5 hrs before rehearsal, then "See you on the other side, Disciples!" 3 hrs and 20 min before service.'
+              ? 'The team gets pushed "Worship mamaya ha?" 3 hrs before, then "See you on the other side, Disciples!" 5 min before this time.'
+              : 'The team gets pushed: "Rehearsal na mamaya!" (w/ setlist) 5 hrs before rehearsal, "Worship mamaya ha?" 3 hrs before service, then "See you on the other side, Disciples!" 5 min before.'
         }
       </div>
 
@@ -26661,11 +26821,39 @@ function renderLineupDetail(dateKey){
         ${esc(formatLineupDateLabel(currentLineupDate))} · ${orderedSongs.length} song${orderedSongs.length===1?'':'s'}${lineup.updatedBy ? ' · sent by ' + esc(lineup.updatedBy) : ''}
       </div>
 
-      ${orderedSongs.length > 1 ? `<div class="lineupReorderHint">Long-press a song to reorder</div>` : ''}
+      ${orderedSongs.length > 1 ? `<div class="lineupReorderHint">Use ▲▼ to reorder — or long-press a song to drag it</div>` : ''}
 
       ${
         orderedSongs.length
-        ? `<div class="lineupSongList" id="lineupSongList">` + orderedSongs.map(song => {
+        ? `<div class="lineupSongList" id="lineupSongList">` + orderedSongs.map((song, songIndex) => {
+
+            /*
+              Explicit reorder arrows next to every row. The
+              long-press-drag below still works, but on a phone
+              it's easy to miss (and impossible to discover),
+              so these give the same reordering a plain,
+              reliable tap target. Disabled at the ends.
+            */
+            const moveButtons = `
+              <div class="lineupMoveBtns">
+                <button
+                  class="lineupMoveBtn"
+                  type="button"
+                  data-move-lineup-song="${esc(song.id)}"
+                  data-move-dir="up"
+                  title="Move up"
+                  ${songIndex === 0 ? 'disabled' : ''}
+                >▲</button>
+                <button
+                  class="lineupMoveBtn"
+                  type="button"
+                  data-move-lineup-song="${esc(song.id)}"
+                  data-move-dir="down"
+                  title="Move down"
+                  ${songIndex === orderedSongs.length - 1 ? 'disabled' : ''}
+                >▼</button>
+              </div>
+            `;
 
             if(song.missing){
               return `
@@ -26675,6 +26863,7 @@ function renderLineupDetail(dateKey){
                       <span class="lineupPartTitle">${esc(song.title)} (not synced to this device yet)</span>
                     </div>
                   </div>
+                  ${moveButtons}
                   <button class="setlistOrderBtn" type="button" data-remove-from-lineup="${esc(song.id)}" title="Remove from lineup" style="color:#ff8b8b;">✕</button>
                 </div>
               `;
@@ -26721,6 +26910,8 @@ function renderLineupDetail(dateKey){
                   }
 
                 </div>
+
+                ${moveButtons}
 
                 <button class="setlistOrderBtn" type="button" data-remove-from-lineup="${esc(song.id)}" title="Remove from lineup" style="color:#ff8b8b;">✕</button>
 
@@ -26993,6 +27184,38 @@ function renderLineupDetail(dateKey){
     btn.onclick = () => {
       removeSongFromLineup(btn.dataset.removeFromLineup);
     };
+  });
+
+  /*
+    ▲/▼ reorder — swaps the tapped song with its neighbour and
+    pushes the whole new order through the same path the drag
+    gesture uses, so the team sees it too.
+  */
+  screen.querySelectorAll('[data-move-lineup-song]').forEach(btn => {
+
+    btn.onclick = event => {
+
+      event.stopPropagation();
+
+      const ids =
+        orderedSongs.map(item => item.id);
+
+      const from =
+        ids.indexOf(btn.dataset.moveLineupSong);
+
+      const to =
+        btn.dataset.moveDir === 'up' ? from - 1 : from + 1;
+
+      if(from < 0 || to < 0 || to >= ids.length)return;
+
+      [ids[from], ids[to]] = [ids[to], ids[from]];
+
+      skipNextScreenTransition = true;
+
+      reorderLineupSongs(ids);
+
+    };
+
   });
 
   attachLineupSongDragging();
@@ -29549,6 +29772,147 @@ async function notifyLineupUpdate(songTitle){
   }
 
 }
+
+
+/* =========================================================
+   "SEE YOU ON THE OTHER SIDE" — IN-APP SERVICE CALL
+
+   The push notifications handled by scripts/lineup-reminders.js
+   stop at 3 hrs out ("Worship mamaya ha?"). The final call —
+   5 minutes before a service actually starts — is shown here
+   instead, as a full-screen moment inside the app, so it lands
+   while the team already has the lyrics open.
+
+   Only fires on the song viewer, only for a lineup dated today
+   with a serviceTime set, and only once per service (the
+   dismissal is remembered against that exact service instant,
+   so it won't reappear on the next re-render or after a
+   transpose).
+========================================================= */
+
+const SERVICE_CALL_MINUTES_BEFORE = 5;
+
+function serviceCallDismissedKey(){
+  return 'worshipChordsServiceCallSeen';
+}
+
+function serviceCallAlreadySeen(stamp){
+  try{
+    return localStorage.getItem(serviceCallDismissedKey()) === stamp;
+  }catch(error){
+    return false;
+  }
+}
+
+function markServiceCallSeen(stamp){
+  try{
+    localStorage.setItem(serviceCallDismissedKey(), stamp);
+  }catch(error){}
+}
+
+/*
+  Returns a stable id for today's service start if we're inside
+  the 5-minute window leading up to it, otherwise null. The
+  window closes at the service time itself, so opening the app
+  mid-service doesn't trigger it.
+*/
+function pendingServiceCallStamp(){
+
+  const today =
+    todayDateKey();
+
+  const lineup =
+    getAllLocalLineups()[today];
+
+  if(!lineup)return null;
+
+  const eventType =
+    lineup.eventType || 'sunday-worship';
+
+  /* A standalone rehearsal has no service to call out for. */
+  if(eventType === 'rehearsal')return null;
+
+  const timeStr =
+    lineup.serviceTime;
+
+  if(!timeStr)return null;
+
+  const [hour, minute] =
+    String(timeStr).split(':').map(Number);
+
+  if(!Number.isFinite(hour) || !Number.isFinite(minute))return null;
+
+  const serviceAt =
+    dateFromKey(today);
+
+  serviceAt.setHours(hour, minute, 0, 0);
+
+  const minutesOut =
+    (serviceAt.getTime() - Date.now()) / 60000;
+
+  if(
+    minutesOut > SERVICE_CALL_MINUTES_BEFORE ||
+    minutesOut <= 0
+  ){
+    return null;
+  }
+
+  return today + 'T' + timeStr;
+
+}
+
+function showServiceCall(stamp){
+
+  if(document.getElementById('serviceCallBackEl'))return;
+
+  const host =
+    document.createElement('div');
+
+  host.className = 'serviceCallBack';
+  host.id = 'serviceCallBackEl';
+
+  host.innerHTML = `
+    <div class="serviceCallBox">
+      <div class="serviceCallTitle">See you on the other side, Disciples!</div>
+      <div class="serviceCallSub">Worship starts in a few minutes.</div>
+      <button class="serviceCallBtn" type="button" id="serviceCallAmenBtn">Amen!</button>
+    </div>
+  `;
+
+  document.body.appendChild(host);
+
+  requestAnimationFrame(() => host.classList.add('open'));
+
+  document.getElementById('serviceCallAmenBtn').onclick = () => {
+
+    markServiceCallSeen(stamp);
+
+    host.classList.remove('open');
+
+    setTimeout(() => host.remove(), 280);
+
+  };
+
+}
+
+function maybeShowServiceCall(){
+
+  if(currentScreenName !== 'songViewer')return;
+
+  const stamp =
+    pendingServiceCallStamp();
+
+  if(!stamp)return;
+
+  if(serviceCallAlreadySeen(stamp))return;
+
+  showServiceCall(stamp);
+
+}
+
+/* Re-check every 30s so it appears even if the viewer has been
+   open, untouched, since before the window opened. */
+setInterval(maybeShowServiceCall, 30000);
 
 
 async function enableSongNotifications(){
