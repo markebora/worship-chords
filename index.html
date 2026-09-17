@@ -11882,7 +11882,7 @@ async function startSharedPdfLiveListener(){
 
 }
 
-async function uploadSharedPdf(file){
+async function uploadSharedPdf(file, onProgress){
 
   if(!await requireFirebaseConfigured())return false;
 
@@ -11908,7 +11908,39 @@ async function uploadSharedPdf(file){
     const storageRef =
       firebaseStorage.ref(SHARED_PDF_STORAGE_PATH);
 
-    await storageRef.put(file, { contentType: 'application/pdf' });
+    /*
+      .put() itself always uses Firebase's resumable-upload
+      protocol under the hood (chunked, auto-retries a dropped
+      connection on its own) — a 55MB file isn't too big for it,
+      it just takes a while over a slow connection. Without this
+      progress hook the page just says "Uploading…" the whole
+      time, which for a file that size looks identical to
+      "stuck"; onProgress is what tells renderPdfSharePage's
+      handler to show a live percentage instead.
+    */
+    const uploadTask =
+      storageRef.put(file, { contentType: 'application/pdf' });
+
+    await new Promise((resolve, reject) => {
+
+      uploadTask.on(
+        'state_changed',
+        snapshot => {
+
+          if(onProgress && snapshot.totalBytes){
+
+            onProgress(
+              Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)
+            );
+
+          }
+
+        },
+        reject,
+        resolve
+      );
+
+    });
 
     const url =
       await storageRef.getDownloadURL();
@@ -17060,12 +17092,19 @@ function renderPdfSharePage(){
     const body =
       document.getElementById('pdfShareBody');
 
-    if(body){
-      body.innerHTML = '<div class="pdfShareUploadingNote">Uploading…</div>';
-    }
+    const setUploadingText = (percent) => {
+
+      if(body){
+        body.innerHTML =
+          `<div class="pdfShareUploadingNote">Uploading… ${percent}%</div>`;
+      }
+
+    };
+
+    setUploadingText(0);
 
     const uploaded =
-      await uploadSharedPdf(file);
+      await uploadSharedPdf(file, setUploadingText);
 
     /*
       On success, sharedPdfState's onSnapshot listener fires on
