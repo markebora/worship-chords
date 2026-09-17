@@ -17225,9 +17225,158 @@ function renderPdfSharePage(){
 */
 let sharedPdfDoc = null;
 
+/*
+  Local cache for the reassembled shared PDF, stored in
+  IndexedDB (Capacitor's WebView gives every device its own
+  IndexedDB, same as a normal browser — this doesn't touch
+  Firestore or any other device). Keyed by nothing but the doc's
+  own uploadedAt timestamp: as long as that matches what
+  Firestore currently says, the bytes on disk are still the
+  current file, so there's no reason to pull all ~80 chunks over
+  the network again just to look at the same PDF a second time.
+  A fresh upload gets a new uploadedAt, which naturally misses
+  the cache and re-downloads once, then caches again.
+*/
+const SHARED_PDF_CACHE_DB = 'sharedPdfCache';
+const SHARED_PDF_CACHE_STORE = 'pdf';
+const SHARED_PDF_CACHE_KEY = 'current';
+
+function openSharedPdfCacheDb(){
+
+  return new Promise((resolve, reject) => {
+
+    if(!window.indexedDB){
+      reject(new Error('IndexedDB unavailable'));
+      return;
+    }
+
+    const request =
+      indexedDB.open(SHARED_PDF_CACHE_DB, 1);
+
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(SHARED_PDF_CACHE_STORE);
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+
+  });
+
+}
+
+async function getCachedSharedPdfBytes(uploadedAt){
+
+  try{
+
+    const db =
+      await openSharedPdfCacheDb();
+
+    const entry =
+      await new Promise((resolve, reject) => {
+
+        const tx =
+          db.transaction(SHARED_PDF_CACHE_STORE, 'readonly');
+
+        const req =
+          tx.objectStore(SHARED_PDF_CACHE_STORE).get(SHARED_PDF_CACHE_KEY);
+
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+
+      });
+
+    db.close();
+
+    if(!entry || entry.uploadedAt !== uploadedAt)return null;
+
+    return new Uint8Array(entry.bytes);
+
+  }catch(error){
+
+    /* Cache miss/unavailable is fine — just re-download. */
+    console.error('Shared PDF cache read failed:', error);
+    return null;
+
+  }
+
+}
+
+async function putCachedSharedPdfBytes(uploadedAt, bytes){
+
+  try{
+
+    const db =
+      await openSharedPdfCacheDb();
+
+    await new Promise((resolve, reject) => {
+
+      const tx =
+        db.transaction(SHARED_PDF_CACHE_STORE, 'readwrite');
+
+      /* .buffer stores the raw ArrayBuffer, not the typed-array
+         wrapper — smaller structured-clone payload. */
+      tx.objectStore(SHARED_PDF_CACHE_STORE).put(
+        { uploadedAt, bytes: bytes.buffer },
+        SHARED_PDF_CACHE_KEY
+      );
+
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+
+    });
+
+    db.close();
+
+  }catch(error){
+
+    /* Not fatal — the PDF still displayed, it just won't be
+       cached for next time. */
+    console.error('Shared PDF cache write failed:', error);
+
+  }
+
+}
+
+async function clearCachedSharedPdfBytes(){
+
+  try{
+
+    const db =
+      await openSharedPdfCacheDb();
+
+    await new Promise((resolve, reject) => {
+
+      const tx =
+        db.transaction(SHARED_PDF_CACHE_STORE, 'readwrite');
+
+      tx.objectStore(SHARED_PDF_CACHE_STORE).delete(SHARED_PDF_CACHE_KEY);
+
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+
+    });
+
+    db.close();
+
+  }catch(error){
+
+    console.error('Shared PDF cache clear failed:', error);
+
+  }
+
+}
+
 async function loadSharedPdfBytes(){
 
   if(!sharedPdfState || !sharedPdfState.chunkCount)return null;
+
+  const uploadedAt =
+    sharedPdfState.uploadedAt || '';
+
+  const cached =
+    await getCachedSharedPdfBytes(uploadedAt);
+
+  if(cached)return cached;
 
   const metaRef =
     firestoreDb.collection('sharedPdf').doc('current');
@@ -17259,6 +17408,9 @@ async function loadSharedPdfBytes(){
     bytes.set(part, offset);
     offset += part.length;
   }
+
+  /* Don't block showing the PDF on the cache write finishing. */
+  putCachedSharedPdfBytes(uploadedAt, bytes);
 
   return bytes;
 
@@ -17326,6 +17478,8 @@ async function renderPdfShareBody(){
   if(!body)return;
 
   if(!sharedPdfState || !sharedPdfState.chunkCount){
+
+    clearCachedSharedPdfBytes();
 
     body.innerHTML = `
       <div class="pdfShareEmpty">
