@@ -5584,6 +5584,18 @@ button{
   margin-bottom:12px;
 }
 
+.keyBridgeChainSubLabel{
+  font-size:10.5px;
+  font-weight:800;
+
+  text-transform:uppercase;
+  letter-spacing:.04em;
+
+  color:#77777f;
+
+  margin-bottom:6px;
+}
+
 .keyBridgeChainLenBtn{
   flex:1;
 
@@ -16389,7 +16401,8 @@ let keyBridgeState = {
   fromMinor: false,
   toRoot: 7,
   toMinor: false,
-  chainLength: 5
+  chainLength: 5,
+  chainFlavor: '7'
 };
 
 function renderKeyPickerCardHTML(side, rootIndex, isMinor, label){
@@ -16450,7 +16463,8 @@ function renderKeyBridge(prefill){
       fromMinor: !!prefill.fromMinor,
       toRoot: prefill.toRoot,
       toMinor: !!prefill.toMinor,
-      chainLength: keyBridgeState.chainLength || 5
+      chainLength: keyBridgeState.chainLength || 5,
+      chainFlavor: keyBridgeState.chainFlavor || '7'
     };
 
   }
@@ -16578,7 +16592,7 @@ function renderKeyBridgeResults(){
 
   if(!host)return;
 
-  const { fromRoot, fromMinor, toRoot, toMinor, chainLength } =
+  const { fromRoot, fromMinor, toRoot, toMinor, chainLength, chainFlavor } =
     keyBridgeState;
 
   const fromChords =
@@ -16594,7 +16608,7 @@ function renderKeyBridgeResults(){
     suggestKeyBridges(fromRoot, fromMinor, toRoot, toMinor);
 
   const chain =
-    buildDominantChain(toRoot, toMinor, chainLength);
+    buildDominantChain(toRoot, toMinor, chainLength, chainFlavor);
 
   const countsPerChord =
     8 / chainLength;
@@ -16651,6 +16665,8 @@ function renderKeyBridgeResults(){
 
       <div class="keyBridgeSuggestionTitle">Cascading Chain</div>
 
+      <div class="keyBridgeChainSubLabel">Length</div>
+
       <div class="keyBridgeChainLength">
         ${
           [3,4,5,6,8].map(n => `
@@ -16663,10 +16679,34 @@ function renderKeyBridgeResults(){
         }
       </div>
 
+      <div class="keyBridgeChainSubLabel">Voicing</div>
+
+      <div class="keyBridgeChainLength">
+        ${
+          [
+            { value:'triad', label:'Triads' },
+            { value:'7', label:'7ths' },
+            { value:'9', label:'9ths' }
+          ].map(f => `
+            <button
+              type="button"
+              class="keyBridgeChainLenBtn${f.value === chainFlavor ? ' active' : ''}"
+              data-chain-flavor="${f.value}"
+            >${esc(f.label)}</button>
+          `).join('')
+        }
+      </div>
+
       <div class="keyBridgeSuggestionChords">${chain.map(c => esc(c.label)).join('  →  ')}</div>
 
       <div class="keyBridgeSuggestionTip">
-        A longer walk-up — each chord is a dominant 7 built a 5th above the next, so however many you use, it always resolves cleanly into the new key. Classic gospel/worship "run." ${esc(countsTip)}
+        ${
+          chainFlavor === 'triad'
+            ? 'A longer walk-up using plain triads — the root motion (each a 5th above the next) still pulls toward the new key, just gentler than dominant chords.'
+            : chainFlavor === '9'
+              ? 'A longer walk-up using dominant 9ths — same pull as 7ths, richer and jazzier voicing.'
+              : 'A longer walk-up using dominant 7ths — the classic gospel/worship "run," each chord clearly pulling to the next.'
+        } However many you use, it always resolves cleanly into the new key. ${esc(countsTip)}
       </div>
 
     </div>
@@ -16678,6 +16718,18 @@ function renderKeyBridgeResults(){
     btn.onclick = () => {
 
       keyBridgeState.chainLength = Number(btn.dataset.chainLength);
+
+      renderKeyBridgeResults();
+
+    };
+
+  });
+
+  screen.querySelectorAll('[data-chain-flavor]').forEach(btn => {
+
+    btn.onclick = () => {
+
+      keyBridgeState.chainFlavor = btn.dataset.chainFlavor;
 
       renderKeyBridgeResults();
 
@@ -19305,16 +19357,25 @@ function suggestKeyBridges(fromRoot, fromMinor, toRoot, toMinor){
 }
 
 /*
-  A longer "cascading" bridge — a chain of dominant 7th chords,
-  each one a Perfect 5th above the next, walking backward around
-  the circle of fifths until it resolves onto the target key's
-  tonic. Every step in this chain functions as the V of the step
-  after it, so however long you make it, it always resolves
-  correctly — this is the classic gospel/worship "run" into a
-  new key. length includes the final tonic chord (so length 5 =
-  4 dominant 7ths + the landing chord).
+  A longer "cascading" bridge — a chain of chords, each one a
+  Perfect 5th above the next, walking backward around the circle
+  of fifths until it resolves onto the target key's tonic. Every
+  step functions as the V of the step after it, so however long
+  you make it, it always resolves correctly. The final landing
+  chord is always a plain tonic triad; `flavor` controls how the
+  passing chords before it are voiced:
+    'triad' — plain major triads, gentlest pull
+    '7'     — dominant 7ths, the classic gospel/worship "run"
+    '9'     — dominant 9ths, richer/jazzier voicing
+  length includes the final tonic chord (so length 5 = 4 passing
+  chords + the landing chord).
 */
-function buildDominantChain(toRoot, toMinor, length){
+function buildDominantChain(toRoot, toMinor, length, flavor){
+
+  const suffix =
+    flavor === '9' ? '9' :
+    flavor === 'triad' ? '' :
+    '7';
 
   const steps = [];
 
@@ -19336,7 +19397,7 @@ function buildDominantChain(toRoot, toMinor, length){
       label:
         isFinal
           ? chordLabelForQuality(rootIndex, toMinor ? 'minor' : 'major')
-          : applyChordSpelling(chromatic[rootIndex]) + '7'
+          : applyChordSpelling(chromatic[rootIndex]) + suffix
 
     });
 
