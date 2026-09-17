@@ -6095,7 +6095,7 @@ button{
    PDF itself is the entire page. .pdfSharePage cancels
    .content's 22px side padding with a negative margin so the
    frame runs edge to edge; .pdfShareTopBar puts it back just
-   for the back/upload buttons. .pdfShareFrame's height mirrors
+   for the back/upload buttons. .pdfShareViewer's height mirrors
    .app's own top/bottom padding formulas so the frame fills
    exactly what's left of the viewport below the top bar and
    above the bottom nav, with nothing left over to scroll past.
@@ -6124,14 +6124,24 @@ button{
   border-bottom:1px solid #29292e;
 }
 
-.pdfShareFrame{
+.pdfShareViewer{
   display:block;
   width:100%;
-  border:0;
+
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
 
   background:#0c0c0e;
 
   height:calc(100dvh - calc(env(safe-area-inset-top, 0px) + 18px) - calc(110px + env(safe-area-inset-bottom, 0px)) - 65px);
+}
+
+.pdfSharePageCanvas{
+  display:block;
+  width:100%;
+  height:auto;
+
+  margin:0 auto 10px;
 }
 
 .pdfShareEmpty,
@@ -6861,6 +6871,7 @@ button{
 
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -6960,9 +6971,23 @@ const SYNC_LINEUP_DOC_ID = 'current';
   itself just holds how many pieces there are — that's the doc
   every device listens to, so it knows the moment a new file
   lands and can go fetch all the pieces and stitch them back
-  into a Blob (see loadSharedPdfBlobUrl).
+  into a Blob (see loadSharedPdfBytes).
 */
 const SHARED_PDF_CHUNK_BYTES = 700000;
+
+/*
+  Mobile WebViews (Android system WebView inside the Capacitor
+  shell especially) don't reliably render PDFs inline in an
+  <iframe> the way a desktop browser does — instead of showing
+  the file, they hand it off to a native "open with" style card
+  and never display the content itself. pdf.js sidesteps that by
+  rasterizing each page onto a plain <canvas>, which every
+  WebView already knows how to draw.
+*/
+if(window.pdfjsLib){
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
 
 /*
   When this page is served normally from the web, relative paths
@@ -17193,14 +17218,14 @@ function renderPdfSharePage(){
 }
 
 /*
-  Holds the object URL for whichever reassembled PDF Blob is
+  Holds the pdf.js document for whichever reassembled PDF is
   currently showing, so a later upload (or leaving the page) can
-  revoke it — otherwise each reassembly leaks the previous one's
+  destroy it — otherwise each reassembly leaks the previous one's
   55MB out of memory for the rest of the session.
 */
-let sharedPdfObjectUrl = null;
+let sharedPdfDoc = null;
 
-async function loadSharedPdfBlobUrl(){
+async function loadSharedPdfBytes(){
 
   if(!sharedPdfState || !sharedPdfState.chunkCount)return null;
 
@@ -17222,17 +17247,72 @@ async function loadSharedPdfBlobUrl(){
       sharedPdfBase64ToBytes((snap.data() || {}).data || '')
     );
 
-  const blob =
-    new Blob(parts, { type: 'application/pdf' });
+  const totalLength =
+    parts.reduce((sum, part) => sum + part.length, 0);
 
-  if(sharedPdfObjectUrl){
-    URL.revokeObjectURL(sharedPdfObjectUrl);
+  const bytes =
+    new Uint8Array(totalLength);
+
+  let offset = 0;
+
+  for(const part of parts){
+    bytes.set(part, offset);
+    offset += part.length;
   }
 
-  sharedPdfObjectUrl =
-    URL.createObjectURL(blob);
+  return bytes;
 
-  return sharedPdfObjectUrl;
+}
+
+/*
+  Renders every page of the given pdf.js document onto its own
+  <canvas>, appended in order into container. This is what
+  actually "shows" the PDF — see the note above SHARED_PDF_CHUNK_BYTES
+  for why an <iframe> pointed at a blob URL can't be trusted to
+  do that inside a mobile WebView.
+*/
+async function renderPdfPagesInto(pdfDoc, container){
+
+  for(let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++){
+
+    /* Bail out if the user navigated away mid-render. */
+    if(currentScreenName !== 'pdfShare')return;
+
+    const page =
+      await pdfDoc.getPage(pageNum);
+
+    const unscaledViewport =
+      page.getViewport({ scale:1 });
+
+    const containerWidth =
+      container.clientWidth || 320;
+
+    /* Cap device pixel ratio so huge PDFs on high-DPI screens
+       don't blow past canvas size limits or crawl to render. */
+    const pixelRatio =
+      Math.min(window.devicePixelRatio || 1, 2);
+
+    const scale =
+      (containerWidth / unscaledViewport.width) * pixelRatio;
+
+    const viewport =
+      page.getViewport({ scale });
+
+    const canvas =
+      document.createElement('canvas');
+
+    canvas.className = 'pdfSharePageCanvas';
+    canvas.width = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+
+    container.appendChild(canvas);
+
+    await page.render({
+      canvasContext: canvas.getContext('2d'),
+      viewport
+    }).promise;
+
+  }
 
 }
 
@@ -17259,12 +17339,12 @@ async function renderPdfShareBody(){
 
   body.innerHTML = '<div class="pdfShareUploadingNote">Loading…</div>';
 
-  let blobUrl;
+  let bytes;
 
   try{
 
-    blobUrl =
-      await loadSharedPdfBlobUrl();
+    bytes =
+      await loadSharedPdfBytes();
 
   }catch(error){
 
@@ -17285,13 +17365,56 @@ async function renderPdfShareBody(){
   /* Navigated away while the chunks were loading. */
   if(currentScreenName !== 'pdfShare')return;
 
-  body.innerHTML = `
-    <iframe
-      class="pdfShareFrame"
-      src="${blobUrl}#toolbar=0&navpanes=0"
-      title="Shared PDF"
-    ></iframe>
-  `;
+  if(sharedPdfDoc){
+    sharedPdfDoc.destroy();
+    sharedPdfDoc = null;
+  }
+
+  try{
+
+    sharedPdfDoc =
+      await pdfjsLib.getDocument({ data: bytes }).promise;
+
+  }catch(error){
+
+    console.error(error);
+
+    if(currentScreenName !== 'pdfShare')return;
+
+    body.innerHTML = `
+      <div class="pdfShareEmpty">
+        Could not open the shared PDF: ${esc(error.message)}
+      </div>
+    `;
+
+    return;
+
+  }
+
+  if(currentScreenName !== 'pdfShare')return;
+
+  body.innerHTML = '<div class="pdfShareViewer" id="pdfShareViewer"></div>';
+
+  const viewer =
+    document.getElementById('pdfShareViewer');
+
+  try{
+
+    await renderPdfPagesInto(sharedPdfDoc, viewer);
+
+  }catch(error){
+
+    console.error(error);
+
+    if(currentScreenName !== 'pdfShare')return;
+
+    body.innerHTML = `
+      <div class="pdfShareEmpty">
+        Could not display the shared PDF: ${esc(error.message)}
+      </div>
+    `;
+
+  }
 
 }
 
