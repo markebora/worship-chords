@@ -5576,6 +5576,37 @@ button{
   line-height:1.45;
 }
 
+.keyBridgeChainLength{
+  display:flex;
+
+  gap:6px;
+
+  margin-bottom:12px;
+}
+
+.keyBridgeChainLenBtn{
+  flex:1;
+
+  padding:8px 0;
+
+  border:1px solid #303036;
+  border-radius:9px;
+
+  background:#1a1a1d;
+  color:#a7a7ad;
+
+  font-size:13px;
+  font-weight:800;
+
+  cursor:pointer;
+}
+
+.keyBridgeChainLenBtn.active{
+  background:var(--accent);
+  color:var(--accent-ink);
+  border-color:var(--accent);
+}
+
 .lineupBridgeChip{
   display:flex;
 
@@ -16357,7 +16388,8 @@ let keyBridgeState = {
   fromRoot: 0,
   fromMinor: false,
   toRoot: 7,
-  toMinor: false
+  toMinor: false,
+  chainLength: 5
 };
 
 function renderKeyPickerCardHTML(side, rootIndex, isMinor, label){
@@ -16417,7 +16449,8 @@ function renderKeyBridge(prefill){
       fromRoot: prefill.fromRoot,
       fromMinor: !!prefill.fromMinor,
       toRoot: prefill.toRoot,
-      toMinor: !!prefill.toMinor
+      toMinor: !!prefill.toMinor,
+      chainLength: keyBridgeState.chainLength || 5
     };
 
   }
@@ -16545,7 +16578,7 @@ function renderKeyBridgeResults(){
 
   if(!host)return;
 
-  const { fromRoot, fromMinor, toRoot, toMinor } =
+  const { fromRoot, fromMinor, toRoot, toMinor, chainLength } =
     keyBridgeState;
 
   const fromChords =
@@ -16559,6 +16592,17 @@ function renderKeyBridgeResults(){
 
   const suggestions =
     suggestKeyBridges(fromRoot, fromMinor, toRoot, toMinor);
+
+  const chain =
+    buildDominantChain(toRoot, toMinor, chainLength);
+
+  const countsPerChord =
+    8 / chainLength;
+
+  const countsTip =
+    Number.isInteger(countsPerChord)
+      ? `Spread evenly across an 8-count: ${countsPerChord} count${countsPerChord === 1 ? '' : 's'} per chord.`
+      : `Doesn't divide evenly into 8 counts — give the earlier chords 1 count each and let the last chord ring a little longer to land on beat 1.`;
 
   const fromLabel =
     formatKeyLabel(fromRoot, fromMinor);
@@ -16603,7 +16647,43 @@ function renderKeyBridgeResults(){
       `).join('')
     }
 
+    <div class="keyBridgeSuggestion">
+
+      <div class="keyBridgeSuggestionTitle">Cascading Chain</div>
+
+      <div class="keyBridgeChainLength">
+        ${
+          [3,4,5,6,8].map(n => `
+            <button
+              type="button"
+              class="keyBridgeChainLenBtn${n === chainLength ? ' active' : ''}"
+              data-chain-length="${n}"
+            >${n}</button>
+          `).join('')
+        }
+      </div>
+
+      <div class="keyBridgeSuggestionChords">${chain.map(c => esc(c.label)).join('  →  ')}</div>
+
+      <div class="keyBridgeSuggestionTip">
+        A longer walk-up — each chord is a dominant 7 built a 5th above the next, so however many you use, it always resolves cleanly into the new key. Classic gospel/worship "run." ${esc(countsTip)}
+      </div>
+
+    </div>
+
   `;
+
+  screen.querySelectorAll('[data-chain-length]').forEach(btn => {
+
+    btn.onclick = () => {
+
+      keyBridgeState.chainLength = Number(btn.dataset.chainLength);
+
+      renderKeyBridgeResults();
+
+    };
+
+  });
 
 }
 
@@ -19221,6 +19301,48 @@ function suggestKeyBridges(fromRoot, fromMinor, toRoot, toMinor){
   }
 
   return suggestions;
+
+}
+
+/*
+  A longer "cascading" bridge — a chain of dominant 7th chords,
+  each one a Perfect 5th above the next, walking backward around
+  the circle of fifths until it resolves onto the target key's
+  tonic. Every step in this chain functions as the V of the step
+  after it, so however long you make it, it always resolves
+  correctly — this is the classic gospel/worship "run" into a
+  new key. length includes the final tonic chord (so length 5 =
+  4 dominant 7ths + the landing chord).
+*/
+function buildDominantChain(toRoot, toMinor, length){
+
+  const steps = [];
+
+  for(let i = 0; i < length; i++){
+
+    const isFinal =
+      i === length - 1;
+
+    const k =
+      length - 1 - i;
+
+    const rootIndex =
+      (toRoot + 7 * k + 1200) % 12;
+
+    steps.push({
+
+      rootIndex,
+
+      label:
+        isFinal
+          ? chordLabelForQuality(rootIndex, toMinor ? 'minor' : 'major')
+          : applyChordSpelling(chromatic[rootIndex]) + '7'
+
+    });
+
+  }
+
+  return steps;
 
 }
 
