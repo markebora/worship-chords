@@ -6089,6 +6089,66 @@ button{
 }
 
 /* =========================================================
+   SHARED PDF (reached from inside Key Bridge)
+
+   Deliberately no visual design beyond a slim top bar — the
+   PDF itself is the entire page. .pdfSharePage cancels
+   .content's 22px side padding with a negative margin so the
+   frame runs edge to edge; .pdfShareTopBar puts it back just
+   for the back/upload buttons. .pdfShareFrame's height mirrors
+   .app's own top/bottom padding formulas so the frame fills
+   exactly what's left of the viewport below the top bar and
+   above the bottom nav, with nothing left over to scroll past.
+========================================================= */
+
+.pdfSharePage{
+  margin:0 -22px;
+}
+
+.pdfShareTopBar{
+  position:sticky;
+  top:0;
+  z-index:40;
+
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+
+  padding:10px 22px;
+
+  background:rgba(0,0,0,.96);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+
+  border-bottom:1px solid #29292e;
+}
+
+.pdfShareFrame{
+  display:block;
+  width:100%;
+  border:0;
+
+  background:#0c0c0e;
+
+  height:calc(100dvh - calc(env(safe-area-inset-top, 0px) + 18px) - calc(110px + env(safe-area-inset-bottom, 0px)) - 65px);
+}
+
+.pdfShareEmpty,
+.pdfShareUploadingNote{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+
+  min-height:280px;
+  padding:60px 30px;
+
+  color:#66666d;
+  font-size:14px;
+}
+
+/* =========================================================
    AUTO-SCROLL SATELLITE BUTTONS
 
    Small circular buttons that fan out above the auto-scroll FAB
@@ -6804,6 +6864,7 @@ button{
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 
 <script>
 
@@ -6854,6 +6915,16 @@ const query =
         this app on purpose — see handleAuthSignUp).
      5. Paste the rules from firestore.rules into
         Firestore Database → Rules, and Publish.
+     6. Build → Storage → Get started (accept the default
+        bucket/location). This backs the single app-wide shared
+        PDF uploaded from inside Key Bridge (see SHARED PDF
+        below) — without it, uploads there will fail with a
+        clear toast rather than break silently. Storage Rules
+        need a rule allowing any signed-in user to read/write
+        under sharedPdf/, e.g.:
+          match /sharedPdf/{allPaths=**} {
+            allow read, write: if request.auth != null;
+          }
 ========================================================= */
 
 /*
@@ -6875,6 +6946,18 @@ const SYNC_LIBRARY_DOC_ID = 'shared';
   migration can find and copy over whatever was in the old doc.
 */
 const SYNC_LINEUP_DOC_ID = 'current';
+
+/*
+  The single app-wide shared PDF, uploaded from inside Key
+  Bridge (see SHARED PDF below). Deliberately NOT scoped per
+  team, same as communitySongs — every signed-in user of the
+  app, on any team, sees the same one file. Storage only ever
+  keeps one object at this fixed path, so a new upload just
+  overwrites the last one instead of piling up old files; the
+  Firestore doc alongside it is what every device actually
+  listens to, so it knows the moment a new file lands.
+*/
+const SHARED_PDF_STORAGE_PATH = 'sharedPdf/current.pdf';
 
 /*
   When this page is served normally from the web, relative paths
@@ -6924,6 +7007,7 @@ let FIREBASE_CONFIGURED = false;
 let firebaseApp = null;
 let firebaseAuth = null;
 let firestoreDb = null;
+let firebaseStorage = null;
 
 /*
   Every entry point that touches Firebase (sign-in/up, sign-out,
@@ -6960,6 +7044,9 @@ const firebaseReadyPromise = (async () => {
 
     firestoreDb =
       window.firebase.firestore();
+
+    firebaseStorage =
+      window.firebase.storage();
 
   }catch(error){
 
@@ -8039,6 +8126,9 @@ function snapshotScreen(name){
 
     case 'keyBridge':
       return () => renderKeyBridge();
+
+    case 'pdfShare':
+      return () => renderPdfSharePage();
 
     case 'profile':
       return () => renderProfile();
@@ -10047,6 +10137,8 @@ async function onAuthReady(user){
 
   startLineupLiveListener();
 
+  startSharedPdfLiveListener();
+
 }
 
 
@@ -11725,6 +11817,128 @@ async function unpublishSongFromDirectory(song){
 
     showToast(
       'Could not remove that song: ' + error.message,
+      'error'
+    );
+
+    return false;
+
+  }
+
+}
+
+
+/* =========================================================
+   SHARED PDF (inside Key Bridge)
+
+   One PDF, shared by every user of the app — not scoped to a
+   team, same as communitySongs above. Anyone can upload a new
+   one from the "+" button on the Shared PDF page (reached from
+   inside Key Bridge); it overwrites whatever was there before,
+   for everyone. sharedPdfState mirrors the single Firestore
+   doc that every device listens to (see
+   startSharedPdfLiveListener), so as soon as one person
+   uploads, every other device with the page open updates on
+   its own — no manual refresh, no separate "open" step.
+========================================================= */
+
+let sharedPdfLiveStarted = false;
+let sharedPdfState = null;
+
+async function startSharedPdfLiveListener(){
+
+  if(sharedPdfLiveStarted)return;
+
+  if(!await requireFirebaseConfigured())return;
+
+  sharedPdfLiveStarted = true;
+
+  try{
+
+    firestoreDb
+      .collection('sharedPdf')
+      .doc('current')
+      .onSnapshot(
+        docSnap => {
+
+          sharedPdfState =
+            docSnap.exists ? (docSnap.data() || null) : null;
+
+          if(currentScreenName === 'pdfShare'){
+            renderPdfShareBody();
+          }
+
+        },
+        error => {
+          console.error(error);
+        }
+      );
+
+  }catch(error){
+
+    console.error(error);
+    sharedPdfLiveStarted = false;
+
+  }
+
+}
+
+async function uploadSharedPdf(file){
+
+  if(!await requireFirebaseConfigured())return false;
+
+  if(!(await ensureSyncSession()))return false;
+
+  if(!firebaseStorage){
+
+    showToast(
+      'PDF storage isn\'t set up yet — see the FIREBASE CLIENT ' +
+      'setup notes near the top of this file.',
+      'error'
+    );
+
+    return false;
+
+  }
+
+  const user =
+    getGoogleUser();
+
+  try{
+
+    const storageRef =
+      firebaseStorage.ref(SHARED_PDF_STORAGE_PATH);
+
+    await storageRef.put(file, { contentType: 'application/pdf' });
+
+    const url =
+      await storageRef.getDownloadURL();
+
+    await firestoreDb
+      .collection('sharedPdf')
+      .doc('current')
+      .set({
+
+        url,
+        name: file.name || 'Shared PDF',
+
+        uploadedByName:
+          (user && user.name) || '',
+
+        uploadedByUid:
+          (firebaseAuth.currentUser && firebaseAuth.currentUser.uid) || '',
+
+        uploadedAt: new Date().toISOString()
+
+      });
+
+    return true;
+
+  }catch(error){
+
+    console.error(error);
+
+    showToast(
+      'Could not upload that PDF: ' + error.message,
       'error'
     );
 
@@ -16487,6 +16701,18 @@ function renderKeyBridge(prefill){
           Key Bridge
         </div>
 
+        <button
+          class="searchBtn"
+          id="keyBridgePdfBtn"
+          type="button"
+          aria-label="Shared PDF"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z"/>
+            <path d="M14 3v6h6"/>
+          </svg>
+        </button>
+
       </div>
 
       <div class="keyBridgeIntro">
@@ -16511,6 +16737,10 @@ function renderKeyBridge(prefill){
 
   document.getElementById('keyBridgeBackBtn').onclick = () => {
     goBack(renderHome);
+  };
+
+  document.getElementById('keyBridgePdfBtn').onclick = () => {
+    renderPdfSharePage();
   };
 
   document.getElementById('keyBridgeSwapBtn').onclick = () => {
@@ -16741,6 +16971,151 @@ function renderKeyBridgeResults(){
 
 
 /* =========================================================
+   SHARED PDF PAGE (reached from Key Bridge)
+
+   Deliberately bare: a back button, a "+" to upload, and the
+   PDF itself filling the rest of the screen — see
+   uploadSharedPdf/startSharedPdfLiveListener above for the
+   sync side of this.
+========================================================= */
+
+function renderPdfSharePage(){
+
+  recordNavHistory('pdfShare');
+
+  currentScreenName = 'pdfShare';
+
+  setActiveNav('');
+
+  startSharedPdfLiveListener();
+
+  screen.innerHTML = `
+
+    <div class="pdfSharePage">
+
+      <div class="pdfShareTopBar">
+
+        <button
+          class="searchBtn"
+          id="pdfShareBackBtn"
+          type="button"
+          aria-label="Back to Key Bridge"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+
+        <button
+          class="searchBtn"
+          id="pdfShareUploadBtn"
+          type="button"
+          aria-label="Upload PDF"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5v14"/>
+            <path d="M5 12h14"/>
+          </svg>
+        </button>
+
+        <input
+          type="file"
+          id="pdfShareFileInput"
+          accept="application/pdf"
+          style="display:none;"
+        >
+
+      </div>
+
+      <div id="pdfShareBody"></div>
+
+    </div>
+
+  `;
+
+  document.getElementById('pdfShareBackBtn').onclick = () => {
+    goBack(renderKeyBridge);
+  };
+
+  document.getElementById('pdfShareUploadBtn').onclick = () => {
+    document.getElementById('pdfShareFileInput').click();
+  };
+
+  document.getElementById('pdfShareFileInput').onchange = async (event) => {
+
+    const file =
+      event.target.files && event.target.files[0];
+
+    event.target.value = '';
+
+    if(!file)return;
+
+    const looksLikePdf =
+      file.type === 'application/pdf' ||
+      file.name.toLowerCase().endsWith('.pdf');
+
+    if(!looksLikePdf){
+      showToast('Please choose a PDF file.', 'error');
+      return;
+    }
+
+    const body =
+      document.getElementById('pdfShareBody');
+
+    if(body){
+      body.innerHTML = '<div class="pdfShareUploadingNote">Uploading…</div>';
+    }
+
+    const uploaded =
+      await uploadSharedPdf(file);
+
+    /*
+      On success, sharedPdfState's onSnapshot listener fires on
+      its own and calls renderPdfShareBody() — that's what makes
+      the freshly uploaded PDF "auto view" for the uploader too,
+      the same way it does for everyone else's already-open page.
+    */
+    if(!uploaded){
+      renderPdfShareBody();
+    }
+
+  };
+
+  renderPdfShareBody();
+
+}
+
+function renderPdfShareBody(){
+
+  if(currentScreenName !== 'pdfShare')return;
+
+  const body =
+    document.getElementById('pdfShareBody');
+
+  if(!body)return;
+
+  if(sharedPdfState && sharedPdfState.url){
+
+    body.innerHTML = `
+      <iframe
+        class="pdfShareFrame"
+        src="${esc(sharedPdfState.url)}#toolbar=0&navpanes=0"
+        title="Shared PDF"
+      ></iframe>
+    `;
+
+  }else{
+
+    body.innerHTML = `
+      <div class="pdfShareEmpty">
+        No PDF yet — tap + above to upload one.
+      </div>
+    `;
+
+  }
+
+}
+
+
+/* =========================================================
    PROFILE
 ========================================================= */
 
@@ -16920,6 +17295,8 @@ function finishTeamOnboarding(){
   pullVideoArchiveFromDrive();
 
   startLineupLiveListener();
+
+  startSharedPdfLiveListener();
 
   renderHome();
 
@@ -30673,6 +31050,8 @@ async function initSyncOnLoad(){
 
   startLineupLiveListener();
 
+  startSharedPdfLiveListener();
+
 }
 
 
@@ -31255,6 +31634,12 @@ function handleHardwareBack(){
     case 'keyBridge':
 
       goBack(renderHome);
+
+      return true;
+
+    case 'pdfShare':
+
+      goBack(renderKeyBridge);
 
       return true;
 
