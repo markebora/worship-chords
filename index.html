@@ -6864,7 +6864,6 @@ button{
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 
 <script>
 
@@ -6915,16 +6914,13 @@ const query =
         this app on purpose — see handleAuthSignUp).
      5. Paste the rules from firestore.rules into
         Firestore Database → Rules, and Publish.
-     6. Build → Storage → Get started (accept the default
-        bucket/location). This backs the single app-wide shared
-        PDF uploaded from inside Key Bridge (see SHARED PDF
-        below) — without it, uploads there will fail with a
-        clear toast rather than break silently. Storage Rules
-        need a rule allowing any signed-in user to read/write
-        under sharedPdf/, e.g.:
-          match /sharedPdf/{allPaths=**} {
-            allow read, write: if request.auth != null;
-          }
+
+   The single app-wide shared PDF (see SHARED PDF below) does
+   NOT use Firebase — Firebase Storage requires the paid "Blaze"
+   plan before it'll accept a single file, which isn't a fair
+   ask for every team running this app. That PDF is hosted on
+   Cloudinary's free tier instead; see the CLOUDINARY_CLOUD_NAME
+   comment further down for that setup.
 ========================================================= */
 
 /*
@@ -6951,13 +6947,33 @@ const SYNC_LINEUP_DOC_ID = 'current';
   The single app-wide shared PDF, uploaded from inside Key
   Bridge (see SHARED PDF below). Deliberately NOT scoped per
   team, same as communitySongs — every signed-in user of the
-  app, on any team, sees the same one file. Storage only ever
-  keeps one object at this fixed path, so a new upload just
-  overwrites the last one instead of piling up old files; the
-  Firestore doc alongside it is what every device actually
+  app, on any team, sees the same one file. The actual bytes
+  live on Cloudinary (see the two constants right below); this
+  Firestore doc just points at whichever URL Cloudinary handed
+  back for the latest upload, and is what every device actually
   listens to, so it knows the moment a new file lands.
+
+  Each upload gets its own new Cloudinary URL rather than
+  overwriting the last one in place — simpler and doesn't need
+  Cloudinary API-secret credentials in this client-side file,
+  at the small cost of old, no-longer-linked files sitting
+  unused in your Cloudinary storage. Cloudinary's free tier
+  (25GB) comfortably absorbs that for a once-in-a-while shared
+  PDF; if it ever matters, delete old files from the Cloudinary
+  dashboard's Media Library — nothing in the app links to them
+  once a new one's been uploaded.
+
+  Fill these in after creating a free Cloudinary account (no
+  card required):
+    1. cloudinary.com → sign up.
+    2. Console → Settings (gear icon, bottom left) → the
+       "Cloud name" shown near the top → paste it below.
+    3. Settings → Upload → Upload presets → Add upload preset.
+       Set Signing Mode to "Unsigned", Save, then paste its
+       name below.
 */
-const SHARED_PDF_STORAGE_PATH = 'sharedPdf/current.pdf';
+const CLOUDINARY_CLOUD_NAME = 'nwozsm5u';
+const CLOUDINARY_UPLOAD_PRESET = 'jsetly8z';
 
 /*
   When this page is served normally from the web, relative paths
@@ -7007,7 +7023,6 @@ let FIREBASE_CONFIGURED = false;
 let firebaseApp = null;
 let firebaseAuth = null;
 let firestoreDb = null;
-let firebaseStorage = null;
 
 /*
   Every entry point that touches Firebase (sign-in/up, sign-out,
@@ -7044,9 +7059,6 @@ const firebaseReadyPromise = (async () => {
 
     firestoreDb =
       window.firebase.firestore();
-
-    firebaseStorage =
-      window.firebase.storage();
 
   }catch(error){
 
@@ -11888,11 +11900,16 @@ async function uploadSharedPdf(file, onProgress){
 
   if(!(await ensureSyncSession()))return false;
 
-  if(!firebaseStorage){
+  if(
+    !CLOUDINARY_CLOUD_NAME ||
+    CLOUDINARY_CLOUD_NAME === 'YOUR_CLOUD_NAME' ||
+    !CLOUDINARY_UPLOAD_PRESET ||
+    CLOUDINARY_UPLOAD_PRESET === 'YOUR_UPLOAD_PRESET'
+  ){
 
     showToast(
-      'PDF storage isn\'t set up yet — see the FIREBASE CLIENT ' +
-      'setup notes near the top of this file.',
+      'Cloudinary isn\'t set up yet — see the CLOUDINARY_CLOUD_NAME ' +
+      'notes near the top of this file.',
       'error'
     );
 
@@ -11905,45 +11922,73 @@ async function uploadSharedPdf(file, onProgress){
 
   try{
 
-    const storageRef =
-      firebaseStorage.ref(SHARED_PDF_STORAGE_PATH);
-
     /*
-      .put() itself always uses Firebase's resumable-upload
-      protocol under the hood (chunked, auto-retries a dropped
-      connection on its own) — a 55MB file isn't too big for it,
-      it just takes a while over a slow connection. Without this
-      progress hook the page just says "Uploading…" the whole
-      time, which for a file that size looks identical to
-      "stuck"; onProgress is what tells renderPdfSharePage's
-      handler to show a live percentage instead.
+      Plain fetch() has no way to report upload progress, which
+      for a file this size is what makes an upload look "stuck"
+      even when it's moving fine — XMLHttpRequest's upload.onprogress
+      is the one thing here that actually needs the older API.
     */
-    const uploadTask =
-      storageRef.put(file, { contentType: 'application/pdf' });
+    const url =
+      await new Promise((resolve, reject) => {
 
-    await new Promise((resolve, reject) => {
+        const formData =
+          new FormData();
 
-      uploadTask.on(
-        'state_changed',
-        snapshot => {
+        formData.append('file', file);
+        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
 
-          if(onProgress && snapshot.totalBytes){
+        const xhr =
+          new XMLHttpRequest();
+
+        xhr.open(
+          'POST',
+          `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`
+        );
+
+        xhr.upload.onprogress = (event) => {
+
+          if(onProgress && event.lengthComputable){
 
             onProgress(
-              Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)
+              Math.round((event.loaded / event.total) * 100)
             );
 
           }
 
-        },
-        reject,
-        resolve
-      );
+        };
 
-    });
+        xhr.onload = () => {
 
-    const url =
-      await storageRef.getDownloadURL();
+          if(xhr.status >= 200 && xhr.status < 300){
+
+            try{
+
+              const data =
+                JSON.parse(xhr.responseText);
+
+              resolve(data.secure_url);
+
+            }catch(error){
+              reject(error);
+            }
+
+          }else{
+
+            reject(
+              new Error('Cloudinary upload failed (status ' + xhr.status + ')')
+            );
+
+          }
+
+        };
+
+        xhr.onerror = () => {
+          reject(new Error('Network error during upload'));
+        };
+
+        xhr.send(formData);
+
+      });
 
     await firestoreDb
       .collection('sharedPdf')
