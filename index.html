@@ -11974,9 +11974,31 @@ async function uploadSharedPdf(file, onProgress){
 
           }else{
 
-            reject(
-              new Error('Cloudinary upload failed (status ' + xhr.status + ')')
-            );
+            /*
+              Cloudinary's error body (data.error.message) is the
+              actual, specific reason — "Upload preset not found",
+              "must be whitelisted for unsigned uploads", etc. Just
+              reporting the HTTP status threw that reason away,
+              which is why the toast only ever said "status 400"
+              instead of something anyone could act on.
+            */
+            let message =
+              'Cloudinary upload failed (status ' + xhr.status + ')';
+
+            try{
+
+              const data =
+                JSON.parse(xhr.responseText);
+
+              if(data && data.error && data.error.message){
+                message = data.error.message;
+              }
+
+            }catch(parseError){
+              /* Response wasn't JSON — keep the generic message above. */
+            }
+
+            reject(new Error(message));
 
           }
 
