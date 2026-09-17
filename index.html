@@ -6915,12 +6915,12 @@ const query =
      5. Paste the rules from firestore.rules into
         Firestore Database → Rules, and Publish.
 
-   The single app-wide shared PDF (see SHARED PDF below) does
-   NOT use Firebase — Firebase Storage requires the paid "Blaze"
-   plan before it'll accept a single file, which isn't a fair
-   ask for every team running this app. That PDF is hosted on
-   Cloudinary's free tier instead; see the CLOUDINARY_CLOUD_NAME
-   comment further down for that setup.
+   The single app-wide shared PDF (see SHARED PDF below) needs
+   nothing extra beyond the Firestore setup above — it does NOT
+   use Firebase Storage (that needs the paid "Blaze" plan) or
+   any external host; see the SHARED_PDF_CHUNK_BYTES comment
+   further down for how it stores a big file directly in
+   Firestore instead.
 ========================================================= */
 
 /*
@@ -6947,33 +6947,22 @@ const SYNC_LINEUP_DOC_ID = 'current';
   The single app-wide shared PDF, uploaded from inside Key
   Bridge (see SHARED PDF below). Deliberately NOT scoped per
   team, same as communitySongs — every signed-in user of the
-  app, on any team, sees the same one file. The actual bytes
-  live on Cloudinary (see the two constants right below); this
-  Firestore doc just points at whichever URL Cloudinary handed
-  back for the latest upload, and is what every device actually
-  listens to, so it knows the moment a new file lands.
+  app, on any team, sees the same one file.
 
-  Each upload gets its own new Cloudinary URL rather than
-  overwriting the last one in place — simpler and doesn't need
-  Cloudinary API-secret credentials in this client-side file,
-  at the small cost of old, no-longer-linked files sitting
-  unused in your Cloudinary storage. Cloudinary's free tier
-  (25GB) comfortably absorbs that for a once-in-a-while shared
-  PDF; if it ever matters, delete old files from the Cloudinary
-  dashboard's Media Library — nothing in the app links to them
-  once a new one's been uploaded.
-
-  Fill these in after creating a free Cloudinary account (no
-  card required):
-    1. cloudinary.com → sign up.
-    2. Console → Settings (gear icon, bottom left) → the
-       "Cloud name" shown near the top → paste it below.
-    3. Settings → Upload → Upload presets → Add upload preset.
-       Set Signing Mode to "Unsigned", Save, then paste its
-       name below.
+  No external host: Firebase Storage needs the paid "Blaze"
+  plan, and Cloudinary's free plan caps raw files at 10MB
+  (account-wide, not something the upload preset can override)
+  — 55MB won't fit either way without paying someone. So the
+  PDF's actual bytes live in Firestore itself, split into
+  SHARED_PDF_CHUNK_BYTES-sized pieces, one piece per document
+  under sharedPdf/current/chunks/{index} (Firestore caps a
+  single document at 1MiB, hence the splitting). sharedPdf/current
+  itself just holds how many pieces there are — that's the doc
+  every device listens to, so it knows the moment a new file
+  lands and can go fetch all the pieces and stitch them back
+  into a Blob (see loadSharedPdfBlobUrl).
 */
-const CLOUDINARY_CLOUD_NAME = 'nwozsm5u';
-const CLOUDINARY_UPLOAD_PRESET = 'jsetly8z';
+const SHARED_PDF_CHUNK_BYTES = 700000;
 
 /*
   When this page is served normally from the web, relative paths
@@ -11894,141 +11883,155 @@ async function startSharedPdfLiveListener(){
 
 }
 
+/*
+  Small binary <-> base64 helpers for chunked uploads/downloads
+  below. String.fromCharCode.apply chokes on very large arrays
+  (engines cap how many arguments a call can take), so this
+  builds the binary string 32KB at a time rather than handing
+  a whole ~700KB chunk to it in one call.
+*/
+function sharedPdfBytesToBase64(bytes){
+
+  let binary = '';
+
+  const stepSize = 0x8000;
+
+  for(let i = 0; i < bytes.length; i += stepSize){
+
+    const slice =
+      bytes.subarray(i, i + stepSize);
+
+    binary += String.fromCharCode.apply(null, slice);
+
+  }
+
+  return btoa(binary);
+
+}
+
+function sharedPdfBase64ToBytes(base64){
+
+  const binary =
+    atob(base64);
+
+  const bytes =
+    new Uint8Array(binary.length);
+
+  for(let i = 0; i < binary.length; i++){
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return bytes;
+
+}
+
+function readFileSliceAsArrayBuffer(file, start, end){
+
+  return new Promise((resolve, reject) => {
+
+    const reader =
+      new FileReader();
+
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+
+    reader.readAsArrayBuffer(file.slice(start, end));
+
+  });
+
+}
+
 async function uploadSharedPdf(file, onProgress){
 
   if(!await requireFirebaseConfigured())return false;
 
   if(!(await ensureSyncSession()))return false;
 
-  if(
-    !CLOUDINARY_CLOUD_NAME ||
-    CLOUDINARY_CLOUD_NAME === 'YOUR_CLOUD_NAME' ||
-    !CLOUDINARY_UPLOAD_PRESET ||
-    CLOUDINARY_UPLOAD_PRESET === 'YOUR_UPLOAD_PRESET'
-  ){
-
-    showToast(
-      'Cloudinary isn\'t set up yet — see the CLOUDINARY_CLOUD_NAME ' +
-      'notes near the top of this file.',
-      'error'
-    );
-
-    return false;
-
-  }
-
   const user =
     getGoogleUser();
 
+  const metaRef =
+    firestoreDb.collection('sharedPdf').doc('current');
+
   try{
 
+    const previousSnap =
+      await metaRef.get();
+
+    const previousChunkCount =
+      previousSnap.exists ? (previousSnap.data().chunkCount || 0) : 0;
+
+    const totalChunks =
+      Math.max(1, Math.ceil(file.size / SHARED_PDF_CHUNK_BYTES));
+
     /*
-      Plain fetch() has no way to report upload progress, which
-      for a file this size is what makes an upload look "stuck"
-      even when it's moving fine — XMLHttpRequest's upload.onprogress
-      is the one thing here that actually needs the older API.
+      One chunk at a time, in order: reads only one ~700KB slice
+      of the file into memory at once (file.slice never loads the
+      whole 55MB file), and gives onProgress a real, steadily
+      climbing percentage instead of jumping straight to 100% the
+      way a single big request would.
     */
-    const url =
-      await new Promise((resolve, reject) => {
+    for(let i = 0; i < totalChunks; i++){
 
-        const formData =
-          new FormData();
+      const start =
+        i * SHARED_PDF_CHUNK_BYTES;
 
-        formData.append('file', file);
-        formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      const end =
+        Math.min(file.size, start + SHARED_PDF_CHUNK_BYTES);
 
-        const xhr =
-          new XMLHttpRequest();
+      const buffer =
+        await readFileSliceAsArrayBuffer(file, start, end);
 
-        xhr.open(
-          'POST',
-          `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/raw/upload`
+      const base64 =
+        sharedPdfBytesToBase64(new Uint8Array(buffer));
+
+      await metaRef
+        .collection('chunks')
+        .doc(String(i))
+        .set({ data: base64 });
+
+      if(onProgress){
+        onProgress(Math.round(((i + 1) / totalChunks) * 100));
+      }
+
+    }
+
+    /*
+      If this upload has fewer chunks than the one it's replacing,
+      the old doc's leftover tail pieces would otherwise just sit
+      there unused (and get read back in on top of the new file).
+    */
+    if(previousChunkCount > totalChunks){
+
+      const deletions = [];
+
+      for(let i = totalChunks; i < previousChunkCount; i++){
+
+        deletions.push(
+          metaRef.collection('chunks').doc(String(i)).delete()
         );
 
-        xhr.upload.onprogress = (event) => {
+      }
 
-          if(onProgress && event.lengthComputable){
+      await Promise.all(deletions);
 
-            onProgress(
-              Math.round((event.loaded / event.total) * 100)
-            );
+    }
 
-          }
+    await metaRef.set({
 
-        };
+      name: file.name || 'Shared PDF',
+      chunkCount: totalChunks,
+      totalBytes: file.size,
 
-        xhr.onload = () => {
+      uploadedByName:
+        (user && user.name) || '',
 
-          if(xhr.status >= 200 && xhr.status < 300){
+      uploadedByUid:
+        (firebaseAuth.currentUser && firebaseAuth.currentUser.uid) || '',
 
-            try{
+      uploadedAt: new Date().toISOString()
 
-              const data =
-                JSON.parse(xhr.responseText);
-
-              resolve(data.secure_url);
-
-            }catch(error){
-              reject(error);
-            }
-
-          }else{
-
-            /*
-              Cloudinary's error body (data.error.message) is the
-              actual, specific reason — "Upload preset not found",
-              "must be whitelisted for unsigned uploads", etc. Just
-              reporting the HTTP status threw that reason away,
-              which is why the toast only ever said "status 400"
-              instead of something anyone could act on.
-            */
-            let message =
-              'Cloudinary upload failed (status ' + xhr.status + ')';
-
-            try{
-
-              const data =
-                JSON.parse(xhr.responseText);
-
-              if(data && data.error && data.error.message){
-                message = data.error.message;
-              }
-
-            }catch(parseError){
-              /* Response wasn't JSON — keep the generic message above. */
-            }
-
-            reject(new Error(message));
-
-          }
-
-        };
-
-        xhr.onerror = () => {
-          reject(new Error('Network error during upload'));
-        };
-
-        xhr.send(formData);
-
-      });
-
-    await firestoreDb
-      .collection('sharedPdf')
-      .doc('current')
-      .set({
-
-        url,
-        name: file.name || 'Shared PDF',
-
-        uploadedByName:
-          (user && user.name) || '',
-
-        uploadedByUid:
-          (firebaseAuth.currentUser && firebaseAuth.currentUser.uid) || '',
-
-        uploadedAt: new Date().toISOString()
-
-      });
+    });
 
     return true;
 
@@ -17189,7 +17192,51 @@ function renderPdfSharePage(){
 
 }
 
-function renderPdfShareBody(){
+/*
+  Holds the object URL for whichever reassembled PDF Blob is
+  currently showing, so a later upload (or leaving the page) can
+  revoke it — otherwise each reassembly leaks the previous one's
+  55MB out of memory for the rest of the session.
+*/
+let sharedPdfObjectUrl = null;
+
+async function loadSharedPdfBlobUrl(){
+
+  if(!sharedPdfState || !sharedPdfState.chunkCount)return null;
+
+  const metaRef =
+    firestoreDb.collection('sharedPdf').doc('current');
+
+  const chunkSnaps =
+    await Promise.all(
+
+      Array.from(
+        { length: sharedPdfState.chunkCount },
+        (_, i) => metaRef.collection('chunks').doc(String(i)).get()
+      )
+
+    );
+
+  const parts =
+    chunkSnaps.map(snap =>
+      sharedPdfBase64ToBytes((snap.data() || {}).data || '')
+    );
+
+  const blob =
+    new Blob(parts, { type: 'application/pdf' });
+
+  if(sharedPdfObjectUrl){
+    URL.revokeObjectURL(sharedPdfObjectUrl);
+  }
+
+  sharedPdfObjectUrl =
+    URL.createObjectURL(blob);
+
+  return sharedPdfObjectUrl;
+
+}
+
+async function renderPdfShareBody(){
 
   if(currentScreenName !== 'pdfShare')return;
 
@@ -17198,17 +17245,7 @@ function renderPdfShareBody(){
 
   if(!body)return;
 
-  if(sharedPdfState && sharedPdfState.url){
-
-    body.innerHTML = `
-      <iframe
-        class="pdfShareFrame"
-        src="${esc(sharedPdfState.url)}#toolbar=0&navpanes=0"
-        title="Shared PDF"
-      ></iframe>
-    `;
-
-  }else{
+  if(!sharedPdfState || !sharedPdfState.chunkCount){
 
     body.innerHTML = `
       <div class="pdfShareEmpty">
@@ -17216,7 +17253,45 @@ function renderPdfShareBody(){
       </div>
     `;
 
+    return;
+
   }
+
+  body.innerHTML = '<div class="pdfShareUploadingNote">Loading…</div>';
+
+  let blobUrl;
+
+  try{
+
+    blobUrl =
+      await loadSharedPdfBlobUrl();
+
+  }catch(error){
+
+    console.error(error);
+
+    if(currentScreenName !== 'pdfShare')return;
+
+    body.innerHTML = `
+      <div class="pdfShareEmpty">
+        Could not load the shared PDF: ${esc(error.message)}
+      </div>
+    `;
+
+    return;
+
+  }
+
+  /* Navigated away while the chunks were loading. */
+  if(currentScreenName !== 'pdfShare')return;
+
+  body.innerHTML = `
+    <iframe
+      class="pdfShareFrame"
+      src="${blobUrl}#toolbar=0&navpanes=0"
+      title="Shared PDF"
+    ></iframe>
+  `;
 
 }
 
