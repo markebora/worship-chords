@@ -12438,6 +12438,157 @@ function emptyLineup(key){
 */
 let currentLineupDate = null;
 
+/*
+  Auto-save state for the Rehearsal & Service time inputs on the
+  Worship Lineup detail screen. Typing debounces into a save a
+  moment after the person stops turning the time picker — no
+  "Save times" tap required. lineupTimesSaveInFlight makes sure
+  overlapping triggers (debounce timer + blur firing close
+  together) share one upload instead of racing two.
+
+  flushLineupTimesSave() is also called, awaited, at the start of
+  every OTHER Worship Lineup action that does its own
+  download-mutate-upload cycle (adding/removing a video, removing
+  a song, reordering, changing the event type). Without that, an
+  edited-but-not-yet-saved time could be overwritten right back to
+  its old value the moment one of those actions re-downloaded the
+  lineup from Firestore and re-rendered the screen from it — which
+  is exactly the "I set the time, then added a YT link and it
+  undid everything" bug.
+*/
+let lineupTimesDirty = false;
+let lineupTimesSaveTimer = null;
+let lineupTimesSaveInFlight = null;
+
+function markLineupTimesDirty(){
+
+  lineupTimesDirty = true;
+
+  const btn =
+    document.getElementById('lineupTimesSaveBtn');
+
+  if(btn){
+    btn.disabled = false;
+    btn.textContent = 'Save times';
+  }
+
+  clearTimeout(lineupTimesSaveTimer);
+  lineupTimesSaveTimer = setTimeout(flushLineupTimesSave, 700);
+
+}
+
+async function flushLineupTimesSave(){
+
+  clearTimeout(lineupTimesSaveTimer);
+  lineupTimesSaveTimer = null;
+
+  if(lineupTimesSaveInFlight)return lineupTimesSaveInFlight;
+  if(!lineupTimesDirty)return;
+
+  const dateKeyBeingSaved =
+    currentLineupDate;
+
+  const rehearsalTimeInput =
+    document.getElementById('lineupRehearsalTimeInput');
+
+  const serviceTimeInput =
+    document.getElementById('lineupServiceTimeInput');
+
+  const rehearsalValue =
+    rehearsalTimeInput ? rehearsalTimeInput.value || '' : null;
+
+  const serviceValue =
+    serviceTimeInput ? serviceTimeInput.value || '' : null;
+
+  /* Optimistically clear — a failure below sets it back to true
+     so the next flush (or the next edit) retries. */
+  lineupTimesDirty = false;
+
+  const setBtnState = text => {
+
+    /* Only touch the button if we're still looking at the same
+       date's screen — a stale in-flight save finishing after the
+       person navigated elsewhere shouldn't relabel some other
+       date's button. */
+    if(currentLineupDate !== dateKeyBeingSaved)return;
+
+    const btn =
+      document.getElementById('lineupTimesSaveBtn');
+
+    if(btn)btn.textContent = text;
+
+  };
+
+  setBtnState('Saving…');
+
+  lineupTimesSaveInFlight = (async () => {
+
+    try{
+
+      if(!await requireFirebaseConfigured())throw new Error('__cancelled');
+      if(!(await ensureSyncSession()))throw new Error('__cancelled');
+
+      const remote =
+        await downloadLineup(dateKeyBeingSaved);
+
+      if(rehearsalValue !== null)remote.rehearsalTime = rehearsalValue;
+      if(serviceValue !== null)remote.serviceTime = serviceValue;
+
+      await uploadLineup(remote, dateKeyBeingSaved);
+
+      setLocalLineup(remote, dateKeyBeingSaved);
+
+      setBtnState('Saved');
+
+      setTimeout(() => {
+
+        if(currentLineupDate !== dateKeyBeingSaved)return;
+
+        const btn =
+          document.getElementById('lineupTimesSaveBtn');
+
+        if(btn && btn.textContent === 'Saved'){
+          btn.textContent = 'Save times';
+          btn.disabled = true;
+        }
+
+      }, 1200);
+
+    }catch(error){
+
+      if(error && error.message === '__cancelled')return;
+
+      console.error(error);
+
+      showToast('Could not save times: ' + error.message, 'error');
+
+      /* Let the next edit (or a later flush) retry. */
+      lineupTimesDirty = true;
+
+      if(currentLineupDate === dateKeyBeingSaved){
+
+        const btn =
+          document.getElementById('lineupTimesSaveBtn');
+
+        if(btn){
+          btn.disabled = false;
+          btn.textContent = 'Save times';
+        }
+
+      }
+
+    }finally{
+
+      lineupTimesSaveInFlight = null;
+
+    }
+
+  })();
+
+  return lineupTimesSaveInFlight;
+
+}
+
 function getAllLocalLineups(){
 
   try{
@@ -13376,6 +13527,12 @@ async function removeVideoFromArchive(id){
 
 async function addVideoToLineupPrompt(){
 
+  /* Commit any in-progress time edit first — see the note on
+     flushLineupTimesSave() for why, otherwise adding this video
+     re-downloads+re-renders and makes an unsaved time edit look
+     like it just got wiped out. */
+  await flushLineupTimesSave();
+
   const localLineup =
     getLocalLineup();
 
@@ -13456,7 +13613,7 @@ async function addVideoToLineupPrompt(){
 
     setLocalLineup(remote);
 
-    renderLineupDetail();
+    refreshLineupVideosSection();
 
     archiveVideo({
       id: videoId,
@@ -13480,6 +13637,8 @@ async function addVideoToLineupPrompt(){
 
 async function removeVideoFromLineup(videoId){
 
+  await flushLineupTimesSave();
+
   if(!await requireFirebaseConfigured())return;
 
   if(!(await ensureSyncSession()))return;
@@ -13496,7 +13655,7 @@ async function removeVideoFromLineup(videoId){
 
     setLocalLineup(remote);
 
-    renderLineupDetail();
+    refreshLineupVideosSection();
 
   }catch(error){
 
@@ -13960,6 +14119,8 @@ function persistCurrentSongVideo(){
 
 
 async function removeSongFromLineup(songId){
+
+  await flushLineupTimesSave();
 
   if(!await requireFirebaseConfigured())return;
 
@@ -28478,6 +28639,119 @@ function getSongKeyLabel(part){
 }
 
 
+/*
+  YT Playlist section markup, factored out of renderLineupDetail()
+  so refreshLineupVideosSection() below can regenerate just this
+  one piece after adding/removing a video — instead of the whole
+  screen rebuilding (and visibly flickering) for a one-row change.
+*/
+function renderLineupVideosSectionHTML(videos){
+
+  return `
+    <div class="ytPlaylistHeadRow">
+      <div class="sectionLabel">
+        YT Playlist${videos.length ? ` (${videos.length}/${LINEUP_MAX_VIDEOS})` : ''}
+      </div>
+      <button
+        class="ytAddLinkBtn"
+        type="button"
+        id="ytAddLinkBtn"
+        ${videos.length >= LINEUP_MAX_VIDEOS ? 'disabled' : ''}
+      >+ Add link</button>
+    </div>
+
+    ${
+      videos.length
+      ? videos.map(video => `
+          <div class="ytLinkRow" data-yt-row="${esc(video.id)}">
+
+            <div class="ytLinkThumb" data-yt-play="${esc(video.id)}">
+              <img src="https://i.ytimg.com/vi/${esc(video.id)}/mqdefault.jpg" alt="" loading="lazy">
+              <span class="ytLinkPlayIcon">▶</span>
+            </div>
+
+            <div class="ytLinkMeta" data-yt-play="${esc(video.id)}">
+              <div class="ytLinkTitle">${esc(video.url || video.id)}</div>
+              ${video.addedBy ? `<div class="ytLinkAddedBy">added by ${esc(video.addedBy)}</div>` : ''}
+            </div>
+
+            <button class="setlistOrderBtn" type="button" data-remove-yt="${esc(video.id)}" title="Remove video" style="color:#ff8b8b;">✕</button>
+
+          </div>
+        `).join('')
+      : `
+        <div class="empty">
+          No videos yet.<br>
+          Paste up to ${LINEUP_MAX_VIDEOS} YouTube links for the team to watch.
+        </div>
+      `
+    }
+  `;
+
+}
+
+/*
+  Wires up whatever's currently inside #lineupVideosSection —
+  called after the initial full render AND after
+  refreshLineupVideosSection() rebuilds just that section, so
+  both paths end up with live buttons.
+*/
+function wireLineupVideosSection(){
+
+  const section =
+    document.getElementById('lineupVideosSection');
+
+  if(!section)return;
+
+  const ytAddLinkBtn =
+    document.getElementById('ytAddLinkBtn');
+
+  if(ytAddLinkBtn){
+    ytAddLinkBtn.onclick = () => {
+      addVideoToLineupPrompt();
+    };
+  }
+
+  section.querySelectorAll('[data-yt-play]').forEach(el => {
+    el.onclick = () => {
+      openYouTubePlayer(el.dataset.ytPlay);
+    };
+  });
+
+  section.querySelectorAll('[data-remove-yt]').forEach(btn => {
+    btn.onclick = (event) => {
+      event.stopPropagation();
+      removeVideoFromLineup(btn.dataset.removeYt);
+    };
+  });
+
+}
+
+/*
+  Re-renders just the YT Playlist section from the current local
+  lineup cache, in place — no full-screen rebuild, so adding or
+  removing a video doesn't flash the rest of the page (the times
+  card, the song list) the way a full renderLineupDetail() would.
+*/
+function refreshLineupVideosSection(){
+
+  if(currentScreenName !== 'lineupDetail')return;
+
+  const section =
+    document.getElementById('lineupVideosSection');
+
+  if(!section)return;
+
+  const videos =
+    getLocalLineup().videos || [];
+
+  section.innerHTML =
+    renderLineupVideosSectionHTML(videos);
+
+  wireLineupVideosSection();
+
+}
+
 function renderLineupDetail(dateKey){
 
   currentLineupDate =
@@ -28780,55 +29054,26 @@ function renderLineupDetail(dateKey){
     </div>
 
 
-    <div class="librarySection">
-
-      <div class="ytPlaylistHeadRow">
-        <div class="sectionLabel">
-          YT Playlist${videos.length ? ` (${videos.length}/${LINEUP_MAX_VIDEOS})` : ''}
-        </div>
-        <button
-          class="ytAddLinkBtn"
-          type="button"
-          id="ytAddLinkBtn"
-          ${videos.length >= LINEUP_MAX_VIDEOS ? 'disabled' : ''}
-        >+ Add link</button>
-      </div>
-
-      ${
-        videos.length
-        ? videos.map(video => `
-            <div class="ytLinkRow" data-yt-row="${esc(video.id)}">
-
-              <div class="ytLinkThumb" data-yt-play="${esc(video.id)}">
-                <img src="https://i.ytimg.com/vi/${esc(video.id)}/mqdefault.jpg" alt="" loading="lazy">
-                <span class="ytLinkPlayIcon">▶</span>
-              </div>
-
-              <div class="ytLinkMeta" data-yt-play="${esc(video.id)}">
-                <div class="ytLinkTitle">${esc(video.url || video.id)}</div>
-                ${video.addedBy ? `<div class="ytLinkAddedBy">added by ${esc(video.addedBy)}</div>` : ''}
-              </div>
-
-              <button class="setlistOrderBtn" type="button" data-remove-yt="${esc(video.id)}" title="Remove video" style="color:#ff8b8b;">✕</button>
-
-            </div>
-          `).join('')
-        : `
-          <div class="empty">
-            No videos yet.<br>
-            Paste up to ${LINEUP_MAX_VIDEOS} YouTube links for the team to watch.
-          </div>
-        `
-      }
-
+    <div class="librarySection" id="lineupVideosSection">
+      ${renderLineupVideosSectionHTML(videos)}
     </div>
 
   `;
 
 
   document.getElementById('lineupBackBtn').onclick = () => {
+
+    /* Leaving the screen entirely — drop any pending debounce
+       rather than flush, since there's nowhere for its "Saved"
+       label to land. A genuinely-typed value was already caught
+       by the 'change' handler below on blur; this only discards
+       a same-render double-fire, if any. */
+    clearTimeout(lineupTimesSaveTimer);
+    lineupTimesSaveTimer = null;
+
     currentLineupDate = null;
     goBack(renderLineupCalendar);
+
   };
 
   document.getElementById('lineupClearBtn').onclick = async () => {
@@ -28841,6 +29086,10 @@ function renderLineupDetail(dateKey){
 
     if(!confirmed)return;
 
+    clearTimeout(lineupTimesSaveTimer);
+    lineupTimesSaveTimer = null;
+    lineupTimesDirty = false;
+
     await clearLineup();
 
     currentLineupDate = null;
@@ -28849,12 +29098,15 @@ function renderLineupDetail(dateKey){
   };
 
   /*
-    Rehearsal/service time fields — Save only lights up once
-    either value (or the event type) actually changes, and
-    saving re-renders this same screen (not the calendar) so the
-    person stays put. Only one or both time inputs exist in the
-    DOM depending on eventType (see the markup above), so these
-    stay optional throughout.
+    Rehearsal/service time fields now auto-save (see
+    markLineupTimesDirty/flushLineupTimesSave above) instead of
+    waiting on a manual tap — 'input' debounces a save while the
+    person is still turning the picker, and 'change' saves right
+    away once they close it/tab away, so the value is on
+    Firestore well before anyone could act on stale data. Only
+    one or both time inputs exist in the DOM depending on
+    eventType (see the markup above), so these stay optional
+    throughout.
   */
 
   const rehearsalTimeInput =
@@ -28866,16 +29118,36 @@ function renderLineupDetail(dateKey){
   const timesSaveBtn =
     document.getElementById('lineupTimesSaveBtn');
 
-  const markTimesDirty = () => {
-    timesSaveBtn.disabled = false;
-  };
+  /* A fresh render always reflects whatever's already saved —
+     nothing pending yet for this date. */
+  lineupTimesDirty = false;
+  clearTimeout(lineupTimesSaveTimer);
+  lineupTimesSaveTimer = null;
 
-  if(rehearsalTimeInput)rehearsalTimeInput.oninput = markTimesDirty;
-  if(serviceTimeInput)serviceTimeInput.oninput = markTimesDirty;
+  if(rehearsalTimeInput){
+    rehearsalTimeInput.oninput = markLineupTimesDirty;
+    rehearsalTimeInput.addEventListener('change', flushLineupTimesSave);
+  }
+
+  if(serviceTimeInput){
+    serviceTimeInput.oninput = markLineupTimesDirty;
+    serviceTimeInput.addEventListener('change', flushLineupTimesSave);
+  }
+
+  /* Still tappable for anyone who wants the reassurance of an
+     explicit save, but it's no longer the only way to persist a
+     change — flushLineupTimesSave() no-ops if nothing's dirty. */
+  if(timesSaveBtn)timesSaveBtn.onclick = flushLineupTimesSave;
 
   screen.querySelectorAll('[data-event-type]').forEach(pill => {
 
     pill.onclick = async () => {
+
+      /* Commit any in-progress time edit first — otherwise this
+         action's own downloadLineup()+re-render would show the
+         old, unsaved time value, which looks exactly like the
+         edit got silently undone. */
+      await flushLineupTimesSave();
 
       if(!await requireFirebaseConfigured())return;
       if(!(await ensureSyncSession()))return;
@@ -28906,45 +29178,6 @@ function renderLineupDetail(dateKey){
     };
 
   });
-
-  timesSaveBtn.onclick = async () => {
-
-    if(!await requireFirebaseConfigured())return;
-    if(!(await ensureSyncSession()))return;
-
-    timesSaveBtn.disabled = true;
-    timesSaveBtn.textContent = 'Saving…';
-
-    const dateKeyBeingSaved = currentLineupDate;
-
-    try{
-
-      const remote =
-        await downloadLineup(dateKeyBeingSaved);
-
-      if(rehearsalTimeInput)remote.rehearsalTime = rehearsalTimeInput.value || '';
-      if(serviceTimeInput)remote.serviceTime = serviceTimeInput.value || '';
-
-      await uploadLineup(remote, dateKeyBeingSaved);
-
-      setLocalLineup(remote, dateKeyBeingSaved);
-
-      showToast('Reminder times saved.', 'success', { small:true });
-
-      renderLineupDetail(dateKeyBeingSaved);
-
-    }catch(error){
-
-      console.error(error);
-
-      showToast('Could not save times: ' + error.message, 'error');
-
-      timesSaveBtn.disabled = false;
-      timesSaveBtn.textContent = 'Save times';
-
-    }
-
-  };
 
   screen.querySelectorAll('[data-open-lineup-song]').forEach(el => {
     el.onclick = async () => {
@@ -29086,27 +29319,7 @@ function renderLineupDetail(dateKey){
 
   attachLineupSongDragging();
 
-  const ytAddLinkBtn =
-    document.getElementById('ytAddLinkBtn');
-
-  if(ytAddLinkBtn){
-    ytAddLinkBtn.onclick = () => {
-      addVideoToLineupPrompt();
-    };
-  }
-
-  screen.querySelectorAll('[data-yt-play]').forEach(el => {
-    el.onclick = () => {
-      openYouTubePlayer(el.dataset.ytPlay);
-    };
-  });
-
-  screen.querySelectorAll('[data-remove-yt]').forEach(btn => {
-    btn.onclick = (event) => {
-      event.stopPropagation();
-      removeVideoFromLineup(btn.dataset.removeYt);
-    };
-  });
+  wireLineupVideosSection();
 
 }
 
@@ -29284,6 +29497,8 @@ function attachLineupSongDragging(){
 
 
 async function reorderLineupSongs(orderedIds){
+
+  await flushLineupTimesSave();
 
   const revert = () => renderLineupDetail();
 
