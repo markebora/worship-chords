@@ -26,4 +26,4 @@ jobs:
           NOTIFY_SECRET: ${{ secrets.NOTIFY_SECRET }}
           CHURCH_TIMEZONE: ${{ secrets.CHURCH_TIMEZONE }}
           API_BASE_URL: ${{ secrets.API_BASE_URL }}
-        run: node scripts/lineup-reminders.js
+        run: node scripts/lineup-reminders.cjs
