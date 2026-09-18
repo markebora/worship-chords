@@ -4096,6 +4096,24 @@ button{
   margin-top:10px;
 }
 
+.lineupTopWidgetOpenBtn{
+  display:block;
+  width:100%;
+  margin-top:14px;
+
+  background:var(--accent);
+  color:var(--accent-ink);
+  border:0;
+  border-radius:11px;
+
+  padding:11px 14px;
+
+  font-size:14.5px;
+  font-weight:800;
+
+  text-align:center;
+}
+
 .lineupCalCard{
   background:#151518;
   border:1px solid #2d2d32;
@@ -5257,6 +5275,31 @@ button{
   display:-webkit-box;
   -webkit-line-clamp:2;
   -webkit-box-orient:vertical;
+}
+
+.videoCardAddedBy{
+  margin-top:2px;
+  font-size:11px;
+  color:#6f6f77;
+}
+
+.videoCardRemoveBtn{
+  position:absolute;
+  right:6px;
+  top:6px;
+
+  width:22px;
+  height:22px;
+
+  border-radius:50%;
+  background:rgba(0,0,0,.68);
+  border:1px solid rgba(255,255,255,.25);
+  color:#ff8b8b;
+
+  font-size:11px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 
 .videoSectionHeadRow{
@@ -12389,6 +12432,19 @@ function formatLineupWeekdayLabel(key){
     undefined,
     { weekday:'long' }
   );
+
+}
+
+/*
+  Short label for the "Open <label>" button on the Home lineup
+  widget, so the team sees exactly what they're about to open
+  (Sunday Worship / Rehearsal / Event) before tapping in.
+*/
+function formatLineupEventTypeLabel(eventType){
+
+  if(eventType === 'rehearsal')return 'Rehearsal';
+  if(eventType === 'event')return 'Event';
+  return 'Sunday Worship';
 
 }
 
@@ -28662,23 +28718,20 @@ function renderLineupVideosSectionHTML(videos){
 
     ${
       videos.length
-      ? videos.map(video => `
-          <div class="ytLinkRow" data-yt-row="${esc(video.id)}">
+      ? `<div class="videoCardRow">` + videos.map(video => `
+          <div class="videoCard" data-yt-row="${esc(video.id)}">
 
-            <div class="ytLinkThumb" data-yt-play="${esc(video.id)}">
+            <div class="videoCardThumb" data-yt-play="${esc(video.id)}">
               <img src="https://i.ytimg.com/vi/${esc(video.id)}/mqdefault.jpg" alt="" loading="lazy">
-              <span class="ytLinkPlayIcon">▶</span>
+              <span class="videoCardPlayBtn">▶</span>
+              <button class="videoCardRemoveBtn" type="button" data-remove-yt="${esc(video.id)}" title="Remove video" aria-label="Remove video">✕</button>
             </div>
 
-            <div class="ytLinkMeta" data-yt-play="${esc(video.id)}">
-              <div class="ytLinkTitle">${esc(video.url || video.id)}</div>
-              ${video.addedBy ? `<div class="ytLinkAddedBy">added by ${esc(video.addedBy)}</div>` : ''}
-            </div>
-
-            <button class="setlistOrderBtn" type="button" data-remove-yt="${esc(video.id)}" title="Remove video" style="color:#ff8b8b;">✕</button>
+            <div class="videoCardTitle" data-yt-play="${esc(video.id)}">${esc(video.url || video.id)}</div>
+            ${video.addedBy ? `<div class="videoCardAddedBy">added by ${esc(video.addedBy)}</div>` : ''}
 
           </div>
-        `).join('')
+        `).join('') + `</div>`
       : `
         <div class="empty">
           No videos yet.<br>
@@ -28752,6 +28805,246 @@ function refreshLineupVideosSection(){
 
 }
 
+/*
+  Event type + Rehearsal/Service time card markup, factored out
+  of renderLineupDetail() so refreshLineupTimesCard() below can
+  swap in an optimistic eventType the instant a pill is tapped —
+  instead of waiting on a Firestore round trip before the pill
+  highlight (and which time fields show) even changes, which is
+  what used to make switching event types feel like a loading
+  spinner.
+*/
+function renderLineupTimesCardHTML(lineup){
+
+  return `
+
+    <div class="lineupTimesLabel">Event type</div>
+
+    <div class="eventTypePills">
+      <button
+        class="eventTypePill${(lineup.eventType || 'sunday-worship') === 'sunday-worship' ? ' active' : ''}"
+        type="button"
+        data-event-type="sunday-worship"
+      >Sunday Worship</button>
+      <button
+        class="eventTypePill${lineup.eventType === 'rehearsal' ? ' active' : ''}"
+        type="button"
+        data-event-type="rehearsal"
+      >Rehearsal</button>
+      <button
+        class="eventTypePill${lineup.eventType === 'event' ? ' active' : ''}"
+        type="button"
+        data-event-type="event"
+      >Event</button>
+    </div>
+
+    <div class="lineupTimesLabel">
+      ${
+        lineup.eventType === 'rehearsal'
+          ? 'Rehearsal time'
+          : lineup.eventType === 'event'
+            ? 'Event time'
+            : 'Rehearsal &amp; service times'
+      }
+    </div>
+
+    <div class="lineupTimesRow">
+
+      ${
+        lineup.eventType !== 'event' ? `
+          <div class="lineupTimeField">
+            <div class="lineupTimeFieldLabel">${lineup.eventType === 'rehearsal' ? 'Rehearsal' : 'Rehearsal (Sat)'}</div>
+            <input
+              type="time"
+              class="lineupTimeInput"
+              id="lineupRehearsalTimeInput"
+              value="${esc(lineup.rehearsalTime || '')}"
+            >
+          </div>
+        ` : ''
+      }
+
+      ${
+        lineup.eventType !== 'rehearsal' ? `
+          <div class="lineupTimeField">
+            <div class="lineupTimeFieldLabel">${lineup.eventType === 'event' ? 'Event' : 'Service'}</div>
+            <input
+              type="time"
+              class="lineupTimeInput"
+              id="lineupServiceTimeInput"
+              value="${esc(lineup.serviceTime || '')}"
+            >
+          </div>
+        ` : ''
+      }
+
+    </div>
+
+    <button class="lineupTimesSaveBtn" type="button" id="lineupTimesSaveBtn" disabled>Save times</button>
+
+    <div class="lineupTimesHint">
+      ${
+        lineup.eventType === 'rehearsal'
+          ? 'The team gets pushed "Rehearsal na mamaya!" with the setlist, 5 hrs before this time.'
+          : lineup.eventType === 'event'
+            ? 'The team gets pushed "Worship mamaya ha?" 3 hrs before this time. Anyone with the app open also sees "See you on the other side, Disciples!" 3 min before, in-app.'
+            : 'The team gets pushed: "Rehearsal na mamaya!" (w/ setlist) 5 hrs before rehearsal, then "Worship mamaya ha?" 3 hrs before service. Anyone with the app open also sees "See you on the other side, Disciples!" 3 min before service, in-app.'
+      }
+    </div>
+
+  `;
+
+}
+
+/*
+  Wires up whatever's currently inside #lineupTimesCard — event
+  type pills, the time inputs' auto-save, and the manual Save
+  button. Called after the initial full render AND after
+  refreshLineupTimesCard() rebuilds just that card.
+*/
+function wireLineupTimesCard(){
+
+  const card =
+    document.getElementById('lineupTimesCard');
+
+  if(!card)return;
+
+  const rehearsalTimeInput =
+    document.getElementById('lineupRehearsalTimeInput');
+
+  const serviceTimeInput =
+    document.getElementById('lineupServiceTimeInput');
+
+  const timesSaveBtn =
+    document.getElementById('lineupTimesSaveBtn');
+
+  /* Freshly (re)built card always reflects whatever's already
+     saved (or, for the optimistic pill-tap render, about to be)
+     — nothing pending on these particular inputs yet. */
+  lineupTimesDirty = false;
+  clearTimeout(lineupTimesSaveTimer);
+  lineupTimesSaveTimer = null;
+
+  if(rehearsalTimeInput){
+    rehearsalTimeInput.oninput = markLineupTimesDirty;
+    rehearsalTimeInput.addEventListener('change', flushLineupTimesSave);
+  }
+
+  if(serviceTimeInput){
+    serviceTimeInput.oninput = markLineupTimesDirty;
+    serviceTimeInput.addEventListener('change', flushLineupTimesSave);
+  }
+
+  if(timesSaveBtn)timesSaveBtn.onclick = flushLineupTimesSave;
+
+  card.querySelectorAll('[data-event-type]').forEach(pill => {
+    pill.onclick = () => handleLineupEventTypePillClick(pill);
+  });
+
+}
+
+/*
+  Re-renders just the Event type/times card from the given
+  lineup object (either the optimistic guess right after a pill
+  tap, or the confirmed local cache once Firestore agrees) — no
+  full-screen rebuild, so the song list and YT playlist below
+  never flash.
+*/
+function refreshLineupTimesCard(lineup){
+
+  if(currentScreenName !== 'lineupDetail')return;
+
+  const card =
+    document.getElementById('lineupTimesCard');
+
+  if(!card)return;
+
+  card.innerHTML =
+    renderLineupTimesCardHTML(lineup);
+
+  wireLineupTimesCard();
+
+}
+
+/*
+  Tapping an event type pill used to feel like a loading spinner:
+  the pill highlight and which time fields show both waited on a
+  full download-mutate-upload-rerender round trip to Firestore
+  before changing at all. Now the card updates immediately with
+  the tapped type (optimistic — nothing's saved yet), and the
+  actual Firestore sync happens quietly behind that; only on
+  failure does it revert and say so.
+*/
+async function handleLineupEventTypePillClick(pill){
+
+  const newType =
+    pill.dataset.eventType;
+
+  const dateKeyBeingSet =
+    currentLineupDate;
+
+  const localLineupBefore =
+    getLocalLineup(dateKeyBeingSet);
+
+  if((localLineupBefore.eventType || 'sunday-worship') === newType)return;
+
+  /* Commit any in-progress time edit first, against the OLD
+     event type — otherwise the background sync below would
+     download-and-overwrite with a stale time value. */
+  await flushLineupTimesSave();
+
+  /* Instant visual feedback — this is what removes the "loading"
+     feel. Re-reads the local cache since flushLineupTimesSave()
+     may have just updated it. */
+  const optimisticLineup = {
+    ...getLocalLineup(dateKeyBeingSet),
+    eventType: newType
+  };
+
+  refreshLineupTimesCard(optimisticLineup);
+
+  try{
+
+    if(!await requireFirebaseConfigured())throw new Error('__cancelled');
+    if(!(await ensureSyncSession()))throw new Error('__cancelled');
+
+    const remote =
+      await downloadLineup(dateKeyBeingSet);
+
+    remote.eventType = newType;
+
+    await uploadLineup(remote, dateKeyBeingSet);
+
+    setLocalLineup(remote, dateKeyBeingSet);
+
+    /* Reconcile with whatever actually landed — normally
+       identical to the optimistic guess, but this also picks up
+       anything else that changed remotely in the meantime. */
+    if(currentLineupDate === dateKeyBeingSet){
+      refreshLineupTimesCard(getLocalLineup(dateKeyBeingSet));
+    }
+
+  }catch(error){
+
+    if(error && error.message === '__cancelled'){
+      if(currentLineupDate === dateKeyBeingSet){
+        refreshLineupTimesCard(localLineupBefore);
+      }
+      return;
+    }
+
+    console.error(error);
+
+    showToast('Could not change event type: ' + error.message, 'error');
+
+    if(currentLineupDate === dateKeyBeingSet){
+      refreshLineupTimesCard(localLineupBefore);
+    }
+
+  }
+
+}
+
 function renderLineupDetail(dateKey){
 
   currentLineupDate =
@@ -28812,82 +29105,8 @@ function renderLineupDetail(dateKey){
     </div>
 
 
-    <div class="lineupTimesCard">
-
-      <div class="lineupTimesLabel">Event type</div>
-
-      <div class="eventTypePills">
-        <button
-          class="eventTypePill${(lineup.eventType || 'sunday-worship') === 'sunday-worship' ? ' active' : ''}"
-          type="button"
-          data-event-type="sunday-worship"
-        >Sunday Worship</button>
-        <button
-          class="eventTypePill${lineup.eventType === 'rehearsal' ? ' active' : ''}"
-          type="button"
-          data-event-type="rehearsal"
-        >Rehearsal</button>
-        <button
-          class="eventTypePill${lineup.eventType === 'event' ? ' active' : ''}"
-          type="button"
-          data-event-type="event"
-        >Event</button>
-      </div>
-
-      <div class="lineupTimesLabel">
-        ${
-          lineup.eventType === 'rehearsal'
-            ? 'Rehearsal time'
-            : lineup.eventType === 'event'
-              ? 'Event time'
-              : 'Rehearsal &amp; service times'
-        }
-      </div>
-
-      <div class="lineupTimesRow">
-
-        ${
-          lineup.eventType !== 'event' ? `
-            <div class="lineupTimeField">
-              <div class="lineupTimeFieldLabel">${lineup.eventType === 'rehearsal' ? 'Rehearsal' : 'Rehearsal (Sat)'}</div>
-              <input
-                type="time"
-                class="lineupTimeInput"
-                id="lineupRehearsalTimeInput"
-                value="${esc(lineup.rehearsalTime || '')}"
-              >
-            </div>
-          ` : ''
-        }
-
-        ${
-          lineup.eventType !== 'rehearsal' ? `
-            <div class="lineupTimeField">
-              <div class="lineupTimeFieldLabel">${lineup.eventType === 'event' ? 'Event' : 'Service'}</div>
-              <input
-                type="time"
-                class="lineupTimeInput"
-                id="lineupServiceTimeInput"
-                value="${esc(lineup.serviceTime || '')}"
-              >
-            </div>
-          ` : ''
-        }
-
-      </div>
-
-      <button class="lineupTimesSaveBtn" type="button" id="lineupTimesSaveBtn" disabled>Save times</button>
-
-      <div class="lineupTimesHint">
-        ${
-          lineup.eventType === 'rehearsal'
-            ? 'The team gets pushed "Rehearsal na mamaya!" with the setlist, 5 hrs before this time.'
-            : lineup.eventType === 'event'
-              ? 'The team gets pushed "Worship mamaya ha?" 3 hrs before this time. Anyone with the app open also sees "See you on the other side, Disciples!" 3 min before, in-app.'
-              : 'The team gets pushed: "Rehearsal na mamaya!" (w/ setlist) 5 hrs before rehearsal, then "Worship mamaya ha?" 3 hrs before service. Anyone with the app open also sees "See you on the other side, Disciples!" 3 min before service, in-app.'
-        }
-      </div>
-
+    <div class="lineupTimesCard" id="lineupTimesCard">
+      ${renderLineupTimesCardHTML(lineup)}
     </div>
 
 
@@ -29098,86 +29317,12 @@ function renderLineupDetail(dateKey){
   };
 
   /*
-    Rehearsal/service time fields now auto-save (see
-    markLineupTimesDirty/flushLineupTimesSave above) instead of
-    waiting on a manual tap — 'input' debounces a save while the
-    person is still turning the picker, and 'change' saves right
-    away once they close it/tab away, so the value is on
-    Firestore well before anyone could act on stale data. Only
-    one or both time inputs exist in the DOM depending on
-    eventType (see the markup above), so these stay optional
-    throughout.
+    Event type pills + rehearsal/service time inputs — wiring
+    (auto-save, pill taps) now lives in wireLineupTimesCard() so
+    refreshLineupTimesCard() can reuse it after an optimistic
+    pill-tap update, instead of duplicating this block.
   */
-
-  const rehearsalTimeInput =
-    document.getElementById('lineupRehearsalTimeInput');
-
-  const serviceTimeInput =
-    document.getElementById('lineupServiceTimeInput');
-
-  const timesSaveBtn =
-    document.getElementById('lineupTimesSaveBtn');
-
-  /* A fresh render always reflects whatever's already saved —
-     nothing pending yet for this date. */
-  lineupTimesDirty = false;
-  clearTimeout(lineupTimesSaveTimer);
-  lineupTimesSaveTimer = null;
-
-  if(rehearsalTimeInput){
-    rehearsalTimeInput.oninput = markLineupTimesDirty;
-    rehearsalTimeInput.addEventListener('change', flushLineupTimesSave);
-  }
-
-  if(serviceTimeInput){
-    serviceTimeInput.oninput = markLineupTimesDirty;
-    serviceTimeInput.addEventListener('change', flushLineupTimesSave);
-  }
-
-  /* Still tappable for anyone who wants the reassurance of an
-     explicit save, but it's no longer the only way to persist a
-     change — flushLineupTimesSave() no-ops if nothing's dirty. */
-  if(timesSaveBtn)timesSaveBtn.onclick = flushLineupTimesSave;
-
-  screen.querySelectorAll('[data-event-type]').forEach(pill => {
-
-    pill.onclick = async () => {
-
-      /* Commit any in-progress time edit first — otherwise this
-         action's own downloadLineup()+re-render would show the
-         old, unsaved time value, which looks exactly like the
-         edit got silently undone. */
-      await flushLineupTimesSave();
-
-      if(!await requireFirebaseConfigured())return;
-      if(!(await ensureSyncSession()))return;
-
-      const dateKeyBeingSet = currentLineupDate;
-
-      try{
-
-        const remote =
-          await downloadLineup(dateKeyBeingSet);
-
-        remote.eventType = pill.dataset.eventType;
-
-        await uploadLineup(remote, dateKeyBeingSet);
-
-        setLocalLineup(remote, dateKeyBeingSet);
-
-        renderLineupDetail(dateKeyBeingSet);
-
-      }catch(error){
-
-        console.error(error);
-
-        showToast('Could not change event type: ' + error.message, 'error');
-
-      }
-
-    };
-
-  });
+  wireLineupTimesCard();
 
   screen.querySelectorAll('[data-open-lineup-song]').forEach(el => {
     el.onclick = async () => {
@@ -29771,6 +29916,10 @@ function renderLineupCalendar(){
           : `<div class="lineupTopWidgetEmpty">Nothing set yet — tap a date below to plan ahead.</div>`
         }
 
+        <button class="lineupTopWidgetOpenBtn" type="button" id="lineupTopWidgetOpenBtn">
+          Open ${esc(formatLineupEventTypeLabel(activeLineup.eventType))} →
+        </button>
+
       </div>
 
 
@@ -29847,6 +29996,16 @@ function renderLineupCalendar(){
   topWidget.onclick = () => {
     renderLineupDetail(activeDateKey);
   };
+
+  const topWidgetOpenBtn =
+    document.getElementById('lineupTopWidgetOpenBtn');
+
+  if(topWidgetOpenBtn){
+    topWidgetOpenBtn.onclick = (event) => {
+      event.stopPropagation();
+      renderLineupDetail(activeDateKey);
+    };
+  }
 
   screen.querySelectorAll('[data-open-lineup-widget-song]').forEach(row => {
 
