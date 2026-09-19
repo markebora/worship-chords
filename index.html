@@ -1794,16 +1794,21 @@ button{
 
 
 /* =========================================================
-   SONG BOTTOM BAR — Chords/Lyrics/Metronome/Library, moved
-   down here (out of the toolbar) for one-thumb reach. Lives in
-   its own fixed overlay, a sibling of #screen — same reasoning
-   as editorPillOverlay/lineupSheetOverlay: #screen replays a
-   transform on every render, which turns position:fixed
-   descendants into elements positioned relative to #screen
-   instead of the viewport.
+   SONG BOTTOM PANEL — Chords/Lyrics/Metronome/Library plus
+   Transpose/BPM, moved down here (out of the toolbar) for
+   one-thumb reach. Lives in its own fixed overlay, a sibling of
+   #screen — same reasoning as editorPillOverlay/lineupSheetOverlay:
+   #screen replays a transform on every render, which turns
+   position:fixed descendants into elements positioned relative
+   to #screen instead of the viewport.
+
+   This panel is present for the whole song viewer (Chords AND
+   Lyrics), so it fully replaces the global floating .nav there —
+   see body.songViewerActive below. Lyrics mode goes further and
+   also hides the header (body.songLyricsImmersive).
 ========================================================= */
 
-.songBottomTabs{
+.songBottomPanel{
   position:fixed;
   left:0;
   right:0;
@@ -1811,7 +1816,8 @@ button{
   z-index:60;
 
   display:flex;
-  gap:8px;
+  flex-direction:column;
+  gap:10px;
 
   padding:10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
 
@@ -1819,6 +1825,11 @@ button{
   -webkit-backdrop-filter:blur(14px);
   backdrop-filter:blur(14px);
   border-top:1px solid #232326;
+}
+
+.songBottomTabs{
+  display:flex;
+  gap:8px;
 }
 
 .songBottomTabBtn{
@@ -1868,10 +1879,61 @@ button{
   padding:0 2px;
 }
 
+.songBottomControlsRow{
+  display:flex;
+  gap:10px;
+}
+
+.songBottomControlCard{
+  flex:1;
+
+  border:1px solid #2a2a2e;
+  border-radius:12px;
+  background:#18181b;
+
+  padding:8px 10px;
+}
+
+.songBottomControlLabel{
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.02em;
+  text-transform:uppercase;
+  color:#8a8a91;
+
+  margin-bottom:6px;
+}
+
+.songBottomControlSoon{
+  text-transform:none;
+  font-weight:600;
+  color:#6f6f77;
+}
+
+.songBottomControlStepper{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.songBottomControlStepper .toolbarBtn{
+  flex:0 0 auto;
+}
+
+.songBottomControlValue{
+  flex:1;
+
+  text-align:center;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
 .songFloatingHomeBtn{
   position:fixed;
   right:16px;
-  bottom:calc(74px + env(safe-area-inset-bottom, 0px));
+  bottom:calc(212px + env(safe-area-inset-bottom, 0px));
   z-index:61;
 
   width:46px;
@@ -1895,17 +1957,25 @@ button{
 }
 
 /*
-  Lyrics mode: the point is a clean, uncluttered reading surface
-  — the back button/favorite/sync/key badges up top and the
-  global Lyrics/Home/Library/Profile nav at the bottom both
-  disappear, leaving just the song title, the lyrics themselves,
-  the new bottom tab bar (which already covers navigation back to
-  Chords, plus Metronome/Library), and the floating Home button
-  for getting all the way out.
+  The new bottom panel is present for the whole song viewer, so
+  it replaces the global floating .nav there entirely — having
+  both would visually stack on top of each other, since both are
+  fixed to the bottom of the screen.
+*/
+body.songViewerActive .nav{
+  display:none;
+}
+
+/*
+  Lyrics mode goes further: it's meant to be a clean,
+  uncluttered reading surface, so the back button/favorite/
+  sync/key badges up top disappear too, leaving just the song
+  title, the lyrics themselves, the bottom panel (which already
+  covers navigation back to Chords, plus Metronome/Library), and
+  the floating Home button for getting all the way out.
 */
 body.songLyricsImmersive .songHeaderTop button,
-body.songLyricsImmersive .songHeaderMetaRow,
-body.songLyricsImmersive .nav{
+body.songLyricsImmersive .songHeaderMetaRow{
   display:none;
 }
 
@@ -3030,7 +3100,7 @@ body.songLyricsImmersive .nav{
 .songHeaderMetaRow .bpmHeaderBadge{margin:0;}
 
 
-.songSectionFloatBar{position:fixed;bottom:calc(82px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:620px;z-index:99;background:transparent;border:0;box-shadow:none;padding:0;transition:opacity .3s ease,transform .3s ease;}
+.songSectionFloatBar{position:fixed;bottom:calc(164px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:620px;z-index:99;background:transparent;border:0;box-shadow:none;padding:0;transition:opacity .3s ease,transform .3s ease;}
 .songSectionFloatBar.idle{opacity:.4;transform:translateX(-50%) scale(.95);}
 
 /* Generic idle-fade base — see attachIdleFade() in the script.
@@ -3879,7 +3949,7 @@ body.songLyricsImmersive .nav{
   }
 
   .songSectionFloatBar{
-    bottom:74px;
+    bottom:calc(160px + env(safe-area-inset-bottom, 0px));
 
     width:calc(100% - 18px);
   }
@@ -8656,6 +8726,7 @@ function setActiveNav(name){
   }
 
   document.body.classList.remove('songLyricsImmersive');
+  document.body.classList.remove('songViewerActive');
 
 
   /*
@@ -24030,26 +24101,54 @@ function wireAnnotateToolbarButtons(){
 
 /*
   Chords/Lyrics used to sit in a toolbarRow near the top; they
-  now live in a fixed bar at the bottom of the screen (see
-  #songBottomBarOverlay) for one-thumb reach. Flow moved into the
-  "⋮" menu as "Flow View" — the bottom bar only has room for the
-  two most-used modes plus the Metronome/Library shortcuts
+  now live in a fixed panel at the bottom of the screen (see
+  #songBottomBarOverlay) for one-thumb reach, along with the
+  Transpose control (moved down from the toolbar) and a new BPM
+  control reserved for the upcoming Pads feature. Flow moved into
+  the "⋮" menu as "Flow View" — the bottom bar only has room for
+  the two most-used modes plus the Metronome/Library shortcuts
   requested alongside them.
 */
-function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, hasMdNotes){
+function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, hasMdNotes, amount, padsBpm){
 
   return `
-    <div class="songBottomTabs">
+    <div class="songBottomPanel">
 
-      <button type="button" class="songBottomTabBtn${(!songFlowMode&&showChordsActive)?' active':''}${mdViewModeOn?' mdActive':''}" id="songBottomChordsBtn" data-song-bottom-mode="chords">
-        ♪ Chords${mdViewModeOn?'<span class="mdModeBadge">MD</span>':(hasMdNotes?'<span class="mdAvailableDot" aria-label="This song has MD notes — long-press to view"></span>':'')}
-      </button>
+      <div class="songBottomTabs">
 
-      <button type="button" class="songBottomTabBtn${isLyricsMode?' active':''}" id="songBottomLyricsBtn" data-song-bottom-mode="lyrics">▤ Lyrics</button>
+        <button type="button" class="songBottomTabBtn${(!songFlowMode&&showChordsActive)?' active':''}${mdViewModeOn?' mdActive':''}" id="songBottomChordsBtn" data-song-bottom-mode="chords">
+          ♪ Chords${mdViewModeOn?'<span class="mdModeBadge">MD</span>':(hasMdNotes?'<span class="mdAvailableDot" aria-label="This song has MD notes — long-press to view"></span>':'')}
+        </button>
 
-      <div class="songBottomSplitGroup">
-        <button type="button" class="songBottomTabBtn" id="songBottomMetronomeBtn">♩ Met</button>
-        <button type="button" class="songBottomTabBtn" id="songBottomLibraryBtn">▤ Lib</button>
+        <button type="button" class="songBottomTabBtn${isLyricsMode?' active':''}" id="songBottomLyricsBtn" data-song-bottom-mode="lyrics">▤ Lyrics</button>
+
+        <div class="songBottomSplitGroup">
+          <button type="button" class="songBottomTabBtn" id="songBottomMetronomeBtn">♩ Met</button>
+          <button type="button" class="songBottomTabBtn" id="songBottomLibraryBtn">▤ Lib</button>
+        </div>
+
+      </div>
+
+      <div class="songBottomControlsRow">
+
+        <div class="songBottomControlCard">
+          <div class="songBottomControlLabel">Transpose</div>
+          <div class="songBottomControlStepper">
+            <button type="button" class="toolbarBtn" id="transposeDown">−</button>
+            <button type="button" class="toolbarBtn songBottomControlValue" id="transposeReset">${amount>0?'+':''}${amount}</button>
+            <button type="button" class="toolbarBtn" id="transposeUp">+</button>
+          </div>
+        </div>
+
+        <div class="songBottomControlCard">
+          <div class="songBottomControlLabel">BPM <span class="songBottomControlSoon">for Pads — soon</span></div>
+          <div class="songBottomControlStepper">
+            <button type="button" class="toolbarBtn" id="padsBpmDown">−</button>
+            <span class="toolbarBtn songBottomControlValue" id="padsBpmValue">${padsBpm}</span>
+            <button type="button" class="toolbarBtn" id="padsBpmUp">+</button>
+          </div>
+        </div>
+
       </div>
 
     </div>
@@ -24068,17 +24167,27 @@ function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, h
 }
 
 /*
-  Renders the bottom bar into its own fixed overlay (a sibling of
-  #screen — see the CSS comment on .songBottomTabs for why) and
-  wires it up. Shared by renderSongViewer() and
-  renderMergedSongViewer(), since both need exactly the same bar.
+  Renders the bottom panel into its own fixed overlay (a sibling
+  of #screen — see the CSS comment on .songBottomPanel for why)
+  and wires it up. Shared by renderSongViewer() and
+  renderMergedSongViewer(), since both need exactly the same
+  panel.
+
+  target is whichever object actually holds transposeSteps/
+  padsBpm for what's currently on screen — the song itself for a
+  single song, or the active mergePart for a merged one — so a
+  BPM/transpose edit lands on the right one either way. amount is
+  that target's current transposeSteps, pre-computed by the
+  caller (both render functions already need it themselves).
+  metPresetBpm seeds a sensible BPM default the first time Pads
+  gets touched, instead of starting from nothing.
 
   displayBlocks/flow are passed in because the Chords button's
   long-press-for-MD-mode gesture re-renders #songStructure in
   place, without a full renderSongViewer() call — exactly like it
   always did back when it lived in the toolbar.
 */
-function renderSongBottomBar(displayBlocks, flow){
+function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm){
 
   const overlay =
     document.getElementById('songBottomBarOverlay');
@@ -24088,9 +24197,13 @@ function renderSongBottomBar(displayBlocks, flow){
   const isLyricsMode =
     !songFlowMode && !showChords;
 
-  overlay.innerHTML =
-    renderSongBottomBarHTML(showChords, isLyricsMode, mdViewMode, flowHasMdNotes(flow));
+  const padsBpm =
+    target.padsBpm != null ? target.padsBpm : (metPresetBpm != null ? metPresetBpm : 80);
 
+  overlay.innerHTML =
+    renderSongBottomBarHTML(showChords, isLyricsMode, mdViewMode, flowHasMdNotes(flow), amount, padsBpm);
+
+  document.body.classList.add('songViewerActive');
   document.body.classList.toggle('songLyricsImmersive', isLyricsMode);
 
   const chordsBtn =
@@ -24188,6 +24301,32 @@ function renderSongBottomBar(displayBlocks, flow){
 
   if(homeBtn)homeBtn.onclick = () => renderHome();
 
+  /*
+    BPM (Pads) stepper — there's no Pads playback engine yet, so
+    this just remembers a value on the song/part for whenever
+    that lands; updating the number in place (no renderSongViewer
+    call) since nothing else on screen depends on it.
+  */
+  const padsBpmValueEl =
+    document.getElementById('padsBpmValue');
+
+  const padsBpmDownBtn =
+    document.getElementById('padsBpmDown');
+
+  const padsBpmUpBtn =
+    document.getElementById('padsBpmUp');
+
+  const stepPadsBpm = delta => {
+    const current =
+      target.padsBpm != null ? target.padsBpm : padsBpm;
+    target.padsBpm =
+      Math.max(30, Math.min(260, current + delta));
+    if(padsBpmValueEl)padsBpmValueEl.textContent = target.padsBpm;
+  };
+
+  if(padsBpmDownBtn)padsBpmDownBtn.onclick = () => stepPadsBpm(-1);
+  if(padsBpmUpBtn)padsBpmUpBtn.onclick = () => stepPadsBpm(1);
+
 }
 
 function renderSongViewer(){
@@ -24265,11 +24404,6 @@ function renderSongViewer(){
       </div>
       <div class="songToolbar">
         <div class="toolbarRow">
-          <div class="transposeGroup">
-            <button class="toolbarBtn" id="transposeDown">−</button>
-            <button class="toolbarBtn" id="transposeReset">Transpose:${amount>0?'+':''}${amount}</button>
-            <button class="toolbarBtn" id="transposeUp">+</button>
-          </div>
           <div class="fontSizeGroup">
             <button class="toolbarBtn" id="fontMinus">A−</button>
             <button class="toolbarBtn" id="fontPlus">A+</button>
@@ -24344,7 +24478,7 @@ function renderSongViewer(){
   document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
   document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
   attachSongMenuControls();
-  renderSongBottomBar(displayBlocks, flow);
+  renderSongBottomBar(song, amount, displayBlocks, flow, metPresetBpm);
   if(songFlowMode){
     attachFlowControls(flowTarget,flow,sections);
   }else{
@@ -24626,11 +24760,6 @@ function renderMergedSongViewer(){
       </div>
       <div class="songToolbar">
         <div class="toolbarRow">
-          <div class="transposeGroup">
-            <button class="toolbarBtn" id="transposeDown">−</button>
-            <button class="toolbarBtn" id="transposeReset">Transpose:${amount>0?'+':''}${amount}</button>
-            <button class="toolbarBtn" id="transposeUp">+</button>
-          </div>
           <div class="fontSizeGroup">
             <button class="toolbarBtn" id="fontMinus">A−</button>
             <button class="toolbarBtn" id="fontPlus">A+</button>
@@ -24698,7 +24827,7 @@ function renderMergedSongViewer(){
   document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
   document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
   attachSongMenuControls();
-  renderSongBottomBar(displayBlocks, flow);
+  renderSongBottomBar(part, amount, displayBlocks, flow, metPresetBpm);
   if(songFlowMode){
     attachFlowControls(flowTarget,flow,sections);
   }else{
