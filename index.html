@@ -1909,39 +1909,51 @@ button{
   font-size:11px;
 }
 
+/*
+  Lives inline right after the "BPM" label text now (see the
+  picture this was matched to) instead of as its own big circular
+  button off to the side of the row — so it's sized and colored
+  like a small label accent, not a standalone control.
+*/
+.songBottomControlLabelWithBtn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+}
+
 .songBpmPlayBtn{
   flex:0 0 auto;
-  align-self:center;
 
-  width:34px;
-  height:34px;
+  width:15px;
+  height:15px;
 
-  border:1px solid #2a2a2e;
+  border:0;
   border-radius:50%;
-  background:#232328;
-  color:#e6e6ea;
+  background:transparent;
+  color:#8a8a91;
 
   display:grid;
   place-items:center;
 
+  padding:0;
+
   cursor:pointer;
 
-  transition:background .15s ease, border-color .15s ease, color .15s ease;
+  transition:color .15s ease;
 }
 
 .songBpmPlayBtn:active{
-  transform:scale(.92);
+  transform:scale(.9);
 }
 
 .songBpmPlayBtn.playing{
-  background:var(--accent);
-  border-color:var(--accent);
-  color:var(--accent-ink);
+  color:var(--accent);
 }
 
 .songBpmPlayBtn svg{
-  width:14px;
-  height:14px;
+  width:9px;
+  height:9px;
   fill:currentColor;
 }
 
@@ -24272,28 +24284,29 @@ function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, h
         <button type="button" class="songBottomPadsBtn" id="songBottomPadsBtn" aria-label="Pads — long-press to open">Pads</button>
 
         <div class="songBottomControlCard">
-          <div class="songBottomControlLabel">BPM</div>
+          <div class="songBottomControlLabel songBottomControlLabelWithBtn">
+            BPM
+            <button
+              type="button"
+              class="songBpmPlayBtn${metIsPlaying?' playing':''}"
+              id="songBpmPlayBtn"
+              aria-label="${metIsPlaying?'Stop click':'Play click'}"
+            >
+              <svg id="songBpmPlayIcon" viewBox="0 0 24 24" aria-hidden="true">
+                ${
+                  metIsPlaying
+                  ? '<rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect>'
+                  : '<path d="M8 5v14l11-7z"></path>'
+                }
+              </svg>
+            </button>
+          </div>
           <div class="songBottomControlStepper">
             <button type="button" class="toolbarBtn" id="padsBpmDown">−</button>
             <span class="toolbarBtn songBottomControlValue" id="padsBpmValue" aria-label="BPM — long-press to open Metronome">${padsBpm}</span>
             <button type="button" class="toolbarBtn" id="padsBpmUp">+</button>
           </div>
         </div>
-
-        <button
-          type="button"
-          class="songBpmPlayBtn${metIsPlaying?' playing':''}"
-          id="songBpmPlayBtn"
-          aria-label="${metIsPlaying?'Stop click':'Play click'}"
-        >
-          <svg id="songBpmPlayIcon" viewBox="0 0 24 24" aria-hidden="true">
-            ${
-              metIsPlaying
-              ? '<rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect>'
-              : '<path d="M8 5v14l11-7z"></path>'
-            }
-          </svg>
-        </button>
 
         ${
           isLyricsMode ? `
