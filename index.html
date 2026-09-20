@@ -1874,10 +1874,6 @@ button{
   gap:7px;
 }
 
-.songBottomControlsRow > :last-child{
-  flex:1.3;
-}
-
 .songBottomControlCard{
   flex:1;
 
@@ -1915,9 +1911,10 @@ button{
 
 .songBpmPlayBtn{
   flex:0 0 auto;
+  align-self:center;
 
-  width:26px;
-  height:26px;
+  width:34px;
+  height:34px;
 
   border:1px solid #2a2a2e;
   border-radius:50%;
@@ -1943,8 +1940,8 @@ button{
 }
 
 .songBpmPlayBtn svg{
-  width:12px;
-  height:12px;
+  width:14px;
+  height:14px;
   fill:currentColor;
 }
 
@@ -24280,22 +24277,23 @@ function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, h
             <button type="button" class="toolbarBtn" id="padsBpmDown">−</button>
             <span class="toolbarBtn songBottomControlValue" id="padsBpmValue" aria-label="BPM — long-press to open Metronome">${padsBpm}</span>
             <button type="button" class="toolbarBtn" id="padsBpmUp">+</button>
-            <button
-              type="button"
-              class="songBpmPlayBtn${metIsPlaying?' playing':''}"
-              id="songBpmPlayBtn"
-              aria-label="${metIsPlaying?'Stop click':'Play click'}"
-            >
-              <svg id="songBpmPlayIcon" viewBox="0 0 24 24" aria-hidden="true">
-                ${
-                  metIsPlaying
-                  ? '<rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect>'
-                  : '<path d="M8 5v14l11-7z"></path>'
-                }
-              </svg>
-            </button>
           </div>
         </div>
+
+        <button
+          type="button"
+          class="songBpmPlayBtn${metIsPlaying?' playing':''}"
+          id="songBpmPlayBtn"
+          aria-label="${metIsPlaying?'Stop click':'Play click'}"
+        >
+          <svg id="songBpmPlayIcon" viewBox="0 0 24 24" aria-hidden="true">
+            ${
+              metIsPlaying
+              ? '<rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect>'
+              : '<path d="M8 5v14l11-7z"></path>'
+            }
+          </svg>
+        </button>
 
         ${
           isLyricsMode ? `
@@ -24385,6 +24383,31 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm){
           chordsBtn.insertAdjacentHTML('beforeend', '<span class="mdModeBadge">MD</span>');
         }else if(!mdViewMode && existingBadge){
           existingBadge.remove();
+        }
+
+        /*
+          The third tab (Library <-> Flow) swaps with MD Mode too,
+          but this whole handler is a partial refresh that never
+          calls renderSongBottomBar again — so without this, the
+          label and click behavior would keep reflecting whatever
+          mdViewMode was when the bar was last fully rendered.
+        */
+        const thirdTabBtn =
+          document.getElementById('songBottomThirdTabBtn');
+
+        if(thirdTabBtn){
+
+          thirdTabBtn.innerHTML =
+            mdViewMode ? '☰ Flow' : '▤ Lib';
+
+          thirdTabBtn.onclick = mdViewMode
+            ? () => {
+                songFlowMode = true;
+                skipNextScreenTransition = true;
+                renderSongViewer();
+              }
+            : () => renderLibrary();
+
         }
 
         const structureEl =
