@@ -1871,37 +1871,42 @@ button{
 .songBottomControlsRow{
   display:flex;
   align-items:stretch;
-  gap:8px;
+  gap:7px;
 }
 
 .songBottomControlCard{
   flex:1;
 
   border:1px solid #2a2a2e;
-  border-radius:12px;
+  border-radius:11px;
   background:#18181b;
 
-  padding:8px 10px;
+  padding:6px 8px;
 }
 
 .songBottomControlLabel{
-  font-size:10.5px;
+  font-size:9.5px;
   font-weight:800;
   letter-spacing:.02em;
   text-transform:uppercase;
+  text-align:center;
   color:#8a8a91;
 
-  margin-bottom:6px;
+  margin-bottom:4px;
 }
 
 .songBottomControlStepper{
   display:flex;
   align-items:center;
-  gap:6px;
+  justify-content:center;
+  gap:5px;
 }
 
 .songBottomControlStepper .toolbarBtn{
   flex:0 0 auto;
+
+  padding:6px 8px;
+  font-size:11px;
 }
 
 .songBottomControlValue{
@@ -1922,23 +1927,29 @@ button{
 
 /*
   Pads — no feature behind it yet, so it's a plain button rather
-  than a stepper card like Transpose/BPM. Sits between them so a
-  long-press is easy to reach from either.
+  than a stepper card like Transpose/BPM, but sized to match them
+  (flex:1, same label-over-content shape) so all three read as
+  one evenly-weighted row instead of Pads looking like an
+  afterthought squeezed between two wider cards.
 */
 .songBottomPadsBtn{
-  flex:0 0 60px;
+  flex:1;
 
   display:flex;
   align-items:center;
   justify-content:center;
 
   border:1px solid #2a2a2e;
-  border-radius:12px;
+  border-radius:11px;
   background:#18181b;
   color:#9c9ca3;
 
-  font-size:12px;
+  font-size:11px;
   font-weight:800;
+  letter-spacing:.02em;
+  text-transform:uppercase;
+
+  padding:6px 8px;
 
   touch-action:manipulation;
   -webkit-touch-callout:none;
@@ -24184,7 +24195,7 @@ function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, h
 
         <button type="button" class="songBottomTabBtn${isLyricsMode?' active':''}" id="songBottomLyricsBtn" data-song-bottom-mode="lyrics">▤ Lyrics</button>
 
-        <button type="button" class="songBottomTabBtn" id="songBottomLibraryBtn">▤ Lib</button>
+        <button type="button" class="songBottomTabBtn${songFlowMode?' active':''}" id="songBottomThirdTabBtn">${mdViewModeOn?'☰ Flow':'▤ Lib'}</button>
 
       </div>
 
@@ -24347,10 +24358,33 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm){
     };
   }
 
-  const libBtn =
-    document.getElementById('songBottomLibraryBtn');
+  /*
+    Third tab: normally Library, but while MD Mode is on (the
+    Chords long-press toggle) it becomes Flow instead — MD Mode
+    is about flow notes showing inline in the chords, so quick
+    access to the actual Flow editor is more useful here than the
+    Library shortcut for as long as that's turned on.
+  */
+  const thirdTabBtn =
+    document.getElementById('songBottomThirdTabBtn');
 
-  if(libBtn)libBtn.onclick = () => renderLibrary();
+  if(thirdTabBtn){
+
+    if(mdViewMode){
+
+      thirdTabBtn.onclick = () => {
+        songFlowMode = true;
+        skipNextScreenTransition = true;
+        renderSongViewer();
+      };
+
+    }else{
+
+      thirdTabBtn.onclick = () => renderLibrary();
+
+    }
+
+  }
 
   const homeBtn =
     document.getElementById('songFloatingHomeBtn');
