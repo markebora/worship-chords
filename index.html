@@ -1794,6 +1794,207 @@ button{
 
 
 /* =========================================================
+   SONG BOTTOM PANEL — Chords/Lyrics/Metronome/Library plus
+   Transpose/BPM, moved down here (out of the toolbar) for
+   one-thumb reach. Lives in its own fixed overlay, a sibling of
+   #screen — same reasoning as editorPillOverlay/lineupSheetOverlay:
+   #screen replays a transform on every render, which turns
+   position:fixed descendants into elements positioned relative
+   to #screen instead of the viewport.
+
+   This panel is present for the whole song viewer (Chords AND
+   Lyrics), so it fully replaces the global floating .nav there —
+   see body.songViewerActive below. Lyrics mode goes further and
+   also hides the header (body.songLyricsImmersive).
+========================================================= */
+
+.songBottomPanel{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  z-index:60;
+
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+
+  padding:10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+
+  background:rgba(11,11,12,.94);
+  -webkit-backdrop-filter:blur(14px);
+  backdrop-filter:blur(14px);
+  border-top:1px solid #232326;
+}
+
+.songBottomTabs{
+  display:flex;
+  gap:8px;
+}
+
+.songBottomTabBtn{
+  flex:1;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+
+  height:46px;
+
+  border:1px solid #2a2a2e;
+  border-radius:12px;
+  background:#18181b;
+  color:#9c9ca3;
+
+  font-size:13.5px;
+  font-weight:800;
+
+  touch-action:manipulation;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+
+.songBottomTabBtn.active{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:var(--accent-ink);
+}
+
+.songBottomTabBtn.mdActive:not(.active){
+  color:#7aa2f7;
+  border-color:#7aa2f7;
+}
+
+.songBottomControlsRow{
+  display:flex;
+  align-items:stretch;
+  gap:8px;
+}
+
+.songBottomControlCard{
+  flex:1;
+
+  border:1px solid #2a2a2e;
+  border-radius:12px;
+  background:#18181b;
+
+  padding:8px 10px;
+}
+
+.songBottomControlLabel{
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.02em;
+  text-transform:uppercase;
+  color:#8a8a91;
+
+  margin-bottom:6px;
+}
+
+.songBottomControlStepper{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.songBottomControlStepper .toolbarBtn{
+  flex:0 0 auto;
+}
+
+.songBottomControlValue{
+  flex:1;
+
+  text-align:center;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  touch-action:manipulation;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/*
+  Pads — no feature behind it yet, so it's a plain button rather
+  than a stepper card like Transpose/BPM. Sits between them so a
+  long-press is easy to reach from either.
+*/
+.songBottomPadsBtn{
+  flex:0 0 60px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  border:1px solid #2a2a2e;
+  border-radius:12px;
+  background:#18181b;
+  color:#9c9ca3;
+
+  font-size:12px;
+  font-weight:800;
+
+  touch-action:manipulation;
+  -webkit-touch-callout:none;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/*
+  Home — moved down from a floating circle over the content into
+  this row, right beside BPM, so it's part of the same control
+  cluster instead of overlapping the section chip nav above it.
+*/
+.songBottomHomeBtn{
+  flex:0 0 46px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  border:0;
+  border-radius:12px;
+  background:var(--accent);
+  color:var(--accent-ink);
+}
+
+.songBottomHomeBtn svg{
+  width:20px;
+  height:20px;
+}
+
+/*
+  The new bottom panel is present for the whole song viewer, so
+  it replaces the global floating .nav there entirely — having
+  both would visually stack on top of each other, since both are
+  fixed to the bottom of the screen.
+*/
+body.songViewerActive .nav{
+  display:none;
+}
+
+/*
+  Lyrics mode goes further: it's meant to be a clean,
+  uncluttered reading surface, so the back button/favorite/
+  sync/key badges up top disappear too, leaving just the song
+  title, the lyrics themselves, the bottom panel (which already
+  covers navigation back to Chords, plus Metronome/Library), and
+  the floating Home button for getting all the way out.
+*/
+body.songLyricsImmersive .songHeaderTop button,
+body.songLyricsImmersive .songHeaderMetaRow{
+  display:none;
+}
+
+
+/* =========================================================
    SONG FLOW
 ========================================================= */
 
@@ -2913,7 +3114,7 @@ button{
 .songHeaderMetaRow .bpmHeaderBadge{margin:0;}
 
 
-.songSectionFloatBar{position:fixed;bottom:calc(82px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:620px;z-index:99;background:transparent;border:0;box-shadow:none;padding:0;transition:opacity .3s ease,transform .3s ease;}
+.songSectionFloatBar{position:fixed;bottom:calc(164px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:620px;z-index:99;background:transparent;border:0;box-shadow:none;padding:0;transition:opacity .3s ease,transform .3s ease;}
 .songSectionFloatBar.idle{opacity:.4;transform:translateX(-50%) scale(.95);}
 
 /* Generic idle-fade base — see attachIdleFade() in the script.
@@ -3762,7 +3963,7 @@ button{
   }
 
   .songSectionFloatBar{
-    bottom:74px;
+    bottom:calc(160px + env(safe-area-inset-bottom, 0px));
 
     width:calc(100% - 18px);
   }
@@ -6699,6 +6900,8 @@ button{
   <div id="confirmOverlay"></div>
   <div id="lineupSheetOverlay"></div>
 
+  <div id="songBottomBarOverlay"></div>
+
 
   <!-- =====================================================
        FLOATING NAV
@@ -8517,6 +8720,27 @@ function setActiveNav(name){
     autoScrollOverlay.innerHTML = '';
 
   }
+
+
+  /*
+    Song viewer's bottom tab bar (Chords/Lyrics/Metronome/Library)
+    — same reasoning as the overlays above, plus: leaving the
+    song screen should always drop the Lyrics-mode "immersive"
+    styling (hidden header/global nav) even if the person leaves
+    mid-scroll, so it doesn't leak onto whatever screen they land
+    on next.
+  */
+  const songBottomBarOverlay =
+    document.getElementById('songBottomBarOverlay');
+
+  if(songBottomBarOverlay){
+
+    songBottomBarOverlay.innerHTML = '';
+
+  }
+
+  document.body.classList.remove('songLyricsImmersive');
+  document.body.classList.remove('songViewerActive');
 
 
   /*
@@ -16906,6 +17130,54 @@ function wireMetronomeBody(){
 
 }
 
+/*
+  Placeholder screen for the upcoming Pads feature — long-
+  pressing the Pads button in the song viewer's bottom panel
+  opens this. Intentionally empty for now; wiring up actual pad
+  playback here is a future update.
+*/
+function renderPads(){
+
+  recordNavHistory('pads');
+
+  currentScreenName = 'pads';
+
+  setActiveNav('home');
+
+  screen.innerHTML = `
+
+    <div class="metronomePage">
+
+      <div class="libraryHead">
+
+        <button
+          class="searchBtn"
+          id="padsBackBtn"
+          aria-label="Back to home"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+
+        <div class="libraryTitle" style="flex:1;">
+          Pads
+        </div>
+
+      </div>
+
+      <div class="empty" style="margin-top:60px;">
+        Pads are coming soon.
+      </div>
+
+    </div>
+
+  `;
+
+  document.getElementById('padsBackBtn').onclick = () => {
+    goBack(renderHome);
+  };
+
+}
+
 function renderMetronome(){
 
   recordNavHistory('metronome');
@@ -23889,6 +24161,301 @@ function wireAnnotateToolbarButtons(){
 
 
 
+/*
+  Chords/Lyrics used to sit in a toolbarRow near the top; they
+  now live in a fixed panel at the bottom of the screen (see
+  #songBottomBarOverlay) for one-thumb reach, along with the
+  Transpose control (moved down from the toolbar) and a new BPM
+  control reserved for the upcoming Pads feature. Flow moved into
+  the "⋮" menu as "Flow View" — the bottom bar only has room for
+  the two most-used modes plus the Metronome/Library shortcuts
+  requested alongside them.
+*/
+function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, hasMdNotes, amount, padsBpm){
+
+  return `
+    <div class="songBottomPanel">
+
+      <div class="songBottomTabs">
+
+        <button type="button" class="songBottomTabBtn${(!songFlowMode&&showChordsActive)?' active':''}${mdViewModeOn?' mdActive':''}" id="songBottomChordsBtn" data-song-bottom-mode="chords">
+          ♪ Chords${mdViewModeOn?'<span class="mdModeBadge">MD</span>':(hasMdNotes?'<span class="mdAvailableDot" aria-label="This song has MD notes — long-press to view"></span>':'')}
+        </button>
+
+        <button type="button" class="songBottomTabBtn${isLyricsMode?' active':''}" id="songBottomLyricsBtn" data-song-bottom-mode="lyrics">▤ Lyrics</button>
+
+        <button type="button" class="songBottomTabBtn" id="songBottomLibraryBtn">▤ Lib</button>
+
+      </div>
+
+      <div class="songBottomControlsRow">
+
+        <div class="songBottomControlCard">
+          <div class="songBottomControlLabel">Transpose</div>
+          <div class="songBottomControlStepper">
+            <button type="button" class="toolbarBtn" id="transposeDown">−</button>
+            <button type="button" class="toolbarBtn songBottomControlValue" id="transposeReset">${amount>0?'+':''}${amount}</button>
+            <button type="button" class="toolbarBtn" id="transposeUp">+</button>
+          </div>
+        </div>
+
+        <button type="button" class="songBottomPadsBtn" id="songBottomPadsBtn" aria-label="Pads — long-press to open">Pads</button>
+
+        <div class="songBottomControlCard">
+          <div class="songBottomControlLabel">BPM</div>
+          <div class="songBottomControlStepper">
+            <button type="button" class="toolbarBtn" id="padsBpmDown">−</button>
+            <span class="toolbarBtn songBottomControlValue" id="padsBpmValue" aria-label="BPM — long-press to open Metronome">${padsBpm}</span>
+            <button type="button" class="toolbarBtn" id="padsBpmUp">+</button>
+          </div>
+        </div>
+
+        ${
+          isLyricsMode ? `
+            <button type="button" class="songBottomHomeBtn" id="songFloatingHomeBtn" aria-label="Home">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5.3 10.9 10.6 6 Q12 4.6 13.5 6 L18.7 10.9 Q19.4 11.6 19.4 12.6 L19.4 17.8 Q19.4 19.4 17.8 19.4 L6.2 19.4 Q4.6 19.4 4.6 17.8 L4.6 12.6 Q4.6 11.6 5.3 10.9 Z"/>
+              </svg>
+            </button>
+          ` : ''
+        }
+
+      </div>
+
+    </div>
+  `;
+
+}
+
+/*
+  Renders the bottom panel into its own fixed overlay (a sibling
+  of #screen — see the CSS comment on .songBottomPanel for why)
+  and wires it up. Shared by renderSongViewer() and
+  renderMergedSongViewer(), since both need exactly the same
+  panel.
+
+  target is whichever object actually holds transposeSteps/
+  padsBpm for what's currently on screen — the song itself for a
+  single song, or the active mergePart for a merged one — so a
+  BPM/transpose edit lands on the right one either way. amount is
+  that target's current transposeSteps, pre-computed by the
+  caller (both render functions already need it themselves).
+  metPresetBpm seeds a sensible BPM default the first time BPM
+  gets touched, instead of starting from nothing.
+
+  displayBlocks/flow are passed in because the Chords button's
+  long-press-for-MD-mode gesture re-renders #songStructure in
+  place, without a full renderSongViewer() call — exactly like it
+  always did back when it lived in the toolbar.
+*/
+function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm){
+
+  const overlay =
+    document.getElementById('songBottomBarOverlay');
+
+  if(!overlay)return;
+
+  const isLyricsMode =
+    !songFlowMode && !showChords;
+
+  const padsBpm =
+    target.padsBpm != null ? target.padsBpm : (metPresetBpm != null ? metPresetBpm : 80);
+
+  overlay.innerHTML =
+    renderSongBottomBarHTML(showChords, isLyricsMode, mdViewMode, flowHasMdNotes(flow), amount, padsBpm);
+
+  document.body.classList.add('songViewerActive');
+  document.body.classList.toggle('songLyricsImmersive', isLyricsMode);
+
+  const chordsBtn =
+    document.getElementById('songBottomChordsBtn');
+
+  if(chordsBtn){
+
+    let mdPressTimer = null;
+    let mdLongPressed = false;
+
+    chordsBtn.addEventListener('pointerdown', () => {
+
+      mdLongPressed = false;
+      clearTimeout(mdPressTimer);
+
+      mdPressTimer = setTimeout(() => {
+
+        mdLongPressed = true;
+        mdViewMode = !mdViewMode;
+
+        if(navigator.vibrate)navigator.vibrate(8);
+
+        showToast(mdViewMode?'MD Mode on — flow notes shown':'MD Mode off','success');
+
+        chordsBtn.classList.toggle('mdActive', mdViewMode);
+
+        const existingBadge =
+          chordsBtn.querySelector('.mdModeBadge');
+
+        if(mdViewMode && !existingBadge){
+          chordsBtn.insertAdjacentHTML('beforeend', '<span class="mdModeBadge">MD</span>');
+        }else if(!mdViewMode && existingBadge){
+          existingBadge.remove();
+        }
+
+        const structureEl =
+          document.getElementById('songStructure');
+
+        if(structureEl){
+          structureEl.classList.add('structureFading');
+          setTimeout(() => {
+            structureEl.innerHTML = renderSongStructureHTML(displayBlocks);
+            structureEl.classList.remove('structureFading');
+            attachKeyChangeFlash();
+          }, 140);
+        }
+
+      }, 420);
+
+    });
+
+    ['pointerup','pointerleave','pointercancel'].forEach(evt => {
+      chordsBtn.addEventListener(evt, () => {
+        clearTimeout(mdPressTimer);
+        mdPressTimer = null;
+      });
+    });
+
+    chordsBtn.addEventListener('contextmenu', event => event.preventDefault());
+
+    chordsBtn.onclick = () => {
+      if(mdLongPressed){ mdLongPressed = false; return; }
+      songFlowMode = false;
+      showChords = true;
+      skipNextScreenTransition = true;
+      renderSongViewer();
+    };
+
+  }
+
+  const lyricsBtn =
+    document.getElementById('songBottomLyricsBtn');
+
+  if(lyricsBtn){
+    lyricsBtn.onclick = () => {
+      songFlowMode = false;
+      showChords = false;
+      skipNextScreenTransition = true;
+      renderSongViewer();
+    };
+  }
+
+  const libBtn =
+    document.getElementById('songBottomLibraryBtn');
+
+  if(libBtn)libBtn.onclick = () => renderLibrary();
+
+  const homeBtn =
+    document.getElementById('songFloatingHomeBtn');
+
+  if(homeBtn)homeBtn.onclick = () => renderHome();
+
+  /*
+    Pads button — the feature itself doesn't exist yet, so a
+    short tap just says so; a long-press opens the (empty for
+    now) Pads screen, ready for that to get wired up later.
+  */
+  const padsBtn =
+    document.getElementById('songBottomPadsBtn');
+
+  if(padsBtn){
+
+    let padsPressTimer = null;
+    let padsLongPressed = false;
+
+    padsBtn.addEventListener('pointerdown', () => {
+      padsLongPressed = false;
+      clearTimeout(padsPressTimer);
+      padsPressTimer = setTimeout(() => {
+        padsLongPressed = true;
+        if(navigator.vibrate)navigator.vibrate(8);
+        renderPads();
+      }, 420);
+    });
+
+    ['pointerup','pointerleave','pointercancel'].forEach(evt => {
+      padsBtn.addEventListener(evt, () => {
+        clearTimeout(padsPressTimer);
+        padsPressTimer = null;
+      });
+    });
+
+    padsBtn.addEventListener('contextmenu', event => event.preventDefault());
+
+    padsBtn.onclick = () => {
+      if(padsLongPressed){ padsLongPressed = false; return; }
+      showToast('Long-press Pads to open it — coming soon','success',{small:true});
+    };
+
+  }
+
+  /*
+    BPM (Pads) stepper — there's no Pads playback engine yet, so
+    this just remembers a value on the song/part for whenever
+    that lands; updating the number in place (no renderSongViewer
+    call) since nothing else on screen depends on it. Long-
+    pressing the value itself opens the Metronome, replacing the
+    standalone Met tab that used to sit up in the tab row.
+  */
+  const padsBpmValueEl =
+    document.getElementById('padsBpmValue');
+
+  const padsBpmDownBtn =
+    document.getElementById('padsBpmDown');
+
+  const padsBpmUpBtn =
+    document.getElementById('padsBpmUp');
+
+  const stepPadsBpm = delta => {
+    const current =
+      target.padsBpm != null ? target.padsBpm : padsBpm;
+    target.padsBpm =
+      Math.max(30, Math.min(260, current + delta));
+    if(padsBpmValueEl)padsBpmValueEl.textContent = target.padsBpm;
+  };
+
+  if(padsBpmDownBtn)padsBpmDownBtn.onclick = () => stepPadsBpm(-1);
+  if(padsBpmUpBtn)padsBpmUpBtn.onclick = () => stepPadsBpm(1);
+
+  if(padsBpmValueEl){
+
+    let metPressTimer = null;
+    let metLongPressed = false;
+
+    padsBpmValueEl.addEventListener('pointerdown', () => {
+      metLongPressed = false;
+      clearTimeout(metPressTimer);
+      metPressTimer = setTimeout(() => {
+        metLongPressed = true;
+        if(navigator.vibrate)navigator.vibrate(8);
+        renderMetronome();
+      }, 420);
+    });
+
+    ['pointerup','pointerleave','pointercancel'].forEach(evt => {
+      padsBpmValueEl.addEventListener(evt, () => {
+        clearTimeout(metPressTimer);
+        metPressTimer = null;
+      });
+    });
+
+    padsBpmValueEl.addEventListener('contextmenu', event => event.preventDefault());
+
+    padsBpmValueEl.onclick = () => {
+      if(metLongPressed){ metLongPressed = false; return; }
+    };
+
+  }
+
+}
+
 function renderSongViewer(){
 
   recordNavHistory('songViewer');
@@ -23964,11 +24531,6 @@ function renderSongViewer(){
       </div>
       <div class="songToolbar">
         <div class="toolbarRow">
-          <div class="transposeGroup">
-            <button class="toolbarBtn" id="transposeDown">−</button>
-            <button class="toolbarBtn" id="transposeReset">Transpose:${amount>0?'+':''}${amount}</button>
-            <button class="toolbarBtn" id="transposeUp">+</button>
-          </div>
           <div class="fontSizeGroup">
             <button class="toolbarBtn" id="fontMinus">A−</button>
             <button class="toolbarBtn" id="fontPlus">A+</button>
@@ -23977,6 +24539,7 @@ function renderSongViewer(){
             <button class="toolbarBtn songMenuBtn" id="songMenuBtn" type="button" aria-haspopup="true" aria-label="More options">⋮</button>
             <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
               <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
+              <button class="songMenuItem" type="button" id="menuFlowViewBtn" role="menuitem">Flow View</button>
               <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
               <button class="songMenuItem" type="button" id="menuAddToSetlistBtn" role="menuitem">Add to Setlist</button>
               <button class="songMenuItem" type="button" id="menuCategoryBtn" role="menuitem">Category & Theme</button>
@@ -23987,13 +24550,6 @@ function renderSongViewer(){
               <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
               <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
             </div>
-          </div>
-        </div>
-        <div class="toolbarRow">
-          <div class="viewModeGroup" id="viewModeGroup">
-            <button type="button" class="viewModeBtn${(!songFlowMode&&showChords)?' active':''}${mdViewMode?' mdActive':''}" data-mode="chords">♪ Chords${mdViewMode?'<span class="mdModeBadge">MD</span>':(flowHasMdNotes(flow)?'<span class="mdAvailableDot" aria-label="This song has MD notes — long-press to view"></span>':'')}</button>
-            <button type="button" class="viewModeBtn${(!songFlowMode&&!showChords)?' active':''}" data-mode="lyrics">▤ Lyrics</button>
-            <button type="button" class="viewModeBtn${songFlowMode?' active':''}" data-mode="flow">☰ Flow</button>
           </div>
         </div>
       </div>
@@ -24043,61 +24599,13 @@ function renderSongViewer(){
     });
     attachLineupSwipeHandlers();
   }
-  document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
-  document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
-  document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
   document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
   document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
   attachSongMenuControls();
-  document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(btn=>{
-    let mdPressTimer=null;
-    let mdLongPressed=false;
-    if(btn.dataset.mode==='chords'){
-      btn.addEventListener('pointerdown',()=>{
-        mdLongPressed=false;
-        clearTimeout(mdPressTimer);
-        mdPressTimer=setTimeout(()=>{
-          mdLongPressed=true;
-          mdViewMode=!mdViewMode;
-          if(navigator.vibrate)navigator.vibrate(8);
-          showToast(mdViewMode?'MD Mode on — flow notes shown':'MD Mode off','success');
-          btn.classList.toggle('mdActive',mdViewMode);
-          const existingBadge=btn.querySelector('.mdModeBadge');
-          if(mdViewMode&&!existingBadge){
-            btn.insertAdjacentHTML('beforeend','<span class="mdModeBadge">MD</span>');
-          }else if(!mdViewMode&&existingBadge){
-            existingBadge.remove();
-          }
-          const structureEl=document.getElementById('songStructure');
-          if(structureEl){
-            structureEl.classList.add('structureFading');
-            setTimeout(()=>{
-              structureEl.innerHTML=renderSongStructureHTML(displayBlocks);
-              structureEl.classList.remove('structureFading');
-              attachKeyChangeFlash();
-            },140);
-          }
-        },420);
-      });
-      ['pointerup','pointerleave','pointercancel'].forEach(evt=>{
-        btn.addEventListener(evt,()=>{clearTimeout(mdPressTimer);mdPressTimer=null;});
-      });
-      btn.addEventListener('contextmenu',(event)=>{event.preventDefault();});
-    }
-    btn.onclick=()=>{
-      if(mdLongPressed){mdLongPressed=false;return;}
-      if(btn.dataset.mode==='flow'){
-        songFlowMode=true;
-        skipNextScreenTransition=true;
-        renderSongViewer();
-        return;
-      }
-      songFlowMode=false;
-      showChords=(btn.dataset.mode==='chords');
-      skipNextScreenTransition=true;
-      renderSongViewer();
-    };
-  });
+  renderSongBottomBar(song, amount, displayBlocks, flow, metPresetBpm);
+  document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
+  document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
+  document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
   if(songFlowMode){
     attachFlowControls(flowTarget,flow,sections);
   }else{
@@ -24379,11 +24887,6 @@ function renderMergedSongViewer(){
       </div>
       <div class="songToolbar">
         <div class="toolbarRow">
-          <div class="transposeGroup">
-            <button class="toolbarBtn" id="transposeDown">−</button>
-            <button class="toolbarBtn" id="transposeReset">Transpose:${amount>0?'+':''}${amount}</button>
-            <button class="toolbarBtn" id="transposeUp">+</button>
-          </div>
           <div class="fontSizeGroup">
             <button class="toolbarBtn" id="fontMinus">A−</button>
             <button class="toolbarBtn" id="fontPlus">A+</button>
@@ -24392,6 +24895,7 @@ function renderMergedSongViewer(){
             <button class="toolbarBtn songMenuBtn" id="songMenuBtn" type="button" aria-haspopup="true" aria-label="More options">⋮</button>
             <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
               <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
+              <button class="songMenuItem" type="button" id="menuFlowViewBtn" role="menuitem">Flow View</button>
               <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
               <button class="songMenuItem" type="button" id="menuAddToSetlistBtn" role="menuitem">Add to Setlist</button>
               <button class="songMenuItem" type="button" id="menuCategoryBtn" role="menuitem">Category & Theme</button>
@@ -24402,13 +24906,6 @@ function renderMergedSongViewer(){
               <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
               <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
             </div>
-          </div>
-        </div>
-        <div class="toolbarRow">
-          <div class="viewModeGroup" id="viewModeGroup">
-            <button type="button" class="viewModeBtn${(!songFlowMode&&showChords)?' active':''}${mdViewMode?' mdActive':''}" data-mode="chords">♪ Chords${mdViewMode?'<span class="mdModeBadge">MD</span>':(flowHasMdNotes(flow)?'<span class="mdAvailableDot" aria-label="This song has MD notes — long-press to view"></span>':'')}</button>
-            <button type="button" class="viewModeBtn${(!songFlowMode&&!showChords)?' active':''}" data-mode="lyrics">▤ Lyrics</button>
-            <button type="button" class="viewModeBtn${songFlowMode?' active':''}" data-mode="flow">☰ Flow</button>
           </div>
         </div>
       </div>
@@ -24451,61 +24948,13 @@ function renderMergedSongViewer(){
   document.getElementById('songBackBtn').onclick=()=>{if(currentSong){flushLineupAutoSync(currentSong.id);if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);}stopAutoScroll();songFlowMode=false;currentSong=null;goBack(renderLyrics);};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);skipNextScreenTransition=true;renderSongViewer();};}
   attachLineupSyncButton(song);
-  document.getElementById('transposeDown').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)-1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
-  document.getElementById('transposeUp').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)+1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
-  document.getElementById('transposeReset').onclick=()=>{part.transposeSteps=0;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
   document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
   document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
   attachSongMenuControls();
-  document.querySelectorAll('#viewModeGroup .viewModeBtn').forEach(btn=>{
-    let mdPressTimer=null;
-    let mdLongPressed=false;
-    if(btn.dataset.mode==='chords'){
-      btn.addEventListener('pointerdown',()=>{
-        mdLongPressed=false;
-        clearTimeout(mdPressTimer);
-        mdPressTimer=setTimeout(()=>{
-          mdLongPressed=true;
-          mdViewMode=!mdViewMode;
-          if(navigator.vibrate)navigator.vibrate(8);
-          showToast(mdViewMode?'MD Mode on — flow notes shown':'MD Mode off','success');
-          btn.classList.toggle('mdActive',mdViewMode);
-          const existingBadge=btn.querySelector('.mdModeBadge');
-          if(mdViewMode&&!existingBadge){
-            btn.insertAdjacentHTML('beforeend','<span class="mdModeBadge">MD</span>');
-          }else if(!mdViewMode&&existingBadge){
-            existingBadge.remove();
-          }
-          const structureEl=document.getElementById('songStructure');
-          if(structureEl){
-            structureEl.classList.add('structureFading');
-            setTimeout(()=>{
-              structureEl.innerHTML=renderSongStructureHTML(displayBlocks);
-              structureEl.classList.remove('structureFading');
-              attachKeyChangeFlash();
-            },140);
-          }
-        },420);
-      });
-      ['pointerup','pointerleave','pointercancel'].forEach(evt=>{
-        btn.addEventListener(evt,()=>{clearTimeout(mdPressTimer);mdPressTimer=null;});
-      });
-      btn.addEventListener('contextmenu',(event)=>{event.preventDefault();});
-    }
-    btn.onclick=()=>{
-      if(mdLongPressed){mdLongPressed=false;return;}
-      if(btn.dataset.mode==='flow'){
-        songFlowMode=true;
-        skipNextScreenTransition=true;
-        renderSongViewer();
-        return;
-      }
-      songFlowMode=false;
-      showChords=(btn.dataset.mode==='chords');
-      skipNextScreenTransition=true;
-      renderSongViewer();
-    };
-  });
+  renderSongBottomBar(part, amount, displayBlocks, flow, metPresetBpm);
+  document.getElementById('transposeDown').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)-1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
+  document.getElementById('transposeUp').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)+1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
+  document.getElementById('transposeReset').onclick=()=>{part.transposeSteps=0;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
   if(songFlowMode){
     attachFlowControls(flowTarget,flow,sections);
   }else{
@@ -25005,6 +25454,22 @@ function attachSongMenuControls(){
       stopAutoScroll();
 
       editCurrentSong();
+
+    };
+
+
+  document
+    .getElementById(
+      'menuFlowViewBtn'
+    )
+    .onclick = () => {
+
+      closeSongMenu();
+
+      songFlowMode = true;
+      skipNextScreenTransition = true;
+
+      renderSongViewer();
 
     };
 
