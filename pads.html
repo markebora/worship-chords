@@ -1,0 +1,4792 @@
+<!doctype html>
+<html lang="en">
+<head>
+
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Worship Pads</title>
+
+<style>
+
+*{ box-sizing:border-box; }
+
+html,body{
+  margin:0;
+  height:100%;
+  overflow:hidden;
+  background:#000000;
+  color:#f7f7f7;
+  font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  -webkit-tap-highlight-color:transparent;
+}
+
+:root{
+  --accent:#E8B923;
+  --accent-strong:#F5CB3C;
+  --accent-ink:#171200;
+  --accent-glow:rgba(232,185,35,.35);
+}
+
+.app{
+  max-width:640px;
+  margin:0 auto;
+  height:100vh;
+  height:100dvh;
+  display:flex;
+  flex-direction:column;
+  padding:calc(10px + env(safe-area-inset-top)) 12px calc(10px + env(safe-area-inset-bottom));
+}
+
+.topBar{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:2px 4px 12px;
+  position:relative;
+}
+
+.topBar h1{
+  margin:0;
+  font-size:16px;
+  font-weight:800;
+  color:var(--accent);
+  letter-spacing:.01em;
+}
+
+.topBarBtns{
+  display:flex;
+  gap:8px;
+}
+
+.iconBtn{
+  width:36px;
+  height:36px;
+  flex-shrink:0;
+  border-radius:10px;
+  border:1px solid #29292e;
+  background:#18181b;
+  color:#e6e6ea;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+
+.iconBtn:active{
+  background:#222226;
+}
+
+.iconBtn svg{
+  width:18px;
+  height:18px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+.iconBtn.hasBadge::after{
+  content:"";
+  position:absolute;
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:var(--accent);
+  transform:translate(11px,-11px);
+}
+
+#fileInput, #folderInput{
+  display:none;
+}
+
+.menuPanel{
+  position:absolute;
+  top:46px;
+  right:4px;
+  z-index:30;
+  width:220px;
+  background:#141416;
+  border:1px solid #26262b;
+  border-radius:14px;
+  padding:14px;
+  box-shadow:0 12px 30px rgba(0,0,0,.5);
+
+  opacity:0;
+  transform:translateY(-6px) scale(.98);
+  pointer-events:none;
+  transition:opacity .15s ease, transform .15s ease;
+}
+
+.menuPanel.open{
+  opacity:1;
+  transform:translateY(0) scale(1);
+  pointer-events:auto;
+}
+
+.menuRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:12px;
+}
+
+.menuRow:last-child{
+  margin-bottom:0;
+}
+
+.menuRow label{
+  font-size:11.5px;
+  font-weight:700;
+  color:#a7a7ad;
+  flex-shrink:0;
+  width:34px;
+}
+
+.menuRow input[type="range"]{
+  flex:1;
+  accent-color:var(--accent);
+}
+
+.dbReadout{
+  font-size:10.5px;
+  font-weight:700;
+  color:#7a7a82;
+  flex-shrink:0;
+  width:52px;
+  text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+
+.exclusiveToggle{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  font-size:12px;
+  font-weight:700;
+  color:#cfcfd4;
+  cursor:pointer;
+  user-select:none;
+  -webkit-user-select:none;
+  width:100%;
+}
+
+.switch{
+  width:34px;
+  height:20px;
+  border-radius:10px;
+  background:#2b2b30;
+  position:relative;
+  flex-shrink:0;
+  transition:background .18s ease;
+}
+
+.switch::after{
+  content:"";
+  position:absolute;
+  top:2px;
+  left:2px;
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  background:#e8e8ea;
+  transition:transform .18s ease;
+}
+
+.switch.on{
+  background:var(--accent);
+}
+
+.switch.on::after{
+  transform:translateX(14px);
+  background:var(--accent-ink);
+}
+
+.menuLoadBtn{
+  width:100%;
+  border:1px solid #303036;
+  background:#1a1a1d;
+  color:#eee;
+  border-radius:10px;
+  padding:10px;
+  font-size:12.5px;
+  font-weight:700;
+  cursor:pointer;
+  text-align:center;
+  margin-top:12px;
+}
+
+.menuLoadBtn:active{
+  background:#222226;
+}
+
+.menuFolderInfo{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-top:6px;
+  padding:0 2px;
+}
+
+.menuFolderInfo span{
+  font-size:10.5px;
+  color:#8a8a92;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.menuFolderInfo button{
+  flex-shrink:0;
+  border:0;
+  background:none;
+  color:var(--accent);
+  font-size:10.5px;
+  font-weight:800;
+  cursor:pointer;
+  padding:2px 0;
+}
+
+.menuSectionLabel{
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  color:var(--accent);
+  margin:18px 0 10px;
+}
+
+.menuSelectRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:10px;
+}
+
+.menuSelectRow label{
+  font-size:11.5px;
+  font-weight:700;
+  color:#a7a7ad;
+}
+
+.menuSelectRow select{
+  max-width:128px;
+  background:#1a1a1d;
+  color:#eee;
+  border:1px solid #303036;
+  border-radius:8px;
+  padding:5px 6px;
+  font-size:11px;
+  font-weight:700;
+  text-align:right;
+  text-align-last:right;
+}
+
+.menuSelectRow select:disabled{
+  opacity:.45;
+}
+
+.menuSelectRow .menuStaticValue{
+  font-size:11px;
+  font-weight:700;
+  color:#8a8a92;
+}
+
+.menuEngineNote{
+  font-size:10px;
+  color:#7a7a82;
+  line-height:1.4;
+  margin:-4px 0 12px;
+  display:none;
+}
+
+.menuEngineNote.show{
+  display:block;
+}
+
+.menuBackdrop{
+  position:fixed;
+  inset:0;
+  z-index:25;
+  display:none;
+}
+
+.menuBackdrop.show{
+  display:block;
+}
+
+.soundPickerBackdrop{
+  position:fixed;
+  inset:0;
+  z-index:50;
+  background:rgba(0,0,0,.55);
+  display:none;
+  align-items:flex-end;
+}
+
+.soundPickerBackdrop.open{
+  display:flex;
+}
+
+.soundPickerPanel{
+  width:100%;
+  max-height:70vh;
+  background:#141416;
+  border:1px solid #26262b;
+  border-top-left-radius:18px;
+  border-top-right-radius:18px;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+.soundPickerHeader{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  padding:14px 16px;
+  border-bottom:1px solid #26262b;
+  flex-shrink:0;
+}
+
+.soundPickerTitle{
+  font-size:14px;
+  font-weight:800;
+  color:#eee;
+}
+
+.soundPickerHint{
+  font-size:11px;
+  color:#8a8a92;
+  margin-top:2px;
+}
+
+.soundPickerCloseBtn{
+  border:0;
+  background:#1a1a1d;
+  color:#cfcfd4;
+  width:28px;
+  height:28px;
+  flex-shrink:0;
+  border-radius:50%;
+  font-size:16px;
+  line-height:1;
+  cursor:pointer;
+}
+
+.soundPickerList{
+  overflow-y:auto;
+  padding:10px 12px 16px;
+}
+
+.soundPickerRow{
+  width:100%;
+  display:flex;
+  align-items:stretch;
+  gap:8px;
+  margin-bottom:8px;
+}
+
+.soundPickerRowMain{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  min-width:0;
+  border:1px solid #26262b;
+  background:#1a1a1d;
+  color:#eee;
+  border-radius:10px;
+  padding:11px 12px;
+  font-size:12.5px;
+  font-weight:700;
+  text-align:left;
+  cursor:pointer;
+}
+
+.soundPickerRowMain span:first-child{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.soundPickerRowMain:active{
+  background:#222226;
+}
+
+.soundPickerRowMain.loaded{
+  border-color:var(--accent);
+  color:var(--accent);
+}
+
+.soundPickerRowCheck{
+  font-size:13px;
+  opacity:0;
+  flex-shrink:0;
+}
+
+.soundPickerRowMain.loaded .soundPickerRowCheck{
+  opacity:1;
+}
+
+.soundPickerRowDelete{
+  flex-shrink:0;
+  width:40px;
+  border:1px solid #3a2226;
+  background:#231518;
+  color:#e08a8a;
+  border-radius:10px;
+  font-size:15px;
+  cursor:pointer;
+}
+
+.soundPickerRowDelete:active{
+  background:#2c1a1d;
+}
+
+.emptyState{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:30px 24px;
+  color:#66666d;
+  font-size:13.5px;
+  line-height:1.6;
+}
+
+.padGrid{
+  flex:1;
+  min-height:0;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  grid-auto-rows:1fr;
+  gap:8px;
+  overflow-y:auto;
+}
+
+.pad{
+  position:relative;
+  min-height:0;
+  border-radius:14px;
+  border:1px solid #29292e;
+  background:#18181b;
+  color:#e6e6ea;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  padding:6px;
+  cursor:pointer;
+  overflow:hidden;
+  transition:transform .12s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease;
+}
+
+.pad:active{
+  transform:scale(.95);
+}
+
+.pad .padName{
+  font-size:11px;
+  font-weight:700;
+  text-align:center;
+  word-break:break-word;
+  line-height:1.25;
+  max-width:100%;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+
+.pad .padIcon{
+  width:18px;
+  height:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  opacity:.65;
+}
+
+.pad .padIcon svg{
+  width:100%;
+  height:100%;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.7;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+.pad.loading{
+  opacity:.45;
+  pointer-events:none;
+}
+
+.pad.playing{
+  border-color:var(--accent);
+  background:rgba(232,185,35,.10);
+  box-shadow:0 0 14px var(--accent-glow), inset 0 1px 0 rgba(232,185,35,.12);
+  color:var(--accent-strong);
+}
+
+.pad.playing .padIcon{
+  opacity:1;
+}
+
+.padBars{
+  position:absolute;
+  bottom:5px;
+  left:0;
+  right:0;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  gap:2px;
+  height:10px;
+  opacity:0;
+  transition:opacity .2s ease;
+}
+
+.pad.playing .padBars{
+  opacity:1;
+}
+
+.padBars span{
+  width:2px;
+  border-radius:1px;
+  background:var(--accent);
+  animation:padBar 1.1s ease-in-out infinite;
+}
+
+.padBars span:nth-child(1){ animation-delay:0s; }
+.padBars span:nth-child(2){ animation-delay:.15s; }
+.padBars span:nth-child(3){ animation-delay:.3s; }
+.padBars span:nth-child(4){ animation-delay:.45s; }
+
+@keyframes padBar{
+  0%,100%{ height:3px; }
+  50%{ height:10px; }
+}
+
+.volumeBar{
+  flex:0 0 auto;
+  margin-top:10px;
+  padding:10px 12px 12px;
+  background:#141416;
+  border:1px solid #26262b;
+  border-radius:14px;
+}
+
+.volumeBarRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:8px;
+}
+
+.volumeBarLabel{
+  font-size:12.5px;
+  font-weight:700;
+  color:#cfcfd4;
+}
+
+.volumeBarDb{
+  font-size:11.5px;
+  font-weight:800;
+  color:#4ee06a;
+  font-variant-numeric:tabular-nums;
+}
+
+.volumeSlider{
+  position:relative;
+  height:22px;
+  touch-action:none;
+  cursor:pointer;
+}
+
+.volumeSliderTrack{
+  position:absolute;
+  top:50%;
+  left:0;
+  right:0;
+  height:10px;
+  transform:translateY(-50%);
+  border-radius:5px;
+  background:#232328;
+}
+
+.volumeSliderFill{
+  position:absolute;
+  top:50%;
+  left:0;
+  height:10px;
+  width:0%;
+  transform:translateY(-50%);
+  border-radius:5px;
+  background:#4ee06a;
+  box-shadow:0 0 8px rgba(78,224,106,.45);
+  transition:width .07s linear;
+  /* Thin repeating gaps give the fill a segmented, LED-meter look
+     rather than a plain solid bar. */
+  mask-image:repeating-linear-gradient(90deg, #000 0 6px, transparent 6px 8px);
+  -webkit-mask-image:repeating-linear-gradient(90deg, #000 0 6px, transparent 6px 8px);
+}
+
+.volumeSliderThumb{
+  position:absolute;
+  top:0;
+  left:85%;
+  width:2px;
+  height:22px;
+  background:#f2f2f4;
+  border-radius:1px;
+  transform:translateX(-1px);
+  pointer-events:none;
+}
+
+.knobBar{
+  flex:0 0 auto;
+  display:flex;
+  justify-content:space-around;
+  align-items:flex-start;
+  gap:6px;
+  background:#141416;
+  border:1px solid #26262b;
+  border-radius:14px;
+  padding:14px 10px 12px;
+  margin-top:10px;
+}
+
+.knobItem{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+}
+
+.knobLabel{
+  font-size:11px;
+  font-weight:700;
+  color:#a7a7ad;
+  text-align:center;
+  white-space:nowrap;
+}
+
+.knob{
+  width:56px;
+  height:56px;
+  touch-action:none;
+  cursor:pointer;
+  -webkit-user-select:none;
+  user-select:none;
+}
+
+.knob svg{
+  width:100%;
+  height:100%;
+  overflow:visible;
+}
+
+.knobTrack{
+  fill:none;
+  stroke:#29292e;
+  stroke-width:5;
+  stroke-linecap:round;
+}
+
+.knobArc{
+  fill:none;
+  stroke:var(--accent);
+  stroke-width:5;
+  stroke-linecap:round;
+}
+
+.knobPointer{
+  stroke:var(--accent-strong);
+  stroke-width:3;
+  stroke-linecap:round;
+}
+
+.knobValue{
+  font-size:9.5px;
+  font-weight:700;
+  color:#6f6f77;
+  min-height:12px;
+}
+
+.eqOpenBtn{
+  width:56px;
+  height:56px;
+  border-radius:50%;
+  border:1px solid #29292e;
+  background:#18181b;
+  color:var(--accent);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+
+.eqOpenBtn:active{
+  background:#222226;
+}
+
+.eqOpenBtn svg{
+  width:24px;
+  height:24px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+/* ---------- Parametric EQ screen ---------- */
+
+.eqScreenBackdrop{
+  position:fixed;
+  inset:0;
+  z-index:60;
+  background:#000;
+  display:none;
+  opacity:0;
+  transition:opacity .15s ease;
+}
+
+.eqScreenBackdrop.open{
+  display:block;
+  opacity:1;
+}
+
+.eqScreen{
+  max-width:640px;
+  margin:0 auto;
+  height:100vh;
+  height:100dvh;
+  display:flex;
+  flex-direction:column;
+  padding:calc(10px + env(safe-area-inset-top)) 12px calc(10px + env(safe-area-inset-bottom));
+}
+
+.eqScreenTop{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:2px 2px 6px;
+}
+
+.eqScreenTop h2{
+  margin:0;
+  font-size:15px;
+  font-weight:800;
+  color:#eee;
+  letter-spacing:.01em;
+}
+
+.eqScreenTopSpacer{
+  width:36px;
+  flex-shrink:0;
+}
+
+.eqHint{
+  flex:0 0 auto;
+  margin:0 2px 8px;
+  font-size:11px;
+  color:#77777d;
+  line-height:1.4;
+}
+
+.eqRangeNote{
+  flex:0 0 auto;
+  margin:-4px 2px 8px;
+  font-size:11px;
+  font-weight:700;
+  color:var(--accent);
+  line-height:1.4;
+}
+
+.eqRangeNote:empty{
+  display:none;
+}
+
+.eqGraphWrap{
+  flex:1;
+  min-height:0;
+  position:relative;
+  border:1px solid #26262b;
+  border-radius:14px;
+  background:radial-gradient(120% 140% at 50% 0%, #16161a 0%, #0a0a0c 60%, #000 100%);
+  overflow:hidden;
+}
+
+#eqGraphSvg{
+  display:block;
+  width:100%;
+  height:100%;
+  touch-action:none;
+}
+
+.eqGridLine{
+  stroke:#212126;
+  stroke-width:1;
+  vector-effect:non-scaling-stroke;
+}
+
+.eqGridLineZero{
+  stroke:#7a7a83;
+  stroke-width:1.5;
+  stroke-dasharray:5 4;
+  opacity:.8;
+  vector-effect:non-scaling-stroke;
+}
+
+.eqSpectrumPath{
+  fill:rgba(232,185,35,.14);
+  stroke:rgba(232,185,35,.4);
+  stroke-width:1.4;
+  vector-effect:non-scaling-stroke;
+}
+
+.eqCurvePath{
+  fill:none;
+  stroke:#f2f2f4;
+  stroke-width:2.4;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  vector-effect:non-scaling-stroke;
+}
+
+.eqHandle{
+  cursor:grab;
+  touch-action:none;
+}
+
+.eqHandle:active{
+  cursor:grabbing;
+}
+
+.eqHandle .eqHandleHit{
+  fill:transparent;
+}
+
+.eqHandle .eqHandleDot{
+  stroke-width:2.5;
+  vector-effect:non-scaling-stroke;
+}
+
+.eqHandleCut .eqHandleDot{
+  fill:#1a1a1d;
+  stroke:#d8d8dc;
+}
+
+.eqHandlePeak .eqHandleDot{
+  fill:var(--accent);
+  stroke:var(--accent-strong);
+}
+
+.eqHandleDragging .eqHandleDot{
+  stroke-width:3.5;
+  filter:drop-shadow(0 0 7px rgba(255,255,255,.65));
+}
+
+.eqHandleDragging.eqHandleCut .eqHandleDot{
+  stroke:#ffffff;
+}
+
+.eqHandleDragging.eqHandlePeak .eqHandleDot{
+  filter:drop-shadow(0 0 8px rgba(232,185,35,.85));
+}
+
+.eqFreqAxis{
+  position:absolute;
+  left:34px;
+  right:6px;
+  bottom:4px;
+  height:12px;
+  pointer-events:none;
+}
+
+.eqFreqAxis span{
+  position:absolute;
+  transform:translateX(-50%);
+  font-size:9.5px;
+  font-weight:600;
+  color:#5c5c63;
+  white-space:nowrap;
+}
+
+.eqDbAxis{
+  position:absolute;
+  left:5px;
+  top:0;
+  bottom:0;
+  pointer-events:none;
+}
+
+.eqDbAxis span{
+  position:absolute;
+  left:0;
+  transform:translateY(-50%);
+  font-size:9.5px;
+  font-weight:600;
+  color:#5c5c63;
+  background:rgba(10,10,12,.55);
+  padding:0 3px;
+  border-radius:3px;
+}
+
+.eqDbAxis span.eqDbAxisZero{
+  color:#c4c4c9;
+}
+
+.eqBandReadouts{
+  flex:0 0 auto;
+  display:flex;
+  justify-content:space-between;
+  gap:6px;
+  margin-top:10px;
+  padding:10px 6px;
+  background:#141416;
+  border:1px solid #26262b;
+  border-radius:14px;
+}
+
+.eqBandReadout{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:3px;
+  min-width:0;
+}
+
+.eqBandName{
+  font-size:9.5px;
+  font-weight:700;
+  color:#7a7a82;
+  text-transform:uppercase;
+  letter-spacing:.03em;
+}
+
+.eqBandValue{
+  font-size:11.5px;
+  font-weight:800;
+  color:#e6e6ea;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+
+#eqResetBtn{
+  margin-top:10px;
+  flex:0 0 auto;
+}
+
+</style>
+
+</head>
+<body>
+
+<div class="app">
+
+  <div class="topBar">
+
+    <h1>Worship Pads</h1>
+
+    <div class="topBarBtns">
+
+      <button class="iconBtn" id="menuBtn" aria-label="Settings">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+
+    </div>
+
+    <div class="menuPanel" id="menuPanel">
+
+      <div class="menuRow">
+        <label>Vol</label>
+        <input type="range" id="masterVolume" min="0" max="100" value="85">
+        <span class="dbReadout" id="masterVolumeDb">0.0 dB</span>
+      </div>
+
+      <div class="menuRow">
+        <label>Sub</label>
+        <input type="range" id="subVolume" min="0" max="100" value="50">
+      </div>
+
+      <div class="menuRow">
+        <div class="exclusiveToggle" id="exclusiveToggle">
+          One at a time
+          <div class="switch on" id="exclusiveSwitch"></div>
+        </div>
+      </div>
+
+      <button class="menuLoadBtn" id="importBtn">Import (samples or SoundFonts)</button>
+
+      <div class="menuFolderInfo" id="menuFolderInfo" style="display:none;">
+        <span id="menuFolderInfoText"></span>
+        <button id="changeFolderBtn">Change</button>
+      </div>
+
+      <button class="menuLoadBtn" id="mySoundsBtn">My Sounds (saved on this device)</button>
+
+      <button class="menuLoadBtn" id="exportBtn">Export My Sounds</button>
+
+      <button class="menuLoadBtn" id="stopAllMenuBtn">Stop All</button>
+
+      <div class="menuSectionLabel">Audio Engine</div>
+
+      <div class="menuSelectRow">
+        <label>Audio output</label>
+        <span class="menuStaticValue" id="audioOutputValue">Automatic (system)</span>
+        <select id="audioOutputSelect" style="display:none;"></select>
+      </div>
+
+      <div class="menuSelectRow">
+        <label>Sample rate</label>
+        <select id="sampleRateSelect">
+          <option value="auto">Auto (device)</option>
+          <option value="44100">44100 Hz</option>
+          <option value="48000">48000 Hz</option>
+        </select>
+      </div>
+
+      <div class="menuSelectRow">
+        <label>Buffer / latency</label>
+        <select id="latencySelect">
+          <option value="interactive">Low latency</option>
+          <option value="balanced">Balanced</option>
+          <option value="playback">Stable</option>
+        </select>
+      </div>
+
+      <p class="menuEngineNote" id="audioEngineLockNote"></p>
+
+      <div class="menuSelectRow">
+        <label>Reverb space</label>
+        <select id="reverbSpaceSelect">
+          <option value="room">Room</option>
+          <option value="hall">Hall</option>
+          <option value="cathedral">Cathedral</option>
+          <option value="plate">Plate</option>
+          <option value="cloudy">Cloudy</option>
+        </select>
+      </div>
+
+    </div>
+
+  </div>
+
+  <input type="file" id="folderInput" webkitdirectory directory multiple>
+
+  <div id="emptyState" class="emptyState">
+    No pads loaded yet.<br>
+    Open the menu (top right) to load sample files, a single
+    SoundFont (.sf2), or a whole folder of SoundFonts to pick from.
+  </div>
+
+  <div id="padGrid" class="padGrid"></div>
+
+  <div class="volumeBar" id="volumeBar">
+
+    <div class="volumeBarRow">
+      <span class="volumeBarLabel">Volume</span>
+      <span class="volumeBarDb" id="liveVolumeDb">&minus;&infin; dB</span>
+    </div>
+
+    <div class="volumeSlider" id="volumeSlider" role="slider" aria-label="Volume" tabindex="0">
+      <div class="volumeSliderTrack"></div>
+      <div class="volumeSliderFill" id="volumeSliderFill"></div>
+      <div class="volumeSliderThumb" id="volumeSliderThumb"></div>
+    </div>
+
+  </div>
+
+  <div class="knobBar" id="knobBar">
+
+    <div class="knobItem">
+      <div class="knobLabel">EQ</div>
+      <button class="eqOpenBtn" id="eqOpenBtn" aria-label="Open parametric EQ">
+        <svg viewBox="0 0 24 24">
+          <path d="M4 21V14M4 10V3M12 21V12M12 8V3M20 21V16M20 12V3"/>
+          <circle cx="4" cy="12" r="2.2"/>
+          <circle cx="12" cy="10" r="2.2"/>
+          <circle cx="20" cy="14" r="2.2"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="knobItem">
+      <div class="knobLabel">Low Pass</div>
+      <div class="knob" id="knobCutoff" role="slider" aria-label="Low pass cutoff" tabindex="0">
+        <svg viewBox="0 0 64 64">
+          <circle class="knobTrack" cx="32" cy="32" r="26" transform="rotate(135 32 32)"></circle>
+          <circle class="knobArc" id="knobCutoffArc" cx="32" cy="32" r="26" transform="rotate(135 32 32)"></circle>
+          <line class="knobPointer" id="knobCutoffPointer" x1="32" y1="32" x2="32" y2="12"></line>
+        </svg>
+      </div>
+      <div class="knobValue" id="knobCutoffValue">3.0k</div>
+    </div>
+
+    <div class="knobItem">
+      <div class="knobLabel">Reverb</div>
+      <div class="knob" id="knobReverb" role="slider" aria-label="Reverb" tabindex="0">
+        <svg viewBox="0 0 64 64">
+          <circle class="knobTrack" cx="32" cy="32" r="26" transform="rotate(135 32 32)"></circle>
+          <circle class="knobArc" id="knobReverbArc" cx="32" cy="32" r="26" transform="rotate(135 32 32)"></circle>
+          <line class="knobPointer" id="knobReverbPointer" x1="32" y1="32" x2="32" y2="12"></line>
+        </svg>
+      </div>
+      <div class="knobValue" id="knobReverbValue">32%</div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="eqScreenBackdrop" id="eqScreenBackdrop">
+  <div class="eqScreen">
+
+    <div class="eqScreenTop">
+      <button class="iconBtn" id="eqCloseBtn" aria-label="Close EQ">
+        <svg viewBox="0 0 24 24">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+      </button>
+      <h2>Parametric EQ</h2>
+      <div class="eqScreenTopSpacer"></div>
+    </div>
+
+    <p class="eqHint">Drag the dots to shape the tone — gold dots boost or cut a band, white dots roll off the extreme lows/highs. The glowing fill is the live output of whatever’s playing.</p>
+    <p class="eqRangeNote" id="eqRangeNote"></p>
+
+    <div class="eqGraphWrap" id="eqGraphWrap">
+      <svg id="eqGraphSvg" viewBox="0 0 600 320" preserveAspectRatio="none">
+        <g id="eqGridLines"></g>
+        <path id="eqSpectrumPath" class="eqSpectrumPath" d=""></path>
+        <path id="eqCurvePath" class="eqCurvePath" d=""></path>
+
+        <g class="eqHandle eqHandleCut" id="eqHandleLowCut" role="slider" aria-label="Low cut frequency" tabindex="0">
+          <circle class="eqHandleHit" r="18"></circle>
+          <circle class="eqHandleDot" r="6"></circle>
+        </g>
+        <g class="eqHandle eqHandlePeak" id="eqHandlePeak1" role="slider" aria-label="Body band" tabindex="0">
+          <circle class="eqHandleHit" r="18"></circle>
+          <circle class="eqHandleDot" r="6"></circle>
+        </g>
+        <g class="eqHandle eqHandlePeak" id="eqHandlePeak2" role="slider" aria-label="Air band" tabindex="0">
+          <circle class="eqHandleHit" r="18"></circle>
+          <circle class="eqHandleDot" r="6"></circle>
+        </g>
+        <g class="eqHandle eqHandleCut" id="eqHandleHighCut" role="slider" aria-label="High cut frequency" tabindex="0">
+          <circle class="eqHandleHit" r="18"></circle>
+          <circle class="eqHandleDot" r="6"></circle>
+        </g>
+      </svg>
+
+      <div class="eqDbAxis" id="eqDbAxis"></div>
+
+      <div class="eqFreqAxis" id="eqFreqAxis"></div>
+    </div>
+
+    <div class="eqBandReadouts" id="eqBandReadouts">
+      <div class="eqBandReadout">
+        <span class="eqBandName">Low Cut</span>
+        <span class="eqBandValue" id="eqReadoutLowCut">60Hz</span>
+      </div>
+      <div class="eqBandReadout">
+        <span class="eqBandName">Body</span>
+        <span class="eqBandValue" id="eqReadoutPeak1">400Hz · 0.0dB</span>
+      </div>
+      <div class="eqBandReadout">
+        <span class="eqBandName">Air</span>
+        <span class="eqBandValue" id="eqReadoutPeak2">6.0k · 0.0dB</span>
+      </div>
+      <div class="eqBandReadout">
+        <span class="eqBandName">High Cut</span>
+        <span class="eqBandValue" id="eqReadoutHighCut">3.0k</span>
+      </div>
+    </div>
+
+    <button class="menuLoadBtn" id="eqResetBtn">Reset EQ</button>
+
+  </div>
+</div>
+
+<div class="menuBackdrop" id="menuBackdrop"></div>
+
+<div class="soundPickerBackdrop" id="soundPickerBackdrop">
+  <div class="soundPickerPanel">
+
+    <div class="soundPickerHeader">
+      <div>
+        <div class="soundPickerTitle" id="soundPickerTitle">Choose a Sound</div>
+        <div class="soundPickerHint" id="soundPickerHint"></div>
+      </div>
+      <button class="soundPickerCloseBtn" id="soundPickerCloseBtn" aria-label="Close">&times;</button>
+    </div>
+
+    <div class="soundPickerList" id="soundPickerList"></div>
+
+  </div>
+</div>
+
+
+<script>
+
+/*
+  Worship Pads — standalone prototype.
+
+  Design intent (matches how the metronome/split features got
+  built): local file picker only, nothing uploaded or hosted, so
+  a 1GB+ sample pack never has to leave the device. Each picked
+  file becomes one pad. Pads loop while held/playing, with a
+  short fade-in on start and fade-out on stop so drones don't
+  click in/out. "One at a time" mode (on by default, matches how
+  people actually use pad sets — one sustained drone at a time)
+  crossfades: starting a new pad fades the previous one out while
+  the new one fades in, instead of layering everything at once.
+
+  Each pad keeps its own <audio> element + a Web Audio GainNode
+  for the fade, rather than trying to route everything through a
+  single shared AudioContext buffer graph — simpler, and audio
+  elements handle large files (don't need the whole sample
+  decoded into memory up front) which matters given how big these
+  packs get.
+
+  All pads' fade-gain nodes feed into one shared mix bus, which
+  runs through Cutoff/High Pass filters (actual lowpass/highpass
+  cutoffs, not gain boost/cut, so the knobs really do sweep the
+  tone from bassy to airy rather than just nudging it) and a
+  reverb send. The reverb is a ConvolverNode fed a synthetic
+  impulse response built in-browser (see buildReverbImpulseResponse
+  and the REVERB_SPACE_PRESETS it draws from) rather than a
+  recorded IR file — same reasoning as the sample picker: nothing
+  to host. Room/Hall/Cathedral/Plate are all the same noise-decay
+  approach at different duration/pre-delay/smoothing settings;
+  Cathedral is the default, shaped for a "church" character rather
+  than a bright plate/spring: a touch of pre-delay for a sense of
+  room size, a slow exponential tail (~3.4s) for a larger space,
+  and one-pole smoothing over the raw noise so the tail reads as
+  soft/diffuse stone-and-air rather than harsh/metallic.
+
+  Each pad can also carry a synthesized sub-bass layer: a plain
+  sine oscillator tuned to the pad's root note, one octave low,
+  that fades in/out in lockstep with the pad itself. Most "warm"/
+  "ambient" pad samples (this one included — checked via FFT)
+  have almost nothing below ~110Hz, so a real sub oscillator fills
+  in the low end a sample pack alone often doesn't have. It's kept
+  on its own bus straight to the speakers, bypassing the Cutoff/
+  High Pass filters and reverb entirely — those are tuned to the
+  pad's existing 100Hz+ content, and would gut a true sub tone if
+  it had to pass through them. The root note is read from the
+  sample's filename (the leading note letter, e.g. "A" in
+  "A_-_WARM_-_CHURCHFRONT_PADS"); pads whose filename doesn't
+  start with a recognizable note just don't get a sub layer.
+
+  The dry, reverb, and sub buses all converge on one final
+  masterOutGain node before hitting the speakers, and an
+  AnalyserNode taps that same point — so the "Volume" bar's dB
+  readout is the actual measured output level (RMS of the live
+  signal, in dBFS), not a static readout of where the fader
+  happens to be sitting. It reads as -\u221e dB (and the meter fill
+  sits empty) whenever nothing is actually playing, even at full
+  volume — that's the point of measuring the real signal instead
+  of just formatting the fader position.
+
+  SoundFonts (.sf2) load the same way: pick them via the same file
+  input as regular samples, and each *preset* inside the file
+  becomes twelve pads — one per chromatic key, Middle C through the
+  B above it — rather than a single fixed-pitch pad, so a SoundFont
+  can be played in whatever key a song needs. There's no synth
+  engine or MIDI here — each key is "read" once at a fixed pitch and
+  treated exactly like a looping sample the rest of the way, so it
+  drops into the identical gain/mix/EQ/reverb/sub-bass chain as any
+  other pad. The .sf2 file itself is a RIFF container (chunks
+  named like a WAV file's, just with SoundFont-specific ones —
+  phdr/inst/shdr etc. — instead of fmt/data) and gets parsed by a
+  small inline reader (parseSF2) rather than a library, keeping
+  this a single dependency-free file. It reads out the raw PCM
+  sample(s) mapped to that pitch — often a true stereo pair, one
+  sample panned hard left and one hard right, which is reassembled
+  here with a couple of StereoPannerNodes — decodes them into
+  AudioBuffers, and plays them with an AudioBufferSourceNode looping
+  between the SoundFont's own loop points (so a short recorded
+  swell can sustain indefinitely while a pad is held). SoundFont
+  pads also carry their own attack/release times (read from the
+  instrument's volume envelope, in "timecents") which are used as
+  that pad's fade-in/out instead of the fixed FADE_MS — this
+  particular SoundFont is a "swell" pad with a several-second
+  release tail, and that's exactly the character it should keep
+  when a pad is let go, not the same 700ms fade sample packs use.
+
+  Every SoundFont loaded through the app — whether picked as a
+  single file, tapped from a folder scan, or (on Chromium browsers)
+  auto-restored from a remembered folder — gets a copy of its raw
+  bytes saved into IndexedDB as a Blob, under "My Sounds" in the
+  menu. That's a second, independent thing from the folder-memory
+  feature above: folder memory remembers a *location* to re-read
+  from later (Chromium-only, needs a permission re-grant, breaks if
+  the folder moves or the device changes); the local library
+  instead keeps an actual *copy*, works in any browser with
+  IndexedDB (Safari and Firefox included), and never needs the
+  original file/folder again once it's saved. It's per-device and
+  personal — nothing here syncs anywhere or leaves the browser it
+  was saved in.
+*/
+
+const FADE_MS = 700;
+
+/* Slider endpoints for the cutoff (lowpass) and high pass filters,
+   in Hz. Both are set up so their default position is a no-op
+   (fully open) — you dial IN the cut as you turn the knob, rather
+   than the filter always doing something even at rest. */
+const EQ_LOW_MIN_FREQ = 100;    // heaviest cut when turned all the way down
+const EQ_LOW_MAX_FREQ = 3000;   // default — essentially no cut
+const EQ_HIGH_MIN_FREQ = 60;    // default — essentially no cut
+const EQ_HIGH_MAX_FREQ = 1500;  // heaviest cut when turned all the way up
+
+/* Sub-oscillator layer — a sine tuned to each pad's root note,
+   read from its filename, one octave below SUB_OCTAVE's reference
+   so it sits as a felt-more-than-heard fundamental under the pad. */
+const NOTE_SEMITONES = {
+  C:0, 'C#':1, Db:1, D:2, 'D#':3, Eb:3, E:4, F:5,
+  'F#':6, Gb:6, G:7, 'G#':8, Ab:8, A:9, 'A#':10, Bb:10, B:11
+};
+const SUB_OCTAVE = 1;       // A1 = 55Hz, C1 = ~32.7Hz, etc.
+const SUB_LEVEL_SCALE = 0.6; // ceiling so a full-amplitude sine can't overpower/clip
+
+const MIDI_NOTE_NAMES = [
+  'C','C#','D','D#','E','F','F#','G','G#','A','A#','B'
+];
+
+/* The MIDI note a SoundFont preset is "read" at (Middle C). If a
+   preset's samples don't actually cover that note (some
+   instruments are split/mapped only across part of the keyboard),
+   the loader falls back to the nearest note the SoundFont has. */
+const SF2_TARGET_NOTE = 60;
+
+let masterVolume = 0.85;
+let subVolume = 0.5;
+let exclusiveMode = true;
+
+/* pads: { id, name, state, type: 'sample'|'sf2', gainNode, subOsc,
+   subGainNode, rootFreq, audioReady,
+   -- sample pads --  file, url, audio, sourceNode,
+   -- sf2 pads --     sf2Layers, activeSourceNodes, attackMs, releaseMs, rootNoteName }
+*/
+let pads = [];
+let audioCtx = null;
+
+/*
+  Audio Engine preferences. Reverb space is live-swappable at any
+  time (see setReverbSpace) since it's just handing the existing
+  ConvolverNode a different buffer. Sample rate and latency are
+  different: the Web Audio API only lets you request them at the
+  moment an AudioContext is constructed (there's no "change the
+  buffer size of a running context" call — a `latencyHint` at
+  construction is the closest a web page gets to picking a target
+  buffer size, since the browser/OS actually own that number), so
+  a change here only takes effect the NEXT time the engine starts
+  from cold — i.e. next page load, since this file creates its one
+  AudioContext lazily on first real interaction and never tears it
+  down. The settings panel is upfront about that rather than
+  pretending to hot-swap something the platform doesn't expose.
+*/
+let currentReverbSpace = 'cathedral';
+let preferredSampleRate = 'auto'; // 'auto' | '44100' | '48000'
+let preferredLatencyHint = 'balanced'; // 'interactive' | 'balanced' | 'playback'
+
+function loadAudioEnginePrefs(){
+  try{
+    const savedSpace = localStorage.getItem('padsEqReverbSpace');
+    if(savedSpace && REVERB_SPACE_PRESETS[savedSpace])currentReverbSpace = savedSpace;
+    const savedRate = localStorage.getItem('padsEqSampleRate');
+    if(savedRate === 'auto' || savedRate === '44100' || savedRate === '48000')preferredSampleRate = savedRate;
+    const savedLatency = localStorage.getItem('padsEqLatencyHint');
+    if(savedLatency === 'interactive' || savedLatency === 'balanced' || savedLatency === 'playback')preferredLatencyHint = savedLatency;
+  }catch(err){
+    // Storage can be unavailable (private browsing, permissions) —
+    // preferences just fall back to defaults for this session.
+  }
+}
+
+let mixBus = null;
+let subBus = null;
+let eqLowNode = null;
+let eqLowNode2 = null;
+let eqHighNode = null;
+let eqHighNode2 = null;
+let eqPeakLowNode = null;
+let eqPeakHighNode = null;
+let dryGainNode = null;
+let reverbConvolver = null;
+let reverbWetGainNode = null;
+
+/* Stereo chorus/width — see setupMixBus for how these are wired.
+   The two LFOs need their own oscillator+gain pair each since each
+   modulates a different DelayNode's delayTime at a deliberately
+   different rate. */
+let chorusInputGain = null;
+let chorusDelayL = null;
+let chorusDelayR = null;
+let chorusLfoL = null;
+let chorusLfoR = null;
+let chorusLfoDepthL = null;
+let chorusLfoDepthR = null;
+let chorusPannerL = null;
+let chorusPannerR = null;
+let chorusWetGain = null;
+
+let glueCompressorNode = null;
+let saturationShaperNode = null;
+let masterLowBandFilter = null;
+let masterHighBandFilter = null;
+
+let masterOutGain = null;
+let masterLimiterNode = null;
+let meterAnalyser = null;
+let meterDataArray = null;
+let eqFreqByteData = null;
+
+/* dB range the live meter maps onto the volume bar's fill width —
+   anything at or below the floor reads as empty/-\u221e. */
+const METER_FLOOR_DB = -60;
+
+/* Five synthetic reverb spaces. Two extra ingredients beyond the
+   original noise-envelope-smoothing approach are what actually make
+   these sound distinct from each other rather than all reading as
+   "generic soft wash":
+
+   - hfDamping: highs decaying faster than lows as the tail
+     progresses is the single biggest perceptual cue for a reverb's
+     size/character — a small room barely changes before it's gone,
+     while a huge stone space starts relatively bright and quickly
+     rounds off into a dark, boomy bloom. The original version held
+     smoothingFactor constant for the whole tail, which is exactly
+     why every preset just sounded like a different-length version
+     of the same wash.
+   - earlyReflections: a handful of short, discrete, sharply-decaying
+     "taps" laid on top of the diffuse tail near the start, before
+     the wash takes over. This is what makes something feel like a
+     specific room with real nearby surfaces rather than a smooth
+     texture — their spacing (tight for Room, widely spread for
+     Cathedral) is doing a lot of the work in telling those two
+     apart. Plate and Cloudy deliberately have none: a real plate
+     reverb has no discrete early reflections (it's a vibrating
+     sheet of metal, not a room), and Cloudy is meant to feel like an
+     enveloping wash rather than a space with any surfaces at all.
+
+   Cloudy also keeps highpassCoeff — a gentle DC-blocking high-pass
+   applied after the smoothing — since its very heavy damping alone
+   tends to let a slow sub-bass drift build up into unpleasant boomy
+   "mud" rather than a soft "cloud"; presets that omit it skip that
+   stage entirely. */
+const REVERB_SPACE_PRESETS = {
+  room:      { label: 'Room',      duration: 0.9, preDelayMs: 8,  decayPower: 3.6, smoothingFactor: 0.34, hfDamping: 0.30, earlyReflections: [6, 11, 17, 24] },
+  hall:      { label: 'Hall',      duration: 2.0, preDelayMs: 20, decayPower: 2.8, smoothingFactor: 0.22, hfDamping: 0.55, earlyReflections: [10, 19, 29, 42, 58] },
+  cathedral: { label: 'Cathedral', duration: 3.4, preDelayMs: 35, decayPower: 2.6, smoothingFactor: 0.16, hfDamping: 0.75, earlyReflections: [14, 27, 41, 60, 85, 115] },
+  plate:     { label: 'Plate',     duration: 1.6, preDelayMs: 4,  decayPower: 1.9, smoothingFactor: 0.46, hfDamping: 0.05 },
+  cloudy:    { label: 'Cloudy',    duration: 2.6, preDelayMs: 6,  decayPower: 2.0, smoothingFactor: 0.09, highpassCoeff: 0.985, hfDamping: 0.20 }
+};
+
+/* A gentle soft-clip curve for the warmth/saturation stage —
+   (1+k)x / (1+k|x|) is a standard soft-knee saturator: near-
+   transparent for quiet signal, gradually rounds off peaks rather
+   than hard-clipping them. Kept subtle (a low k) so it reads as
+   warmth/glue rather than an audible "distortion effect". */
+function buildSaturationCurve(amount){
+  const n = 1024;
+  const curve = new Float32Array(n);
+  for(let i = 0; i < n; i++){
+    const x = (i / (n - 1)) * 2 - 1;
+    curve[i] = (1 + amount) * x / (1 + amount * Math.abs(x));
+  }
+  return curve;
+}
+
+function buildReverbImpulseResponse(ctx, presetKey){
+
+  const preset =
+    REVERB_SPACE_PRESETS[presetKey] || REVERB_SPACE_PRESETS.cathedral;
+
+  const {
+    duration, preDelayMs, decayPower, smoothingFactor,
+    highpassCoeff, hfDamping = 0, earlyReflections
+  } = preset;
+
+  const sampleRate = ctx.sampleRate;
+  const length = Math.floor(sampleRate * duration);
+  const preDelaySamples = Math.floor(sampleRate * preDelayMs / 1000);
+
+  const buffer =
+    ctx.createBuffer(2, length, sampleRate);
+
+  for(let channel = 0; channel < 2; channel++){
+
+    const data =
+      buffer.getChannelData(channel);
+
+    let smoothed = 0;
+
+    // One-pole DC-blocking high-pass state — only used when the
+    // preset specifies highpassCoeff (see Cloudy above).
+    let hpPrevIn = 0;
+    let hpPrevOut = 0;
+
+    for(let i = 0; i < length; i++){
+
+      if(i < preDelaySamples){
+        data[i] = 0;
+        continue;
+      }
+
+      const t =
+        (i - preDelaySamples) / (length - preDelaySamples);
+
+      /* Steeper-than-linear falloff reads as a bigger, more
+         diffuse room than a straight exponential. */
+      const envelope =
+        Math.pow(1 - t, decayPower);
+
+      const raw =
+        (Math.random() * 2 - 1) * envelope;
+
+      /* Highs die out faster than lows as the tail progresses —
+         reduce the effective smoothing (i.e. let less of each new
+         raw sample through) the further into the tail we are. */
+      const dynamicSmoothing =
+        smoothingFactor * (1 - hfDamping * t);
+
+      smoothed =
+        smoothed * (1 - dynamicSmoothing) + raw * dynamicSmoothing;
+
+      let output = smoothed;
+
+      if(highpassCoeff){
+        const hpOut = output - hpPrevIn + highpassCoeff * hpPrevOut;
+        hpPrevIn = output;
+        hpPrevOut = hpOut;
+        output = hpOut;
+      }
+
+      data[i] = output;
+
+    }
+
+    // Discrete early reflections, layered on top of the diffuse
+    // tail already written above.
+    if(earlyReflections && earlyReflections.length){
+
+      earlyReflections.forEach((tapMs, idx) => {
+
+        const tapSample =
+          preDelaySamples + Math.floor(sampleRate * tapMs / 1000);
+
+        if(tapSample >= length)return;
+
+        // Alternating polarity and a slight amplitude falloff per
+        // tap reads as distinct bounces off different surfaces
+        // rather than one repeated echo.
+        const tapAmp =
+          (idx % 2 === 0 ? 1 : -1) * (0.5 - idx * 0.06);
+
+        const tapLenSamples =
+          Math.floor(sampleRate * 0.003); // a short ~3ms decaying tick
+
+        for(let k = 0; k < tapLenSamples && tapSample + k < length; k++){
+          const tapEnvelope = 1 - (k / tapLenSamples);
+          data[tapSample + k] += tapAmp * tapEnvelope * (Math.random() * 2 - 1);
+        }
+
+      });
+
+    }
+
+  }
+
+  return buffer;
+
+}
+
+function setupMixBus(ctx){
+
+  if(mixBus)return;
+
+  mixBus = ctx.createGain();
+  mixBus.gain.value = 1;
+
+  /* Everything — dry pad signal, reverb return, the chorus/width
+     send, and the sub bus — converges on this single node before
+     the speakers, so it's also where the live level meter taps the
+     actual output (post-limiter — see below). */
+  masterOutGain = ctx.createGain();
+  masterOutGain.gain.value = 1;
+
+  /* Glue compression: gentle, musical dynamics shaping (moderate
+     ratio, a bit of knee, attack/release slow enough not to pump)
+     so multiple layered pads settle together instead of each one
+     independently pushing the level around. This is deliberately
+     separate from the limiter below — that one's a hard safety net
+     tuned to just catch peaks, this one is meant to be felt as
+     "cohesion" more than heard as compression. */
+  glueCompressorNode = ctx.createDynamicsCompressor();
+  glueCompressorNode.threshold.value = -18;
+  glueCompressorNode.knee.value = 12;
+  glueCompressorNode.ratio.value = 3;
+  glueCompressorNode.attack.value = 0.01;
+  glueCompressorNode.release.value = 0.25;
+
+  /* Warmth: a subtle soft-clip saturation stage after the glue
+     compressor. Low drive amount — this should round off peaks
+     just enough to feel a little "analog", not introduce audible
+     grit. */
+  saturationShaperNode = ctx.createWaveShaper();
+  saturationShaperNode.curve = buildSaturationCurve(0.35);
+  saturationShaperNode.oversample = '2x';
+
+  /* Crossover: keep the glue compressor and saturation off the low
+     end specifically. A sustained bass/sub note has a much longer
+     waveform period than a compressor's or waveshaper's reaction
+     time — a 100Hz note only completes one cycle every 10ms, so
+     anything reacting faster than that ends up reshaping the bass
+     note's own waveform rather than just riding its overall level,
+     and a waveshaper distorts whatever shape reaches it regardless
+     of frequency. Both read as an audible buzz/rattle riding the
+     bass specifically, which is exactly what large-PA/subwoofer
+     playback makes obvious. Splitting the spectrum here means only
+     mid/high content (short enough cycles that this isn't an issue)
+     goes through that processing; the low end goes straight to the
+     final limiter untouched. */
+  masterLowBandFilter = ctx.createBiquadFilter();
+  masterLowBandFilter.type = 'lowpass';
+  masterLowBandFilter.frequency.value = 150;
+  masterLowBandFilter.Q.value = 0.7071;
+
+  masterHighBandFilter = ctx.createBiquadFilter();
+  masterHighBandFilter.type = 'highpass';
+  masterHighBandFilter.frequency.value = 150;
+  masterHighBandFilter.Q.value = 0.7071;
+
+  /* The parametric EQ can stack multiple boosted bands (Body, Air,
+     a resonant cut) with nothing else limiting how loud that gets —
+     a few generous boosts overlapping is easily enough to push the
+     signal past 0dBFS, and the audible result of that isn't a clean
+     "loud", it's a harsh crackling/rattling distortion that has
+     nothing to do with the device's processing power. A limiter
+     here catches exactly that, transparently, without the person
+     needing to manage gain staging themselves while dragging dots
+     around a curve. Attack is deliberately not ultra-fast (it was
+     1ms) — for the same reason as the crossover above, an attack
+     faster than a bass note's own cycle distorts that cycle's shape
+     instead of just catching the note's overall peak; 6ms still
+     catches sustained overs quickly without chasing individual bass
+     wave cycles. */
+  masterLimiterNode = ctx.createDynamicsCompressor();
+  masterLimiterNode.threshold.value = -1;
+  masterLimiterNode.knee.value = 0;
+  masterLimiterNode.ratio.value = 20;
+  masterLimiterNode.attack.value = 0.006;
+  masterLimiterNode.release.value = 0.1;
+
+  masterOutGain.connect(masterLowBandFilter);
+  masterOutGain.connect(masterHighBandFilter);
+
+  masterLowBandFilter.connect(masterLimiterNode);
+
+  masterHighBandFilter.connect(glueCompressorNode);
+  glueCompressorNode.connect(saturationShaperNode);
+  saturationShaperNode.connect(masterLimiterNode);
+
+  masterLimiterNode.connect(ctx.destination);
+
+  /* The sub layer gets its own bus straight to the speakers —
+     deliberately NOT routed through Cutoff/High Pass or the reverb
+     send. Those filters are tuned to this pad content's own range
+     (100Hz and up), so a true sub tone would get gutted if it had
+     to pass through them. Reverb is skipped too — reverberating
+     sub-bass usually just reads as mud, not space. */
+  subBus = ctx.createGain();
+  subBus.gain.value = 1;
+  subBus.connect(masterOutGain);
+
+  /* Real pass filters rather than shelf/peak gain — Cutoff is a
+     lowpass (starts wide open so it's a no-op by default, pull it
+     down to shave off highs and go bassy/dark). High Pass is a
+     highpass (starts at the bottom, no-op by default, push it up
+     to shave off lows and go thin/airy).
+
+     Both are TWO cascaded biquad stages (24dB/octave combined)
+     instead of one (12dB/octave). A single stage is a gentle tilt —
+     plenty of high content survives a "closed" lowpass, especially
+     on pads with real shimmer in them. Two stages in series is the
+     classic analog-synth-filter slope and actually reads as the
+     tone closing rather than just dimming. */
+
+  eqLowNode = ctx.createBiquadFilter();
+  eqLowNode.type = 'lowpass';
+  eqLowNode.frequency.value = EQ_LOW_MAX_FREQ;
+  eqLowNode.Q.value = 0.7071; // Butterworth — flat, no resonant peak at cutoff
+
+  eqLowNode2 = ctx.createBiquadFilter();
+  eqLowNode2.type = 'lowpass';
+  eqLowNode2.frequency.value = EQ_LOW_MAX_FREQ;
+  eqLowNode2.Q.value = 0.7071;
+
+  eqHighNode = ctx.createBiquadFilter();
+  eqHighNode.type = 'highpass';
+  eqHighNode.frequency.value = EQ_HIGH_MIN_FREQ;
+  eqHighNode.Q.value = 0.7071;
+
+  eqHighNode2 = ctx.createBiquadFilter();
+  eqHighNode2.type = 'highpass';
+  eqHighNode2.frequency.value = EQ_HIGH_MIN_FREQ;
+  eqHighNode2.Q.value = 0.7071;
+
+  /* Two single-stage peaking (bell) bands for the parametric EQ
+     screen — unlike the cut filters above these carry real gain,
+     so they stay single-stage rather than cascaded. Both start at
+     0dB (flat/no-op) so the default sound is unchanged from before
+     this screen existed; they only do anything once a band's dot
+     gets dragged off the centerline. */
+  eqPeakLowNode = ctx.createBiquadFilter();
+  eqPeakLowNode.type = 'peaking';
+  eqPeakLowNode.frequency.value = 400;
+  eqPeakLowNode.Q.value = 1;
+  eqPeakLowNode.gain.value = 0;
+
+  eqPeakHighNode = ctx.createBiquadFilter();
+  eqPeakHighNode.type = 'peaking';
+  eqPeakHighNode.frequency.value = 6000;
+  eqPeakHighNode.Q.value = 1;
+  eqPeakHighNode.gain.value = 0;
+
+  dryGainNode = ctx.createGain();
+  dryGainNode.gain.value = 1;
+
+  reverbConvolver = ctx.createConvolver();
+  reverbConvolver.normalize = true;
+  reverbConvolver.buffer = buildReverbImpulseResponse(ctx, currentReverbSpace);
+
+  reverbWetGainNode = ctx.createGain();
+  reverbWetGainNode.gain.value = 0.32;
+
+  /* Stereo chorus/width: two short delay lines, each with its own
+     slow LFO modulating delayTime (different rates so the two
+     never lock into a repeating pattern), panned apart hard left/
+     right. Blended in fairly low — the point is sustained pads
+     feeling wide and gently alive instead of static and dead-
+     center, not an obvious "chorus effect" sweep. */
+  chorusInputGain = ctx.createGain();
+  chorusInputGain.gain.value = 1;
+
+  chorusDelayL = ctx.createDelay(0.05);
+  chorusDelayL.delayTime.value = 0.018;
+  chorusDelayR = ctx.createDelay(0.05);
+  chorusDelayR.delayTime.value = 0.023;
+
+  chorusLfoL = ctx.createOscillator();
+  chorusLfoL.type = 'sine';
+  chorusLfoL.frequency.value = 0.13;
+  chorusLfoDepthL = ctx.createGain();
+  chorusLfoDepthL.gain.value = 0.004;
+  chorusLfoL.connect(chorusLfoDepthL);
+  chorusLfoDepthL.connect(chorusDelayL.delayTime);
+  chorusLfoL.start();
+
+  chorusLfoR = ctx.createOscillator();
+  chorusLfoR.type = 'sine';
+  chorusLfoR.frequency.value = 0.17;
+  chorusLfoDepthR = ctx.createGain();
+  chorusLfoDepthR.gain.value = 0.004;
+  chorusLfoR.connect(chorusLfoDepthR);
+  chorusLfoDepthR.connect(chorusDelayR.delayTime);
+  chorusLfoR.start();
+
+  chorusPannerL = ctx.createStereoPanner();
+  chorusPannerL.pan.value = -0.7;
+  chorusPannerR = ctx.createStereoPanner();
+  chorusPannerR.pan.value = 0.7;
+
+  chorusWetGain = ctx.createGain();
+  chorusWetGain.gain.value = 0.22;
+
+  chorusInputGain.connect(chorusDelayL);
+  chorusInputGain.connect(chorusDelayR);
+  chorusDelayL.connect(chorusPannerL);
+  chorusDelayR.connect(chorusPannerR);
+  chorusPannerL.connect(chorusWetGain);
+  chorusPannerR.connect(chorusWetGain);
+  chorusWetGain.connect(masterOutGain);
+
+  mixBus.connect(eqLowNode);
+  eqLowNode.connect(eqLowNode2);
+  eqLowNode2.connect(eqHighNode);
+  eqHighNode.connect(eqHighNode2);
+  eqHighNode2.connect(eqPeakLowNode);
+  eqPeakLowNode.connect(eqPeakHighNode);
+
+  /* Dry path straight to the speakers... */
+  eqPeakHighNode.connect(dryGainNode);
+  dryGainNode.connect(masterOutGain);
+
+  /* ...a parallel wet path through the reverb send... */
+  eqPeakHighNode.connect(reverbConvolver);
+  reverbConvolver.connect(reverbWetGainNode);
+  reverbWetGainNode.connect(masterOutGain);
+
+  /* ...and a third parallel path through the chorus/width send. */
+  eqPeakHighNode.connect(chorusInputGain);
+
+  setupMasterMeter(ctx);
+
+}
+
+function setupMasterMeter(ctx){
+
+  meterAnalyser = ctx.createAnalyser();
+  /* 2048 (rather than the 512 the level meter alone would need)
+     gives the EQ screen's spectrum view enough frequency bins to
+     read as a real spectrum instead of a handful of blocky steps. */
+  meterAnalyser.fftSize = 2048;
+  meterAnalyser.smoothingTimeConstant = 0.6;
+
+  meterDataArray = new Float32Array(meterAnalyser.fftSize);
+  eqFreqByteData = new Uint8Array(meterAnalyser.frequencyBinCount);
+
+  masterLimiterNode.connect(meterAnalyser);
+
+  updateMeter();
+
+}
+
+function updateMeter(){
+
+  requestAnimationFrame(updateMeter);
+
+  if(!meterAnalyser)return;
+
+  meterAnalyser.getFloatTimeDomainData(meterDataArray);
+
+  let sumSquares = 0;
+
+  for(let i = 0; i < meterDataArray.length; i++){
+    sumSquares += meterDataArray[i] * meterDataArray[i];
+  }
+
+  const rms =
+    Math.sqrt(sumSquares / meterDataArray.length);
+
+  const db =
+    rms > 0 ? 20 * Math.log10(rms) : -Infinity;
+
+  renderLiveDb(db);
+
+}
+
+function renderLiveDb(db){
+
+  const isAudible =
+    db > METER_FLOOR_DB;
+
+  const text =
+    isAudible ? db.toFixed(1) + ' dB' : '\u2212\u221e dB';
+
+  ['liveVolumeDb', 'masterVolumeDb'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el)el.textContent = text;
+  });
+
+  const percent =
+    isAudible ? Math.max(0, Math.min(100, ((db - METER_FLOOR_DB) / -METER_FLOOR_DB) * 100)) : 0;
+
+  const fillEl =
+    document.getElementById('volumeSliderFill');
+
+  if(fillEl)fillEl.style.width = percent + '%';
+
+}
+
+function ensureAudioGraph(){
+  if(!audioCtx){
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const options = { latencyHint: preferredLatencyHint };
+    if(preferredSampleRate !== 'auto')options.sampleRate = parseInt(preferredSampleRate, 10);
+
+    try{
+      audioCtx = new AudioContextClass(options);
+    }catch(err){
+      // A requested sample rate the hardware won't do throws rather
+      // than silently coercing on some browsers — fall back to
+      // whatever the device wants rather than failing to start.
+      audioCtx = new AudioContextClass({ latencyHint: preferredLatencyHint });
+    }
+
+    setupMixBus(audioCtx);
+
+  }
+  return audioCtx;
+}
+
+function getAudioCtx(){
+  const ctx = ensureAudioGraph();
+  if(ctx.state === 'suspended'){
+    ctx.resume();
+  }
+  return ctx;
+}
+
+function setReverbSpace(presetKey){
+
+  if(!REVERB_SPACE_PRESETS[presetKey])return;
+
+  currentReverbSpace = presetKey;
+
+  // Live-swappable: reassigning a ConvolverNode's buffer works at
+  // any time, including mid-playback (a real reverb hardware unit
+  // can't do this instantly, but there's no such constraint here).
+  if(audioCtx && reverbConvolver){
+    reverbConvolver.buffer = buildReverbImpulseResponse(audioCtx, presetKey);
+  }
+
+  try{ localStorage.setItem('padsEqReverbSpace', presetKey); }catch(err){}
+
+}
+
+/* Sample rate and buffer/latency only take effect the next time the
+   AudioContext is constructed from cold. This page always builds
+   that context immediately at load (see the ensureAudioGraph() call
+   at the bottom of this script) so the EQ screen's filter nodes
+   exist to wire up — which means by the time anyone could open this
+   menu, the engine has already started with whatever the saved
+   preference was. So rather than a disabled state nobody would ever
+   see turned on, this is just an honest, permanent note: changing
+   either select still saves the new preference, it just won't be
+   heard until the next full page load. */
+function updateAudioEngineLockState(){
+
+  const note = document.getElementById('audioEngineLockNote');
+  if(!note)return;
+
+  const ctx = audioCtx || ensureAudioGraph(); // never resumes — just reads/creates the graph
+
+  note.textContent =
+    'Currently running at ' + Math.round(ctx.sampleRate) +
+    'Hz. Sample rate and buffer/latency changes take effect next time you reload this page.';
+  note.classList.add('show');
+
+}
+
+/* Best-effort output-device picker. Routing audio to a specific
+   output device from a web page is genuinely limited: it needs
+   AudioContext.setSinkId, which several browsers (notably Safari,
+   as of this writing) don't implement at all — in those cases this
+   quietly leaves the static "Automatic (system)" label in place
+   rather than showing a picker that wouldn't do anything. */
+function setupAudioOutputRow(){
+
+  const staticValue = document.getElementById('audioOutputValue');
+  const select = document.getElementById('audioOutputSelect');
+
+  const supportsSinkId =
+    typeof AudioContext !== 'undefined' && 'setSinkId' in AudioContext.prototype;
+
+  if(!supportsSinkId || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices){
+    return; // static label stays as-is
+  }
+
+  navigator.mediaDevices.enumerateDevices()
+    .then((devices) => {
+
+      const outputs = devices.filter((d) => d.kind === 'audiooutput');
+
+      if(!outputs.length)return;
+
+      select.innerHTML = '';
+
+      outputs.forEach((device, i) => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.textContent = device.label || ('Output ' + (i + 1));
+        select.appendChild(option);
+      });
+
+      staticValue.style.display = 'none';
+      select.style.display = '';
+
+      select.onchange = () => {
+        const ctx = getAudioCtx();
+        if(ctx.setSinkId)ctx.setSinkId(select.value).catch(() => {});
+      };
+
+    })
+    .catch(() => {}); // leave the static label in place
+
+}
+
+function initAudioEngineSettings(){
+
+  const reverbSelect = document.getElementById('reverbSpaceSelect');
+  const sampleRateSelect = document.getElementById('sampleRateSelect');
+  const latencySelect = document.getElementById('latencySelect');
+
+  if(reverbSelect){
+    reverbSelect.value = currentReverbSpace;
+    reverbSelect.onchange = () => setReverbSpace(reverbSelect.value);
+  }
+
+  if(sampleRateSelect){
+    sampleRateSelect.value = preferredSampleRate;
+    sampleRateSelect.onchange = () => {
+      preferredSampleRate = sampleRateSelect.value;
+      try{ localStorage.setItem('padsEqSampleRate', preferredSampleRate); }catch(err){}
+    };
+  }
+
+  if(latencySelect){
+    latencySelect.value = preferredLatencyHint;
+    latencySelect.onchange = () => {
+      preferredLatencyHint = latencySelect.value;
+      try{ localStorage.setItem('padsEqLatencyHint', preferredLatencyHint); }catch(err){}
+    };
+  }
+
+  updateAudioEngineLockState();
+  setupAudioOutputRow();
+
+}
+
+function cleanNameFromFile(fileName){
+
+  return fileName
+    .replace(/\.[^/.]+$/, '')
+    .replace(/[_-]+/g, ' ')
+    .trim();
+
+}
+
+function setVolumeThumb(fraction){
+
+  const thumb =
+    document.getElementById('volumeSliderThumb');
+
+  if(thumb)thumb.style.left = (fraction * 100) + '%';
+
+}
+
+function parseRootNoteFromName(fileName){
+
+  const stem =
+    fileName.replace(/\.[^/.]+$/, '');
+
+  const firstToken =
+    stem.split(/[_\-\s]+/)[0] || '';
+
+  const match =
+    firstToken.match(/^([A-Ga-g])(#|b)?$/);
+
+  if(!match)return null;
+
+  const letter =
+    match[1].toUpperCase();
+
+  const accidental =
+    match[2] || '';
+
+  const noteName =
+    letter + accidental;
+
+  return NOTE_SEMITONES.hasOwnProperty(noteName) ? noteName : null;
+
+}
+
+function noteNameToFrequency(noteName, octave){
+
+  // A4 = 440Hz is the reference; A sits 9 semitones above C.
+  const semitoneFromA =
+    NOTE_SEMITONES[noteName] - NOTE_SEMITONES.A;
+
+  const semitonesFromA4 =
+    semitoneFromA + (octave - 4) * 12;
+
+  return 440 * Math.pow(2, semitonesFromA4 / 12);
+
+}
+
+/*
+  Minimal SoundFont (SF2) reader.
+
+  An .sf2 file is a RIFF container: a "sfbk" file made of INFO,
+  sdta (raw PCM sample data, all samples back to back) and pdta
+  (a set of fixed-width record tables — presets, instruments,
+  samples, and the "generator" lists that link them and describe
+  pitch/loop/pan/envelope). This only implements enough of the
+  spec to pull one playable note out of each preset: it reads the
+  tables, skips modulators entirely, and ignores generators this
+  app has no use for (chorus/filter/etc). It does not decode
+  SF3's compressed (Ogg Vorbis) sample data — only plain PCM16
+  SoundFonts are supported.
+*/
+
+const SF2_GEN = {
+  instrument: 41, keyRange: 43, velRange: 44, sampleID: 53,
+  sampleModes: 54, coarseTune: 51, fineTune: 52,
+  overridingRootKey: 58, pan: 17,
+  attackVolEnv: 34, releaseVolEnv: 38
+};
+
+function parseSF2(arrayBuffer){
+
+  const view = new DataView(arrayBuffer);
+  const bytes = new Uint8Array(arrayBuffer);
+
+  function fourCC(offset){
+    let s = '';
+    for(let i = 0; i < 4; i++)s += String.fromCharCode(bytes[offset + i]);
+    return s;
+  }
+
+  function cString(offset, length){
+    let s = '';
+    for(let i = 0; i < length; i++){
+      const c = bytes[offset + i];
+      if(c === 0)break;
+      s += String.fromCharCode(c);
+    }
+    return s.trim();
+  }
+
+  function walkChunks(start, end){
+    const chunks = [];
+    let pos = start;
+    while(pos < end - 8){
+      const id = fourCC(pos);
+      const size = view.getUint32(pos + 4, true);
+      const bodyStart = pos + 8;
+      chunks.push({ id, size, bodyStart });
+      pos = bodyStart + size + (size % 2);
+    }
+    return chunks;
+  }
+
+  if(fourCC(0) !== 'RIFF' || fourCC(8) !== 'sfbk'){
+    throw new Error('not a SoundFont (.sf2) file');
+  }
+
+  const fileEnd = 8 + view.getUint32(4, true);
+  const top = walkChunks(12, fileEnd);
+
+  let sdtaChunk = null;
+  let pdtaChunk = null;
+
+  top.forEach(chunk => {
+    if(chunk.id !== 'LIST')return;
+    const listType = fourCC(chunk.bodyStart);
+    if(listType === 'sdta')sdtaChunk = chunk;
+    if(listType === 'pdta')pdtaChunk = chunk;
+  });
+
+  if(!sdtaChunk || !pdtaChunk){
+    throw new Error('missing sample or preset data');
+  }
+
+  const smplChunk =
+    walkChunks(sdtaChunk.bodyStart + 4, sdtaChunk.bodyStart + sdtaChunk.size)
+      .find(chunk => chunk.id === 'smpl');
+
+  if(!smplChunk){
+    throw new Error('no PCM sample data (SF3/compressed SoundFonts aren\u2019t supported)');
+  }
+
+  const pdtaMap = {};
+  walkChunks(pdtaChunk.bodyStart + 4, pdtaChunk.bodyStart + pdtaChunk.size)
+    .forEach(chunk => { pdtaMap[chunk.id] = chunk; });
+
+  function need(id){
+    if(!pdtaMap[id])throw new Error('malformed SoundFont, missing "' + id + '"');
+    return pdtaMap[id];
+  }
+
+  function parseRecords(chunk, recordSize, readOne){
+    const n = chunk.size / recordSize;
+    const list = [];
+    for(let i = 0; i < n; i++)list.push(readOne(chunk.bodyStart + i * recordSize));
+    return list;
+  }
+
+  const phdr = parseRecords(need('phdr'), 38, o => ({
+    name: cString(o, 20),
+    bagNdx: view.getUint16(o + 24, true)
+  }));
+
+  const pbag = parseRecords(need('pbag'), 4, o => view.getUint16(o, true));
+  const pgen = parseRecords(need('pgen'), 4, o => ({
+    oper: view.getUint16(o, true),
+    amount: view.getInt16(o + 2, true),
+    lo: bytes[o + 2],
+    hi: bytes[o + 3]
+  }));
+
+  const inst = parseRecords(need('inst'), 22, o => ({
+    name: cString(o, 20),
+    bagNdx: view.getUint16(o + 20, true)
+  }));
+
+  const ibag = parseRecords(need('ibag'), 4, o => view.getUint16(o, true));
+  const igen = parseRecords(need('igen'), 4, o => ({
+    oper: view.getUint16(o, true),
+    amount: view.getInt16(o + 2, true),
+    lo: bytes[o + 2],
+    hi: bytes[o + 3]
+  }));
+
+  const shdr = parseRecords(need('shdr'), 46, o => ({
+    name: cString(o, 20),
+    start: view.getUint32(o + 20, true),
+    end: view.getUint32(o + 24, true),
+    startLoop: view.getUint32(o + 28, true),
+    endLoop: view.getUint32(o + 32, true),
+    sampleRate: view.getUint32(o + 36, true),
+    origPitch: bytes[o + 40],
+    pitchCorrection: view.getInt8(o + 41),
+    sampleType: view.getUint16(o + 44, true)
+  }));
+
+  function zoneGens(genList, startIdx, endIdx){
+    const map = {};
+    for(let i = startIdx; i < endIdx; i++)map[genList[i].oper] = genList[i];
+    return map;
+  }
+
+  function genOrDefault(gens, globalGens, key, fallback){
+    if(gens[key] !== undefined)return gens[key].amount;
+    if(globalGens && globalGens[key] !== undefined)return globalGens[key].amount;
+    return fallback;
+  }
+
+  // Real presets/instruments are every record but the last — the
+  // spec always terminates each table with an empty "EOP"/"EOI" one.
+  const presets = [];
+
+  for(let p = 0; p < phdr.length - 1; p++){
+
+    const zones = [];
+
+    for(let z = phdr[p].bagNdx; z < phdr[p + 1].bagNdx; z++){
+
+      const gens = zoneGens(pgen, pbag[z], pbag[z + 1]);
+
+      if(gens[SF2_GEN.instrument] === undefined)continue; // global zone — not merged, kept simple
+
+      zones.push({ gens, instrumentIdx: gens[SF2_GEN.instrument].amount });
+
+    }
+
+    presets.push({ name: phdr[p].name, zones });
+
+  }
+
+  function getInstrumentZones(instrumentIdx){
+
+    const zones = [];
+    let globalGens = null;
+
+    for(let z = inst[instrumentIdx].bagNdx; z < inst[instrumentIdx + 1].bagNdx; z++){
+
+      const gens = zoneGens(igen, ibag[z], ibag[z + 1]);
+
+      if(gens[SF2_GEN.sampleID] === undefined){
+        globalGens = gens;
+        continue;
+      }
+
+      zones.push(gens);
+
+    }
+
+    return { zones, globalGens };
+
+  }
+
+  function zoneCoversNote(gens, note){
+    const kr = gens[SF2_GEN.keyRange];
+    return !kr || (note >= kr.lo && note <= kr.hi);
+  }
+
+  function timecentsToMs(tc){
+    return Math.pow(2, tc / 1200) * 1000;
+  }
+
+  function getAllInstrumentZones(preset){
+
+    const collected = [];
+
+    preset.zones.forEach(pz => {
+
+      const { zones: instZones, globalGens } = getInstrumentZones(pz.instrumentIdx);
+
+      instZones.forEach(gens => collected.push({ gens, globalGens }));
+
+    });
+
+    return collected;
+
+  }
+
+  function effectiveRootKey(gens, globalGens){
+
+    const sampleIdx = genOrDefault(gens, globalGens, SF2_GEN.sampleID, null);
+    const sample = sampleIdx !== null ? shdr[sampleIdx] : null;
+
+    if(!sample)return null;
+
+    const overridingRootKey = genOrDefault(gens, globalGens, SF2_GEN.overridingRootKey, -1);
+
+    return overridingRootKey >= 0 ? overridingRootKey : sample.origPitch;
+
+  }
+
+  function buildLayerFromZone(gens, globalGens, targetNote){
+
+    const sampleIdx = genOrDefault(gens, globalGens, SF2_GEN.sampleID, null);
+    const sample = sampleIdx !== null ? shdr[sampleIdx] : null;
+
+    if(!sample || sample.end <= sample.start)return null;
+
+    const rootKey = effectiveRootKey(gens, globalGens);
+    const coarseTune = genOrDefault(gens, globalGens, SF2_GEN.coarseTune, 0);
+    const fineTune = genOrDefault(gens, globalGens, SF2_GEN.fineTune, 0);
+    const panGen = genOrDefault(gens, globalGens, SF2_GEN.pan, 0);
+    const sampleModes = genOrDefault(gens, globalGens, SF2_GEN.sampleModes, 0);
+
+    const cents =
+      (targetNote - rootKey) * 100 + coarseTune * 100 + fineTune + sample.pitchCorrection;
+
+    const byteOffset = smplChunk.bodyStart + sample.start * 2;
+    const byteLength = (sample.end - sample.start) * 2;
+
+    // Copy just this sample's slice out (rather than a raw view over
+    // the file's buffer) so the multi-megabyte original can be
+    // garbage-collected once every preset/note has been read.
+    const pcm = new Int16Array(arrayBuffer.slice(byteOffset, byteOffset + byteLength));
+
+    return {
+      pcm,
+      sampleRate: sample.sampleRate,
+      playbackRate: Math.pow(2, cents / 1200),
+      pan: Math.max(-1, Math.min(1, panGen / 500)),
+      loop: sampleModes === 1 || sampleModes === 3,
+      loopStart: (sample.startLoop - sample.start) / sample.sampleRate,
+      loopEnd: (sample.endLoop - sample.start) / sample.sampleRate,
+      attackTc: genOrDefault(gens, globalGens, SF2_GEN.attackVolEnv, -12000),
+      releaseTc: genOrDefault(gens, globalGens, SF2_GEN.releaseVolEnv, -12000)
+    };
+
+  }
+
+  function buildPadSourcesForPreset(preset, targetNote){
+
+    const allZones = getAllInstrumentZones(preset);
+
+    let candidates = allZones.filter(z => zoneCoversNote(z.gens, targetNote));
+
+    if(!candidates.length){
+
+      // This note isn't mapped to anything (common once you ask for a
+      // full chromatic run out of an instrument that's only sampled
+      // every few semitones) — fall back to whichever sample the
+      // SoundFont maps closest, and pitch-shift it the rest of the
+      // way to targetNote instead of just leaving the note silent.
+      let bestRoot = null;
+      let bestDist = Infinity;
+
+      allZones.forEach(z => {
+
+        const root = effectiveRootKey(z.gens, z.globalGens);
+
+        if(root === null)return;
+
+        const dist = Math.abs(root - targetNote);
+
+        if(dist < bestDist){
+          bestDist = dist;
+          bestRoot = root;
+        }
+
+      });
+
+      if(bestRoot !== null){
+        candidates = allZones.filter(z => effectiveRootKey(z.gens, z.globalGens) === bestRoot);
+      }
+
+    }
+
+    const layers = [];
+    let attackTc, releaseTc;
+
+    candidates.forEach(z => {
+
+      const layer = buildLayerFromZone(z.gens, z.globalGens, targetNote);
+
+      if(!layer)return;
+
+      attackTc = attackTc === undefined ? layer.attackTc : Math.max(attackTc, layer.attackTc);
+      releaseTc = releaseTc === undefined ? layer.releaseTc : Math.max(releaseTc, layer.releaseTc);
+
+      layers.push(layer);
+
+    });
+
+    return {
+      layers,
+      attackMs: Math.max(20, Math.min(4000, timecentsToMs(attackTc === undefined ? -12000 : attackTc))),
+      releaseMs: Math.max(200, Math.min(6000, timecentsToMs(releaseTc === undefined ? -12000 : releaseTc)))
+    };
+
+  }
+
+  return { presets, buildPadSourcesForPreset };
+
+}
+
+function pcm16ToAudioBuffer(ctx, pcm, sampleRate){
+
+  const buffer = ctx.createBuffer(1, pcm.length, sampleRate);
+  const channel = buffer.getChannelData(0);
+
+  for(let i = 0; i < pcm.length; i++)channel[i] = pcm[i] / 32768;
+
+  return buffer;
+
+}
+
+function padIconSvg(){
+  return `
+    <svg viewBox="0 0 24 24">
+      <path d="M4 12c1.5-4 3-6 4.5-6s3 8 4.5 8 3-8 4.5-8 3 2 4.5 6"/>
+    </svg>
+  `;
+}
+
+function renderPads(){
+
+  const grid =
+    document.getElementById('padGrid');
+
+  const emptyState =
+    document.getElementById('emptyState');
+
+  emptyState.style.display =
+    pads.length ? 'none' : 'block';
+
+  grid.innerHTML =
+    pads.map(pad => `
+
+      <div
+        class="pad ${pad.state === 'playing' ? 'playing' : ''} ${pad.state === 'loading' ? 'loading' : ''}"
+        data-pad-id="${pad.id}"
+      >
+
+        <div class="padIcon">${padIconSvg()}</div>
+
+        <div class="padName">${escapeHtml(pad.name)}</div>
+
+        <div class="padBars">
+          <span></span><span></span><span></span><span></span>
+        </div>
+
+      </div>
+
+    `).join('');
+
+  grid.querySelectorAll('[data-pad-id]').forEach(el => {
+
+    el.onclick = () => {
+      togglePad(el.dataset.padId);
+    };
+
+  });
+
+}
+
+function escapeHtml(text){
+
+  const div =
+    document.createElement('div');
+
+  div.textContent = text;
+
+  return div.innerHTML;
+
+}
+
+function ensurePadAudio(pad){
+
+  if(pad.audioReady)return;
+
+  const ctx =
+    getAudioCtx();
+
+  const gainNode =
+    ctx.createGain();
+
+  gainNode.gain.value = 0;
+
+  gainNode.connect(mixBus);
+
+  pad.gainNode = gainNode;
+
+  if(pad.type === 'sf2'){
+
+    // AudioBufferSourceNodes are one-shot (can't be restarted), so
+    // there's nothing more persistent to build here — startPad
+    // creates fresh ones from pad.sf2Layers on every play.
+
+  }else{
+
+    const audio =
+      new Audio(pad.url);
+
+    audio.loop = true;
+    audio.preload = 'auto';
+
+    const sourceNode =
+      ctx.createMediaElementSource(audio);
+
+    sourceNode.connect(gainNode);
+
+    pad.audio = audio;
+    pad.sourceNode = sourceNode;
+
+  }
+
+  pad.audioReady = true;
+
+  const rootNote =
+    pad.rootNoteName || parseRootNoteFromName(pad.file.name);
+
+  if(rootNote){
+
+    pad.rootFreq =
+      noteNameToFrequency(rootNote, SUB_OCTAVE);
+
+    const subOsc =
+      ctx.createOscillator();
+
+    subOsc.type = 'sine';
+    subOsc.frequency.value = pad.rootFreq;
+
+    const subGainNode =
+      ctx.createGain();
+
+    subGainNode.gain.value = 0;
+
+    subOsc.connect(subGainNode);
+    subGainNode.connect(subBus);
+    subOsc.start();
+
+    pad.subOsc = subOsc;
+    pad.subGainNode = subGainNode;
+
+  }
+
+}
+
+function fadeGain(pad, targetValue, ms){
+
+  const ctx =
+    getAudioCtx();
+
+  const now =
+    ctx.currentTime;
+
+  /* setTargetAtTime is an exponential approach toward the target
+     rather than a constant-slope line — it starts fast and eases
+     into the target, which is much closer to how a real swell or
+     natural decay actually sounds than a linear ramp's uniform
+     rate of change reads. The time constant is tuned so the curve
+     is subjectively "there" at roughly the same perceived duration
+     the old linear ramp's `ms` gave it (about 3.5 time constants
+     in, the value is ~97% of the way to target). */
+  const timeConstant = ms / 1000 / 3.5;
+
+  pad.gainNode.gain.cancelScheduledValues(now);
+  pad.gainNode.gain.setValueAtTime(pad.gainNode.gain.value, now);
+  pad.gainNode.gain.setTargetAtTime(targetValue, now, timeConstant);
+
+  if(pad.subGainNode){
+
+    // Tracks the pad's own fade/volume, scaled by the Sub level
+    // and a fixed ceiling so a full-amplitude sine can't clip/
+    // overpower the mix even at max Sub.
+    const subTarget =
+      targetValue * subVolume * SUB_LEVEL_SCALE;
+
+    pad.subGainNode.gain.cancelScheduledValues(now);
+    pad.subGainNode.gain.setValueAtTime(pad.subGainNode.gain.value, now);
+    pad.subGainNode.gain.setTargetAtTime(subTarget, now, timeConstant);
+
+  }
+
+}
+
+function startSf2Sources(pad){
+
+  const ctx =
+    getAudioCtx();
+
+  pad.activeSourceNodes = [];
+
+  pad.sf2Layers.forEach(layer => {
+
+    const source =
+      ctx.createBufferSource();
+
+    source.buffer = layer.buffer;
+    source.playbackRate.value = layer.playbackRate;
+
+    if(layer.loop){
+      source.loop = true;
+      source.loopStart = layer.loopStart;
+      source.loopEnd = layer.loopEnd;
+    }
+
+    if(layer.pan !== 0){
+
+      const panner =
+        ctx.createStereoPanner();
+
+      panner.pan.value = layer.pan;
+
+      source.connect(panner);
+      panner.connect(pad.gainNode);
+
+    }else{
+
+      source.connect(pad.gainNode);
+
+    }
+
+    source.start();
+
+    pad.activeSourceNodes.push(source);
+
+  });
+
+}
+
+function stopSf2Sources(pad){
+
+  (pad.activeSourceNodes || []).forEach(source => {
+    try{ source.stop(); }catch(err){}
+  });
+
+  pad.activeSourceNodes = [];
+
+}
+
+function startPad(pad){
+
+  ensurePadAudio(pad);
+
+  if(exclusiveMode){
+
+    pads
+      .filter(other => other.id !== pad.id && (other.state === 'playing' || other.state === 'fading'))
+      .forEach(other => stopPad(other));
+
+  }
+
+  pad.state = 'playing';
+
+  if(pad.type === 'sf2'){
+    startSf2Sources(pad);
+  }else{
+    pad.audio.currentTime = 0;
+    pad.audio.play().catch(() => {});
+  }
+
+  fadeGain(pad, masterVolume, pad.attackMs || FADE_MS);
+
+  renderPads();
+
+}
+
+function stopPad(pad){
+
+  if(!pad.audioReady)return;
+
+  pad.state = 'fading';
+
+  renderPads();
+
+  const fadeOutMs =
+    pad.releaseMs || FADE_MS;
+
+  fadeGain(pad, 0, fadeOutMs);
+
+  setTimeout(() => {
+
+    if(pad.state !== 'fading')return;
+
+    if(pad.type === 'sf2'){
+      stopSf2Sources(pad);
+    }else{
+      pad.audio.pause();
+    }
+
+    pad.state = 'stopped';
+
+    renderPads();
+
+  }, fadeOutMs + 40);
+
+}
+
+function togglePad(id){
+
+  const pad =
+    pads.find(item => item.id === id);
+
+  if(!pad)return;
+
+  if(pad.state === 'playing' || pad.state === 'fading'){
+    stopPad(pad);
+  }else{
+    startPad(pad);
+  }
+
+}
+
+function stopAllPads(){
+
+  pads
+    .filter(pad => pad.state === 'playing' || pad.state === 'fading')
+    .forEach(pad => stopPad(pad));
+
+}
+
+function handleFiles(fileList){
+
+  const files = [...fileList];
+
+  const sf2Files =
+    files.filter(file => /\.sf2$/i.test(file.name));
+
+  const audioFiles =
+    files.filter(file => !/\.sf2$/i.test(file.name) && file.type && file.type.startsWith('audio/'));
+
+  audioFiles.forEach(file => {
+
+    const newPad = {
+      id: 'pad_' + Math.random().toString(36).slice(2, 10),
+      name: cleanNameFromFile(file.name),
+      type: 'sample',
+      file,
+      url: URL.createObjectURL(file),
+      audio: null,
+      sourceNode: null,
+      gainNode: null,
+      audioReady: false,
+      state: 'stopped'
+    };
+
+    pads.push(newPad);
+
+    // Best-effort and async — the EQ screen's axis just keeps
+    // whatever range it already had until/unless this resolves.
+    eqAnalyzeNewSamplePad(newPad, file);
+
+  });
+
+  if(audioFiles.length)renderPads();
+
+  if(sf2Files.length === 1){
+
+    loadSf2File(sf2Files[0]);
+
+  }else if(sf2Files.length > 1){
+
+    // Loading a SoundFont replaces whatever SoundFont's pads are
+    // currently loaded (there's only ever one active at a time), so
+    // calling loadSf2File in a loop here would just silently leave
+    // the LAST one loaded with no indication anything else was ever
+    // picked. Let the person choose instead.
+    openSoundPicker(sf2Files);
+
+  }
+
+}
+
+let sf2LoadToken = 0;
+
+function removeCurrentSf2Pads(){
+
+  /* Only one SoundFont "instrument" is meant to be loaded at a
+     time — picking a new one swaps it in, the same way you'd
+     switch patches on a synth rather than stacking every patch
+     you've ever tried. A stray "loading" placeholder from a load
+     that's still in flight gets swept up too, since it can only
+     belong to a SoundFont load and would otherwise finish later
+     and add its pads on top of whatever was picked after it. */
+  const toRemove =
+    pads.filter(pad => pad.type === 'sf2' || pad.state === 'loading');
+
+  if(!toRemove.length)return;
+
+  const now =
+    audioCtx ? audioCtx.currentTime : 0;
+
+  toRemove.forEach(pad => {
+
+    if(pad.type !== 'sf2')return; // just a loading placeholder — nothing audio-side to clean up
+
+    if(pad.gainNode){
+      try{
+        pad.gainNode.gain.cancelScheduledValues(now);
+        pad.gainNode.gain.value = 0;
+      }catch(err){}
+    }
+
+    stopSf2Sources(pad); // safe even if the pad was never started
+
+    if(pad.subOsc){
+      try{ pad.subOsc.stop(); }catch(err){}
+    }
+
+  });
+
+  pads = pads.filter(pad => pad.type !== 'sf2' && pad.state !== 'loading');
+
+  renderPads();
+
+}
+
+function loadSf2File(file, options){
+
+  options = options || {};
+
+  removeCurrentSf2Pads();
+
+  const myLoadToken =
+    ++sf2LoadToken;
+
+  const loadingId =
+    'pad_' + Math.random().toString(36).slice(2, 10);
+
+  pads.push({
+    id: loadingId,
+    name: cleanNameFromFile(file.name),
+    state: 'loading'
+  });
+
+  renderPads();
+
+  const fail = (err) => {
+
+    if(myLoadToken !== sf2LoadToken)return; // superseded by a newer pick — that load already cleaned this up
+
+    pads = pads.filter(pad => pad.id !== loadingId);
+
+    renderPads();
+
+    alert('Couldn\u2019t read "' + file.name + '" as a SoundFont: ' + err.message);
+
+  };
+
+  file.arrayBuffer().then(buffer => {
+
+    // Another SoundFont was picked while this one was still being
+    // read — drop this result silently rather than racing it onto
+    // the pad grid after the pick that's actually supposed to win.
+    if(myLoadToken !== sf2LoadToken)return;
+
+    let soundFont;
+
+    try{
+      soundFont = parseSF2(buffer);
+    }catch(err){
+      fail(err);
+      return;
+    }
+
+    pads = pads.filter(pad => pad.id !== loadingId);
+
+    // Keep a personal on-device copy so this SoundFont can be
+    // reloaded later without the original file or folder being
+    // available at all — skipped when the file just came FROM the
+    // library, so re-loading a saved sound doesn't re-save itself.
+    if(!options.skipLibrarySave && supportsLocalLibrary){
+      saveSoundFontToLibrary(file).catch(() => {}); // best-effort; a failed save shouldn't block playing the sound
+    }
+
+    const ctx =
+      getAudioCtx();
+
+    soundFont.presets.forEach(preset => {
+
+      // One pad per chromatic key, Middle C through the B above it —
+      // the SoundFont's own generators (coarseTune/fineTune/root key)
+      // handle the actual pitch-shifting per note.
+      MIDI_NOTE_NAMES.forEach((noteName, i) => {
+
+        const targetNote = SF2_TARGET_NOTE + i;
+
+        const built =
+          soundFont.buildPadSourcesForPreset(preset, targetNote);
+
+        if(!built.layers.length)return; // nothing at all to source this note from
+
+        const sf2Layers =
+          built.layers.map(layer => ({
+            buffer: pcm16ToAudioBuffer(ctx, layer.pcm, layer.sampleRate),
+            pan: layer.pan,
+            playbackRate: layer.playbackRate,
+            loop: layer.loop,
+            loopStart: layer.loopStart,
+            loopEnd: layer.loopEnd
+          }));
+
+        pads.push({
+          id: 'pad_' + Math.random().toString(36).slice(2, 10),
+          name: (preset.name || cleanNameFromFile(file.name)) + ' - ' + noteName,
+          type: 'sf2',
+          sf2Layers,
+          attackMs: built.attackMs,
+          releaseMs: built.releaseMs,
+          rootNoteName: noteName,
+          gainNode: null,
+          audioReady: false,
+          state: 'stopped'
+        });
+
+      });
+
+    });
+
+    renderPads();
+
+  }).catch(fail);
+
+}
+
+function toggleMenu(open){
+
+  const panel =
+    document.getElementById('menuPanel');
+
+  const backdrop =
+    document.getElementById('menuBackdrop');
+
+  const isOpen =
+    open !== undefined ? open : !panel.classList.contains('open');
+
+  panel.classList.toggle('open', isOpen);
+  backdrop.classList.toggle('show', isOpen);
+
+  if(isOpen)updateAudioEngineLockState();
+
+}
+
+document.getElementById('menuBtn').onclick = (event) => {
+  event.stopPropagation();
+  toggleMenu();
+};
+
+document.getElementById('menuPanel').onclick = (event) => {
+  event.stopPropagation();
+};
+
+document.getElementById('menuBackdrop').onclick = () => {
+  toggleMenu(false);
+};
+
+/*
+  Remembering a SoundFont folder across visits.
+
+  A plain <input webkitdirectory> only ever hands back File objects
+  for whatever the person picked in that moment — there's no path
+  or handle in there worth saving, and no way to silently re-open
+  the same folder next time (browsers deliberately don't allow a
+  page to remember a filesystem location on its own). The File
+  System Access API's FileSystemDirectoryHandle is different: it's
+  a live, structured-cloneable reference to the folder itself, safe
+  to stash in IndexedDB (NOT localStorage — handles aren't strings
+  and don't survive JSON), and reusable on a later visit without
+  the person browsing to the folder again. Reusing it still needs
+  one explicit permission check each time the page loads (that part
+  isn't optional — it's what stops a saved handle from becoming
+  silent background access to your files) — if the browser already
+  remembers the grant, this succeeds with no prompt at all; if not,
+  the folder name is shown with a one-tap "reconnect" instead of
+  making the person re-browse to it.
+
+  Only Chromium-based browsers (desktop Chrome/Edge, and Chrome on
+  Android) implement this API. Everywhere else — Safari, Firefox —
+  "Load SoundFont folder" quietly falls back to the plain folder
+  input below, which works fine but can't remember the folder for
+  next time; that's a browser limitation, not something a web page
+  can work around.
+*/
+
+const SF2_DB_NAME = 'worship-pads-db';
+const SF2_DB_VERSION = 2; // v1 had just 'settings'; v2 adds the 'soundLibrary' store below
+const SF2_DB_STORE = 'settings';
+const SF2_FOLDER_KEY = 'sf2FolderHandle';
+const SF2_LIBRARY_STORE = 'soundLibrary';
+
+const supportsFolderMemory =
+  'showDirectoryPicker' in window && 'indexedDB' in window;
+
+const supportsLocalLibrary =
+  'indexedDB' in window; // works everywhere the folder-memory feature doesn't (Safari, Firefox included) — plain IndexedDB Blob storage, no special API
+
+let sf2FolderHandle = null;
+
+function openSf2Db(){
+
+  return new Promise((resolve, reject) => {
+
+    const request =
+      indexedDB.open(SF2_DB_NAME, SF2_DB_VERSION);
+
+    request.onupgradeneeded = () => {
+
+      const db = request.result;
+
+      if(!db.objectStoreNames.contains(SF2_DB_STORE)){
+        db.createObjectStore(SF2_DB_STORE);
+      }
+
+      if(!db.objectStoreNames.contains(SF2_LIBRARY_STORE)){
+        db.createObjectStore(SF2_LIBRARY_STORE, { keyPath: 'id' });
+      }
+
+    };
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+
+  });
+
+}
+
+async function saveSf2FolderHandle(handle){
+
+  const db =
+    await openSf2Db();
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SF2_DB_STORE, 'readwrite');
+    tx.objectStore(SF2_DB_STORE).put(handle, SF2_FOLDER_KEY);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+
+}
+
+async function loadSavedSf2FolderHandle(){
+
+  const db =
+    await openSf2Db();
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SF2_DB_STORE, 'readonly');
+    const req = tx.objectStore(SF2_DB_STORE).get(SF2_FOLDER_KEY);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+
+}
+
+/*
+  Personal, on-device sound library.
+
+  Separate concern from the folder-memory feature above: that one
+  remembers WHERE a folder is so the browser can re-read it later
+  (Chromium only, needs a permission re-grant, breaks if the folder
+  moves). This one just keeps an actual COPY of each SoundFont's
+  bytes as a Blob in IndexedDB the moment it's loaded — plain
+  IndexedDB Blob storage, no special API, works the same in Safari
+  and Firefox as it does in Chrome. Nothing here ever leaves the
+  device or syncs anywhere; it's local storage in the literal
+  sense, one person's copy on their own browser/device.
+
+  Keyed by "name:size" so loading the same file twice (say, once
+  from a folder scan and later again from a re-picked file) just
+  overwrites the same library entry instead of piling up duplicates.
+*/
+
+function sf2LibraryId(name, size){
+  return name + ':' + size;
+}
+
+async function saveSoundFontToLibrary(file){
+
+  const db =
+    await openSf2Db();
+
+  return new Promise((resolve, reject) => {
+
+    const tx = db.transaction(SF2_LIBRARY_STORE, 'readwrite');
+
+    tx.objectStore(SF2_LIBRARY_STORE).put({
+      id: sf2LibraryId(file.name, file.size),
+      name: file.name,
+      size: file.size,
+      addedAt: Date.now(),
+      blob: file
+    });
+
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+
+  });
+
+}
+
+async function listSoundFontLibrary(){
+
+  const db =
+    await openSf2Db();
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SF2_LIBRARY_STORE, 'readonly');
+    const req = tx.objectStore(SF2_LIBRARY_STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+
+}
+
+async function deleteSoundFontFromLibrary(id){
+
+  const db =
+    await openSf2Db();
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SF2_LIBRARY_STORE, 'readwrite');
+    tx.objectStore(SF2_LIBRARY_STORE).delete(id);
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+  });
+
+}
+
+/*
+  Exporting "My Sounds" — the flip side of the on-device library
+  above. There's no server here to export "to", so this means one
+  of two things depending on what the browser can actually do:
+
+  - Where the File System Access API is available (the same one the
+    Import folder-memory feature already relies on), the person
+    picks a real folder and each saved SoundFont gets written into
+    it as an actual file — a genuine backup they can move, zip, or
+    re-import elsewhere later.
+  - Everywhere else (Safari, Firefox — no write access to arbitrary
+    folders from a web page), this falls back to triggering one
+    regular download per saved sound instead. Browsers are choosier
+    about firing several downloads back to back, so those are spaced
+    out slightly rather than fired in one tight loop.
+*/
+async function exportSoundLibrary(){
+
+  const items =
+    await listSoundFontLibrary().catch(() => []);
+
+  if(!items.length){
+    alert('No saved sounds to export yet \u2014 SoundFonts you load get added to \u201cMy Sounds\u201d automatically, and that\u2019s what Export backs up.');
+    return;
+  }
+
+  if(supportsFolderMemory){
+
+    try{
+
+      const dirHandle =
+        await window.showDirectoryPicker({ id: 'export-folder', mode: 'readwrite' });
+
+      for(const item of items){
+
+        const fileHandle =
+          await dirHandle.getFileHandle(item.name, { create: true });
+
+        const writable =
+          await fileHandle.createWritable();
+
+        await writable.write(item.blob);
+        await writable.close();
+
+      }
+
+      alert('Exported ' + items.length + (items.length === 1 ? ' sound' : ' sounds') + ' to that folder.');
+
+    }catch(err){
+
+      if(err.name !== 'AbortError'){ // person cancelled the folder dialog — not a real failure
+        alert('Couldn\u2019t export to that folder: ' + err.message);
+      }
+
+    }
+
+  }else{
+
+    items.forEach((item, i) => {
+
+      setTimeout(() => {
+
+        const url = URL.createObjectURL(item.blob);
+        const link = document.createElement('a');
+
+        link.href = url;
+        link.download = item.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+      }, i * 350);
+
+    });
+
+  }
+
+}
+
+async function verifyFolderPermission(handle, requestIfNeeded){
+
+  const opts = { mode: 'read' };
+
+  let status =
+    await handle.queryPermission(opts);
+
+  if(status === 'prompt' && requestIfNeeded){
+    status = await handle.requestPermission(opts);
+  }
+
+  return status === 'granted';
+
+}
+
+async function collectImportFilesFromDirectory(dirHandle, depth){
+
+  depth = depth || 0;
+
+  const files = [];
+
+  if(depth > 6)return files; // guard against pathological/symlinked trees
+
+  for await (const handle of dirHandle.values()){
+
+    if(handle.kind === 'file'){
+
+      if(/\.sf2$/i.test(handle.name)){
+
+        files.push(await handle.getFile());
+
+      }else{
+
+        const file = await handle.getFile();
+        if(file.type && file.type.startsWith('audio/'))files.push(file);
+
+      }
+
+    }else if(handle.kind === 'directory'){
+
+      files.push(...(await collectImportFilesFromDirectory(handle, depth + 1)));
+
+    }
+
+  }
+
+  return files;
+
+}
+
+function updateFolderButtonLabel(){
+
+  const info =
+    document.getElementById('menuFolderInfo');
+
+  const infoText =
+    document.getElementById('menuFolderInfoText');
+
+  if(!sf2FolderHandle){
+    info.style.display = 'none';
+    return;
+  }
+
+  info.style.display = 'flex';
+  infoText.textContent = 'Folder: ' + sf2FolderHandle.name;
+
+}
+
+async function connectImportFolder(forceBrowse){
+
+  if(!supportsFolderMemory){
+    document.getElementById('folderInput').click();
+    return;
+  }
+
+  try{
+
+    let handle = sf2FolderHandle;
+
+    if(forceBrowse || !handle){
+      handle = await window.showDirectoryPicker({ id: 'sf2-folder', mode: 'read' });
+      await saveSf2FolderHandle(handle);
+    }
+
+    const granted =
+      await verifyFolderPermission(handle, true); // a click just happened, so a prompt here is allowed
+
+    if(!granted)return;
+
+    sf2FolderHandle = handle;
+
+    updateFolderButtonLabel();
+
+    const files =
+      await collectImportFilesFromDirectory(handle);
+
+    toggleMenu(false);
+
+    if(!files.length){
+      alert('No audio files or .sf2 SoundFonts were found in that folder.');
+      return;
+    }
+
+    handleFiles(files);
+
+  }catch(err){
+
+    if(err.name !== 'AbortError'){ // AbortError = person cancelled the folder dialog, not a real failure
+      alert('Couldn\u2019t open that folder: ' + err.message);
+    }
+
+  }
+
+}
+
+async function restoreSf2FolderOnLoad(){
+
+  if(!supportsFolderMemory)return;
+
+  try{
+
+    const handle =
+      await loadSavedSf2FolderHandle();
+
+    if(!handle)return;
+
+    sf2FolderHandle = handle;
+
+    updateFolderButtonLabel();
+
+    // Only a *query*, never a request, outside a click — requestPermission
+    // needs a user gesture, and there isn't one this early on page load.
+    const alreadyGranted =
+      await verifyFolderPermission(handle, false);
+
+    if(!alreadyGranted)return; // button still shows the folder name; one tap reconnects it
+
+    const files =
+      await collectImportFilesFromDirectory(handle);
+
+    if(!files.length)return;
+
+    const sf2Files =
+      files.filter(file => /\.sf2$/i.test(file.name));
+
+    const audioFiles =
+      files.filter(file => !/\.sf2$/i.test(file.name) && file.type && file.type.startsWith('audio/'));
+
+    // Audio files are harmless to restore silently — a pad just sits
+    // there until tapped, same as any freshly-imported one. A
+    // SoundFont is different: loading one replaces whatever's
+    // currently loaded, so that still needs an explicit tap via the
+    // picker rather than silently swapping the pad grid out from
+    // under someone on every reload.
+    audioFiles.forEach(file => {
+
+      const newPad = {
+        id: 'pad_' + Math.random().toString(36).slice(2, 10),
+        name: cleanNameFromFile(file.name),
+        type: 'sample',
+        file,
+        url: URL.createObjectURL(file),
+        audio: null,
+        sourceNode: null,
+        gainNode: null,
+        audioReady: false,
+        state: 'stopped'
+      };
+
+      pads.push(newPad);
+
+      eqAnalyzeNewSamplePad(newPad, file);
+
+    });
+
+    if(audioFiles.length)renderPads();
+
+    if(sf2Files.length)openSoundPicker(sf2Files);
+
+  }catch(err){
+    // Saved handle points at a folder that's been moved/deleted, or the
+    // browser's storage for it went away — nothing to recover from here,
+    // so just leave the app as if no folder had ever been connected.
+  }
+
+}
+
+document.getElementById('importBtn').onclick = () => {
+  connectImportFolder(false);
+};
+
+document.getElementById('changeFolderBtn').onclick = (event) => {
+  event.stopPropagation();
+  connectImportFolder(true);
+};
+
+document.getElementById('folderInput').onchange = (event) => {
+
+  const files = [...(event.target.files || [])];
+
+  event.target.value = ''; // lets the same folder be re-picked later
+
+  toggleMenu(false);
+
+  if(!files.length){
+    alert('No audio files or .sf2 SoundFonts were found in that folder.');
+    return;
+  }
+
+  handleFiles(files);
+
+};
+
+function openSoundPicker(items, opts){
+
+  opts = opts || {};
+
+  const isLibrary =
+    opts.source === 'library';
+
+  const list =
+    document.getElementById('soundPickerList');
+
+  const hint =
+    document.getElementById('soundPickerHint');
+
+  document.getElementById('soundPickerTitle').textContent =
+    isLibrary ? 'My Sounds' : 'Choose a Sound';
+
+  hint.textContent =
+    items.length + (items.length === 1 ? ' SoundFont' : ' SoundFonts') +
+    (isLibrary ? ' saved on this device' : ' found \u2014 tap one to load it');
+
+  list.innerHTML = '';
+
+  items.forEach(item => {
+
+    const row =
+      document.createElement('div');
+
+    row.className = 'soundPickerRow';
+
+    const loadBtn =
+      document.createElement('button');
+
+    loadBtn.className = 'soundPickerRowMain';
+
+    const label =
+      document.createElement('span');
+
+    label.textContent =
+      cleanNameFromFile(item.name);
+
+    const check =
+      document.createElement('span');
+
+    check.className = 'soundPickerRowCheck';
+    check.textContent = '\u2713';
+
+    loadBtn.appendChild(label);
+    loadBtn.appendChild(check);
+
+    loadBtn.onclick = () => {
+
+      if(loadBtn.classList.contains('loaded'))return; // already loaded, ignore repeat taps
+
+      loadBtn.classList.add('loaded');
+
+      if(isLibrary){
+        // Blobs pulled back out of IndexedDB are usually still real
+        // File objects (name/etc intact), but re-wrap just in case
+        // a browser hands one back as a plain Blob instead.
+        const fileLike =
+          item.blob instanceof File ? item.blob : new File([item.blob], item.name);
+        loadSf2File(fileLike, { skipLibrarySave: true });
+      }else{
+        loadSf2File(item);
+      }
+
+    };
+
+    row.appendChild(loadBtn);
+
+    if(isLibrary){
+
+      const deleteBtn =
+        document.createElement('button');
+
+      deleteBtn.className = 'soundPickerRowDelete';
+      deleteBtn.textContent = '\u2715';
+      deleteBtn.setAttribute('aria-label', 'Remove ' + item.name + ' from My Sounds');
+
+      deleteBtn.onclick = async () => {
+
+        await deleteSoundFontFromLibrary(item.id).catch(() => {});
+
+        row.remove();
+
+        if(!list.children.length){
+          hint.textContent = 'No SoundFonts saved yet.';
+        }
+
+      };
+
+      row.appendChild(deleteBtn);
+
+    }
+
+    list.appendChild(row);
+
+  });
+
+  document.getElementById('soundPickerBackdrop').classList.add('open');
+
+}
+
+async function openLibrarySoundPicker(){
+
+  if(!supportsLocalLibrary){
+    alert('This browser doesn\u2019t support saving SoundFonts locally.');
+    return;
+  }
+
+  const entries =
+    await listSoundFontLibrary().catch(() => []);
+
+  toggleMenu(false);
+
+  if(!entries.length){
+    alert('No SoundFonts saved yet \u2014 load one from a file or folder first and it\u2019ll be kept here automatically.');
+    return;
+  }
+
+  entries.sort((a, b) => b.addedAt - a.addedAt); // most recently added first
+
+  openSoundPicker(entries, { source: 'library' });
+
+}
+
+document.getElementById('mySoundsBtn').onclick = openLibrarySoundPicker;
+
+document.getElementById('exportBtn').onclick = () => {
+  toggleMenu(false);
+  exportSoundLibrary();
+};
+
+function closeSoundPicker(){
+  document.getElementById('soundPickerBackdrop').classList.remove('open');
+}
+
+document.getElementById('soundPickerCloseBtn').onclick = closeSoundPicker;
+document.getElementById('soundPickerBackdrop').onclick = (event) => {
+  if(event.target.id === 'soundPickerBackdrop')closeSoundPicker();
+};
+
+restoreSf2FolderOnLoad();
+
+document.getElementById('masterVolume').oninput = (event) => {
+
+  masterVolume = Number(event.target.value) / 100;
+
+  setVolumeThumb(masterVolume);
+
+  pads
+    .filter(pad => pad.state === 'playing')
+    .forEach(pad => fadeGain(pad, masterVolume, 120));
+
+};
+
+document.getElementById('subVolume').oninput = (event) => {
+
+  subVolume = Number(event.target.value) / 100;
+
+  pads
+    .filter(pad => pad.state === 'playing')
+    .forEach(pad => fadeGain(pad, masterVolume, 120));
+
+};
+
+document.getElementById('exclusiveToggle').onclick = () => {
+
+  exclusiveMode = !exclusiveMode;
+
+  document
+    .getElementById('exclusiveSwitch')
+    .classList.toggle('on', exclusiveMode);
+
+};
+
+document.getElementById('stopAllMenuBtn').onclick = () => {
+  stopAllPads();
+  toggleMenu(false);
+};
+
+function sliderToFrequency(knobValue, minFreq, maxFreq){
+
+  /* Log-scale mapping — frequency perception is logarithmic, so a
+     linear 0-100 knob value needs this to feel even across its
+     range. */
+  const t = knobValue / 100;
+
+  return minFreq * Math.pow(maxFreq / minFreq, t);
+
+}
+
+function frequencyToSlider(freq, minFreq, maxFreq){
+
+  // Inverse of sliderToFrequency — used to keep the Cutoff knob's
+  // display in sync when the frequency changes from elsewhere (the
+  // EQ screen's High Cut dot), not from the knob itself.
+  const clampedFreq = Math.max(minFreq, Math.min(maxFreq, freq));
+  const t = Math.log(clampedFreq / minFreq) / Math.log(maxFreq / minFreq);
+
+  return t * 100;
+
+}
+
+function formatFreqLabel(freq){
+
+  if(freq >= 1000){
+    return (freq / 1000).toFixed(freq >= 10000 ? 0 : 1) + 'k';
+  }
+
+  return Math.round(freq).toString();
+
+}
+
+/*
+  Parametric EQ screen — a draggable curve (Low Cut / Body / Air /
+  High Cut) drawn over the mix bus's actual live output spectrum.
+
+  The curve isn't a decorative approximation: each dot's position
+  is read straight off the corresponding BiquadFilterNode's real
+  frequency/gain, and the white curve itself is built by calling
+  each filter's own getFrequencyResponse() and summing the results
+  in dB — so what's drawn is exactly what the six-filter chain in
+  setupMixBus is doing to the sound, not a redrawn stand-in for it.
+  The gold-filled spectrum behind it is the mix bus's true output,
+  read from the same analyser the level meter uses (see
+  setupMasterMeter) — it goes flat whenever nothing is playing,
+  same as the meter does, since it's measuring the real signal.
+
+  Coordinates are done in one fixed logical space (EQ_VIEW_W x
+  EQ_VIEW_H) rather than real pixels, with the <svg> stretching
+  that to fit the screen — frequency maps to x on a log scale
+  (matches how pitch/frequency is actually perceived and how the
+  reference hardware-EQ layouts space their bands), and dB maps to
+  y linearly around a center 0dB line.
+*/
+
+const EQ_VIEW_W = 600;
+const EQ_VIEW_H = 320;
+
+/* The graph's displayed frequency window. These start at the full
+   audible range and narrow to whatever a pad's own content actually
+   covers once eqApplyDetectedFrequencyRange() runs (see below) — so
+   they're `let`, not `const`, and every function below reads them
+   live rather than capturing a fixed span at load time. */
+const EQ_ABSOLUTE_FREQ_MIN = 20;
+const EQ_ABSOLUTE_FREQ_MAX = 20000;
+let EQ_FREQ_MIN = EQ_ABSOLUTE_FREQ_MIN;
+let EQ_FREQ_MAX = EQ_ABSOLUTE_FREQ_MAX;
+
+const EQ_DB_RANGE = 18; // +-18dB shown top/bottom of the graph
+const EQ_CURVE_POINTS = 200;
+
+function eqFreqToX(freq){
+  const clampedFreq = Math.max(EQ_FREQ_MIN, Math.min(EQ_FREQ_MAX, freq));
+  const t = Math.log(clampedFreq / EQ_FREQ_MIN) / Math.log(EQ_FREQ_MAX / EQ_FREQ_MIN);
+  return t * EQ_VIEW_W;
+}
+
+function eqXToFreq(x){
+  const t = Math.max(0, Math.min(1, x / EQ_VIEW_W));
+  return EQ_FREQ_MIN * Math.pow(EQ_FREQ_MAX / EQ_FREQ_MIN, t);
+}
+
+function eqDbToY(db){
+  const margin = 20; // top/bottom padding so a maxed-out band's dot never clips the edge
+  const usableHalf = EQ_VIEW_H / 2 - margin;
+  const clampedDb = Math.max(-EQ_DB_RANGE, Math.min(EQ_DB_RANGE, db));
+  return EQ_VIEW_H / 2 - (clampedDb / EQ_DB_RANGE) * usableHalf;
+}
+
+function eqYToDb(y){
+  const margin = 20;
+  const usableHalf = EQ_VIEW_H / 2 - margin;
+  const val = ((EQ_VIEW_H / 2 - y) / usableHalf) * EQ_DB_RANGE;
+  return Math.max(-EQ_DB_RANGE, Math.min(EQ_DB_RANGE, val));
+}
+
+function buildLogFreqArray(count){
+  const arr = new Float32Array(count);
+  for(let i = 0; i < count; i++){
+    const t = i / (count - 1);
+    arr[i] = EQ_FREQ_MIN * Math.pow(EQ_FREQ_MAX / EQ_FREQ_MIN, t);
+  }
+  return arr;
+}
+
+/* Rounds a frequency to the nearest "nice" 1/2/5 step within its
+   decade (38Hz -> 40, 2,300Hz -> 2,000) so generated axis ticks read
+   like something a person would actually label a graph with,
+   whatever span the graph currently covers. */
+function roundToNiceFreq(freq){
+  if(freq <= 0)return freq;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(freq)));
+  let best = magnitude;
+  let bestDiff = Math.abs(freq - best);
+  [1, 2, 5, 10].forEach((step) => {
+    const candidate = step * magnitude;
+    const diff = Math.abs(freq - candidate);
+    if(diff < bestDiff){ bestDiff = diff; best = candidate; }
+  });
+  return best;
+}
+
+/* count log-spaced, nicely-rounded tick frequencies across whatever
+   [EQ_FREQ_MIN, EQ_FREQ_MAX] currently is — used for both the grid
+   lines and the axis labels, so the two always agree, and both
+   automatically adapt when a pad narrows the displayed range. */
+function eqBuildFreqTicks(count){
+  const raw = [];
+  for(let i = 0; i < count; i++){
+    const t = i / (count - 1);
+    raw.push(EQ_FREQ_MIN * Math.pow(EQ_FREQ_MAX / EQ_FREQ_MIN, t));
+  }
+  const rounded = raw.map(roundToNiceFreq);
+  return [...new Set(rounded)]; // de-dupe adjacent ticks that rounded to the same value on a narrow span
+}
+
+const eqCurveFreqSamples = buildLogFreqArray(EQ_CURVE_POINTS);
+const eqCurveMagArr = new Float32Array(EQ_CURVE_POINTS);
+const eqCurvePhaseArr = new Float32Array(EQ_CURVE_POINTS);
+const eqCurveDbArr = new Float32Array(EQ_CURVE_POINTS);
+
+const eqSingleFreqArr = new Float32Array(1);
+const eqSingleMagArr = new Float32Array(1);
+const eqSinglePhaseArr = new Float32Array(1);
+
+function eqFilterChain(exclude){
+  const chain = [eqHighNode, eqHighNode2, eqLowNode, eqLowNode2, eqPeakLowNode, eqPeakHighNode];
+  if(!exclude)return chain;
+  const excludeList = Array.isArray(exclude) ? exclude : [exclude];
+  return chain.filter((node) => !excludeList.includes(node));
+}
+
+function computeCurveDbArray(){
+  eqCurveDbArr.fill(0);
+  eqFilterChain().forEach((node) => {
+    node.getFrequencyResponse(eqCurveFreqSamples, eqCurveMagArr, eqCurvePhaseArr);
+    for(let i = 0; i < EQ_CURVE_POINTS; i++){
+      eqCurveDbArr[i] += 20 * Math.log10(Math.max(eqCurveMagArr[i], 1e-6));
+    }
+  });
+  return eqCurveDbArr;
+}
+
+function eqDbAtFreq(freq, exclude){
+  eqSingleFreqArr[0] = freq;
+  let totalDb = 0;
+  eqFilterChain(exclude).forEach((node) => {
+    node.getFrequencyResponse(eqSingleFreqArr, eqSingleMagArr, eqSinglePhaseArr);
+    totalDb += 20 * Math.log10(Math.max(eqSingleMagArr[0], 1e-6));
+  });
+  return totalDb;
+}
+
+/*
+  Auto-fit the EQ graph's frequency axis to whatever a pad's own
+  content actually spans, instead of always showing the full
+  20Hz-20kHz audible range — most single instrument/pad recordings
+  only occupy a few octaves of that, so the fixed full range left a
+  lot of the graph showing nothing but flat empty curve on either
+  side. Uploading a new sample re-runs this and narrows (or widens)
+  the view to match it.
+
+  There's no analysis library available here, so this is a small
+  from-scratch FFT (iterative radix-2 Cooley-Tukey) run directly on
+  the decoded PCM — decoded once, purely for this measurement, via
+  decodeAudioData; playback itself still goes through the separate
+  <audio>-element path in ensurePadAudio and never touches this.
+*/
+
+function eqFftInPlace(re, im){
+
+  const n = re.length;
+
+  for(let i = 1, j = 0; i < n; i++){
+    let bit = n >> 1;
+    for(; j & bit; bit >>= 1)j ^= bit;
+    j ^= bit;
+    if(i < j){
+      let tmp = re[i]; re[i] = re[j]; re[j] = tmp;
+      tmp = im[i]; im[i] = im[j]; im[j] = tmp;
+    }
+  }
+
+  for(let len = 2; len <= n; len <<= 1){
+
+    const ang = -2 * Math.PI / len;
+    const wr = Math.cos(ang), wi = Math.sin(ang);
+
+    for(let i = 0; i < n; i += len){
+
+      let curWr = 1, curWi = 0;
+
+      for(let k = 0; k < len / 2; k++){
+
+        const uRe = re[i + k], uIm = im[i + k];
+        const vRe = re[i + k + len / 2] * curWr - im[i + k + len / 2] * curWi;
+        const vIm = re[i + k + len / 2] * curWi + im[i + k + len / 2] * curWr;
+
+        re[i + k] = uRe + vRe;
+        im[i + k] = uIm + vIm;
+        re[i + k + len / 2] = uRe - vRe;
+        im[i + k + len / 2] = uIm - vIm;
+
+        const nextWr = curWr * wr - curWi * wi;
+        const nextWi = curWr * wi + curWi * wr;
+        curWr = nextWr; curWi = nextWi;
+
+      }
+
+    }
+
+  }
+
+}
+
+function eqAnalyzePadFrequencyRange(audioBuffer){
+
+  let fftSize = 4096;
+  while(fftSize > 512 && fftSize > audioBuffer.length)fftSize >>= 1;
+  if(audioBuffer.length < 512)return null; // too short a clip to get a meaningful spectrum from
+
+  const sampleRate = audioBuffer.sampleRate;
+  const numChannels = audioBuffer.numberOfChannels;
+  const totalSamples = audioBuffer.length;
+
+  const channelData = [];
+  for(let c = 0; c < numChannels; c++)channelData.push(audioBuffer.getChannelData(c));
+
+  const hann = new Float32Array(fftSize);
+  for(let i = 0; i < fftSize; i++)hann[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (fftSize - 1));
+
+  const WINDOW_COUNT = 6;
+  const magSum = new Float32Array(fftSize / 2);
+  const startMax = totalSamples - fftSize;
+
+  if(startMax <= 0)return null;
+
+  let windowsUsed = 0;
+
+  for(let w = 0; w < WINDOW_COUNT; w++){
+
+    const start = Math.floor((w / WINDOW_COUNT) * startMax);
+
+    const re = new Float32Array(fftSize);
+    const im = new Float32Array(fftSize);
+
+    for(let i = 0; i < fftSize; i++){
+      let sample = 0;
+      for(let c = 0; c < numChannels; c++)sample += channelData[c][start + i];
+      re[i] = (sample / numChannels) * hann[i];
+    }
+
+    eqFftInPlace(re, im);
+
+    for(let k = 0; k < magSum.length; k++){
+      magSum[k] += Math.sqrt(re[k] * re[k] + im[k] * im[k]);
+    }
+
+    windowsUsed++;
+
+  }
+
+  if(windowsUsed === 0)return null;
+
+  let peakMag = 0;
+  for(let k = 0; k < magSum.length; k++)peakMag = Math.max(peakMag, magSum[k]);
+  if(peakMag <= 0)return null; // silent buffer
+
+  const thresholdMag = peakMag * Math.pow(10, -40 / 20); // -40dB relative to the loudest bin
+  const binHz = sampleRate / fftSize;
+
+  let minBin = -1, maxBin = -1;
+
+  for(let k = 1; k < magSum.length; k++){ // skip the DC bin
+    if(magSum[k] >= thresholdMag){ minBin = k; break; }
+  }
+
+  for(let k = magSum.length - 1; k >= 1; k--){
+    if(magSum[k] >= thresholdMag){ maxBin = k; break; }
+  }
+
+  if(minBin === -1 || maxBin === -1 || maxBin <= minBin)return null;
+
+  let minFreq = minBin * binHz;
+  let maxFreq = maxBin * binHz;
+
+  // A near-pure tone or a single short transient can detect an
+  // almost-zero-width span — widen it symmetrically (in log space,
+  // i.e. by octaves, so it stays centered on the same pitch) rather
+  // than showing a graph that's all curve and no room either side.
+  const MIN_SPAN_OCTAVES = 3;
+  if(maxFreq / minFreq < Math.pow(2, MIN_SPAN_OCTAVES)){
+    const mid = Math.sqrt(minFreq * maxFreq);
+    minFreq = mid / Math.pow(2, MIN_SPAN_OCTAVES / 2);
+    maxFreq = mid * Math.pow(2, MIN_SPAN_OCTAVES / 2);
+  }
+
+  minFreq = Math.max(EQ_ABSOLUTE_FREQ_MIN, minFreq);
+  maxFreq = Math.min(EQ_ABSOLUTE_FREQ_MAX, maxFreq);
+
+  if(maxFreq <= minFreq)return null;
+
+  return { minFreq, maxFreq };
+
+}
+
+function eqApplyDetectedFrequencyRange(padName, range){
+
+  EQ_FREQ_MIN = range.minFreq;
+  EQ_FREQ_MAX = range.maxFreq;
+
+  eqCurveFreqSamples.set(buildLogFreqArray(EQ_CURVE_POINTS));
+
+  renderEqGrid();
+
+  const note = document.getElementById('eqRangeNote');
+
+  if(note){
+    note.textContent =
+      'Tuned to “' + padName + '”: ' +
+      formatFreqLabel(range.minFreq) + 'Hz–' + formatFreqLabel(range.maxFreq) + 'Hz';
+  }
+
+}
+
+/* Kicks off the (async, best-effort) analysis for a freshly-added
+   sample pad. Decoding failures or clips too short/quiet to measure
+   are silently ignored — the EQ view just keeps whatever range it
+   already had rather than surfacing an error over something purely
+   cosmetic. */
+function eqAnalyzeNewSamplePad(pad, file){
+
+  file.arrayBuffer()
+    .then((arrayBuffer) => getAudioCtx().decodeAudioData(arrayBuffer))
+    .then((decoded) => {
+      const range = eqAnalyzePadFrequencyRange(decoded);
+      if(range)eqApplyDetectedFrequencyRange(pad.name, range);
+    })
+    .catch(() => {});
+
+}
+
+
+/* Neutral defaults — chosen to exactly match the old High Pass /
+   Cutoff knobs' starting values, so swapping those knobs for this
+   screen doesn't change a single pad's default sound. */
+let currentLowCutFreq = EQ_HIGH_MIN_FREQ;
+let currentHighCutFreq = EQ_LOW_MAX_FREQ;
+let currentPeak1Freq = 400;
+let currentPeak1Gain = 0;
+let currentPeak2Freq = 6000;
+
+/* Set once the quick-access Cutoff (Low Pass) knob is created, near
+   the bottom of this script. Declared up here because the EQ
+   screen's High Cut dot needs to keep that knob's display in sync
+   whenever it changes currentHighCutFreq — the wiring for the dot
+   runs before the knob exists, but by the time anyone actually
+   drags the dot, createKnob() below will already have run. */
+let cutoffKnobController = null;
+let currentPeak2Gain = 0;
+
+/* Low Cut / High Cut don't have a gain param the way the peak
+   bands do, but a Biquad highpass/lowpass's Q (resonance) still
+   gives a real, audible, real-in-the-curve vertical axis: low Q is
+   a plain gentle roll-off, high Q piles up a resonant bump right
+   at the cutoff before it drops away — a "howl" right at the edge
+   of the cut, same idea as a synth filter's resonance knob. That's
+   what vertical drag on those two dots controls. */
+const EQ_CUT_Q_MIN = 0.4;
+const EQ_CUT_Q_MAX = 12;
+let currentLowCutQ = 0.7071;
+let currentHighCutQ = 0.7071;
+
+function mapRange(value, inMin, inMax, outMin, outMax){
+  const t = (value - inMin) / (inMax - inMin);
+  return outMin + t * (outMax - outMin);
+}
+
+function renderEqGrid(){
+
+  const gridGroup =
+    document.getElementById('eqGridLines');
+
+  if(!gridGroup)return;
+
+  gridGroup.innerHTML = '';
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+
+  const freqTicks = eqBuildFreqTicks(7);
+
+  freqTicks.forEach((freq) => {
+    const x = eqFreqToX(freq);
+    const line = document.createElementNS(svgNS, 'line');
+    line.setAttribute('x1', x); line.setAttribute('x2', x);
+    line.setAttribute('y1', 0); line.setAttribute('y2', EQ_VIEW_H);
+    line.setAttribute('class', 'eqGridLine');
+    gridGroup.appendChild(line);
+  });
+
+  [-12, -6, 0, 6, 12].forEach((db) => {
+    const y = eqDbToY(db);
+    const line = document.createElementNS(svgNS, 'line');
+    line.setAttribute('x1', 0); line.setAttribute('x2', EQ_VIEW_W);
+    line.setAttribute('y1', y); line.setAttribute('y2', y);
+    line.setAttribute('class', db === 0 ? 'eqGridLineZero' : 'eqGridLine');
+    gridGroup.appendChild(line);
+  });
+
+  const dbAxis = document.getElementById('eqDbAxis');
+
+  if(dbAxis){
+
+    dbAxis.innerHTML = '';
+
+    [12, 6, 0, -6, -12].forEach((db) => {
+      const topPercent = (eqDbToY(db) / EQ_VIEW_H) * 100;
+      const label = document.createElement('span');
+      label.textContent = (db > 0 ? '+' : '') + db + 'dB';
+      label.style.top = topPercent + '%';
+      if(db === 0)label.classList.add('eqDbAxisZero');
+      dbAxis.appendChild(label);
+    });
+
+  }
+
+  const freqAxis = document.getElementById('eqFreqAxis');
+
+  if(freqAxis){
+
+    freqAxis.innerHTML = '';
+
+    freqTicks.forEach((freq) => {
+      const leftPercent = Math.max(2, Math.min(98, (eqFreqToX(freq) / EQ_VIEW_W) * 100));
+      const label = document.createElement('span');
+      label.textContent = formatFreqLabel(freq);
+      label.style.left = leftPercent + '%';
+      freqAxis.appendChild(label);
+    });
+
+  }
+
+}
+
+function placeEqHandle(id, freq, db){
+  const el = document.getElementById(id);
+  if(!el)return;
+  const x = eqFreqToX(freq);
+  const y = eqDbToY(db);
+  el.setAttribute('transform', 'translate(' + x.toFixed(1) + ',' + y.toFixed(1) + ')');
+}
+
+function drawEqSpectrum(){
+
+  if(!meterAnalyser || !audioCtx)return;
+
+  meterAnalyser.getByteFrequencyData(eqFreqByteData);
+
+  const sampleRate = audioCtx.sampleRate;
+  const binCount = eqFreqByteData.length;
+
+  let d = '';
+  let started = false;
+  let lastX = 0;
+
+  for(let i = 1; i < binCount; i++){
+
+    const freq = i * sampleRate / (2 * binCount);
+
+    if(freq < EQ_FREQ_MIN)continue;
+    if(freq > EQ_FREQ_MAX)break;
+
+    const x = eqFreqToX(freq);
+    const value = eqFreqByteData[i];
+    const y = EQ_VIEW_H - (value / 255) * (EQ_VIEW_H - 24);
+
+    d += (started ? 'L' : 'M') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+    started = true;
+    lastX = x;
+
+  }
+
+  if(started){
+    d += 'L' + lastX.toFixed(1) + ',' + EQ_VIEW_H + ' L0,' + EQ_VIEW_H + ' Z';
+  }
+
+  const pathEl = document.getElementById('eqSpectrumPath');
+  if(pathEl)pathEl.setAttribute('d', d);
+
+}
+
+function drawEqCurveAndHandles(){
+
+  if(!audioCtx)return;
+
+  const dbArr = computeCurveDbArray();
+
+  let d = '';
+
+  for(let i = 0; i < EQ_CURVE_POINTS; i++){
+    const x = eqFreqToX(eqCurveFreqSamples[i]);
+    const y = eqDbToY(dbArr[i]);
+    d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+  }
+
+  const curveEl = document.getElementById('eqCurvePath');
+  if(curveEl)curveEl.setAttribute('d', d);
+
+  placeEqHandle('eqHandleLowCut', currentLowCutFreq, eqDbAtFreq(currentLowCutFreq));
+  placeEqHandle('eqHandlePeak1', currentPeak1Freq, eqDbAtFreq(currentPeak1Freq));
+  placeEqHandle('eqHandlePeak2', currentPeak2Freq, eqDbAtFreq(currentPeak2Freq));
+  placeEqHandle('eqHandleHighCut', currentHighCutFreq, eqDbAtFreq(currentHighCutFreq));
+
+  const setText = (id, text) => {
+    const el = document.getElementById(id);
+    if(el)el.textContent = text;
+  };
+
+  const formatGain = (db) => (db >= 0 ? '+' : '') + db.toFixed(1) + 'dB';
+
+  setText('eqReadoutLowCut', formatFreqLabel(currentLowCutFreq) + 'Hz \u00b7 Q' + currentLowCutQ.toFixed(1));
+  setText('eqReadoutPeak1', formatFreqLabel(currentPeak1Freq) + 'Hz \u00b7 ' + formatGain(currentPeak1Gain));
+  setText('eqReadoutPeak2', formatFreqLabel(currentPeak2Freq) + 'Hz \u00b7 ' + formatGain(currentPeak2Gain));
+  setText('eqReadoutHighCut', formatFreqLabel(currentHighCutFreq) + 'Hz \u00b7 Q' + currentHighCutQ.toFixed(1));
+
+}
+
+let eqScreenOpen = false;
+let eqAnimHandle = null;
+
+function eqRenderLoop(){
+  if(!eqScreenOpen)return;
+  eqAnimHandle = requestAnimationFrame(eqRenderLoop);
+  drawEqSpectrum();
+  drawEqCurveAndHandles();
+}
+
+function openEqScreen(){
+  getAudioCtx();
+  eqScreenOpen = true;
+  document.getElementById('eqScreenBackdrop').classList.add('open');
+  if(!eqAnimHandle)eqAnimHandle = requestAnimationFrame(eqRenderLoop);
+}
+
+function closeEqScreen(){
+  eqScreenOpen = false;
+  document.getElementById('eqScreenBackdrop').classList.remove('open');
+  if(eqAnimHandle){
+    cancelAnimationFrame(eqAnimHandle);
+    eqAnimHandle = null;
+  }
+}
+
+function svgPointFromEvent(svg, event){
+  const rect = svg.getBoundingClientRect();
+  const vb = svg.viewBox.baseVal;
+  const x = (event.clientX - rect.left) / rect.width * vb.width + vb.x;
+  const y = (event.clientY - rect.top) / rect.height * vb.height + vb.y;
+  return { x, y };
+}
+
+/* Dragging is tracked with one shared pointerId/opts record, and
+   pointerdown is handled by ONE listener on the whole graph rather
+   than one per dot. Earlier versions attached pointerdown directly
+   to each dot's <g> element — that worked for the very first touch
+   but then stopped responding on later drags on at least some
+   WebKit builds (SVG child-element event delivery inside a
+   frequently-redrawn <svg> is a known soft spot across browsers).
+   Delegating to the outer <svg> and picking whichever registered
+   dot is nearest the touch point sidesteps that entirely: there's
+   only one element's pointerdown wiring to ever go stale, and it
+   isn't being reshuffled every animation frame the way the dots
+   themselves are (their transform attribute is rewritten 60x/sec by
+   the render loop, which is exactly the kind of thing that can
+   confuse a browser's per-element hit-testing cache). */
+let eqActiveDrag = null; // { pointerId, opts }
+let eqGlobalDragListenersBound = false;
+const eqHandleRegistry = []; // [{ id, opts, getVisualDb }]
+const EQ_HANDLE_PICK_RADIUS = 60; // view-space units — generous touch target
+
+function eqApplyDragPoint(opts, point){
+
+  const freq =
+    Math.max(opts.minFreq, Math.min(opts.maxFreq, eqXToFreq(point.x)));
+
+  opts.setFreq(freq);
+
+  if(opts.hasVertical){
+
+    const clampedLo = Math.min(opts.vMin, opts.vMax);
+    const clampedHi = Math.max(opts.vMin, opts.vMax);
+
+    if(opts.verticalSolve){
+
+      /* Solve for whatever the underlying parameter (gain for the
+         peak bands, Q for the cut bands) needs to be so the TRUE
+         combined curve — everything else in the chain plus this
+         band — passes exactly through the touched point, rather
+         than mapping touch position straight onto the parameter.
+         That distinction matters a lot for the cut bands: their
+         visible response at the cutoff is 40*log10(Q), a strongly
+         nonlinear curve, so a straight linear touch-to-Q mapping
+         made most of the upper Q range collapse into the same
+         pinned-at-the-top pixel — dragging felt dead up there.
+         Solving in dB space instead keeps the dot tracking the
+         finger 1:1 the same way the peak bands already do. */
+      const targetDb = eqYToDb(point.y);
+      const otherDb = eqDbAtFreq(freq, opts.excludeNode);
+      const solved = opts.verticalSolve(targetDb, otherDb);
+      opts.setVertical(Math.max(clampedLo, Math.min(clampedHi, solved)));
+
+    }else{
+
+      const raw = eqYToDb(point.y); // -EQ_DB_RANGE..EQ_DB_RANGE coordinate, reused as a generic vertical axis
+      const mapped = mapRange(raw, -EQ_DB_RANGE, EQ_DB_RANGE, opts.vMin, opts.vMax);
+      opts.setVertical(Math.max(clampedLo, Math.min(clampedHi, mapped)));
+
+    }
+
+  }
+
+}
+
+function eqFindNearestHandle(point){
+
+  let best = null;
+  let bestDistSq = Infinity;
+
+  eqHandleRegistry.forEach((entry) => {
+
+    const x = eqFreqToX(entry.opts.getFreq());
+    const y = eqDbToY(entry.getVisualDb());
+
+    const dx = x - point.x;
+    const dy = y - point.y;
+    const distSq = dx * dx + dy * dy;
+
+    if(distSq < bestDistSq){
+      bestDistSq = distSq;
+      best = entry;
+    }
+
+  });
+
+  if(!best || bestDistSq > EQ_HANDLE_PICK_RADIUS * EQ_HANDLE_PICK_RADIUS)return null;
+
+  return best;
+
+}
+
+function eqSetHandleActive(id, active){
+  const el = document.getElementById(id);
+  if(!el)return;
+  const dot = el.querySelector('.eqHandleDot');
+  if(dot)dot.setAttribute('r', active ? '9' : '6');
+  el.classList.toggle('eqHandleDragging', active);
+}
+
+function bindEqGlobalDragListeners(){
+
+  if(eqGlobalDragListenersBound)return;
+  eqGlobalDragListenersBound = true;
+
+  const svg = document.getElementById('eqGraphSvg');
+
+  svg.addEventListener('pointerdown', (event) => {
+
+    const point = svgPointFromEvent(svg, event);
+    const nearest = eqFindNearestHandle(point);
+
+    if(!nearest)return;
+
+    eqActiveDrag = { pointerId: event.pointerId, opts: nearest.opts, id: nearest.id };
+    eqSetHandleActive(nearest.id, true);
+    eqApplyDragPoint(nearest.opts, point);
+    drawEqCurveAndHandles();
+    event.preventDefault();
+
+  }, { passive: false });
+
+  document.addEventListener('pointermove', (event) => {
+    if(!eqActiveDrag || event.pointerId !== eqActiveDrag.pointerId)return;
+    eqApplyDragPoint(eqActiveDrag.opts, svgPointFromEvent(svg, event));
+    drawEqCurveAndHandles();
+    event.preventDefault();
+  }, { passive: false });
+
+  const releaseDrag = (event) => {
+    if(!eqActiveDrag || event.pointerId !== eqActiveDrag.pointerId)return;
+    eqSetHandleActive(eqActiveDrag.id, false);
+    eqActiveDrag = null;
+  };
+
+  document.addEventListener('pointerup', releaseDrag);
+  document.addEventListener('pointercancel', releaseDrag);
+
+}
+
+function wireEqHandleDrag(id, opts, getVisualDb){
+
+  const el = document.getElementById(id);
+
+  bindEqGlobalDragListeners();
+
+  eqHandleRegistry.push({ id, opts, getVisualDb });
+
+  el.addEventListener('keydown', (event) => {
+
+    const freqStep = 1.03; // small multiplicative nudge — keeps steps even across the log scale
+    const freq = opts.getFreq();
+
+    if(event.key === 'ArrowRight'){
+      opts.setFreq(Math.max(opts.minFreq, Math.min(opts.maxFreq, freq * freqStep)));
+      event.preventDefault();
+    }else if(event.key === 'ArrowLeft'){
+      opts.setFreq(Math.max(opts.minFreq, Math.min(opts.maxFreq, freq / freqStep)));
+      event.preventDefault();
+    }else if(opts.hasVertical && (event.key === 'ArrowUp' || event.key === 'ArrowDown')){
+      const step = (opts.vMax - opts.vMin) / 40 * (event.key === 'ArrowUp' ? 1 : -1);
+      const current = opts.getVertical();
+      const clampedLo = Math.min(opts.vMin, opts.vMax);
+      const clampedHi = Math.max(opts.vMin, opts.vMax);
+      opts.setVertical(Math.max(clampedLo, Math.min(clampedHi, current + step)));
+      event.preventDefault();
+    }
+
+  });
+
+}
+
+function initEqScreen(){
+
+  renderEqGrid();
+
+  /* Every band gets the full 20Hz-20kHz range to drag across
+     horizontally, rather than being fenced into a narrow slice of
+     it. Vertically: Body/Air drag real gain (+-18dB); Low Cut/High
+     Cut drag resonance (Q) since a pass filter has no gain of its
+     own — dragging up piles up a resonant peak right at the
+     cutoff, dragging down keeps it a plain gentle roll-off. Every
+     dot ends up with real, full-height movement in both
+     directions. */
+
+  wireEqHandleDrag('eqHandleLowCut', {
+    minFreq: EQ_FREQ_MIN, maxFreq: EQ_FREQ_MAX,
+    hasVertical: true, vMin: EQ_CUT_Q_MIN, vMax: EQ_CUT_Q_MAX,
+    /* Two identical cascaded stages at the same Q give a resonant
+       peak at the cutoff of exactly 40*log10(Q) dB (each RBJ
+       biquad stage peaks at Q linear = 20*log10(Q) dB right at its
+       own corner frequency, and two identical stages multiply, i.e.
+       add in dB). Invert that to solve for the Q this band needs so
+       its contribution, on top of everything else already in the
+       chain, lands the combined curve on the touched point. */
+    verticalSolve: (targetDb, otherDb) => Math.pow(10, (targetDb - otherDb) / 40),
+    excludeNode: [eqHighNode, eqHighNode2],
+    getFreq: () => currentLowCutFreq,
+    setFreq: (freq) => {
+      currentLowCutFreq = freq;
+      const ctx = getAudioCtx();
+      [eqHighNode, eqHighNode2].forEach((node) => node.frequency.setValueAtTime(freq, ctx.currentTime));
+    },
+    getVertical: () => currentLowCutQ,
+    setVertical: (q) => {
+      currentLowCutQ = q;
+      const ctx = getAudioCtx();
+      [eqHighNode, eqHighNode2].forEach((node) => node.Q.setValueAtTime(q, ctx.currentTime));
+    }
+  }, () => eqDbAtFreq(currentLowCutFreq));
+
+  wireEqHandleDrag('eqHandleHighCut', {
+    minFreq: EQ_FREQ_MIN, maxFreq: EQ_FREQ_MAX,
+    hasVertical: true, vMin: EQ_CUT_Q_MIN, vMax: EQ_CUT_Q_MAX,
+    verticalSolve: (targetDb, otherDb) => Math.pow(10, (targetDb - otherDb) / 40),
+    excludeNode: [eqLowNode, eqLowNode2],
+    getFreq: () => currentHighCutFreq,
+    setFreq: (freq) => {
+      currentHighCutFreq = freq;
+      const ctx = getAudioCtx();
+      [eqLowNode, eqLowNode2].forEach((node) => node.frequency.setValueAtTime(freq, ctx.currentTime));
+      if(cutoffKnobController){
+        cutoffKnobController.setDisplayValue(frequencyToSlider(freq, EQ_LOW_MIN_FREQ, EQ_LOW_MAX_FREQ));
+      }
+    },
+    getVertical: () => currentHighCutQ,
+    setVertical: (q) => {
+      currentHighCutQ = q;
+      const ctx = getAudioCtx();
+      [eqLowNode, eqLowNode2].forEach((node) => node.Q.setValueAtTime(q, ctx.currentTime));
+    }
+  }, () => eqDbAtFreq(currentHighCutFreq));
+
+  wireEqHandleDrag('eqHandlePeak1', {
+    minFreq: EQ_FREQ_MIN, maxFreq: EQ_FREQ_MAX,
+    hasVertical: true, vMin: -EQ_DB_RANGE, vMax: EQ_DB_RANGE,
+    verticalSolve: (targetDb, otherDb) => targetDb - otherDb, excludeNode: eqPeakLowNode,
+    getFreq: () => currentPeak1Freq,
+    setFreq: (freq) => {
+      currentPeak1Freq = freq;
+      const ctx = getAudioCtx();
+      eqPeakLowNode.frequency.setValueAtTime(freq, ctx.currentTime);
+    },
+    getVertical: () => currentPeak1Gain,
+    setVertical: (gain) => {
+      currentPeak1Gain = gain;
+      const ctx = getAudioCtx();
+      eqPeakLowNode.gain.setValueAtTime(gain, ctx.currentTime);
+    }
+  }, () => eqDbAtFreq(currentPeak1Freq));
+
+  wireEqHandleDrag('eqHandlePeak2', {
+    minFreq: EQ_FREQ_MIN, maxFreq: EQ_FREQ_MAX,
+    hasVertical: true, vMin: -EQ_DB_RANGE, vMax: EQ_DB_RANGE,
+    verticalSolve: (targetDb, otherDb) => targetDb - otherDb, excludeNode: eqPeakHighNode,
+    getFreq: () => currentPeak2Freq,
+    setFreq: (freq) => {
+      currentPeak2Freq = freq;
+      const ctx = getAudioCtx();
+      eqPeakHighNode.frequency.setValueAtTime(freq, ctx.currentTime);
+    },
+    getVertical: () => currentPeak2Gain,
+    setVertical: (gain) => {
+      currentPeak2Gain = gain;
+      const ctx = getAudioCtx();
+      eqPeakHighNode.gain.setValueAtTime(gain, ctx.currentTime);
+    }
+  }, () => eqDbAtFreq(currentPeak2Freq));
+
+  document.getElementById('eqOpenBtn').onclick = openEqScreen;
+  document.getElementById('eqCloseBtn').onclick = closeEqScreen;
+
+  document.getElementById('eqResetBtn').onclick = () => {
+
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+
+    currentLowCutFreq = EQ_HIGH_MIN_FREQ;
+    currentHighCutFreq = EQ_LOW_MAX_FREQ;
+    currentLowCutQ = 0.7071;
+    currentHighCutQ = 0.7071;
+    currentPeak1Freq = 400; currentPeak1Gain = 0;
+    currentPeak2Freq = 6000; currentPeak2Gain = 0;
+
+    [eqHighNode, eqHighNode2].forEach((node) => {
+      node.frequency.setValueAtTime(currentLowCutFreq, now);
+      node.Q.setValueAtTime(currentLowCutQ, now);
+    });
+    [eqLowNode, eqLowNode2].forEach((node) => {
+      node.frequency.setValueAtTime(currentHighCutFreq, now);
+      node.Q.setValueAtTime(currentHighCutQ, now);
+    });
+
+    eqPeakLowNode.frequency.setValueAtTime(currentPeak1Freq, now);
+    eqPeakLowNode.gain.setValueAtTime(0, now);
+    eqPeakHighNode.frequency.setValueAtTime(currentPeak2Freq, now);
+    eqPeakHighNode.gain.setValueAtTime(0, now);
+
+    if(cutoffKnobController){
+      cutoffKnobController.setDisplayValue(frequencyToSlider(currentHighCutFreq, EQ_LOW_MIN_FREQ, EQ_LOW_MAX_FREQ));
+    }
+
+  };
+
+}
+
+/* Rotary knob: a 270°-sweep dial (a 90° gap at the bottom, like a
+   hardware pot) driven by vertical drag — drag up to increase,
+   down to decrease. Built as a couple of SVG circles (a dim full-
+   range track and an accent-colored progress arc, both using
+   stroke-dasharray/rotate rather than a real arc path) plus a
+   radial pointer line, since that's enough to draw a knob without
+   pulling in an SVG path library. */
+const KNOB_RADIUS = 26;
+const KNOB_CIRCUMFERENCE = 2 * Math.PI * KNOB_RADIUS;
+const KNOB_ARC_FRACTION = 0.75; // 270 of 360 degrees
+const KNOB_DRAG_RANGE_PX = 140; // vertical drag distance for the full 0-100 sweep
+
+function createKnob(config){
+
+  const knobEl =
+    document.getElementById(config.knobId);
+
+  const arcEl =
+    document.getElementById(config.arcId);
+
+  const pointerEl =
+    document.getElementById(config.pointerId);
+
+  const valueEl =
+    document.getElementById(config.valueId);
+
+  const trackEl =
+    knobEl.querySelector('.knobTrack');
+
+  const fullArcLen =
+    KNOB_CIRCUMFERENCE * KNOB_ARC_FRACTION;
+
+  trackEl.setAttribute('stroke-dasharray', fullArcLen + ' ' + (KNOB_CIRCUMFERENCE - fullArcLen));
+
+  let value = config.initialValue;
+
+  const render = () => {
+
+    const filledLen =
+      fullArcLen * (value / 100);
+
+    arcEl.setAttribute('stroke-dasharray', filledLen + ' ' + (KNOB_CIRCUMFERENCE - filledLen));
+
+    const angle =
+      -135 + KNOB_ARC_FRACTION * 360 * (value / 100);
+
+    pointerEl.setAttribute('transform', 'rotate(' + angle + ' 32 32)');
+
+    if(valueEl)valueEl.textContent = config.formatValue(value);
+
+  };
+
+  const setValue = (newValue) => {
+    value = Math.max(0, Math.min(100, newValue));
+    render();
+    config.onChange(value);
+  };
+
+  // Updates the knob's visual position/readout only — used when the
+  // underlying parameter changed from somewhere other than this
+  // knob (e.g. the EQ screen's matching dot), so syncing the
+  // display doesn't also re-trigger the audio change a second time.
+  const setDisplayValue = (newValue) => {
+    value = Math.max(0, Math.min(100, newValue));
+    render();
+  };
+
+  let dragStartY = 0;
+  let dragStartValue = 0;
+
+  knobEl.onpointerdown = (event) => {
+    knobEl.setPointerCapture(event.pointerId);
+    dragStartY = event.clientY;
+    dragStartValue = value;
+  };
+
+  knobEl.onpointermove = (event) => {
+    if(!knobEl.hasPointerCapture(event.pointerId))return;
+    const deltaY = dragStartY - event.clientY;
+    setValue(dragStartValue + (deltaY / KNOB_DRAG_RANGE_PX) * 100);
+  };
+
+  knobEl.onkeydown = (event) => {
+    if(event.key === 'ArrowUp' || event.key === 'ArrowRight'){
+      setValue(value + 2);
+      event.preventDefault();
+    }else if(event.key === 'ArrowDown' || event.key === 'ArrowLeft'){
+      setValue(value - 2);
+      event.preventDefault();
+    }
+  };
+
+  render();
+  config.onChange(value);
+
+  return { setValue, setDisplayValue, getValue: () => value };
+
+}
+
+/*
+  The filter/reverb nodes are created lazily inside setupMixBus, so
+  touch that here just to make sure they exist before wiring the
+  knobs and EQ dots to them. This deliberately calls
+  ensureAudioGraph() rather than getAudioCtx() — getAudioCtx() also
+  resumes the context, and resuming (actually activating the audio
+  hardware) at page load, before the person has tapped anything, is
+  exactly what was producing an audible pop/buzz on open on some
+  devices. Every other call site in this file is already reached
+  from a real user gesture (a pad tap, a knob drag, opening the EQ
+  screen), so getAudioCtx()'s resume there is fine — this is the one
+  spot that needed to stop short of it.
+*/
+loadAudioEnginePrefs(); // safe here — REVERB_SPACE_PRESETS is defined by this point in the script
+
+ensureAudioGraph();
+
+initEqScreen();
+
+initAudioEngineSettings();
+
+/* Quick-access Low Pass knob — controls exactly the same eqLowNode/
+   eqLowNode2 pair (and the same currentHighCutFreq state) as the
+   EQ screen's High Cut dot. Turning this knob updates that shared
+   state, so the dot repositions itself automatically the next time
+   the EQ screen's render loop ticks; dragging the dot instead calls
+   cutoffKnobController.setDisplayValue() to keep this knob's
+   position in sync the other way. Either control works from either
+   screen. */
+cutoffKnobController = createKnob({
+  knobId: 'knobCutoff', arcId: 'knobCutoffArc',
+  pointerId: 'knobCutoffPointer', valueId: 'knobCutoffValue',
+  initialValue: frequencyToSlider(currentHighCutFreq, EQ_LOW_MIN_FREQ, EQ_LOW_MAX_FREQ),
+  formatValue: (value) => formatFreqLabel(sliderToFrequency(value, EQ_LOW_MIN_FREQ, EQ_LOW_MAX_FREQ)),
+  onChange: (value) => {
+
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const freq = sliderToFrequency(value, EQ_LOW_MIN_FREQ, EQ_LOW_MAX_FREQ);
+
+    currentHighCutFreq = freq;
+
+    [eqLowNode, eqLowNode2].forEach((node) => {
+      node.frequency.cancelScheduledValues(now);
+      node.frequency.setValueAtTime(node.frequency.value, now);
+      node.frequency.setTargetAtTime(freq, now, 0.08);
+    });
+
+  }
+});
+
+createKnob({
+  knobId: 'knobReverb', arcId: 'knobReverbArc',
+  pointerId: 'knobReverbPointer', valueId: 'knobReverbValue',
+  initialValue: 32,
+  formatValue: (value) => Math.round(value) + '%',
+  onChange: (value) => {
+
+    const ctx = getAudioCtx();
+
+    /* Cap the wet mix at 55% — church-y and spacious without
+       turning into mush at the top of the knob. */
+    const wetAmount = (value / 100) * 0.55;
+
+    reverbWetGainNode.gain.setTargetAtTime(wetAmount, ctx.currentTime, 0.05);
+
+  }
+});
+
+function wireVolumeSlider(){
+
+  const bar =
+    document.getElementById('volumeSlider');
+
+  const menuInput =
+    document.getElementById('masterVolume');
+
+  const setFromClientX = (clientX) => {
+
+    const rect =
+      bar.getBoundingClientRect();
+
+    const fraction =
+      Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+
+    masterVolume = fraction;
+
+    menuInput.value = Math.round(fraction * 100);
+
+    setVolumeThumb(fraction);
+
+    pads
+      .filter(pad => pad.state === 'playing')
+      .forEach(pad => fadeGain(pad, masterVolume, 120));
+
+  };
+
+  bar.onpointerdown = (event) => {
+    bar.setPointerCapture(event.pointerId);
+    setFromClientX(event.clientX);
+  };
+
+  bar.onpointermove = (event) => {
+    if(!bar.hasPointerCapture(event.pointerId))return;
+    setFromClientX(event.clientX);
+  };
+
+  bar.onkeydown = (event) => {
+
+    if(event.key !== 'ArrowUp' && event.key !== 'ArrowRight' &&
+       event.key !== 'ArrowDown' && event.key !== 'ArrowLeft')return;
+
+    const delta =
+      (event.key === 'ArrowUp' || event.key === 'ArrowRight') ? 0.02 : -0.02;
+
+    masterVolume =
+      Math.max(0, Math.min(1, masterVolume + delta));
+
+    document.getElementById('masterVolume').value = Math.round(masterVolume * 100);
+
+    setVolumeThumb(masterVolume);
+
+    pads
+      .filter(pad => pad.state === 'playing')
+      .forEach(pad => fadeGain(pad, masterVolume, 120));
+
+    event.preventDefault();
+
+  };
+
+  setVolumeThumb(masterVolume);
+
+}
+
+wireVolumeSlider();
+
+renderPads();
+
+</script>
+
+</body>
+</html>
