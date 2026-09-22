@@ -5635,6 +5635,55 @@ body.songLyricsImmersive .songHeaderMetaRow{
   padding:4px 0 30px;
 }
 
+/* =========================================================
+   PADS (embedded)
+
+   The Pads app is a large, fully self-contained instrument in
+   its own right (its own EQ screen, menus, audio engine) built
+   separately from this app — it even has its own renderPads()
+   internally, for its pad-button grid, which is a straight name
+   collision with this file's renderPads() below if the two were
+   ever merged into one script. An <iframe> keeps them in
+   completely separate document/JS contexts, which is also just
+   the right call for something this size: it needs real
+   full-viewport space to work the way it's designed to, not a
+   small pane inside the normal padded/scrolling .content column
+   every other screen here uses. Fixed + inset:0 escapes that
+   column entirely (and, deliberately, covers the bottom .nav bar
+   while open — same as this app's own full-screen overlays like
+   the login gate do).
+========================================================= */
+
+.padsScreenWrap{
+  position:fixed;
+  inset:0;
+  z-index:500;
+
+  display:flex;
+  flex-direction:column;
+
+  background:#000000;
+}
+
+.padsScreenHeader{
+  flex:0 0 auto;
+
+  display:flex;
+  align-items:center;
+  gap:10px;
+
+  padding:calc(14px + env(safe-area-inset-top, 0px)) 16px 12px;
+}
+
+.padsScreenFrame{
+  flex:1;
+  min-height:0;
+
+  width:100%;
+  border:0;
+  display:block;
+}
+
 .keyBridgePage{
   padding:4px 0 30px;
 }
@@ -8455,6 +8504,9 @@ function snapshotScreen(name){
 
     case 'metronome':
       return () => renderMetronome();
+
+    case 'pads':
+      return () => renderPads();
 
     case 'keyBridge':
       return () => renderKeyBridge();
@@ -17214,10 +17266,11 @@ function wireMetronomeBody(){
 }
 
 /*
-  Placeholder screen for the upcoming Pads feature — long-
-  pressing the Pads button in the song viewer's bottom panel
-  opens this. Intentionally empty for now; wiring up actual pad
-  playback here is a future update.
+  Pads — long-pressing the Pads button in the song viewer's
+  bottom panel opens this. The actual instrument lives in its own
+  file (pads.html, deployed alongside this one) and is embedded
+  via iframe rather than merged into this script — see the CSS
+  comment above .padsScreenWrap for why.
 */
 function renderPads(){
 
@@ -17229,9 +17282,9 @@ function renderPads(){
 
   screen.innerHTML = `
 
-    <div class="metronomePage">
+    <div class="padsScreenWrap">
 
-      <div class="libraryHead">
+      <div class="padsScreenHeader">
 
         <button
           class="searchBtn"
@@ -17247,9 +17300,13 @@ function renderPads(){
 
       </div>
 
-      <div class="empty" style="margin-top:60px;">
-        Pads are coming soon.
-      </div>
+      <iframe
+        class="padsScreenFrame"
+        id="padsAppFrame"
+        src="/pads.html"
+        title="Pads"
+        allow="autoplay"
+      ></iframe>
 
     </div>
 
@@ -24505,9 +24562,10 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm){
   if(homeBtn)homeBtn.onclick = () => renderHome();
 
   /*
-    Pads button — the feature itself doesn't exist yet, so a
-    short tap just says so; a long-press opens the (empty for
-    now) Pads screen, ready for that to get wired up later.
+    Pads button — long-press opens the Pads instrument; a short
+    tap just hints at that instead of opening it immediately,
+    since this button sits right in the middle of a panel people
+    are otherwise tapping quickly during a song.
   */
   const padsBtn =
     document.getElementById('songBottomPadsBtn');
@@ -24538,7 +24596,7 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm){
 
     padsBtn.onclick = () => {
       if(padsLongPressed){ padsLongPressed = false; return; }
-      showToast('Long-press Pads to open it — coming soon','success',{small:true});
+      showToast('Long-press Pads to open it','success',{small:true});
     };
 
   }
@@ -33098,6 +33156,12 @@ function handleHardwareBack(){
       return true;
 
     case 'metronome':
+
+      goBack(renderHome);
+
+      return true;
+
+    case 'pads':
 
       goBack(renderHome);
 
