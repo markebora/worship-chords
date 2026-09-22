@@ -1026,7 +1026,7 @@ html,body{
 
       <div class="menuRow">
         <label>Sub</label>
-        <input type="range" id="subVolume" min="0" max="100" value="50">
+        <input type="range" id="subVolume" min="0" max="100" value="0">
       </div>
 
       <div class="menuRow">
@@ -1382,7 +1382,7 @@ const MIDI_NOTE_NAMES = [
 const SF2_TARGET_NOTE = 60;
 
 let masterVolume = 0.85;
-let subVolume = 0.5;
+let subVolume = 0; // starts at zero — sub only comes on once the user turns it up, never by default
 let exclusiveMode = true;
 
 /* pads: { id, name, state, type: 'sample'|'sf2', gainNode, subOsc,
@@ -1420,6 +1420,28 @@ function loadAudioEnginePrefs(){
     if(savedRate === 'auto' || savedRate === '44100' || savedRate === '48000')preferredSampleRate = savedRate;
     const savedLatency = localStorage.getItem('padsEqLatencyHint');
     if(savedLatency === 'interactive' || savedLatency === 'balanced' || savedLatency === 'playback')preferredLatencyHint = savedLatency;
+
+    // Volume, sub level, and the exclusive-play toggle are personal
+    // mix settings the same way the ones above are — save them once
+    // and pick that value back up on the next visit instead of
+    // silently resetting to the factory default every time the app
+    // is closed and reopened.
+    const savedMasterVolume = localStorage.getItem('padsEqMasterVolume');
+    if(savedMasterVolume !== null){
+      const parsed = Number(savedMasterVolume);
+      if(Number.isFinite(parsed))masterVolume = Math.max(0, Math.min(1, parsed));
+    }
+
+    const savedSubVolume = localStorage.getItem('padsEqSubVolume');
+    if(savedSubVolume !== null){
+      const parsed = Number(savedSubVolume);
+      if(Number.isFinite(parsed))subVolume = Math.max(0, Math.min(1, parsed));
+    }
+
+    const savedExclusiveMode = localStorage.getItem('padsEqExclusiveMode');
+    if(savedExclusiveMode === 'true' || savedExclusiveMode === 'false'){
+      exclusiveMode = savedExclusiveMode === 'true';
+    }
   }catch(err){
     // Storage can be unavailable (private browsing, permissions) —
     // preferences just fall back to defaults for this session.
@@ -2066,6 +2088,18 @@ function initAudioEngineSettings(){
       try{ localStorage.setItem('padsEqLatencyHint', preferredLatencyHint); }catch(err){}
     };
   }
+
+  const masterVolumeSlider = document.getElementById('masterVolume');
+  if(masterVolumeSlider){
+    masterVolumeSlider.value = Math.round(masterVolume * 100);
+    setVolumeThumb(masterVolume);
+  }
+
+  const subVolumeSlider = document.getElementById('subVolume');
+  if(subVolumeSlider)subVolumeSlider.value = Math.round(subVolume * 100);
+
+  const exclusiveSwitch = document.getElementById('exclusiveSwitch');
+  if(exclusiveSwitch)exclusiveSwitch.classList.toggle('on', exclusiveMode);
 
   updateAudioEngineLockState();
   setupAudioOutputRow();
@@ -2782,6 +2816,54 @@ function stopAllPads(){
 
 }
 
+function removeCurrentSamplePads(){
+
+  /* A newly loaded folder of sample audio is meant to fully replace
+     whatever sample folder was loaded before it — the same one-in,
+     one-out swap that removeCurrentSf2Pads() below already does for
+     SoundFonts, just for plain audio samples. Without this, loading
+     a second folder would just pile its pads on top of the first
+     folder's instead of standing in for it. */
+
+  const toRemove =
+    pads.filter(pad => pad.type === 'sample');
+
+  if(!toRemove.length)return;
+
+  const now =
+    audioCtx ? audioCtx.currentTime : 0;
+
+  toRemove.forEach(pad => {
+
+    if(pad.gainNode){
+      try{
+        pad.gainNode.gain.cancelScheduledValues(now);
+        pad.gainNode.gain.value = 0;
+      }catch(err){}
+    }
+
+    if(pad.audio){
+      try{ pad.audio.pause(); }catch(err){}
+    }
+
+    if(pad.subOsc){
+      try{ pad.subOsc.stop(); }catch(err){}
+    }
+
+    // Each sample pad's playable URL is a blob: URL created just for
+    // it (see handleFiles below) — release it now that the pad it
+    // belonged to is gone, so replaced folders don't quietly leak
+    // memory the longer the app stays open.
+    if(pad.url){
+      try{ URL.revokeObjectURL(pad.url); }catch(err){}
+    }
+
+  });
+
+  pads = pads.filter(pad => pad.type !== 'sample');
+
+}
+
 function handleFiles(fileList){
 
   const files = [...fileList];
@@ -2791,6 +2873,8 @@ function handleFiles(fileList){
 
   const audioFiles =
     files.filter(file => !/\.sf2$/i.test(file.name) && file.type && file.type.startsWith('audio/'));
+
+  if(audioFiles.length)removeCurrentSamplePads();
 
   audioFiles.forEach(file => {
 
@@ -3424,6 +3508,8 @@ async function restoreSf2FolderOnLoad(){
     // currently loaded, so that still needs an explicit tap via the
     // picker rather than silently swapping the pad grid out from
     // under someone on every reload.
+    if(audioFiles.length)removeCurrentSamplePads();
+
     audioFiles.forEach(file => {
 
       const newPad = {
@@ -3633,6 +3719,8 @@ document.getElementById('masterVolume').oninput = (event) => {
 
   setVolumeThumb(masterVolume);
 
+  try{ localStorage.setItem('padsEqMasterVolume', String(masterVolume)); }catch(err){}
+
   pads
     .filter(pad => pad.state === 'playing')
     .forEach(pad => fadeGain(pad, masterVolume, 120));
@@ -3642,6 +3730,8 @@ document.getElementById('masterVolume').oninput = (event) => {
 document.getElementById('subVolume').oninput = (event) => {
 
   subVolume = Number(event.target.value) / 100;
+
+  try{ localStorage.setItem('padsEqSubVolume', String(subVolume)); }catch(err){}
 
   pads
     .filter(pad => pad.state === 'playing')
@@ -3656,6 +3746,8 @@ document.getElementById('exclusiveToggle').onclick = () => {
   document
     .getElementById('exclusiveSwitch')
     .classList.toggle('on', exclusiveMode);
+
+  try{ localStorage.setItem('padsEqExclusiveMode', String(exclusiveMode)); }catch(err){}
 
 };
 
