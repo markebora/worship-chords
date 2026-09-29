@@ -307,6 +307,74 @@ button{
    HEADER
 ========================================================= */
 
+/*
+  Wraps .top + .hero so the blurred video-thumbnail backdrop
+  below can sit behind both, clipped to exactly their combined
+  height. Both children collapse to ~0 height when hidden on
+  non-Home screens (see setActiveNav's heroHidden/topHidden
+  toggles) — since this wrapper does no sizing of its own, it
+  collapses right along with them, so the backdrop needs no
+  separate show/hide logic at all.
+*/
+.homeHero{
+  position:relative;
+  overflow:hidden;
+}
+
+/*
+  A heavily blurred, dimmed video thumbnail — see
+  updateHeroBackdrop() — standing in for a plain black header.
+  Overscanned (inset beyond the box on all sides) so the blur
+  radius never reveals a hard edge. Picks a different thumbnail
+  once per calendar day, cross-fading in rather than popping, so
+  it reads as "alive" without being distracting during a service.
+*/
+.heroBackdrop{
+  position:absolute;
+  top:-15%; left:-15%; right:-15%; bottom:-15%;
+
+  background-size:cover;
+  background-position:center;
+
+  filter:blur(46px) saturate(1.3) brightness(.8);
+
+  opacity:0;
+  transition:opacity 1.4s ease;
+
+  z-index:0;
+}
+
+.heroBackdrop.heroBackdropVisible{
+  opacity:.6;
+}
+
+/*
+  Sits above the blur, below the text — keeps the greeting and
+  title readable against a busy thumbnail, and fades the whole
+  backdrop down into the page's own black background at the
+  bottom edge so it blends rather than looking like a pasted
+  banner.
+*/
+.heroBackdropFade{
+  position:absolute;
+  inset:0;
+
+  background:linear-gradient(
+    180deg,
+    rgba(0,0,0,.35) 0%,
+    rgba(0,0,0,.6) 60%,
+    #000000 100%
+  );
+
+  z-index:0;
+  pointer-events:none;
+}
+
+.top, .hero{
+  position:relative;
+  z-index:1;
+}
+
 .top{
   padding:24px 22px 0;
 }
@@ -6994,26 +7062,33 @@ body.songLyricsImmersive .songHeaderMetaRow{
        HEADER
   ====================================================== -->
 
-  <div class="top">
+  <div class="homeHero">
 
-    <div class="welcome">
-      Welcome!
+    <div class="heroBackdrop" id="heroBackdrop"></div>
+    <div class="heroBackdropFade"></div>
+
+    <div class="top">
+
+      <div class="welcome">
+        Welcome!
+      </div>
+
     </div>
 
+
+    <section class="hero">
+
+      <h1>
+        Disciples
+      </h1>
+
+      <p>
+        Soli Deo Gloria
+      </p>
+
+    </section>
+
   </div>
-
-
-  <section class="hero">
-
-    <h1>
-      Disciples
-    </h1>
-
-    <p>
-      Soli Deo Gloria
-    </p>
-
-  </section>
 
 
   <!-- =====================================================
@@ -10483,6 +10558,51 @@ function clearRememberedAccount(){
   Persistent chrome above #screen, so this runs once at boot and
   again anytime sign-in state changes — not on every render.
 */
+/*
+  Picks one of the Worship Videos thumbnails as the Home header's
+  blurred backdrop (see .heroBackdrop) and fades it in. Rotates by
+  calendar day rather than randomly on every render, so it feels
+  like a deliberate daily touch instead of flickering between
+  thumbnails on every navigation back to Home.
+*/
+function updateHeroBackdrop(videos){
+
+  const el =
+    document.getElementById('heroBackdrop');
+
+  if(!el)return;
+
+  const withThumbs =
+    (videos || []).filter(video => video.thumbnail);
+
+  if(!withThumbs.length){
+
+    el.classList.remove('heroBackdropVisible');
+
+    return;
+
+  }
+
+  const dayIndex =
+    Math.floor(Date.now() / 86400000);
+
+  const pick =
+    withThumbs[dayIndex % withThumbs.length];
+
+  const nextImage =
+    `url("${pick.thumbnail}")`;
+
+  if(el.style.backgroundImage !== nextImage){
+    el.style.backgroundImage = nextImage;
+  }
+
+  requestAnimationFrame(() => {
+    el.classList.add('heroBackdropVisible');
+  });
+
+}
+
+
 function updateWelcomeHeader(){
 
   const el =
@@ -15282,6 +15402,8 @@ function renderHome(){
 
   const videoArchive =
     getLocalVideoArchive().videos;
+
+  updateHeroBackdrop(videoArchive);
 
   const setlists =
     getSetlists();
