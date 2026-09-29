@@ -3674,6 +3674,35 @@ body.songLyricsImmersive .songHeaderMetaRow{
   color:#8b8b93;
 }
 
+.editorPresenceLine{
+  margin-top:6px;
+
+  display:flex;
+  align-items:center;
+  gap:6px;
+
+  font-size:12px;
+  font-weight:600;
+
+  color:#7fe0a3;
+}
+
+.editorPresenceDot{
+  width:7px;
+  height:7px;
+  flex:0 0 auto;
+
+  border-radius:50%;
+  background:#7fe0a3;
+
+  animation:editorPresencePulse 1.6s ease-in-out infinite;
+}
+
+@keyframes editorPresencePulse{
+  0%, 100%{ opacity:1; }
+  50%{ opacity:.35; }
+}
+
 
 /* =========================================================
    EDITOR PILL BAR
@@ -7836,6 +7865,72 @@ function showConfirmDialog(message, options){
 
 
 /*
+  Unsaved-edits prompt for leaving the song editor — deliberately
+  its own function rather than reusing showConfirmDialog(), because
+  that helper treats a backdrop tap the same as its Cancel button.
+  Here, "Exit" (discard) is a genuinely destructive choice — an
+  accidental tap outside the box discarding someone's edit would be
+  a real problem — so the backdrop is inert and only the three
+  actual buttons resolve anything. Resolves 'save' (local only),
+  'upload' (save, then push to the team), 'exit' (discard), or null
+  (backdrop tap / nothing happened — stay in the editor either way).
+*/
+
+function showUnsavedEditsDialog(){
+
+  return new Promise((resolve) => {
+
+    const host =
+      document.getElementById('confirmOverlay');
+
+    if(!host){
+      resolve(window.confirm('You have unsaved changes. Save them?') ? 'save' : 'exit');
+      return;
+    }
+
+    host.innerHTML = `
+
+      <div class="confirmBack" id="confirmBack">
+        <div class="confirmBox">
+
+          <p class="confirmMessage">Continue without saving?</p>
+
+          <div class="confirmBtnRow">
+            <button class="toolbarBtn danger" id="unsavedExitBtn" type="button">Exit</button>
+            <button class="toolbarBtn" id="unsavedSaveBtn" type="button">Save</button>
+            <button class="toolbarBtn primary" id="unsavedUploadBtn" type="button">Upload</button>
+          </div>
+
+        </div>
+      </div>
+
+    `;
+
+    const back =
+      document.getElementById('confirmBack');
+
+    const finish = (result) => {
+      back.classList.remove('open');
+      setTimeout(() => { host.innerHTML = ''; }, 200);
+      resolve(result);
+    };
+
+    document.getElementById('unsavedExitBtn').onclick = () => finish('exit');
+    document.getElementById('unsavedSaveBtn').onclick = () => finish('save');
+    document.getElementById('unsavedUploadBtn').onclick = () => finish('upload');
+
+    // Backdrop tap is intentionally a no-op here — see comment above.
+
+    requestAnimationFrame(() => {
+      back.classList.add('open');
+    });
+
+  });
+
+}
+
+
+/*
   Replacement for window.prompt(), which — per the note on the
   older analysis rename flow — is unreliable inside mobile
   webviews and installed PWAs (it can silently no-op). Returns
@@ -8979,6 +9074,7 @@ function sanitizeForPlainExport(text){
   real safety net if a library ever needs to grow past this.
 */
 const MAX_SONGS = 500;
+let nearSongCapWarningShown = false;
 
 
 function getSongs(){
@@ -9005,31 +9101,69 @@ function getSongs(){
 function writeSongs(songs){
 
   /*
-    No automatic Drive push here on purpose — a save, rename,
-    or delete on one phone should never silently overwrite
-    someone else's in-progress edits (different key/transpose,
-    etc.) on the same song. Brand-new songs are auto-uploaded
-    explicitly from saveCurrentSong(); everything else only
-    reaches Drive when someone taps that song's Sync button,
-    or Profile → Sync Now.
-
-    Exception: a song that's on the shared Worship Lineup
-    lineup auto-syncs on every edit — see scheduleLineupAutoSync
-    below. That's the one list everyone on the team is expected
-    to be looking at the same live version of, so it shouldn't
-    depend on the editor remembering to tap Sync. Every other
-    song stays opt-in/manual, same as before.
+    No automatic Drive/Firestore push here — a save, rename, or
+    edit on one phone never silently overwrites someone else's
+    in-progress version of the same song. This used to have an
+    exception where a Worship Lineup song auto-synced on every
+    edit, but that meant something like transposing to match a
+    capo (an acoustic player's own key, different from everyone
+    else's) got silently pushed out to the whole team the instant
+    it changed. Every song — lineup or not — now stays opt-in/
+    manual: nothing reaches the team until the cloud/Sync button
+    on that song is actually tapped.
   */
 
-  const previousById =
-    new Map(
-      getSongs().map(item => [item.id, item])
+  const cappedSongs =
+    songs.slice(0, MAX_SONGS);
+
+  /*
+    THE FIX: this write had no try/catch, unlike every other
+    localStorage touch in the file. If the device's storage quota
+    is full (a real risk as a library grows toward MAX_SONGS, each
+    song carrying lyrics + chords + annotations), this used to throw
+    uncaught — the save silently failed with no toast, nothing, and
+    whatever the person just typed could be gone with no warning.
+  */
+  try{
+
+    localStorage.setItem(
+      'worshipChordsSongs',
+      JSON.stringify(cappedSongs)
     );
 
-  localStorage.setItem(
-    'worshipChordsSongs',
-    JSON.stringify(songs.slice(0, MAX_SONGS))
-  );
+  }catch(error){
+
+    console.error(error);
+
+    showToast(
+      "Couldn't save — your device's storage is full. Try freeing up space or removing a few songs.",
+      'error'
+    );
+
+    return;
+
+  }
+
+  /*
+    A one-time-per-session nudge as the library approaches
+    MAX_SONGS, since songs past that cap are silently dropped
+    (every writeSongs call site slices to MAX_SONGS) — better to
+    know before it happens than to lose a newly-added song with no
+    explanation.
+  */
+  if(
+    !nearSongCapWarningShown &&
+    cappedSongs.length >= MAX_SONGS - 20
+  ){
+
+    nearSongCapWarningShown = true;
+
+    showToast(
+      `You're at ${cappedSongs.length} of ${MAX_SONGS} songs — once you hit the limit, new songs won't be saved until you remove some.`,
+      'error'
+    );
+
+  }
 
   try{
 
@@ -9040,20 +9174,16 @@ function writeSongs(songs){
 
     if(lineupIds.size){
 
-      songs.forEach(song => {
-
-        if(!lineupIds.has(song.id))return;
-
-        const prev =
-          previousById.get(song.id);
-
-        if(!prev || prev.updatedAt !== song.updatedAt){
-
-          scheduleLineupAutoSync(song.id);
-
-        }
-
-      });
+      /*
+        THE FIX: this used to loop every changed song and call
+        scheduleLineupAutoSync() for any that were on the lineup —
+        that's the auto-push that's gone now. Lineup songs are no
+        longer treated as a special case here; they wait for the
+        cloud/Sync button exactly like every other song. Nothing
+        else actually depends on lineupIds here anymore, but it's
+        left in place in case a future feature needs to know which
+        local songs are on today's lineup without recomputing it.
+      */
 
     }
 
@@ -27002,6 +27132,13 @@ let editorEditingTarget = null;
 */
 let editorTransposeStepsAtOpen = 0;
 
+/*
+  The exact textarea content the editor opened with, so leaving
+  can be compared against it to know whether anything actually
+  changed — see handleEditorBackWithUnsavedCheck() below.
+*/
+let editorTextAtOpen = '';
+
 
 function sectionsToEditorText(sections){
 
@@ -27045,8 +27182,24 @@ function sectionsToEditorText(sections){
 
 function autoGrowEditorTextarea(textarea){
 
+  /*
+    BUG FIX: this textarea has overflow:hidden (see .editorTextarea),
+    so it isn't independently scrollable — growing it taller as the
+    person types actually grows the whole page's layout height.
+    Mobile browsers treat that as "the focused field just moved" and
+    auto-scroll to keep it fully in view, which on a long song meant
+    every keystroke yanked the page down toward the textarea's new,
+    taller bottom edge — regardless of where the person was actually
+    typing. Capturing the scroll position before the resize and
+    restoring it right after cancels that browser-native jump.
+  */
+  const scroller = document.scrollingElement || document.documentElement;
+  const preservedScrollTop = scroller.scrollTop;
+
   textarea.style.height = 'auto';
   textarea.style.height = textarea.scrollHeight + 'px';
+
+  scroller.scrollTop = preservedScrollTop;
 
 }
 
@@ -27221,6 +27374,204 @@ function updateEditorHistoryButtons(){
 }
 
 
+/*
+  EDITOR PRESENCE — "who else is editing this right now"
+
+  A lightweight, Google-Docs-style indicator. While someone has a
+  song open in the editor, a small presence doc is kept alive in
+  Firestore — one per team + song + person, refreshed every 20s.
+  Anyone else who opens the SAME song's editor sees a live line
+  naming who else is in there right now, so two people are less
+  likely to quietly overwrite each other's edits without knowing
+  someone else was already in the file.
+
+  This is visibility only, not conflict prevention — it doesn't stop
+  a save, it just tells you someone else is around. Entries older
+  than EDITOR_PRESENCE_STALE_MS are treated as stale on the reading
+  side (a crashed tab or lost connection means the cleanup delete
+  below never ran), so a ghost entry can't linger forever.
+*/
+
+const EDITOR_PRESENCE_STALE_MS = 45000;
+const EDITOR_PRESENCE_HEARTBEAT_MS = 20000;
+
+let editorPresenceSongId = null;
+let editorPresenceHeartbeatTimer = null;
+let editorPresenceUnsub = null;
+
+function editorPresenceDocId(teamId, songId, uid){
+  return teamId + '_' + songId + '_' + uid;
+}
+
+async function writeEditorPresenceHeartbeat(songId){
+
+  try{
+
+    const teamId = getActiveTeamId();
+    const user = firebaseAuth && firebaseAuth.currentUser;
+
+    if(!teamId || !user || !songId)return;
+
+    await firestoreDb
+      .collection('presence')
+      .doc(editorPresenceDocId(teamId, songId, user.uid))
+      .set({
+        teamId,
+        songId,
+        uid: user.uid,
+        name: (getGoogleUser() && getGoogleUser().name) || 'Someone',
+        updatedAt: new Date().toISOString()
+      }, { merge:true });
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+async function clearEditorPresence(songId){
+
+  try{
+
+    const teamId = getActiveTeamId();
+    const user = firebaseAuth && firebaseAuth.currentUser;
+
+    if(!teamId || !user || !songId)return;
+
+    await firestoreDb
+      .collection('presence')
+      .doc(editorPresenceDocId(teamId, songId, user.uid))
+      .delete();
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+function renderEditorPresenceLine(names){
+
+  const el =
+    document.getElementById('editorPresenceLine');
+
+  if(!el)return;
+
+  if(!names.length){
+
+    el.style.display = 'none';
+    el.textContent = '';
+
+    return;
+
+  }
+
+  el.style.display = 'flex';
+
+  el.innerHTML =
+    `<span class="editorPresenceDot"></span> ${
+      names.length === 1
+        ? esc(names[0]) + ' is also editing this right now'
+        : names.map(esc).join(', ') + ' are also editing this right now'
+    }`;
+
+}
+
+function startEditorPresenceWatch(songId){
+
+  stopEditorPresenceWatch();
+
+  if(!songId)return;
+
+  editorPresenceSongId = songId;
+
+  const teamId = getActiveTeamId();
+  const user = firebaseAuth && firebaseAuth.currentUser;
+
+  if(!teamId || !user)return;
+
+  writeEditorPresenceHeartbeat(songId);
+
+  editorPresenceHeartbeatTimer =
+    setInterval(
+      () => writeEditorPresenceHeartbeat(songId),
+      EDITOR_PRESENCE_HEARTBEAT_MS
+    );
+
+  try{
+
+    editorPresenceUnsub =
+      firestoreDb
+        .collection('presence')
+        .where('teamId', '==', teamId)
+        .where('songId', '==', songId)
+        .onSnapshot(
+          querySnapshot => {
+
+            const now = Date.now();
+            const names = [];
+
+            querySnapshot.forEach(docSnap => {
+
+              const data =
+                docSnap.data() || {};
+
+              if(data.uid === user.uid)return;
+
+              const age =
+                now - new Date(data.updatedAt || 0).getTime();
+
+              if(age > EDITOR_PRESENCE_STALE_MS)return;
+
+              names.push(data.name || 'Someone');
+
+            });
+
+            renderEditorPresenceLine(names);
+
+          },
+          error => {
+            console.error(error);
+          }
+        );
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+function stopEditorPresenceWatch(){
+
+  if(editorPresenceHeartbeatTimer){
+
+    clearInterval(editorPresenceHeartbeatTimer);
+    editorPresenceHeartbeatTimer = null;
+
+  }
+
+  if(editorPresenceUnsub){
+
+    editorPresenceUnsub();
+    editorPresenceUnsub = null;
+
+  }
+
+  if(editorPresenceSongId){
+
+    clearEditorPresence(editorPresenceSongId);
+    editorPresenceSongId = null;
+
+  }
+
+}
+
+
 function renderEditor(song){
 
   setActiveNav('lyrics');
@@ -27281,6 +27632,9 @@ function renderEditor(song){
   clearTimeout(editorLivePillDebounce);
   editorLivePillDebounce = null;
 
+  editorTextAtOpen =
+    sectionsToEditorText(editorSections);
+
 
   screen.innerHTML = `
 
@@ -27318,6 +27672,8 @@ function renderEditor(song){
             Showing this in its current transposed key (${editorTransposeStepsAtOpen > 0 ? '+' : ''}${editorTransposeStepsAtOpen}) — saving keeps that transpose in place
           </p>
           ` : ''}
+
+          <p class="editorPresenceLine" id="editorPresenceLine" style="display:none;"></p>
 
         </div>
 
@@ -27358,7 +27714,7 @@ function renderEditor(song){
         class="editorTextarea"
         id="editorTextarea"
         spellcheck="false"
-      >${esc(sectionsToEditorText(editorSections))}</textarea>
+      >${esc(editorTextAtOpen)}</textarea>
 
 
     </div>
@@ -27404,7 +27760,9 @@ function renderEditor(song){
   document
     .getElementById('editorBack')
     .onclick =
-      renderSongViewer;
+      () => {
+        handleEditorBackWithUnsavedCheck();
+      };
 
 
   document
@@ -27492,6 +27850,8 @@ function renderEditor(song){
 
 
   attachEditorPillBehavior();
+
+  startEditorPresenceWatch(editorEditingTarget.id);
 
 }
 
@@ -27941,7 +28301,117 @@ function attachEditorPillBehavior(){
 }
 
 
+/*
+  Guards the editor's back button: if the textarea no longer
+  matches what the editor opened with, ask before leaving instead
+  of silently discarding an edit. "Save" runs the exact same save
+  path as the toolbar's Save button (which already navigates back
+  to the song viewer on its own); "Exit" discards and leaves;
+  tapping the backdrop does neither and just leaves the dialog —
+  the person stays in the editor either way.
+*/
+
+async function handleEditorBackWithUnsavedCheck(){
+
+  const textarea =
+    document.getElementById('editorTextarea');
+
+  const isDirty =
+    !!textarea &&
+    textarea.value !== editorTextAtOpen;
+
+  if(!isDirty){
+
+    stopEditorPresenceWatch();
+    renderSongViewer();
+
+    return;
+
+  }
+
+  const choice =
+    await showUnsavedEditsDialog();
+
+  if(choice === 'save'){
+
+    saveEditorChanges();
+
+  }else if(choice === 'upload'){
+
+    saveEditorChanges();
+    await uploadCurrentSongAfterEdit();
+
+  }else if(choice === 'exit'){
+
+    stopEditorPresenceWatch();
+    renderSongViewer();
+
+  }
+
+  // choice === null (backdrop tap) — stay in the editor, do nothing.
+
+}
+
+
+/*
+  Save-then-sync for the editor's "Upload" choice. saveEditorChanges()
+  already writes locally and navigates to the song viewer with
+  currentSong pointing at the just-saved song, so this only has to
+  push it out — reusing the exact same paths the visible cloud
+  buttons use elsewhere (the Worship Lineup header icon for a lineup
+  song, the Library row's Drive sync for anything else), so "Upload"
+  behaves identically to tapping that song's own sync button by hand.
+*/
+
+async function uploadCurrentSongAfterEdit(){
+
+  if(!currentSong)return;
+
+  if(isSongInLineup(currentSong.id)){
+
+    await handleLineupSyncButtonClick(currentSong);
+
+    return;
+
+  }
+
+  const result =
+    await syncOneSong(currentSong);
+
+  if(!result)return;
+
+  if(result.outcome === 'took-remote'){
+
+    showToast(
+      `"${currentSong.title}" updated to the shared version.`,
+      'success'
+    );
+
+    skipNextScreenTransition = true;
+    renderSongViewer();
+
+  }else if(result.outcome === 'uploaded'){
+
+    showToast(
+      `"${currentSong.title}" added for everyone.`,
+      'success'
+    );
+
+  }else{
+
+    showToast(
+      `"${currentSong.title}" — your version is now the shared one.`,
+      'success'
+    );
+
+  }
+
+}
+
+
 function saveEditorChanges(){
+
+  stopEditorPresenceWatch();
 
   const textarea =
     document.getElementById('editorTextarea');
