@@ -833,6 +833,57 @@ button{
   object-fit:cover;
 }
 
+.teamMembersList{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.teamMemberRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.teamMemberAvatar{
+  width:34px;
+  height:34px;
+  flex:0 0 auto;
+
+  border-radius:50%;
+
+  background:#1a1a1d;
+  border:1px solid #303036;
+
+  display:grid;
+  place-items:center;
+
+  overflow:hidden;
+
+  font-size:12px;
+  font-weight:800;
+
+  color:#eee;
+}
+
+.teamMemberAvatar img{
+  width:100%;
+  height:100%;
+
+  object-fit:cover;
+}
+
+.teamMemberName{
+  font-size:14px;
+  font-weight:600;
+  color:#f2f2f4;
+}
+
+.teamMemberYou{
+  color:#8b8b93;
+  font-weight:500;
+}
+
 .profileHeadInfo{
   min-width:0;
 }
@@ -12017,6 +12068,117 @@ async function ensureActiveTeam(uid){
 
 }
 
+/*
+  Populates the Team section's Members list in Profile. Reads the
+  team doc's memberUids (the same array leaveActiveTeam/createTeam/
+  "Join Team" already keep in sync via arrayUnion/arrayRemove — see
+  those for where it's maintained) as the source of truth for who's
+  actually still on the team, then fetches each member's name/photo
+  from their own profiles/{uid} doc. Called after renderProfile()
+  paints the loading placeholder, since this needs a round trip to
+  Firestore the initial render can't wait on.
+*/
+async function loadTeamMembersList(){
+
+  const container =
+    document.getElementById('teamMembersList');
+
+  if(!container)return;
+
+  if(!activeTeamId || !firestoreDb){
+    container.innerHTML = '';
+    return;
+  }
+
+  try{
+
+    const teamSnap =
+      await firestoreDb
+        .collection('teams')
+        .doc(activeTeamId)
+        .get();
+
+    const memberUids =
+      (teamSnap.exists && Array.isArray(teamSnap.data().memberUids))
+        ? teamSnap.data().memberUids
+        : [];
+
+    if(!memberUids.length){
+
+      container.innerHTML =
+        '<div class="settingsRowSub">No members found.</div>';
+
+      return;
+
+    }
+
+    const myUid =
+      firebaseAuth.currentUser && firebaseAuth.currentUser.uid;
+
+    const profileSnaps =
+      await Promise.all(
+        memberUids.map(
+          uid =>
+            firestoreDb
+              .collection('profiles')
+              .doc(uid)
+              .get()
+        )
+      );
+
+    const members =
+      profileSnaps
+        .map((snap, index) => ({
+          uid: memberUids[index],
+          name: (snap.exists && snap.data().name) || 'Someone',
+          photo: (snap.exists && snap.data().photo) || ''
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    /*
+      The person may have navigated away from Profile while these
+      two round trips were in flight — re-grab the element rather
+      than trusting the reference captured before the awaits.
+    */
+    const freshContainer =
+      document.getElementById('teamMembersList');
+
+    if(!freshContainer)return;
+
+    freshContainer.innerHTML =
+      members.map(member => `
+        <div class="teamMemberRow">
+          <div class="teamMemberAvatar">
+            ${
+              member.photo
+                ? `<img src="${esc(member.photo)}" alt="">`
+                : esc(profileInitials(member.name))
+            }
+          </div>
+          <div class="teamMemberName">
+            ${esc(member.name)}${member.uid === myUid ? ' <span class="teamMemberYou">(you)</span>' : ''}
+          </div>
+        </div>
+      `).join('');
+
+  }catch(error){
+
+    console.error(error);
+
+    const errorContainer =
+      document.getElementById('teamMembersList');
+
+    if(errorContainer){
+
+      errorContainer.innerHTML =
+        '<div class="settingsRowSub">Couldn\'t load members right now.</div>';
+
+    }
+
+  }
+
+}
+
 async function leaveActiveTeam(){
 
   if(!activeTeamId)return;
@@ -18844,6 +19006,15 @@ function renderProfile(){
                 </div>
               </div>
 
+              <div class="settingsRow" style="display:block;">
+                <div class="settingsRowLabel" style="margin-bottom:10px;">
+                  Members
+                </div>
+                <div class="teamMembersList" id="teamMembersList">
+                  <div class="settingsRowSub">Loading…</div>
+                </div>
+              </div>
+
               <div class="settingsRow">
                 <div>
                   <div class="settingsRowLabel">Leave Team</div>
@@ -19094,6 +19265,12 @@ function renderProfile(){
       renderTeamOnboarding();
 
     };
+
+  }
+
+  if(user && getActiveTeamId()){
+
+    loadTeamMembersList();
 
   }
 
