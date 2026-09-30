@@ -2343,6 +2343,27 @@ body.songLyricsImmersive .songHeaderMetaRow{
   white-space:nowrap;
 }
 
+.flowBarsBadge{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+
+  margin-left:6px;
+
+  background:rgba(158,206,106,.12);
+  border:1px dashed rgba(158,206,106,.5);
+  border-radius:999px;
+
+  padding:3px 10px;
+
+  font-size:11.5px;
+  font-weight:700;
+  color:#9ece6a;
+
+  cursor:pointer;
+  white-space:nowrap;
+}
+
 .flowKeyChangePanel[hidden]{
   display:none;
 }
@@ -6586,6 +6607,37 @@ body.songLyricsImmersive .songHeaderMetaRow{
   background:#4da6ff;
   color:#0a0a0b;
   border-color:#4da6ff;
+}
+
+.metArrangementRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+
+  margin-top:12px;
+  padding-top:12px;
+  border-top:1px solid #26262b;
+}
+
+.metArrangementLabel{
+  font-size:13px;
+  font-weight:800;
+  color:#e6e6e8;
+}
+
+.metArrangementSub{
+  margin-top:3px;
+  font-size:11.5px;
+  font-weight:500;
+  color:#8b8b93;
+  line-height:1.4;
+}
+
+.metArrangementOn{
+  background:#9ece6a;
+  color:#0a0a0b;
+  border-color:#9ece6a;
 }
 
 /* =========================================================
@@ -16176,6 +16228,20 @@ let metSchedulerTimer = null;
 let metNotesInQueue = [];
 let metLastDisplayedBeat = -1;
 
+/*
+  ARRANGEMENT CUES — spoken count-in + section name, timed off the
+  same lookahead scheduler that drives the click itself. Off by
+  default each time a song opens (nobody wants a surprise voice
+  cue), turned on per-session from the Song Preset card. See
+  metBuildArrangementBeatMap(), metCheckArrangementCue(), and the
+  three touch points inside metAdvanceNote()/metScheduler()/
+  metStartMetronome()/metStopMetronome() below.
+*/
+let metArrangementEnabled = false;
+let metArrangementBeatMap = null; // [{startBeat, endBeat, name}, ...] once built
+let metArrangementBeatCount = 0;  // total main beats elapsed since the metronome started
+let metArrangementCuedThrough = -1; // last beat index a cue was already scheduled for, so a re-schedule (tempo tap, etc.) can't double-fire one
+
 function metCreateWoodNoiseBuffer(){
 
   const duration = 0.2;
@@ -16352,7 +16418,15 @@ function metScheduler(){
   while(metNextNoteTime < metAudioCtx.currentTime + MET_SCHEDULE_AHEAD_SEC){
 
     if(metCurrentSubStep === 0){
+
       metScheduleClick(metCurrentBeat, metNextNoteTime);
+
+      if(metArrangementEnabled && metArrangementBeatMap){
+        metCheckArrangementCue(metArrangementBeatCount, metNextNoteTime);
+      }
+
+      metArrangementBeatCount++;
+
     }else{
       metScheduleGhost(metCurrentBeat, metCurrentSubStep, metNextNoteTime);
     }
@@ -16363,6 +16437,179 @@ function metScheduler(){
 
   metSchedulerTimer =
     setTimeout(metScheduler, MET_LOOKAHEAD_MS);
+
+}
+
+/*
+  Expands the current song's Flow into a flat timeline of
+  {startBeat, endBeat, name} spans (in main beats, not bars — bars
+  are converted using metBeatsPerMeasure so a time-signature change
+  doesn't throw the math off), then precomputes exactly which beat
+  index should trigger which spoken cue. Doing this once up front
+  means the actual scheduler only ever does an O(1) Map lookup per
+  beat, not any parsing/expanding work on the audio-timing path.
+
+  "note"-type flow items (free-text notes between sections) take no
+  time here — they're not part of the counted arrangement.
+*/
+function metBuildArrangementBeatMap(){
+
+  if(!currentSong)return null;
+
+  const target =
+    getFlowTarget(currentSong);
+
+  if(!Array.isArray(target.flow) || !target.flow.length)return null;
+
+  const displayedText =
+    target.originalText || target.text || '';
+
+  const sections =
+    getViewerSections(target, displayedText);
+
+  const byId =
+    new Map(sections.map(section => [section._id, section]));
+
+  const spans = [];
+  let cursor = 0;
+
+  target.flow.forEach(item => {
+
+    if(item.type !== 'section')return;
+
+    const section =
+      byId.get(item.sectionId);
+
+    const bars =
+      typeof item.bars === 'number'
+        ? Math.max(1, item.bars)
+        : FLOW_DEFAULT_BARS;
+
+    const beats =
+      bars * metBeatsPerMeasure;
+
+    spans.push({
+      startBeat: cursor,
+      endBeat: cursor + beats,
+      name: section ? (section.name || 'Next section') : 'Next section'
+    });
+
+    cursor += beats;
+
+  });
+
+  const cues = new Map();
+
+  /*
+    Nothing to count INTO before the very first section — cues
+    only exist at transitions from span i-1 to span i, i >= 1.
+    The countdown borrows time from the END of the previous span
+    (so it doesn't run long if that span itself is short), clamped
+    so a 1- or 2-bar section still gets a sensible (shorter) count
+    instead of a countdown that starts before the section before
+    IT has even finished.
+  */
+  for(let i = 1; i < spans.length; i++){
+
+    const prevLen =
+      spans[i - 1].endBeat - spans[i - 1].startBeat;
+
+    const countdownLen =
+      Math.max(1, Math.min(metBeatsPerMeasure, prevLen));
+
+    const startBeat =
+      spans[i].startBeat;
+
+    for(let j = 0; j < countdownLen - 1; j++){
+      cues.set(startBeat - countdownLen + j, String(j + 1));
+    }
+
+    cues.set(startBeat - 1, `In, ${spans[i].name}`);
+
+  }
+
+  return { spans, cues };
+
+}
+
+/*
+  Speaks `text` timed to land at `scheduledAudioTime` (an
+  audioCtx.currentTime-space value, same clock the click itself
+  uses). The Web Speech API has no sample-accurate start-time
+  parameter, so this converts to a setTimeout delay at the moment
+  it's scheduled (always within the scheduler's ~100ms lookahead
+  window) — plenty precise for a spoken cue, even though it isn't
+  sample-accurate the way the click sound is.
+*/
+function metSpeak(text, scheduledAudioTime){
+
+  if(typeof window.speechSynthesis === 'undefined')return;
+
+  const delayMs =
+    Math.max(0, (scheduledAudioTime - metAudioCtx.currentTime) * 1000);
+
+  setTimeout(() => {
+
+    if(!metIsPlaying || !metArrangementEnabled)return;
+
+    try{
+
+      const utterance =
+        new SpeechSynthesisUtterance(text);
+
+      utterance.rate = 1.1;
+      utterance.volume = 1;
+
+      speechSynthesis.speak(utterance);
+
+    }catch(error){
+
+      console.error(error);
+
+    }
+
+  }, delayMs);
+
+}
+
+function metCheckArrangementCue(beatIndex, scheduledAudioTime){
+
+  if(!metArrangementBeatMap)return;
+
+  if(beatIndex <= metArrangementCuedThrough)return;
+
+  const text =
+    metArrangementBeatMap.cues.get(beatIndex);
+
+  if(text)metSpeak(text, scheduledAudioTime);
+
+  metArrangementCuedThrough = beatIndex;
+
+}
+
+/*
+  Toggled from the Song Preset card. Building the beat map fresh
+  here (rather than once at song-open) means editing bar counts in
+  Flow while Arrangement Cues is already on takes effect the next
+  time it's turned on, without needing its own change-listener.
+*/
+function metSetArrangementEnabled(enabled){
+
+  metArrangementEnabled = enabled;
+
+  if(enabled){
+
+    metArrangementBeatMap = metBuildArrangementBeatMap();
+    metArrangementBeatCount = 0;
+    metArrangementCuedThrough = -1;
+
+  }else{
+
+    if(typeof window.speechSynthesis !== 'undefined')speechSynthesis.cancel();
+
+    metArrangementBeatMap = null;
+
+  }
 
 }
 
@@ -16401,6 +16648,12 @@ function metStartMetronome(){
   metNextNoteTime = metAudioCtx.currentTime + 0.05;
   metNotesInQueue = [];
 
+  if(metArrangementEnabled){
+    metArrangementBeatMap = metBuildArrangementBeatMap();
+    metArrangementBeatCount = 0;
+    metArrangementCuedThrough = -1;
+  }
+
   metScheduler();
   requestAnimationFrame(metDrawLoop);
 
@@ -16420,6 +16673,8 @@ function metStopMetronome(){
   metSchedulerTimer = null;
 
   metNotesInQueue = [];
+
+  if(typeof window.speechSynthesis !== 'undefined')speechSynthesis.cancel();
 
   metClearLitBeats();
   metClearLitGhosts();
@@ -17355,6 +17610,16 @@ function renderMetSongPresetSection(){
   const presetBpm =
     metGetSongPresetBpm(context.id);
 
+  const flowTarget =
+    currentSong ? getFlowTarget(currentSong) : null;
+
+  const hasArrangement =
+    !!(
+      flowTarget &&
+      Array.isArray(flowTarget.flow) &&
+      flowTarget.flow.some(item => item.type === 'section')
+    );
+
   hostEl.innerHTML = `
 
     <div class="sectionLabel metSectionLabel">Song Preset</div>
@@ -17374,6 +17639,22 @@ function renderMetSongPresetSection(){
         }
 
       </div>
+
+      ${
+        hasArrangement ? `
+          <div class="metArrangementRow">
+            <div class="metArrangementLabel">
+              <div>Arrangement Cues</div>
+              <div class="metArrangementSub">Spoken count-in + section names from this song's Flow, timed off the bar counts you've set there.</div>
+            </div>
+            <button type="button" class="metPresetBtn${metArrangementEnabled ? ' metArrangementOn' : ''}" id="metArrangementToggleBtn">${metArrangementEnabled ? 'On' : 'Off'}</button>
+          </div>
+        ` : `
+          <div class="metArrangementRow">
+            <div class="metArrangementSub">Set bar counts in this song's Flow to enable Arrangement Cues (spoken count-in + section names).</div>
+          </div>
+        `
+      }
 
     </div>
 
@@ -17398,6 +17679,21 @@ function renderMetSongPresetSection(){
 
     loadBtn.onclick = () => {
       metSetTempo(presetBpm);
+    };
+
+  }
+
+  const arrangementToggleBtn =
+    document.getElementById('metArrangementToggleBtn');
+
+  if(arrangementToggleBtn){
+
+    arrangementToggleBtn.onclick = () => {
+
+      metSetArrangementEnabled(!metArrangementEnabled);
+
+      renderMetSongPresetSection();
+
     };
 
   }
@@ -22502,6 +22798,15 @@ function reorderViewerSections(fromIndex,toIndex){
    — repeats, notes, and all — instead of the plain unique list.
 ========================================================= */
 
+/*
+  Default bar length assumed for a flow section until the person
+  sets a real one — keeps Arrangement Cues (see the metronome
+  section further down) usable immediately instead of requiring
+  every section of every song to be configured before any of it
+  works. See flowSectionCard's bars badge and metBuildArrangementBeatMap().
+*/
+const FLOW_DEFAULT_BARS = 4;
+
 function getFlowTarget(song){
 
   if(
@@ -23143,6 +23448,21 @@ function renderFlowListHTML(flow, sections){
           })()
         : '';
 
+    /*
+      Bars badge — how long this section runs, in 4-beat-style
+      bars. Used only by Arrangement Cues (the metronome's spoken
+      count-in/section-announce feature) to know when to count into
+      the NEXT section. Defaults to FLOW_DEFAULT_BARS until set, so
+      it's clearly marked "(default)" rather than looking configured
+      when it isn't.
+    */
+    const barsHTML =
+      `<span class="flowBarsBadge" data-flow-bars-edit="${i}" data-flow-bars-end="${end}">${
+        typeof item.bars === 'number'
+          ? `${item.bars} bar${item.bars === 1 ? '' : 's'}`
+          : `${FLOW_DEFAULT_BARS} bars (default)`
+      }</span>`;
+
     html.push(`
       <div class="flowSectionCard" data-flow-index="${i}" data-flow-group="${i}:${end}" data-flow-jump="${i}" style="border-left:3px solid ${accent}75;">
 
@@ -23153,6 +23473,7 @@ function renderFlowListHTML(flow, sections){
             </div>
             ${sideNoteHTML}
             ${keyChangeHTML}
+            ${barsHTML}
           </div>
           ${sectionControlsHTML}
         </div>
@@ -23615,6 +23936,61 @@ function attachFlowControls(target, flow, sections){
     btn.onclick = (event) => {
       event.stopPropagation();
       openKeyChangeEditor(Number(btn.dataset.flowKeychangeOpen));
+    };
+
+  });
+
+  document.querySelectorAll('[data-flow-bars-edit]').forEach(btn => {
+
+    btn.onclick = async (event) => {
+
+      event.stopPropagation();
+
+      const startIndex =
+        Number(btn.dataset.flowBarsEdit);
+
+      const endIndex =
+        Number(btn.dataset.flowBarsEnd);
+
+      const current =
+        typeof flow[startIndex].bars === 'number'
+          ? flow[startIndex].bars
+          : FLOW_DEFAULT_BARS;
+
+      const answer =
+        await showPromptDialog(
+          'How many bars is this section (used for Arrangement Cues on the metronome)?',
+          String(current)
+        );
+
+      if(answer === null)return;
+
+      const parsed =
+        parseInt(answer, 10);
+
+      if(!Number.isFinite(parsed) || parsed < 1){
+        showToast('Enter a whole number of bars (1 or more).', 'error');
+        return;
+      }
+
+      /*
+        A grouped repeat card (Chorus ×2) edits every instance in
+        the group at once — matches how the card visually presents
+        it as one thing, and a repeated section usually IS the same
+        length each time.
+      */
+      const updated =
+        flow.slice();
+
+      for(let index = startIndex; index <= endIndex; index++){
+        updated[index] = { ...updated[index], bars: parsed };
+      }
+
+      persistSongFlow(target, updated);
+
+      skipNextScreenTransition = true;
+      renderSongViewer();
+
     };
 
   });
