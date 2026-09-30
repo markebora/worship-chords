@@ -16577,6 +16577,10 @@ function metBuildArrangementBeatMap(){
      lookahead, cues are looked up a few beats AHEAD (see
      metCheckArrangementCue) instead of at the current beat.
 */
+/* Extra head start on top of the measured speech latency. onstart fires
+   before the voice is actually audible (engine + output buffering), which
+   measured from a screen recording left cues ~120ms behind the click. */
+const MET_SPEECH_EXTRA_MS = 120;
 const MET_ANNOUNCE_LEAD_SEC = 2.0; // section name is spoken this long before the count starts
 let metSpeechLatencyMs = 250;
 let metSpeechLatencySamples = [250];
@@ -16685,7 +16689,7 @@ function metSpeak(text, scheduledAudioTime){
     metAudioToPerf(scheduledAudioTime);
 
   const delayMs =
-    Math.max(0, targetPerf - performance.now() - metSpeechLatencyMs);
+    Math.max(0, targetPerf - performance.now() - metSpeechLatencyMs - MET_SPEECH_EXTRA_MS);
 
   setTimeout(() => {
 
@@ -16746,14 +16750,14 @@ function metCheckArrangementCue(beatIndex, scheduledAudioTime){
 
   /* How many beats ahead we must trigger to beat the speech latency */
   const lead =
-    Math.max(1, Math.ceil((metSpeechLatencyMs + 120) / 1000 / secondsPerBeat));
+    Math.max(1, Math.ceil((metSpeechLatencyMs + MET_SPEECH_EXTRA_MS + 120) / 1000 / secondsPerBeat));
 
   /* Section-name announcements: 1s ahead of the count, plus the
      speech latency, so they are triggered that many beats early. */
   const map = metArrangementBeatMap;
 
   const announceLead =
-    Math.ceil((MET_ANNOUNCE_LEAD_SEC + (metSpeechLatencyMs + 120) / 1000) / secondsPerBeat);
+    Math.ceil((MET_ANNOUNCE_LEAD_SEC + (metSpeechLatencyMs + MET_SPEECH_EXTRA_MS + 120) / 1000) / secondsPerBeat);
 
   while(map.announceIdx < map.announces.length){
 
@@ -16907,7 +16911,7 @@ function metStartMetronome(){
         (performance.now() - speechStartPerf) / 1000;
 
       begin(Math.max(
-        (metSpeechLatencyMs + 120) / 1000,
+        (metSpeechLatencyMs + MET_SPEECH_EXTRA_MS + 120) / 1000,
         MET_ANNOUNCE_LEAD_SEC - sinceSpeechStart
       ));
 
