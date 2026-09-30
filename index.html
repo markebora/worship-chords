@@ -16533,20 +16533,87 @@ function metBuildArrangementBeatMap(){
 }
 
 /*
-  Speaks `text` timed to land at `scheduledAudioTime` (an
-  audioCtx.currentTime-space value, same clock the click itself
-  uses). The Web Speech API has no sample-accurate start-time
-  parameter, so this converts to a setTimeout delay at the moment
-  it's scheduled (always within the scheduler's ~100ms lookahead
-  window) — plenty precise for a spoken cue, even though it isn't
-  sample-accurate the way the click sound is.
+  Speech-engine latency. speechSynthesis.speak() doesn't play
+  instantly — the engine needs anywhere from ~100ms to 500ms+ to
+  start (worse on the first call, and worse for network voices),
+  so a cue "scheduled" for beat N was always landing late. Two
+  fixes work together:
+
+  1. Every utterance's real start delay is measured (onstart) and
+     folded into metSpeechLatencyMs, and speak() is called that
+     much EARLIER than the target beat.
+  2. Because that can be longer than the scheduler's 100ms
+     lookahead, cues are looked up a few beats AHEAD (see
+     metCheckArrangementCue) instead of at the current beat.
+*/
+let metSpeechLatencyMs = 250;
+let metSpeechVoice = null;
+
+function metPickSpeechVoice(){
+
+  if(metSpeechVoice)return metSpeechVoice;
+
+  if(typeof window.speechSynthesis === 'undefined')return null;
+
+  const voices =
+    speechSynthesis.getVoices() || [];
+
+  if(!voices.length)return null;
+
+  const lang =
+    (navigator.language || 'en').slice(0, 2).toLowerCase();
+
+  /* On-device voices start far more consistently than network ones */
+  metSpeechVoice =
+    voices.find(v => v.localService && v.lang.toLowerCase().startsWith(lang)) ||
+    voices.find(v => v.localService) ||
+    null;
+
+  return metSpeechVoice;
+
+}
+
+if(typeof window.speechSynthesis !== 'undefined'){
+  speechSynthesis.addEventListener?.('voiceschanged', () => { metSpeechVoice = null; });
+}
+
+/* Silent utterance so the first real cue doesn't pay the engine's
+   cold-start delay. Must run from a user gesture (Start / toggle). */
+function metWarmUpSpeech(){
+
+  if(typeof window.speechSynthesis === 'undefined')return;
+
+  try{
+
+    const warm = new SpeechSynthesisUtterance(' ');
+    warm.volume = 0;
+
+    const voice = metPickSpeechVoice();
+    if(voice)warm.voice = voice;
+
+    speechSynthesis.speak(warm);
+
+  }catch(error){
+    console.error(error);
+  }
+
+}
+
+/*
+  Speaks `text` so it is HEARD at `scheduledAudioTime` (an
+  audioCtx.currentTime-space value, same clock as the click).
+  The Web Speech API has no start-time parameter, so this converts
+  to a setTimeout and fires early by the measured engine latency.
 */
 function metSpeak(text, scheduledAudioTime){
 
   if(typeof window.speechSynthesis === 'undefined')return;
 
+  const targetPerf =
+    performance.now() + (scheduledAudioTime - metAudioCtx.currentTime) * 1000;
+
   const delayMs =
-    Math.max(0, (scheduledAudioTime - metAudioCtx.currentTime) * 1000);
+    Math.max(0, targetPerf - performance.now() - metSpeechLatencyMs);
 
   setTimeout(() => {
 
@@ -16554,11 +16621,34 @@ function metSpeak(text, scheduledAudioTime){
 
     try{
 
+      /* Never let a slow previous cue queue up behind this one */
+      if(speechSynthesis.speaking || speechSynthesis.pending){
+        speechSynthesis.cancel();
+      }
+
       const utterance =
         new SpeechSynthesisUtterance(text);
 
-      utterance.rate = 1.1;
+      /* Faster tempo = faster speech, so "In, Chorus" still fits */
+      utterance.rate =
+        Math.min(1.6, Math.max(1, metTempo / 100));
+
       utterance.volume = 1;
+
+      const voice = metPickSpeechVoice();
+      if(voice)utterance.voice = voice;
+
+      const calledAt = performance.now();
+
+      utterance.onstart = () => {
+
+        const measured =
+          performance.now() - calledAt;
+
+        metSpeechLatencyMs =
+          Math.min(700, Math.max(0, metSpeechLatencyMs * 0.5 + measured * 0.5));
+
+      };
 
       speechSynthesis.speak(utterance);
 
@@ -16576,14 +16666,30 @@ function metCheckArrangementCue(beatIndex, scheduledAudioTime){
 
   if(!metArrangementBeatMap)return;
 
-  if(beatIndex <= metArrangementCuedThrough)return;
+  const secondsPerBeat =
+    60.0 / metTempo;
 
-  const text =
-    metArrangementBeatMap.cues.get(beatIndex);
+  /* How many beats ahead we must trigger to beat the speech latency */
+  const lead =
+    Math.max(1, Math.ceil((metSpeechLatencyMs + 120) / 1000 / secondsPerBeat));
 
-  if(text)metSpeak(text, scheduledAudioTime);
+  const target =
+    beatIndex + lead;
 
-  metArrangementCuedThrough = beatIndex;
+  for(let idx = metArrangementCuedThrough + 1; idx <= target; idx++){
+
+    const text =
+      metArrangementBeatMap.cues.get(idx);
+
+    if(text){
+      metSpeak(text, scheduledAudioTime + (idx - beatIndex) * secondsPerBeat);
+    }
+
+  }
+
+  if(target > metArrangementCuedThrough){
+    metArrangementCuedThrough = target;
+  }
 
 }
 
@@ -16602,6 +16708,8 @@ function metSetArrangementEnabled(enabled){
     metArrangementBeatMap = metBuildArrangementBeatMap();
     metArrangementBeatCount = 0;
     metArrangementCuedThrough = -1;
+
+    metWarmUpSpeech();
 
   }else{
 
@@ -16652,6 +16760,7 @@ function metStartMetronome(){
     metArrangementBeatMap = metBuildArrangementBeatMap();
     metArrangementBeatCount = 0;
     metArrangementCuedThrough = -1;
+    metWarmUpSpeech();
   }
 
   metScheduler();
