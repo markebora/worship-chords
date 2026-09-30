@@ -2099,6 +2099,16 @@ button{
   one evenly-weighted row instead of Pads looking like an
   afterthought squeezed between two wider cards.
 */
+.songBottomCueBtn{
+  transition:color .15s ease,border-color .15s ease,background .15s ease;
+}
+
+.songBottomCueBtn.active{
+  border-color:var(--accent);
+  color:var(--accent);
+  background:rgba(255,255,255,.04);
+}
+
 .songBottomPadsBtn{
   flex:1;
 
@@ -6324,6 +6334,7 @@ body.songLyricsImmersive .songHeaderMetaRow{
 }
 
 .metBeatDot{
+  position:relative;
   width:16px;
   height:16px;
   border-radius:50%;
@@ -6331,9 +6342,22 @@ body.songLyricsImmersive .songHeaderMetaRow{
   transition:background .06s ease,transform .06s ease;
 }
 
+/* Bigger invisible tap target — the dots themselves are small */
+.metBeatDot:not(.ghostDot){
+  cursor:pointer;
+}
+
+.metBeatDot:not(.ghostDot)::after{
+  content:'';
+  position:absolute;
+  inset:-10px -7px;
+}
+
+/* Accented beat: red at rest, so you can see the pattern at a glance */
 .metBeatDot.accent{
   width:20px;
   height:20px;
+  background:#b03a3a;
 }
 
 .metBeatDot.lit{
@@ -16137,6 +16161,30 @@ function metApplySongPresetIfAny(){
 
 }
 
+/*
+  Per-beat accent pattern. One boolean per beat position (up to the
+  largest time signature), so it survives switching between 4/4,
+  6/8 etc. Default is the classic "accent on 1". Tapping a dot on
+  the beat row flips that beat — see renderMetBeatDots().
+*/
+const MET_MAX_BEATS = 12;
+
+function metNormalizeAccents(saved){
+
+  const out = [];
+
+  for(let i = 0; i < MET_MAX_BEATS; i++){
+    out.push(
+      Array.isArray(saved) && typeof saved[i] === 'boolean'
+        ? saved[i]
+        : i === 0
+    );
+  }
+
+  return out;
+
+}
+
 function metLoadSettings(){
 
   try{
@@ -16152,7 +16200,8 @@ function metLoadSettings(){
       pitch: (saved && typeof saved.pitch === 'number') ? saved.pitch : MET_SOUND_PRESETS.wood.pitch,
       tone: (saved && typeof saved.tone === 'number') ? saved.tone : MET_SOUND_PRESETS.wood.tone,
       decay: (saved && typeof saved.decay === 'number') ? saved.decay : MET_SOUND_PRESETS.wood.decay,
-      subdivision: (saved && saved.subdivision) || 1
+      subdivision: (saved && saved.subdivision) || 1,
+      accents: metNormalizeAccents(saved && saved.accents)
 
     };
 
@@ -16161,7 +16210,8 @@ function metLoadSettings(){
     return {
       tempo:100, beatsPerMeasure:4, volume:80,
       pitch:MET_SOUND_PRESETS.wood.pitch, tone:MET_SOUND_PRESETS.wood.tone, decay:MET_SOUND_PRESETS.wood.decay,
-      subdivision:1
+      subdivision:1,
+      accents: metNormalizeAccents(null)
     };
 
   }
@@ -16182,7 +16232,8 @@ function metSaveSettings(){
       pitch: metPitch,
       tone: metTone,
       decay: metDecay,
-      subdivision: metSubdivision
+      subdivision: metSubdivision,
+      accents: metAccents
 
     })
 
@@ -16190,7 +16241,7 @@ function metSaveSettings(){
 
 }
 
-let metTempo, metBeatsPerMeasure, metVolume, metPitch, metTone, metDecay, metSubdivision;
+let metTempo, metBeatsPerMeasure, metVolume, metPitch, metTone, metDecay, metSubdivision, metAccents;
 
 (() => {
   const loaded = metLoadSettings();
@@ -16201,6 +16252,7 @@ let metTempo, metBeatsPerMeasure, metVolume, metPitch, metTone, metDecay, metSub
   metTone = loaded.tone;
   metDecay = loaded.decay;
   metSubdivision = loaded.subdivision;
+  metAccents = loaded.accents;
 })();
 
 let metIsPlaying = false;
@@ -16239,6 +16291,11 @@ let metLastDisplayedBeat = -1;
   metStartMetronome()/metStopMetronome() below.
 */
 let metArrangementEnabled = false;
+/* Whether the audible click is sounding. The scheduler (beat clock) can keep
+   running with the click muted, so the Cue button (spoken cues) and the BPM
+   play/pause (click only) in the lyrics view are independent of each other
+   while both stay locked to the same beat grid. */
+let metClickAudible = true;
 let metArrangementBeatMap = null; // [{startBeat, endBeat, name}, ...] once built
 let metArrangementBeatCount = 0;  // total main beats elapsed since the metronome started
 let metStartToken = 0;              // bumped on every start/stop so a pending "Intro" announcement can't start a metronome the user already stopped
@@ -16269,7 +16326,7 @@ function metScheduleClick(beatNumber, time){
 
   metNotesInQueue.push({ beat:beatNumber, time, ghost:false });
 
-  metPlayClickSound(beatNumber === 0, time);
+  if(metClickAudible)metPlayClickSound(!!metAccents[beatNumber], time);
 
 }
 
@@ -16277,7 +16334,7 @@ function metScheduleGhost(beatNumber, subStep, time){
 
   metNotesInQueue.push({ beat:beatNumber, subStep, time, ghost:true });
 
-  metPlayGhostClickSound(time);
+  if(metClickAudible)metPlayGhostClickSound(time);
 
 }
 
@@ -16847,7 +16904,15 @@ function metSetArrangementEnabled(enabled){
 
     metArrangementBeatMap = null;
 
+    /* Cue-only run (click muted) with cues now off = nothing left to
+       hear, so stop the beat clock instead of leaving it silent. */
+    if(metIsPlaying && !metClickAudible){
+      metStopMetronome();
+    }
+
   }
+
+  metUpdatePlayButton();
 
 }
 
@@ -16874,11 +16939,14 @@ function metEnsureAudioReady(){
 
 }
 
-function metStartMetronome(){
+function metStartMetronome(opts){
 
   if(metIsPlaying)return;
 
   metEnsureAudioReady();
+
+  /* opts.click === false → cue-only run: same beat clock, click muted */
+  metClickAudible = !(opts && opts.click === false);
 
   metIsPlaying = true;
   metCurrentBeat = 0;
@@ -16991,6 +17059,7 @@ function metStopMetronome(){
   if(!metIsPlaying)return;
 
   metIsPlaying = false;
+  metClickAudible = true;
   metStartToken++;
 
   clearTimeout(metSchedulerTimer);
@@ -17098,15 +17167,30 @@ function metUpdatePlayButton(){
   const songBtnEl = document.getElementById('songBpmPlayBtn');
   const songIconEl = document.getElementById('songBpmPlayIcon');
 
+  /* BPM play/pause reflects the CLICK only (a cue-only run shows ▶) */
+  const songClickOn = metIsPlaying && metClickAudible;
+
   if(songBtnEl && songIconEl){
 
-    songBtnEl.classList.toggle('playing', metIsPlaying);
-    songBtnEl.setAttribute('aria-label', metIsPlaying ? 'Stop click' : 'Play click');
+    songBtnEl.classList.toggle('playing', songClickOn);
+    songBtnEl.setAttribute('aria-label', songClickOn ? 'Pause click' : 'Play click');
 
     songIconEl.innerHTML =
-      metIsPlaying
+      songClickOn
         ? '<rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect>'
         : '<path d="M8 5v14l11-7z"></path>';
+
+  }
+
+  /* Cue button (lyrics view) reflects the spoken cues only */
+  const songCueBtnEl = document.getElementById('songBottomCueBtn');
+
+  if(songCueBtnEl){
+
+    const cueOn = metIsPlaying && metArrangementEnabled;
+
+    songCueBtnEl.classList.toggle('active', cueOn);
+    songCueBtnEl.setAttribute('aria-pressed', cueOn ? 'true' : 'false');
 
   }
 
@@ -17121,7 +17205,7 @@ function renderMetBeatDots(){
 
   for(let i = 0; i < metBeatsPerMeasure; i++){
 
-    parts.push(`<div class="metBeatDot${i === 0 ? ' accent' : ''}" data-beat="${i}"></div>`);
+    parts.push(`<div class="metBeatDot${metAccents[i] ? ' accent' : ''}" data-beat="${i}"></div>`);
 
     for(let s = 1; s < metSubdivision; s++){
       parts.push(`<div class="metBeatDot ghostDot" data-ghost="${i}-${s}"></div>`);
@@ -17130,6 +17214,30 @@ function renderMetBeatDots(){
   }
 
   beatRowEl.innerHTML = parts.join('');
+
+  /*
+    Tap a beat dot to toggle its accent: red = accented, plain = not.
+    The click sound reads metAccents each time it schedules a beat,
+    so this takes effect immediately, even while playing.
+  */
+  beatRowEl.onclick = event => {
+
+    const dot =
+      event.target.closest('.metBeatDot[data-beat]');
+
+    if(!dot)return;
+
+    const beat = Number(dot.dataset.beat);
+
+    metAccents[beat] = !metAccents[beat];
+
+    dot.classList.toggle('accent', metAccents[beat]);
+
+    metSaveSettings();
+
+    if(navigator.vibrate)navigator.vibrate(8);
+
+  };
 
 }
 
@@ -25468,20 +25576,20 @@ function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, h
           </div>
         </div>
 
-        <button type="button" class="songBottomPadsBtn" id="songBottomPadsBtn" aria-label="Pads — long-press to open">Pads</button>
+        <button type="button" class="songBottomPadsBtn songBottomCueBtn${(metIsPlaying&&metArrangementEnabled)?' active':''}" id="songBottomCueBtn" aria-pressed="${(metIsPlaying&&metArrangementEnabled)?'true':'false'}" aria-label="Cue — spoken count-in and section names, synced to BPM">Cue</button>
 
         <div class="songBottomControlCard">
           <div class="songBottomControlLabel songBottomControlLabelWithBtn">
             BPM
             <button
               type="button"
-              class="songBpmPlayBtn${metIsPlaying?' playing':''}"
+              class="songBpmPlayBtn${(metIsPlaying&&metClickAudible)?' playing':''}"
               id="songBpmPlayBtn"
-              aria-label="${metIsPlaying?'Stop click':'Play click'}"
+              aria-label="${(metIsPlaying&&metClickAudible)?'Pause click':'Play click'}"
             >
               <svg id="songBpmPlayIcon" viewBox="0 0 24 24" aria-hidden="true">
                 ${
-                  metIsPlaying
+                  (metIsPlaying&&metClickAudible)
                   ? '<rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect>'
                   : '<path d="M8 5v14l11-7z"></path>'
                 }
@@ -25691,46 +25799,6 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm){
   if(homeBtn)homeBtn.onclick = () => renderHome();
 
   /*
-    Pads button — long-press opens the Pads instrument; a short
-    tap just hints at that instead of opening it immediately,
-    since this button sits right in the middle of a panel people
-    are otherwise tapping quickly during a song.
-  */
-  const padsBtn =
-    document.getElementById('songBottomPadsBtn');
-
-  if(padsBtn){
-
-    let padsPressTimer = null;
-    let padsLongPressed = false;
-
-    padsBtn.addEventListener('pointerdown', () => {
-      padsLongPressed = false;
-      clearTimeout(padsPressTimer);
-      padsPressTimer = setTimeout(() => {
-        padsLongPressed = true;
-        if(navigator.vibrate)navigator.vibrate(8);
-        renderPads();
-      }, 420);
-    });
-
-    ['pointerup','pointerleave','pointercancel'].forEach(evt => {
-      padsBtn.addEventListener(evt, () => {
-        clearTimeout(padsPressTimer);
-        padsPressTimer = null;
-      });
-    });
-
-    padsBtn.addEventListener('contextmenu', event => event.preventDefault());
-
-    padsBtn.onclick = () => {
-      if(padsLongPressed){ padsLongPressed = false; return; }
-      showToast('Long-press Pads to open it','success',{small:true});
-    };
-
-  }
-
-  /*
     BPM stepper — this now IS the real Metronome tempo for this
     song/part, not a separate parked number: every change writes
     through metSetSongPresetBpm (same store the top "124 BPM"
@@ -25775,27 +25843,95 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm){
   if(padsBpmDownBtn)padsBpmDownBtn.onclick = () => stepPadsBpm(-1);
   if(padsBpmUpBtn)padsBpmUpBtn.onclick = () => stepPadsBpm(1);
 
+  /*
+    BPM play/pause = the CLICK only. It never starts or stops the
+    spoken cues by itself: if cues are running, pausing the click just
+    mutes it (the beat clock keeps going, so resuming lands back on
+    the same grid); if nothing else is running it starts/stops the
+    beat clock like before.
+  */
+  const songCurrentBpm = () =>
+    metGetSongPresetBpm(target.id) != null ? metGetSongPresetBpm(target.id) : padsBpm;
+
   if(songBpmPlayBtn){
 
     songBpmPlayBtn.onclick = () => {
 
-      if(metIsPlaying){
+      if(metIsPlaying && metClickAudible){
 
-        metStopMetronome();
+        if(metArrangementEnabled){
+          metClickAudible = false;   /* pause click, cues keep going */
+          metUpdatePlayButton();
+        }else{
+          metStopMetronome();
+        }
+
+      }else if(metIsPlaying){
+
+        metClickAudible = true;      /* resume click on the same grid */
+        metUpdatePlayButton();
 
       }else{
 
-        /* Belt-and-suspenders: make sure the engine's tempo is
-           definitely this song's tempo before the first click,
-           even though metApplySongPresetIfAny should have already
-           set it on render. */
-        const current =
-          metGetSongPresetBpm(target.id) != null ? metGetSongPresetBpm(target.id) : padsBpm;
+        /* Click-only start: cues are the Cue button's job */
+        if(metArrangementEnabled)metSetArrangementEnabled(false);
 
-        metSetTempo(current);
+        metSetTempo(songCurrentBpm());
         metStartMetronome();
 
       }
+
+    };
+
+  }
+
+  /*
+    Cue button (Chords and Lyrics views) = the spoken count-in + section names from
+    this song's Flow. Runs on the exact same beat clock as the click
+    (metPumpArrangementCues), so it follows every BPM change the same
+    way it did when it was tied to the play button. Starting it with no
+    click running is a cue-only run (click muted); starting it while the
+    click is playing restarts the arrangement from the top and keeps the
+    click sounding.
+  */
+  const songCueBtn =
+    document.getElementById('songBottomCueBtn');
+
+  if(songCueBtn){
+
+    songCueBtn.onclick = () => {
+
+      if(metIsPlaying && metArrangementEnabled){
+
+        /* Cues off; a cue-only run stops itself, a click keeps going */
+        metSetArrangementEnabled(false);
+        return;
+
+      }
+
+      const flowTarget =
+        currentSong ? getFlowTarget(currentSong) : null;
+
+      const hasArrangement =
+        !!(
+          flowTarget &&
+          Array.isArray(flowTarget.flow) &&
+          flowTarget.flow.some(item => item.type === 'section')
+        );
+
+      if(!hasArrangement){
+        showToast("Set bar counts in this song's Flow to use Cue", 'error', {small:true});
+        return;
+      }
+
+      const keepClick = metIsPlaying && metClickAudible;
+
+      metSetTempo(songCurrentBpm());
+
+      if(metIsPlaying)metStopMetronome();
+
+      metSetArrangementEnabled(true);
+      metStartMetronome({ click: keepClick });
 
     };
 
