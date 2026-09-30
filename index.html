@@ -16229,11 +16229,12 @@ let metNotesInQueue = [];
 let metLastDisplayedBeat = -1;
 
 /*
-  ARRANGEMENT CUES — spoken count-in + section name, timed off the
-  same lookahead scheduler that drives the click itself. Off by
+  ARRANGEMENT CUES — spoken count-in + section name, locked to the
+  BEAT grid of the same lookahead scheduler that drives the click
+  (beats, never seconds — so they follow every BPM change). Off by
   default each time a song opens (nobody wants a surprise voice
   cue), turned on per-session from the Song Preset card. See
-  metBuildArrangementBeatMap(), metCheckArrangementCue(), and the
+  metBuildArrangementBeatMap(), metPumpArrangementCues(), and the
   three touch points inside metAdvanceNote()/metScheduler()/
   metStartMetronome()/metStopMetronome() below.
 */
@@ -16241,7 +16242,6 @@ let metArrangementEnabled = false;
 let metArrangementBeatMap = null; // [{startBeat, endBeat, name}, ...] once built
 let metArrangementBeatCount = 0;  // total main beats elapsed since the metronome started
 let metStartToken = 0;              // bumped on every start/stop so a pending "Intro" announcement can't start a metronome the user already stopped
-let metArrangementCuedThrough = -1; // last beat index a cue was already scheduled for, so a re-schedule (tempo tap, etc.) can't double-fire one
 
 function metCreateWoodNoiseBuffer(){
 
@@ -16422,10 +16422,6 @@ function metScheduler(){
 
       metScheduleClick(metCurrentBeat, metNextNoteTime);
 
-      if(metArrangementEnabled && metArrangementBeatMap){
-        metCheckArrangementCue(metArrangementBeatCount, metNextNoteTime);
-      }
-
       metArrangementBeatCount++;
 
     }else{
@@ -16434,6 +16430,13 @@ function metScheduler(){
 
     metAdvanceNote();
 
+  }
+
+  /* Runs every scheduler tick (not only on beats) so a cue is
+     dispatched at the last possible moment, using the tempo as it
+     is RIGHT NOW. */
+  if(metArrangementEnabled && metArrangementBeatMap){
+    metPumpArrangementCues();
   }
 
   metSchedulerTimer =
@@ -16546,20 +16549,34 @@ function metBuildArrangementBeatMap(){
     cues.set(startBeat - 1, 'In');
 
     /*
-      Section name: spoken ~1 second BEFORE the count starts (timed
-      in seconds at schedule time, so it holds at any BPM). `after`
-      keeps it from starting before the previous section has begun,
-      so it can't talk over the previous transition's "In".
+      Section name: spoken on a BEAT, one full bar before the count
+      starts (counted in beats, not seconds, so it stays locked to
+      the BPM at any tempo). It is never placed before the previous
+      section has begun (so it can't talk over the previous
+      transition's "In"), and is skipped if there is no room left
+      before the count (a 1-bar section).
     */
-    announces.push({
-      beat: startBeat - countdownLen,
-      after: spans[i - 1].startBeat,
-      text: spans[i].name
-    });
+    const countStart =
+      startBeat - countdownLen;
+
+    const announceBeat =
+      Math.max(countStart - metBeatsPerMeasure, spans[i - 1].startBeat);
+
+    if(announceBeat < countStart){
+      announces.push({ beat: announceBeat, text: spans[i].name });
+    }
 
   }
 
-  return { spans, cues, announces, announceIdx: 0, firstName: spans.length ? spans[0].name : '' };
+  /* One flat, beat-ordered list of everything to say. */
+  const pending = [];
+
+  cues.forEach((text, beat) => pending.push({ beat, text, done:false }));
+  announces.forEach(a => pending.push({ beat:a.beat, text:a.text, done:false }));
+
+  pending.sort((x, y) => x.beat - y.beat);
+
+  return { spans, cues, announces, pending, firstName: spans.length ? spans[0].name : '' };
 
 }
 
@@ -16574,14 +16591,13 @@ function metBuildArrangementBeatMap(){
      folded into metSpeechLatencyMs, and speak() is called that
      much EARLIER than the target beat.
   2. Because that can be longer than the scheduler's 100ms
-     lookahead, cues are looked up a few beats AHEAD (see
-     metCheckArrangementCue) instead of at the current beat.
+     lookahead, each cue is dispatched that much before its beat
+     (see metPumpArrangementCues), placed from the live beat clock.
 */
 /* Extra head start on top of the measured speech latency. onstart fires
    before the voice is actually audible (engine + output buffering), which
    measured from a screen recording left cues ~120ms behind the click. */
 const MET_SPEECH_EXTRA_MS = 120;
-const MET_ANNOUNCE_LEAD_SEC = 2.0; // section name is spoken this long before the count starts
 let metSpeechLatencyMs = 250;
 let metSpeechLatencySamples = [250];
 
@@ -16691,9 +16707,11 @@ function metSpeak(text, scheduledAudioTime){
   const delayMs =
     Math.max(0, targetPerf - performance.now() - metSpeechLatencyMs - MET_SPEECH_EXTRA_MS);
 
+  const token = metStartToken;
+
   setTimeout(() => {
 
-    if(!metIsPlaying || !metArrangementEnabled)return;
+    if(token !== metStartToken || !metIsPlaying || !metArrangementEnabled)return;
 
     try{
 
@@ -16741,58 +16759,67 @@ function metSpeak(text, scheduledAudioTime){
 
 }
 
-function metCheckArrangementCue(beatIndex, scheduledAudioTime){
+/*
+  BPM-LOCKED CUE DISPATCH.
 
-  if(!metArrangementBeatMap)return;
+  Every cue lives at a BEAT index (see metBuildArrangementBeatMap),
+  never at a fixed time. On every scheduler tick we predict when
+  each upcoming beat will sound:
+
+    beatTime = nextTick.time + (beat - nextTick.position) * 60 / metTempo
+
+  where nextTick is the very next click the scheduler has not yet
+  played (its time is already fixed), using the CURRENT bpm, and only hand a cue to the speech engine
+  once it is within one tick of its send time (beatTime minus the
+  speech-engine latency). Nothing is queued far ahead at an old
+  tempo, so changing the BPM at any moment re-aligns the count,
+  "In", and the Verse / Chorus names to the new tempo right away.
+*/
+function metPumpArrangementCues(){
+
+  const map = metArrangementBeatMap;
+
+  if(!map)return;
+
+  /* Beat position (in main beats) of the next unscheduled tick,
+     derived from live scheduler state — exact at any subdivision. */
+  const anchorPos =
+    metCurrentSubStep === 0
+      ? metArrangementBeatCount
+      : (metArrangementBeatCount - 1 + metCurrentSubStep / metSubdivision);
+
+  const anchorTime =
+    metNextNoteTime;
 
   const secondsPerBeat =
     60.0 / metTempo;
 
-  /* How many beats ahead we must trigger to beat the speech latency */
-  const lead =
-    Math.max(1, Math.ceil((metSpeechLatencyMs + MET_SPEECH_EXTRA_MS + 120) / 1000 / secondsPerBeat));
+  const leadSec =
+    (metSpeechLatencyMs + MET_SPEECH_EXTRA_MS) / 1000;
 
-  /* Section-name announcements: 1s ahead of the count, plus the
-     speech latency, so they are triggered that many beats early. */
-  const map = metArrangementBeatMap;
+  const horizon =
+    metAudioCtx.currentTime + (MET_LOOKAHEAD_MS / 1000) + 0.03;
 
-  const announceLead =
-    Math.ceil((MET_ANNOUNCE_LEAD_SEC + (metSpeechLatencyMs + MET_SPEECH_EXTRA_MS + 120) / 1000) / secondsPerBeat);
+  for(let i = 0; i < map.pending.length; i++){
 
-  while(map.announceIdx < map.announces.length){
+    const cue = map.pending[i];
 
-    const a = map.announces[map.announceIdx];
+    if(cue.done)continue;
 
-    if(beatIndex + announceLead < a.beat)break;
+    const beatTime =
+      anchorTime + (cue.beat - anchorPos) * secondsPerBeat;
 
-    const countStartTime =
-      scheduledAudioTime + (a.beat - beatIndex) * secondsPerBeat;
+    /* Sorted by beat, so everything after this is later still */
+    if(beatTime - leadSec > horizon)break;
 
-    const afterTime =
-      scheduledAudioTime + (a.after - beatIndex) * secondsPerBeat;
+    cue.done = true;
 
-    metSpeak(a.text, Math.max(countStartTime - MET_ANNOUNCE_LEAD_SEC, afterTime));
+    /* Missed its beat entirely (e.g. cues turned on mid-play) —
+       skip rather than speak out of time. */
+    if(beatTime < metAudioCtx.currentTime - 0.05)continue;
 
-    map.announceIdx++;
+    metSpeak(cue.text, beatTime);
 
-  }
-
-  const target =
-    beatIndex + lead;
-
-  for(let idx = metArrangementCuedThrough + 1; idx <= target; idx++){
-
-    const text =
-      metArrangementBeatMap.cues.get(idx);
-
-    if(text){
-      metSpeak(text, scheduledAudioTime + (idx - beatIndex) * secondsPerBeat);
-    }
-
-  }
-
-  if(target > metArrangementCuedThrough){
-    metArrangementCuedThrough = target;
   }
 
 }
@@ -16811,7 +16838,6 @@ function metSetArrangementEnabled(enabled){
 
     metArrangementBeatMap = metBuildArrangementBeatMap();
     metArrangementBeatCount = 0;
-    metArrangementCuedThrough = -1;
 
     metWarmUpSpeech();
 
@@ -16875,7 +16901,6 @@ function metStartMetronome(){
   if(metArrangementEnabled){
     metArrangementBeatMap = metBuildArrangementBeatMap();
     metArrangementBeatCount = 0;
-    metArrangementCuedThrough = -1;
   }
 
   const canAnnounce =
@@ -16905,14 +16930,18 @@ function metStartMetronome(){
 
       clearTimeout(fallbackTimer);
 
-      /* Count starts ~1s after the name STARTED (same lead as the
-         mid-song announcements), but never before the name is done. */
+      /* Count starts exactly one BAR (in beats at the current BPM)
+         after the name STARTED, same spacing as the mid-song
+         announcements, but never before the name is done. */
       const sinceSpeechStart =
         (performance.now() - speechStartPerf) / 1000;
 
+      const oneBarSec =
+        metBeatsPerMeasure * 60.0 / metTempo;
+
       begin(Math.max(
         (metSpeechLatencyMs + MET_SPEECH_EXTRA_MS + 120) / 1000,
-        MET_ANNOUNCE_LEAD_SEC - sinceSpeechStart
+        oneBarSec - sinceSpeechStart
       ));
 
     };
