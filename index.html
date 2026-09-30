@@ -1936,9 +1936,9 @@ button{
 
   display:flex;
   flex-direction:column;
-  gap:10px;
+  gap:8px;
 
-  padding:10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding:8px 14px calc(8px + env(safe-area-inset-bottom, 0px));
 
   background:rgba(11,11,12,.94);
   -webkit-backdrop-filter:blur(14px);
@@ -1959,14 +1959,14 @@ button{
   justify-content:center;
   gap:5px;
 
-  height:46px;
+  height:34px;
 
   border:1px solid #2a2a2e;
-  border-radius:12px;
+  border-radius:10px;
   background:#18181b;
   color:#9c9ca3;
 
-  font-size:13.5px;
+  font-size:12.5px;
   font-weight:800;
 
   touch-action:manipulation;
@@ -1974,6 +1974,38 @@ button{
   -webkit-user-select:none;
   user-select:none;
   -webkit-tap-highlight-color:transparent;
+}
+
+.songBottomMenuWrap{
+  flex:1;
+  margin-left:0;
+  display:flex;
+}
+
+.songBottomMenuWrap .songBottomTabBtn{
+  width:100%;
+}
+
+.songMenuIcon{
+  width:13px;
+  height:13px;
+  flex:0 0 auto;
+}
+
+.songBottomMenuBtn.menuOpen{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:var(--accent-ink);
+}
+
+.songBottomMenuWrap .songMenuDropdown{
+  top:auto;
+  bottom:calc(100% + 8px);
+  right:0;
+  min-width:200px;
+  max-height:min(62vh, 440px);
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
 }
 
 .songBottomTabBtn.active{
@@ -2179,6 +2211,42 @@ body.songViewerActive .nav{
 body.songLyricsImmersive .songHeaderTop button,
 body.songLyricsImmersive .songHeaderMetaRow{
   display:none;
+}
+
+/*
+  Lyrics mode only: tapping the lyrics hides the whole bottom
+  panel (Chords/Lyrics/Lib tabs + Transpose/Font/BPM row). The
+  section-jump bar and the auto-scroll control stay on screen and
+  drop down to the bottom edge to take its place.
+*/
+.songBottomPanel{
+  transition:transform .25s ease,opacity .2s ease;
+}
+
+body.songViewerActive .songSectionFloatBar{
+  transition:opacity .3s ease,transform .3s ease,bottom .25s ease;
+}
+
+body.songViewerActive .autoScrollFab{
+  transition:opacity .3s ease,transform .3s ease,bottom .25s ease;
+}
+
+body.songBottomHidden .songBottomPanel{
+  transform:translateY(110%);
+  opacity:0;
+  pointer-events:none;
+}
+
+body.songBottomHidden .songSectionFloatBar{
+  bottom:calc(12px + env(safe-area-inset-bottom, 0px));
+}
+
+body.songBottomHidden .autoScrollFab{
+  bottom:calc(62px + env(safe-area-inset-bottom, 0px));
+}
+
+body.songBottomHidden .annotateToolbar{
+  bottom:calc(68px + env(safe-area-inset-bottom, 0px));
 }
 
 
@@ -3323,7 +3391,7 @@ body.songLyricsImmersive .songHeaderMetaRow{
 .songHeaderMetaRow .bpmHeaderBadge{margin:0;}
 
 
-.songSectionFloatBar{position:fixed;bottom:calc(136px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:620px;z-index:99;background:transparent;border:0;box-shadow:none;padding:0;transition:opacity .3s ease,transform .3s ease;}
+.songSectionFloatBar{position:fixed;bottom:calc(120px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:620px;z-index:99;background:transparent;border:0;box-shadow:none;padding:0;transition:opacity .3s ease,transform .3s ease;}
 .songSectionFloatBar.idle{opacity:.4;transform:translateX(-50%) scale(.95);}
 
 /* Generic idle-fade base — see attachIdleFade() in the script.
@@ -3337,7 +3405,7 @@ body.songLyricsImmersive .songHeaderMetaRow{
 .autoScrollFab{
   position:fixed;
   right:14px;
-  bottom:170px;
+  bottom:154px;
   z-index:97;
   display:flex;
   align-items:center;
@@ -4201,7 +4269,7 @@ body.songLyricsImmersive .songHeaderMetaRow{
   }
 
   .songSectionFloatBar{
-    bottom:calc(132px + env(safe-area-inset-bottom, 0px));
+    bottom:calc(116px + env(safe-area-inset-bottom, 0px));
 
     width:calc(100% - 18px);
   }
@@ -9150,6 +9218,8 @@ function setActiveNav(name){
 
   document.body.classList.remove('songLyricsImmersive');
   document.body.classList.remove('songViewerActive');
+  document.body.classList.remove('songBottomHidden');
+  songBottomBarHidden = false;
 
 
   /*
@@ -24826,6 +24896,9 @@ function getAnnotationKey(song){
 
 
 let annotateMode = false;
+
+/* Lyrics mode: bottom panel hidden by tapping the lyrics */
+let songBottomBarHidden = false;
 let annotateTool = 'pen';
 let annotateColor = '#ff5a5a';
 let annotateDrawing = false;
@@ -25548,7 +25621,7 @@ function wireAnnotateToolbarButtons(){
   the two most-used modes plus the Metronome/Library shortcuts
   requested alongside them.
 */
-function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, hasMdNotes, amount, padsBpm){
+function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, hasMdNotes, amount, padsBpm, fontSize){
 
   return `
     <div class="songBottomPanel">
@@ -25561,7 +25634,30 @@ function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, h
 
         <button type="button" class="songBottomTabBtn${isLyricsMode?' active':''}" id="songBottomLyricsBtn" data-song-bottom-mode="lyrics">▤ Lyrics</button>
 
-        <button type="button" class="songBottomTabBtn${songFlowMode?' active':''}" id="songBottomThirdTabBtn">${mdViewModeOn?'☰ Flow':'▤ Lib'}</button>
+        <div class="songMenuWrap songBottomMenuWrap" id="songMenuWrap">
+          <button type="button" class="songBottomTabBtn songBottomMenuBtn" id="songMenuBtn" aria-haspopup="true" aria-expanded="false" aria-label="Menu">
+            <svg class="songMenuIcon" viewBox="0 0 512 512" aria-hidden="true" fill="currentColor">
+              <circle cx="45" cy="105" r="45"/><rect x="120" y="60" width="392" height="90" rx="45"/>
+              <circle cx="45" cy="255" r="45"/><rect x="120" y="210" width="392" height="90" rx="45"/>
+              <circle cx="45" cy="405" r="45"/><rect x="120" y="360" width="392" height="90" rx="45"/>
+            </svg>
+            Menu
+          </button>
+          <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
+            <button class="songMenuItem" type="button" id="menuLibraryBtn" role="menuitem">Library</button>
+            <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
+            <button class="songMenuItem" type="button" id="menuFlowViewBtn" role="menuitem">Flow View</button>
+            <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
+            <button class="songMenuItem" type="button" id="menuAddToSetlistBtn" role="menuitem">Add to Setlist</button>
+            <button class="songMenuItem" type="button" id="menuCategoryBtn" role="menuitem">Category &amp; Theme</button>
+            <button class="songMenuItem" type="button" id="menuSyncBtn" role="menuitem">Sync This Song</button>
+            <button class="songMenuItem" type="button" id="menuSendToTeamBtn" role="menuitem">Send to Team</button>
+            <button class="songMenuItem" type="button" id="menuShareCommunityBtn" role="menuitem">${currentSong&&currentSong.publishedToDirectory?'Remove from Community':'Share to Community'}</button>
+            <button class="songMenuItem" type="button" id="menuAddVideoBtn" role="menuitem">${currentSong&&currentSong.video?'Change Video Link':'Add Video Link'}</button>
+            <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
+            <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
+          </div>
+        </div>
 
       </div>
 
@@ -25576,7 +25672,20 @@ function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, h
           </div>
         </div>
 
-        <button type="button" class="songBottomPadsBtn songBottomCueBtn${(metIsPlaying&&metArrangementEnabled)?' active':''}" id="songBottomCueBtn" aria-pressed="${(metIsPlaying&&metArrangementEnabled)?'true':'false'}" aria-label="Cue — spoken count-in and section names, synced to BPM">Cue</button>
+        ${
+          mdViewModeOn ? `
+            <button type="button" class="songBottomPadsBtn songBottomCueBtn${(metIsPlaying&&metArrangementEnabled)?' active':''}" id="songBottomCueBtn" aria-pressed="${(metIsPlaying&&metArrangementEnabled)?'true':'false'}" aria-label="Cue — spoken count-in and section names, synced to BPM">Cue</button>
+          ` : `
+            <div class="songBottomControlCard">
+              <div class="songBottomControlLabel">Font</div>
+              <div class="songBottomControlStepper">
+                <button type="button" class="toolbarBtn" id="fontMinus" aria-label="Decrease font size">−</button>
+                <span class="toolbarBtn songBottomControlValue" id="fontSizeIndicator">${fontSize}</span>
+                <button type="button" class="toolbarBtn" id="fontPlus" aria-label="Increase font size">+</button>
+              </div>
+            </div>
+          `
+        }
 
         <div class="songBottomControlCard">
           <div class="songBottomControlLabel songBottomControlLabelWithBtn">
@@ -25641,7 +25750,39 @@ function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, h
   place, without a full renderSongViewer() call — exactly like it
   always did back when it lived in the toolbar.
 */
-function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm){
+/*
+  Lyrics mode: a plain tap on the lyrics toggles the bottom panel.
+  Skipped while drawing (annotate mode), while selecting text, and
+  for taps that land on an actual control inside the lyrics. Real
+  scrolls/swipes never fire a click, so they don't trigger it.
+*/
+function attachLyricsTapToggle(){
+
+  const el = document.getElementById('lyricsText');
+
+  if(!el)return;
+
+  el.addEventListener('click', event => {
+
+    if(songFlowMode || showChords)return;
+    if(annotateMode)return;
+
+    const menuEl = document.getElementById('songMenuDropdown');
+    if(menuEl && menuEl.classList.contains('open'))return;
+
+    const sel = window.getSelection ? window.getSelection() : null;
+    if(sel && String(sel).length)return;
+
+    if(event.target.closest('button, a, input, textarea, select, [contenteditable="true"]'))return;
+
+    songBottomBarHidden = !songBottomBarHidden;
+    document.body.classList.toggle('songBottomHidden', songBottomBarHidden);
+
+  });
+
+}
+
+function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm, fontSize){
 
   const overlay =
     document.getElementById('songBottomBarOverlay');
@@ -25655,10 +25796,12 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm){
     metPresetBpm != null ? metPresetBpm : 80;
 
   overlay.innerHTML =
-    renderSongBottomBarHTML(showChords, isLyricsMode, mdViewMode, flowHasMdNotes(flow), amount, padsBpm);
+    renderSongBottomBarHTML(showChords, isLyricsMode, mdViewMode, flowHasMdNotes(flow), amount, padsBpm, fontSize);
 
   document.body.classList.add('songViewerActive');
   document.body.classList.toggle('songLyricsImmersive', isLyricsMode);
+  if(!isLyricsMode)songBottomBarHidden = false;
+  document.body.classList.toggle('songBottomHidden', isLyricsMode && songBottomBarHidden);
 
   const chordsBtn =
     document.getElementById('songBottomChordsBtn');
@@ -25691,31 +25834,6 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm){
           chordsBtn.insertAdjacentHTML('beforeend', '<span class="mdModeBadge">MD</span>');
         }else if(!mdViewMode && existingBadge){
           existingBadge.remove();
-        }
-
-        /*
-          The third tab (Library <-> Flow) swaps with MD Mode too,
-          but this whole handler is a partial refresh that never
-          calls renderSongBottomBar again — so without this, the
-          label and click behavior would keep reflecting whatever
-          mdViewMode was when the bar was last fully rendered.
-        */
-        const thirdTabBtn =
-          document.getElementById('songBottomThirdTabBtn');
-
-        if(thirdTabBtn){
-
-          thirdTabBtn.innerHTML =
-            mdViewMode ? '☰ Flow' : '▤ Lib';
-
-          thirdTabBtn.onclick = mdViewMode
-            ? () => {
-                songFlowMode = true;
-                skipNextScreenTransition = true;
-                renderSongViewer();
-              }
-            : () => renderLibrary();
-
         }
 
         const structureEl =
@@ -25763,34 +25881,6 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm){
       skipNextScreenTransition = true;
       renderSongViewer();
     };
-  }
-
-  /*
-    Third tab: normally Library, but while MD Mode is on (the
-    Chords long-press toggle) it becomes Flow instead — MD Mode
-    is about flow notes showing inline in the chords, so quick
-    access to the actual Flow editor is more useful here than the
-    Library shortcut for as long as that's turned on.
-  */
-  const thirdTabBtn =
-    document.getElementById('songBottomThirdTabBtn');
-
-  if(thirdTabBtn){
-
-    if(mdViewMode){
-
-      thirdTabBtn.onclick = () => {
-        songFlowMode = true;
-        skipNextScreenTransition = true;
-        renderSongViewer();
-      };
-
-    }else{
-
-      thirdTabBtn.onclick = () => renderLibrary();
-
-    }
-
   }
 
   const homeBtn =
@@ -26042,30 +26132,6 @@ function renderSongViewer(){
           ` : ''
         }
       </div>
-      <div class="songToolbar">
-        <div class="toolbarRow">
-          <div class="fontSizeGroup">
-            <button class="toolbarBtn" id="fontMinus">A−</button>
-            <button class="toolbarBtn" id="fontPlus">A+</button>
-          </div>
-          <div class="songMenuWrap" id="songMenuWrap">
-            <button class="toolbarBtn songMenuBtn" id="songMenuBtn" type="button" aria-haspopup="true" aria-label="More options">⋮</button>
-            <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
-              <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
-              <button class="songMenuItem" type="button" id="menuFlowViewBtn" role="menuitem">Flow View</button>
-              <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
-              <button class="songMenuItem" type="button" id="menuAddToSetlistBtn" role="menuitem">Add to Setlist</button>
-              <button class="songMenuItem" type="button" id="menuCategoryBtn" role="menuitem">Category & Theme</button>
-              <button class="songMenuItem" type="button" id="menuSyncBtn" role="menuitem">Sync This Song</button>
-              <button class="songMenuItem" type="button" id="menuSendToTeamBtn" role="menuitem">Send to Team</button>
-              <button class="songMenuItem" type="button" id="menuShareCommunityBtn" role="menuitem">${song.publishedToDirectory?'Remove from Community':'Share to Community'}</button>
-              <button class="songMenuItem" type="button" id="menuAddVideoBtn" role="menuitem">${song.video?'Change Video Link':'Add Video Link'}</button>
-              <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
-              <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
-            </div>
-          </div>
-        </div>
-      </div>
       ${songFlowMode?`
       <div class="flowView" id="flowView">
         <div class="flowList" id="flowList">
@@ -26112,10 +26178,13 @@ function renderSongViewer(){
     });
     attachLineupSwipeHandlers();
   }
-  document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
-  document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
+  renderSongBottomBar(song, amount, displayBlocks, flow, metPresetBpm, song.fontSize);
   attachSongMenuControls();
-  renderSongBottomBar(song, amount, displayBlocks, flow, metPresetBpm);
+  attachLyricsTapToggle();
+  const fontMinusEl=document.getElementById('fontMinus');
+  const fontPlusEl=document.getElementById('fontPlus');
+  if(fontMinusEl)fontMinusEl.onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);skipNextScreenTransition=true;renderSongViewer();};
+  if(fontPlusEl)fontPlusEl.onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);skipNextScreenTransition=true;renderSongViewer();};
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
   document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
   document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
@@ -26398,30 +26467,6 @@ function renderMergedSongViewer(){
           ${capoInfo?`<div class="capoBadge">Capo ${capoInfo.fret} → ${esc(capoInfo.shape)} shape</div>`:''}
         </div>
       </div>
-      <div class="songToolbar">
-        <div class="toolbarRow">
-          <div class="fontSizeGroup">
-            <button class="toolbarBtn" id="fontMinus">A−</button>
-            <button class="toolbarBtn" id="fontPlus">A+</button>
-          </div>
-          <div class="songMenuWrap" id="songMenuWrap">
-            <button class="toolbarBtn songMenuBtn" id="songMenuBtn" type="button" aria-haspopup="true" aria-label="More options">⋮</button>
-            <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
-              <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
-              <button class="songMenuItem" type="button" id="menuFlowViewBtn" role="menuitem">Flow View</button>
-              <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
-              <button class="songMenuItem" type="button" id="menuAddToSetlistBtn" role="menuitem">Add to Setlist</button>
-              <button class="songMenuItem" type="button" id="menuCategoryBtn" role="menuitem">Category & Theme</button>
-              <button class="songMenuItem" type="button" id="menuSyncBtn" role="menuitem">Sync This Song</button>
-              <button class="songMenuItem" type="button" id="menuSendToTeamBtn" role="menuitem">Send to Team</button>
-              <button class="songMenuItem" type="button" id="menuShareCommunityBtn" role="menuitem">${song.publishedToDirectory?'Remove from Community':'Share to Community'}</button>
-              <button class="songMenuItem" type="button" id="menuAddVideoBtn" role="menuitem">${song.video?'Change Video Link':'Add Video Link'}</button>
-              <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
-              <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
-            </div>
-          </div>
-        </div>
-      </div>
       ${songFlowMode?`
       <div class="flowView" id="flowView">
         <div class="flowList" id="flowList">
@@ -26461,10 +26506,13 @@ function renderMergedSongViewer(){
   document.getElementById('songBackBtn').onclick=()=>{if(currentSong){flushLineupAutoSync(currentSong.id);if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);}stopAutoScroll();songFlowMode=false;currentSong=null;goBack(renderLyrics);};
   const favBtn=document.getElementById('songFavoriteBtn');if(favBtn){favBtn.onclick=()=>{toggleFavorite(currentSong.id);skipNextScreenTransition=true;renderSongViewer();};}
   attachLineupSyncButton(song);
-  document.getElementById('fontMinus').onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
-  document.getElementById('fontPlus').onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);skipNextScreenTransition=true;renderSongViewer();showToast(song.fontSize+'px','success');};
+  renderSongBottomBar(part, amount, displayBlocks, flow, metPresetBpm, song.fontSize);
   attachSongMenuControls();
-  renderSongBottomBar(part, amount, displayBlocks, flow, metPresetBpm);
+  attachLyricsTapToggle();
+  const fontMinusEl=document.getElementById('fontMinus');
+  const fontPlusEl=document.getElementById('fontPlus');
+  if(fontMinusEl)fontMinusEl.onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);skipNextScreenTransition=true;renderSongViewer();};
+  if(fontPlusEl)fontPlusEl.onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);skipNextScreenTransition=true;renderSongViewer();};
   document.getElementById('transposeDown').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)-1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
   document.getElementById('transposeUp').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)+1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
   document.getElementById('transposeReset').onclick=()=>{part.transposeSteps=0;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
@@ -26902,6 +26950,22 @@ function toggleSongMenu(){
     'open'
   );
 
+  syncSongMenuBtnState();
+
+}
+
+function syncSongMenuBtnState(){
+
+  const dropdown = document.getElementById('songMenuDropdown');
+  const btn = document.getElementById('songMenuBtn');
+
+  if(!dropdown || !btn)return;
+
+  const open = dropdown.classList.contains('open');
+
+  btn.classList.toggle('menuOpen', open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+
 }
 
 
@@ -26917,6 +26981,8 @@ function closeSongMenu(){
     dropdown.classList.remove(
       'open'
     );
+
+    syncSongMenuBtnState();
 
   }
 
@@ -26939,6 +27005,19 @@ function attachSongMenuControls(){
     toggleSongMenu();
 
   };
+
+
+  document
+    .getElementById(
+      'menuLibraryBtn'
+    )
+    .onclick = () => {
+
+      closeSongMenu();
+
+      renderLibrary();
+
+    };
 
 
   document
