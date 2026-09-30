@@ -16240,6 +16240,7 @@ let metLastDisplayedBeat = -1;
 let metArrangementEnabled = false;
 let metArrangementBeatMap = null; // [{startBeat, endBeat, name}, ...] once built
 let metArrangementBeatCount = 0;  // total main beats elapsed since the metronome started
+let metStartToken = 0;              // bumped on every start/stop so a pending "Intro" announcement can't start a metronome the user already stopped
 let metArrangementCuedThrough = -1; // last beat index a cue was already scheduled for, so a re-schedule (tempo tap, etc.) can't double-fire one
 
 function metCreateWoodNoiseBuffer(){
@@ -16471,7 +16472,7 @@ function metBuildArrangementBeatMap(){
     new Map(sections.map(section => [section._id, section]));
 
   const spans = [];
-  let cursor = 0;
+  let cursor = metBeatsPerMeasure; // one bar of count-in: 1, 2, 3, In
 
   target.flow.forEach(item => {
 
@@ -16499,6 +16500,23 @@ function metBuildArrangementBeatMap(){
   });
 
   const cues = new Map();
+  const announces = [];
+
+  /*
+    COUNT-IN: the first section is announced by voice BEFORE any
+    click plays (see metStartMetronome), then the clicks begin on
+    "1" — 1, 2, 3, In — and the section's downbeat is the very next
+    beat. All in beats, so it follows any BPM / time signature.
+  */
+  if(spans.length){
+
+    for(let j = 0; j < metBeatsPerMeasure - 1; j++){
+      cues.set(j, String(j + 1));
+    }
+
+    cues.set(metBeatsPerMeasure - 1, 'In');
+
+  }
 
   /*
     Nothing to count INTO before the very first section — cues
@@ -16520,15 +16538,28 @@ function metBuildArrangementBeatMap(){
     const startBeat =
       spans[i].startBeat;
 
+    /* Same 1, 2, 3, In as the opening count-in, on the last bar */
     for(let j = 0; j < countdownLen - 1; j++){
       cues.set(startBeat - countdownLen + j, String(j + 1));
     }
 
-    cues.set(startBeat - 1, `In, ${spans[i].name}`);
+    cues.set(startBeat - 1, 'In');
+
+    /*
+      Section name: spoken ~1 second BEFORE the count starts (timed
+      in seconds at schedule time, so it holds at any BPM). `after`
+      keeps it from starting before the previous section has begun,
+      so it can't talk over the previous transition's "In".
+    */
+    announces.push({
+      beat: startBeat - countdownLen,
+      after: spans[i - 1].startBeat,
+      text: spans[i].name
+    });
 
   }
 
-  return { spans, cues };
+  return { spans, cues, announces, announceIdx: 0, firstName: spans.length ? spans[0].name : '' };
 
 }
 
@@ -16546,7 +16577,48 @@ function metBuildArrangementBeatMap(){
      lookahead, cues are looked up a few beats AHEAD (see
      metCheckArrangementCue) instead of at the current beat.
 */
+const MET_ANNOUNCE_LEAD_SEC = 2.0; // section name is spoken this long before the count starts
 let metSpeechLatencyMs = 250;
+let metSpeechLatencySamples = [250];
+
+/* Median of the last few measurements — one slow start (after a
+   cancel, GC, etc.) can't yank the timing around the way a running
+   average does. */
+function metRecordSpeechLatency(ms){
+
+  if(ms < 0 || ms > 800)return;
+
+  metSpeechLatencySamples.push(ms);
+
+  if(metSpeechLatencySamples.length > 7)metSpeechLatencySamples.shift();
+
+  const sorted =
+    metSpeechLatencySamples.slice().sort((x, y) => x - y);
+
+  metSpeechLatencyMs = sorted[Math.floor(sorted.length / 2)];
+
+}
+
+/* audio-clock time -> performance.now() time, using the audio
+   hardware's own timestamp when available (currentTime alone can
+   step in coarse chunks and drifts against setTimeout on phones). */
+function metAudioToPerf(audioTime){
+
+  try{
+
+    const ts =
+      metAudioCtx.getOutputTimestamp && metAudioCtx.getOutputTimestamp();
+
+    if(ts && ts.performanceTime > 0 && ts.contextTime > 0){
+      return ts.performanceTime + (audioTime - ts.contextTime) * 1000;
+    }
+
+  }catch(error){}
+
+  return performance.now() + (audioTime - metAudioCtx.currentTime) * 1000;
+
+}
+
 let metSpeechVoice = null;
 
 function metPickSpeechVoice(){
@@ -16610,7 +16682,7 @@ function metSpeak(text, scheduledAudioTime){
   if(typeof window.speechSynthesis === 'undefined')return;
 
   const targetPerf =
-    performance.now() + (scheduledAudioTime - metAudioCtx.currentTime) * 1000;
+    metAudioToPerf(scheduledAudioTime);
 
   const delayMs =
     Math.max(0, targetPerf - performance.now() - metSpeechLatencyMs);
@@ -16621,9 +16693,14 @@ function metSpeak(text, scheduledAudioTime){
 
     try{
 
-      /* Never let a slow previous cue queue up behind this one */
+      /* Never let a slow previous cue queue up behind this one.
+         A start right after a cancel is slower than normal, so
+         that sample is not used for latency calibration. */
+      let cancelled = false;
+
       if(speechSynthesis.speaking || speechSynthesis.pending){
         speechSynthesis.cancel();
+        cancelled = true;
       }
 
       const utterance =
@@ -16642,11 +16719,9 @@ function metSpeak(text, scheduledAudioTime){
 
       utterance.onstart = () => {
 
-        const measured =
-          performance.now() - calledAt;
-
-        metSpeechLatencyMs =
-          Math.min(700, Math.max(0, metSpeechLatencyMs * 0.5 + measured * 0.5));
+        if(!cancelled){
+          metRecordSpeechLatency(performance.now() - calledAt);
+        }
 
       };
 
@@ -16672,6 +16747,31 @@ function metCheckArrangementCue(beatIndex, scheduledAudioTime){
   /* How many beats ahead we must trigger to beat the speech latency */
   const lead =
     Math.max(1, Math.ceil((metSpeechLatencyMs + 120) / 1000 / secondsPerBeat));
+
+  /* Section-name announcements: 1s ahead of the count, plus the
+     speech latency, so they are triggered that many beats early. */
+  const map = metArrangementBeatMap;
+
+  const announceLead =
+    Math.ceil((MET_ANNOUNCE_LEAD_SEC + (metSpeechLatencyMs + 120) / 1000) / secondsPerBeat);
+
+  while(map.announceIdx < map.announces.length){
+
+    const a = map.announces[map.announceIdx];
+
+    if(beatIndex + announceLead < a.beat)break;
+
+    const countStartTime =
+      scheduledAudioTime + (a.beat - beatIndex) * secondsPerBeat;
+
+    const afterTime =
+      scheduledAudioTime + (a.after - beatIndex) * secondsPerBeat;
+
+    metSpeak(a.text, Math.max(countStartTime - MET_ANNOUNCE_LEAD_SEC, afterTime));
+
+    map.announceIdx++;
+
+  }
 
   const target =
     beatIndex + lead;
@@ -16753,18 +16853,99 @@ function metStartMetronome(){
   metIsPlaying = true;
   metCurrentBeat = 0;
   metCurrentSubStep = 0;
-  metNextNoteTime = metAudioCtx.currentTime + 0.05;
   metNotesInQueue = [];
+
+  const token = ++metStartToken;
+
+  const begin = leadSec => {
+
+    if(token !== metStartToken || !metIsPlaying)return;
+
+    metNextNoteTime = metAudioCtx.currentTime + leadSec;
+
+    metScheduler();
+    requestAnimationFrame(metDrawLoop);
+
+  };
 
   if(metArrangementEnabled){
     metArrangementBeatMap = metBuildArrangementBeatMap();
     metArrangementBeatCount = 0;
     metArrangementCuedThrough = -1;
-    metWarmUpSpeech();
   }
 
-  metScheduler();
-  requestAnimationFrame(metDrawLoop);
+  const canAnnounce =
+    metArrangementEnabled &&
+    metArrangementBeatMap &&
+    metArrangementBeatMap.firstName &&
+    typeof window.speechSynthesis !== 'undefined';
+
+  if(canAnnounce){
+
+    /*
+      Say the first section's name with NO click running. Once the
+      voice has finished, the clicks start, delayed by the measured
+      speech latency plus a small margin so that the "1" cue (which
+      must be triggered early to be heard on the beat) still has
+      time to be scheduled ahead of the first click.
+    */
+    let started = false;
+    let fallbackTimer = null;
+    let speechStartPerf = performance.now();
+
+    const go = () => {
+
+      if(started)return;
+
+      started = true;
+
+      clearTimeout(fallbackTimer);
+
+      /* Count starts ~1s after the name STARTED (same lead as the
+         mid-song announcements), but never before the name is done. */
+      const sinceSpeechStart =
+        (performance.now() - speechStartPerf) / 1000;
+
+      begin(Math.max(
+        (metSpeechLatencyMs + 120) / 1000,
+        MET_ANNOUNCE_LEAD_SEC - sinceSpeechStart
+      ));
+
+    };
+
+    try{
+
+      const intro =
+        new SpeechSynthesisUtterance(metArrangementBeatMap.firstName);
+
+      intro.rate = Math.min(1.6, Math.max(1, metTempo / 100));
+      intro.volume = 1;
+
+      const voice = metPickSpeechVoice();
+      if(voice)intro.voice = voice;
+
+      intro.onstart = () => { speechStartPerf = performance.now(); };
+      intro.onend = go;
+      intro.onerror = go;
+
+      speechSynthesis.cancel();
+      speechSynthesis.speak(intro);
+
+      /* Some engines never fire onend — don't hang the metronome */
+      fallbackTimer = setTimeout(go, 2500);
+
+    }catch(error){
+
+      console.error(error);
+      go();
+
+    }
+
+  }else{
+
+    begin(0.05);
+
+  }
 
   metUpdatePlayButton();
 
@@ -16777,6 +16958,7 @@ function metStopMetronome(){
   if(!metIsPlaying)return;
 
   metIsPlaying = false;
+  metStartToken++;
 
   clearTimeout(metSchedulerTimer);
   metSchedulerTimer = null;
