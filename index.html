@@ -1977,9 +1977,13 @@ button{
 }
 
 .songBottomMenuWrap{
-  flex:1;
+  flex:0 0 46px;
   margin-left:0;
   display:flex;
+}
+
+.songBottomMenuBtn{
+  padding:0;
 }
 
 .songBottomMenuWrap .songBottomTabBtn{
@@ -2006,6 +2010,232 @@ button{
   max-height:min(62vh, 440px);
   overflow-y:auto;
   -webkit-overflow-scrolling:touch;
+}
+
+/* Library pop-up: opened by the Lib tab, a sheet over the song so
+   other songs can be opened without leaving the viewer. */
+.songLibSheetRoot{
+  position:fixed;
+  inset:0;
+  z-index:175;
+  display:flex;
+  align-items:flex-end;
+  background:rgba(0,0,0,.5);
+}
+
+.songLibSheet{
+  width:100%;
+  max-width:640px;
+  margin:0 auto;
+  max-height:72vh;
+
+  display:flex;
+  flex-direction:column;
+
+  background:rgba(17,17,20,.98);
+  border:1px solid rgba(255,255,255,.14);
+  border-bottom:0;
+  border-radius:20px 20px 0 0;
+  box-shadow:0 -18px 50px rgba(0,0,0,.55);
+
+  padding-bottom:env(safe-area-inset-bottom, 0px);
+  overflow:hidden;
+}
+
+.songLibSheetHead{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:12px 12px 10px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+
+.songLibSheetTitle{
+  font-size:15px;
+  font-weight:800;
+  color:#f7f7f7;
+  margin-right:2px;
+}
+
+.songLibSearch{
+  flex:1;
+  min-width:0;
+  height:34px;
+  border:1px solid #2a2a2e;
+  border-radius:10px;
+  background:#18181b;
+  color:#f7f7f7;
+  font-size:13px;
+  padding:0 10px;
+  outline:none;
+}
+
+.songLibSearch:focus{
+  border-color:var(--accent);
+}
+
+.songLibHeadBtn{
+  flex:0 0 auto;
+  width:34px;
+  height:34px;
+  border:1px solid #2a2a2e;
+  border-radius:10px;
+  background:#18181b;
+  color:#9c9ca3;
+  font-size:15px;
+  display:grid;
+  place-items:center;
+}
+
+.songLibHeadBtn svg{
+  width:16px;
+  height:16px;
+}
+
+.songLibHeadBtn.active{
+  background:#ff4d6d;
+  border-color:#ff4d6d;
+  color:#fff;
+}
+
+.songLibTabs{
+  flex:0 0 auto;
+  display:flex;
+  gap:6px;
+  padding:8px 12px 0;
+}
+
+.songLibTab{
+  flex:1;
+  height:30px;
+  border:1px solid #2a2a2e;
+  border-radius:9px;
+  background:#18181b;
+  color:#9c9ca3;
+  font-size:12px;
+  font-weight:800;
+}
+
+.songLibTab.active{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:var(--accent-ink);
+}
+
+.songLibChips{
+  flex:0 0 auto;
+  display:none;
+  gap:6px;
+  padding:8px 12px 0;
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+
+.songLibChips::-webkit-scrollbar{display:none;}
+
+.songLibChip{
+  flex:0 0 auto;
+  height:28px;
+  padding:0 11px;
+  border:1px solid #2a2a2e;
+  border-radius:999px;
+  background:#18181b;
+  color:#9c9ca3;
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+.songLibChip span{
+  opacity:.6;
+  margin-left:3px;
+}
+
+.songLibChip.active{
+  border-color:var(--accent);
+  color:var(--accent);
+}
+
+.songLibItemNum{
+  flex:0 0 auto;
+  width:22px;
+  text-align:center;
+  font-size:12px;
+  font-weight:800;
+  color:#6f6f77;
+}
+
+.songLibList{
+  flex:1;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  padding:6px;
+}
+
+.songLibItem{
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  text-align:left;
+
+  border:0;
+  background:transparent;
+  color:#f7f7f7;
+
+  padding:10px 10px;
+  border-radius:11px;
+}
+
+.songLibItem:active{
+  background:rgba(255,255,255,.08);
+}
+
+.songLibItem.current{
+  background:rgba(255,255,255,.07);
+  box-shadow:inset 0 0 0 1px var(--accent);
+}
+
+.songLibItemMain{
+  flex:1;
+  min-width:0;
+}
+
+.songLibItemTitle{
+  font-size:14px;
+  font-weight:750;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.songLibItemMeta{
+  font-size:11.5px;
+  color:#8a8a91;
+  margin-top:2px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.songLibItemStar{
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+  color:#ff4d6d;
+}
+
+.songLibItemStar svg{
+  width:14px;
+  height:14px;
+}
+
+.songLibEmpty{
+  padding:26px 12px;
+  text-align:center;
+  font-size:13px;
+  color:#8a8a91;
 }
 
 .songBottomTabBtn.active{
@@ -2214,21 +2444,30 @@ body.songLyricsImmersive .songHeaderMetaRow{
 }
 
 /*
-  Lyrics mode only: tapping the lyrics hides the whole bottom
+  Chords and Lyrics modes: tapping the song hides the whole bottom
   panel (Chords/Lyrics/Lib tabs + Transpose/Font/BPM row). The
   section-jump bar and the auto-scroll control stay on screen and
   drop down to the bottom edge to take its place.
 */
 .songBottomPanel{
-  transition:transform .25s ease,opacity .2s ease;
+  transition:transform .32s cubic-bezier(.22,.8,.26,1),opacity .22s ease;
 }
 
 body.songViewerActive .songSectionFloatBar{
-  transition:opacity .3s ease,transform .3s ease,bottom .25s ease;
+  transition:opacity .3s ease,transform .3s ease,bottom .32s cubic-bezier(.22,.8,.26,1);
 }
 
 body.songViewerActive .autoScrollFab{
-  transition:opacity .3s ease,transform .3s ease,bottom .25s ease;
+  transition:opacity .3s ease,transform .3s ease,bottom .32s cubic-bezier(.22,.8,.26,1);
+}
+
+/* While the Menu dropdown is open, the section-jump bar and the
+   auto-scroll control would sit on top of it — hide them. */
+body.songMenuOpen .songSectionFloatBar,
+body.songMenuOpen .autoScrollFab{
+  opacity:0 !important;
+  visibility:hidden;
+  pointer-events:none;
 }
 
 body.songBottomHidden .songBottomPanel{
@@ -5013,7 +5252,7 @@ body.songBottomHidden .annotateToolbar{
 }
 
 .favoriteBtn.active{
-  color:#f7c948;
+  color:#ff4d6d;
 }
 
 
@@ -9220,6 +9459,8 @@ function setActiveNav(name){
   document.body.classList.remove('songViewerActive');
   document.body.classList.remove('songBottomHidden');
   songBottomBarHidden = false;
+  document.body.classList.remove('songMenuOpen');
+  closeSongLibrarySheet();
 
 
   /*
@@ -25621,6 +25862,52 @@ function wireAnnotateToolbarButtons(){
   the two most-used modes plus the Metronome/Library shortcuts
   requested alongside them.
 */
+/*
+  The bottom bar's middle slot: Cue while MD Mode is on, otherwise the
+  Font stepper. Shared by the full render and by the MD long-press
+  toggle, which swaps just this element in place.
+*/
+function songBottomMiddleSlotHTML(mdViewModeOn, fontSize){
+
+  if(mdViewModeOn){
+    return `<button type="button" class="songBottomPadsBtn songBottomCueBtn${(metIsPlaying&&metArrangementEnabled)?' active':''}" id="songBottomCueBtn" data-mid-slot="1" aria-pressed="${(metIsPlaying&&metArrangementEnabled)?'true':'false'}" aria-label="Cue — spoken count-in and section names, synced to BPM">Cue</button>`;
+  }
+
+  return `
+            <div class="songBottomControlCard" data-mid-slot="1">
+              <div class="songBottomControlLabel">Font</div>
+              <div class="songBottomControlStepper">
+                <button type="button" class="toolbarBtn" id="fontMinus" aria-label="Decrease font size">−</button>
+                <span class="toolbarBtn songBottomControlValue" id="fontSizeIndicator">${fontSize}</span>
+                <button type="button" class="toolbarBtn" id="fontPlus" aria-label="Increase font size">+</button>
+              </div>
+            </div>
+  `;
+
+}
+
+function wireSongFontButtons(){
+
+  const song = currentSong;
+  const minus = document.getElementById('fontMinus');
+  const plus = document.getElementById('fontPlus');
+
+  if(!song)return;
+
+  if(minus)minus.onclick = () => {
+    song.fontSize = Math.max(11, song.fontSize - 1);
+    skipNextScreenTransition = true;
+    renderSongViewer();
+  };
+
+  if(plus)plus.onclick = () => {
+    song.fontSize = Math.min(30, song.fontSize + 1);
+    skipNextScreenTransition = true;
+    renderSongViewer();
+  };
+
+}
+
 function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, hasMdNotes, amount, padsBpm, fontSize){
 
   return `
@@ -25634,6 +25921,8 @@ function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, h
 
         <button type="button" class="songBottomTabBtn${isLyricsMode?' active':''}" id="songBottomLyricsBtn" data-song-bottom-mode="lyrics">▤ Lyrics</button>
 
+        <button type="button" class="songBottomTabBtn" id="songBottomLibBtn" aria-haspopup="dialog">▤ Lib</button>
+
         <div class="songMenuWrap songBottomMenuWrap" id="songMenuWrap">
           <button type="button" class="songBottomTabBtn songBottomMenuBtn" id="songMenuBtn" aria-haspopup="true" aria-expanded="false" aria-label="Menu">
             <svg class="songMenuIcon" viewBox="0 0 512 512" aria-hidden="true" fill="currentColor">
@@ -25641,10 +25930,9 @@ function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, h
               <circle cx="45" cy="255" r="45"/><rect x="120" y="210" width="392" height="90" rx="45"/>
               <circle cx="45" cy="405" r="45"/><rect x="120" y="360" width="392" height="90" rx="45"/>
             </svg>
-            Menu
           </button>
           <div class="songMenuDropdown" id="songMenuDropdown" role="menu">
-            <button class="songMenuItem" type="button" id="menuLibraryBtn" role="menuitem">Library</button>
+            <button class="songMenuItem" type="button" id="menuLibraryBtn" role="menuitem">Full Library Page</button>
             <button class="songMenuItem" type="button" id="menuEditBtn" role="menuitem">Edit Song</button>
             <button class="songMenuItem" type="button" id="menuFlowViewBtn" role="menuitem">Flow View</button>
             <button class="songMenuItem" type="button" id="menuSaveBtn" role="menuitem">Save</button>
@@ -25672,20 +25960,7 @@ function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, h
           </div>
         </div>
 
-        ${
-          mdViewModeOn ? `
-            <button type="button" class="songBottomPadsBtn songBottomCueBtn${(metIsPlaying&&metArrangementEnabled)?' active':''}" id="songBottomCueBtn" aria-pressed="${(metIsPlaying&&metArrangementEnabled)?'true':'false'}" aria-label="Cue — spoken count-in and section names, synced to BPM">Cue</button>
-          ` : `
-            <div class="songBottomControlCard">
-              <div class="songBottomControlLabel">Font</div>
-              <div class="songBottomControlStepper">
-                <button type="button" class="toolbarBtn" id="fontMinus" aria-label="Decrease font size">−</button>
-                <span class="toolbarBtn songBottomControlValue" id="fontSizeIndicator">${fontSize}</span>
-                <button type="button" class="toolbarBtn" id="fontPlus" aria-label="Increase font size">+</button>
-              </div>
-            </div>
-          `
-        }
+        ${songBottomMiddleSlotHTML(mdViewModeOn, fontSize)}
 
         <div class="songBottomControlCard">
           <div class="songBottomControlLabel songBottomControlLabelWithBtn">
@@ -25713,7 +25988,7 @@ function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, h
         </div>
 
         ${
-          isLyricsMode ? `
+          true ? `
             <button type="button" class="songBottomHomeBtn" id="songFloatingHomeBtn" aria-label="Home">
               <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M5.3 10.9 10.6 6 Q12 4.6 13.5 6 L18.7 10.9 Q19.4 11.6 19.4 12.6 L19.4 17.8 Q19.4 19.4 17.8 19.4 L6.2 19.4 Q4.6 19.4 4.6 17.8 L4.6 12.6 Q4.6 11.6 5.3 10.9 Z"/>
@@ -25751,7 +26026,287 @@ function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, h
   always did back when it lived in the toolbar.
 */
 /*
-  Lyrics mode: a plain tap on the lyrics toggles the bottom panel.
+  Library pop-up (the Lib tab). Lists the saved songs in a sheet over
+  the song viewer; tapping one switches to it in place, so there's no
+  need to go back to the main Library page first.
+*/
+let songLibSheetQuery = '';
+let songLibSheetFavOnly = false;
+let songLibSheetTab = 'all';          /* 'all' | 'set' | 'recent' */
+let songLibSheetSetSource = '';       /* '__lineup' or a setlist id */
+
+function closeSongLibrarySheet(){
+
+  const root = document.getElementById('songLibSheetRoot');
+
+  if(root)root.remove();
+
+}
+
+/* Where the Set tab can pull songs from: today's lineup, then each setlist */
+function songLibSetSources(){
+
+  const sources = [];
+
+  const lineup = getLocalLineup();
+
+  if(lineup && Array.isArray(lineup.songs) && lineup.songs.length){
+    sources.push({ id:'__lineup', name:'Lineup', ids:lineup.songs.map(entry => entry.id) });
+  }
+
+  getSetlists().forEach(setlist => {
+    sources.push({ id:setlist.id, name:setlist.name || 'Setlist', ids:Array.isArray(setlist.songIds) ? setlist.songIds : [] });
+  });
+
+  return sources;
+
+}
+
+function songLibResolve(id){
+
+  return getSongs().find(entry => entry.id === id) ||
+         getRecentViews().find(entry => entry.id === id) ||
+         null;
+
+}
+
+function songLibVisibleSongs(){
+
+  const q = songLibSheetQuery.trim().toLowerCase();
+  const matches = song => !q || String(song.title || '').toLowerCase().includes(q);
+
+  if(songLibSheetTab === 'recent'){
+    return getRecentViews().map(item => songLibResolve(item.id)).filter(Boolean).filter(matches);
+  }
+
+  if(songLibSheetTab === 'set'){
+
+    const source = songLibSetSources().find(item => item.id === songLibSheetSetSource);
+
+    if(!source)return [];
+
+    const byId = new Map(getSongs().map(song => [song.id, song]));
+
+    return source.ids.map(id => byId.get(id)).filter(Boolean).filter(matches);
+
+  }
+
+  return getSongs()
+    .filter(song => !songLibSheetFavOnly || song.favorite)
+    .filter(matches);
+
+}
+
+function songLibSheetTabsHTML(){
+
+  const tabs = [['all','All'], ['set','Set'], ['recent','Recent']];
+
+  return tabs.map(([id, label]) =>
+    `<button type="button" class="songLibTab${songLibSheetTab === id ? ' active' : ''}" data-lib-tab="${id}">${label}</button>`
+  ).join('');
+
+}
+
+function songLibSheetChipsHTML(){
+
+  if(songLibSheetTab !== 'set')return '';
+
+  const sources = songLibSetSources();
+
+  if(!sources.length)return '';
+
+  return sources.map(source =>
+    `<button type="button" class="songLibChip${source.id === songLibSheetSetSource ? ' active' : ''}" data-lib-source="${esc(source.id)}">${esc(source.name)} <span>${source.ids.length}</span></button>`
+  ).join('');
+
+}
+
+function songLibSheetListHTML(){
+
+  const list = songLibVisibleSongs();
+  const currentId = currentSong ? currentSong.id : null;
+
+  if(!list.length){
+
+    let msg = 'No songs found';
+
+    if(songLibSheetTab === 'recent' && !songLibSheetQuery.trim())msg = 'Nothing viewed yet';
+
+    if(songLibSheetTab === 'set' && !songLibSetSources().length)msg = 'No lineup or setlists yet';
+
+    return `<div class="songLibEmpty">${msg}</div>`;
+
+  }
+
+  const numbered = songLibSheetTab === 'set' && !songLibSheetQuery.trim();
+
+  return list.map((song, index) => {
+
+    const key = detectSongKeyLabel(song);
+
+    const meta = [
+      Array.isArray(song.mergeParts) && song.mergeParts.length > 1 ? song.mergeParts.length + ' songs' : '',
+      song.theme || '',
+      key ? 'Key of ' + key : ''
+    ].filter(Boolean).join(' · ');
+
+    return `
+      <button type="button" class="songLibItem${song.id === currentId ? ' current' : ''}" data-lib-song="${esc(song.id)}">
+        ${numbered ? `<span class="songLibItemNum">${index + 1}</span>` : ''}
+        <span class="songLibItemMain">
+          <div class="songLibItemTitle">${esc(song.title || 'Untitled Song')}</div>
+          ${meta ? `<div class="songLibItemMeta">${esc(meta)}</div>` : ''}
+        </span>
+        ${song.favorite ? '<span class="songLibItemStar"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></span>' : ''}
+      </button>
+    `;
+
+  }).join('');
+
+}
+
+function openSongLibrarySheet(){
+
+  closeSongLibrarySheet();
+
+  songLibSheetQuery = '';
+
+  /* Opening mid-set: land on the lineup when the current song is in it */
+  const lineupSource = songLibSetSources().find(item => item.id === '__lineup');
+
+  if(lineupSource && currentSong && lineupSource.ids.includes(currentSong.id)){
+    songLibSheetTab = 'set';
+    songLibSheetSetSource = '__lineup';
+  }
+
+  const sources = songLibSetSources();
+
+  if(!sources.some(item => item.id === songLibSheetSetSource)){
+    songLibSheetSetSource = sources.length ? sources[0].id : '';
+  }
+
+  const root = document.createElement('div');
+
+  root.className = 'songLibSheetRoot';
+  root.id = 'songLibSheetRoot';
+
+  root.innerHTML = `
+    <div class="songLibSheet" role="dialog" aria-label="Library">
+      <div class="songLibSheetHead">
+        <div class="songLibSheetTitle">Library</div>
+        <input type="search" class="songLibSearch" id="songLibSearch" placeholder="Search songs" autocomplete="off">
+        <button type="button" class="songLibHeadBtn" id="songLibFavBtn" aria-label="Favorites only" aria-pressed="${songLibSheetFavOnly}"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
+        <button type="button" class="songLibHeadBtn" id="songLibCloseBtn" aria-label="Close">✕</button>
+      </div>
+      <div class="songLibTabs" id="songLibTabs"></div>
+      <div class="songLibChips" id="songLibChips"></div>
+      <div class="songLibList" id="songLibList"></div>
+    </div>
+  `;
+
+  document.body.appendChild(root);
+
+  const tabsEl = document.getElementById('songLibTabs');
+  const chipsEl = document.getElementById('songLibChips');
+  const listEl = document.getElementById('songLibList');
+  const favBtn = document.getElementById('songLibFavBtn');
+
+  const refresh = () => {
+
+    tabsEl.innerHTML = songLibSheetTabsHTML();
+
+    const chips = songLibSheetChipsHTML();
+    chipsEl.innerHTML = chips;
+    chipsEl.style.display = chips ? 'flex' : 'none';
+
+    favBtn.style.display = songLibSheetTab === 'all' ? '' : 'none';
+    favBtn.classList.toggle('active', songLibSheetFavOnly);
+    favBtn.setAttribute('aria-pressed', songLibSheetFavOnly ? 'true' : 'false');
+
+    listEl.innerHTML = songLibSheetListHTML();
+
+  };
+
+  const scrollToCurrent = () => {
+    const currentItem = listEl.querySelector('.songLibItem.current');
+    if(currentItem)currentItem.scrollIntoView({ block:'center' });
+  };
+
+  refresh();
+
+  root.addEventListener('click', event => {
+    if(event.target === root)closeSongLibrarySheet();
+  });
+
+  document.getElementById('songLibCloseBtn').onclick = closeSongLibrarySheet;
+
+  document.getElementById('songLibSearch').addEventListener('input', event => {
+    songLibSheetQuery = event.target.value;
+    listEl.innerHTML = songLibSheetListHTML();
+  });
+
+  favBtn.onclick = () => {
+    songLibSheetFavOnly = !songLibSheetFavOnly;
+    refresh();
+  };
+
+  tabsEl.addEventListener('click', event => {
+
+    const tab = event.target.closest('[data-lib-tab]');
+
+    if(!tab)return;
+
+    songLibSheetTab = tab.dataset.libTab;
+    refresh();
+    scrollToCurrent();
+
+  });
+
+  chipsEl.addEventListener('click', event => {
+
+    const chip = event.target.closest('[data-lib-source]');
+
+    if(!chip)return;
+
+    songLibSheetSetSource = chip.dataset.libSource;
+    refresh();
+    scrollToCurrent();
+
+  });
+
+  listEl.addEventListener('click', event => {
+
+    const item = event.target.closest('[data-lib-song]');
+
+    if(!item)return;
+
+    const target = songLibResolve(item.dataset.libSong);
+
+    if(!target)return;
+
+    closeSongLibrarySheet();
+
+    if(currentSong && target.id === currentSong.id)return;
+
+    if(currentSong){
+      flushLineupAutoSync(currentSong.id);
+      if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);
+    }
+
+    stopAutoScroll();
+    songFlowMode = false;
+    skipNextScreenTransition = true;
+
+    openSong(target);
+
+  });
+
+  scrollToCurrent();
+
+}
+
+/*
+  Chords and Lyrics modes: a plain tap on the song toggles the bottom panel.
   Skipped while drawing (annotate mode), while selecting text, and
   for taps that land on an actual control inside the lyrics. Real
   scrolls/swipes never fire a click, so they don't trigger it.
@@ -25764,7 +26319,7 @@ function attachLyricsTapToggle(){
 
   el.addEventListener('click', event => {
 
-    if(songFlowMode || showChords)return;
+    if(songFlowMode)return;
     if(annotateMode)return;
 
     const menuEl = document.getElementById('songMenuDropdown');
@@ -25800,8 +26355,8 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm, 
 
   document.body.classList.add('songViewerActive');
   document.body.classList.toggle('songLyricsImmersive', isLyricsMode);
-  if(!isLyricsMode)songBottomBarHidden = false;
-  document.body.classList.toggle('songBottomHidden', isLyricsMode && songBottomBarHidden);
+  if(songFlowMode)songBottomBarHidden = false;
+  document.body.classList.toggle('songBottomHidden', !songFlowMode && songBottomBarHidden);
 
   const chordsBtn =
     document.getElementById('songBottomChordsBtn');
@@ -25834,6 +26389,15 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm, 
           chordsBtn.insertAdjacentHTML('beforeend', '<span class="mdModeBadge">MD</span>');
         }else if(!mdViewMode && existingBadge){
           existingBadge.remove();
+        }
+
+        const midSlotEl =
+          document.querySelector('.songBottomPanel [data-mid-slot]');
+
+        if(midSlotEl){
+          midSlotEl.outerHTML = songBottomMiddleSlotHTML(mdViewMode, currentSong ? currentSong.fontSize : fontSize);
+          wireCueBtn();
+          wireSongFontButtons();
         }
 
         const structureEl =
@@ -25881,6 +26445,13 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm, 
       skipNextScreenTransition = true;
       renderSongViewer();
     };
+  }
+
+  const libBtn =
+    document.getElementById('songBottomLibBtn');
+
+  if(libBtn){
+    libBtn.onclick = () => openSongLibrarySheet();
   }
 
   const homeBtn =
@@ -25984,6 +26555,8 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm, 
     click is playing restarts the arrangement from the top and keeps the
     click sounding.
   */
+  function wireCueBtn(){
+
   const songCueBtn =
     document.getElementById('songBottomCueBtn');
 
@@ -26026,6 +26599,9 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm, 
     };
 
   }
+  }
+
+  wireCueBtn();
 
   if(padsBpmValueEl){
 
@@ -26117,7 +26693,7 @@ function renderSongViewer(){
           </button>
           <h1 class="songHeaderTitle">${esc(song.title||'Untitled Song')}</h1>
           <button class="favoriteBtn${song.favorite?' active':''}" id="songFavoriteBtn" type="button" aria-label="${song.favorite?'Remove from favorites':'Add to favorites'}">
-            <svg viewBox="0 0 24 24" fill="${song.favorite?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M12 17.3 6.2 20.6l1.1-6.6-4.8-4.7 6.6-1 3-6 3 6 6.6 1-4.8 4.7 1.1 6.6z"/></svg>
+            <svg viewBox="0 0 24 24" fill="${song.favorite?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M12 20.5s-8-4.9-8-11A4.6 4.6 0 0 1 12 6.6 4.6 4.6 0 0 1 20 9.5c0 6.1-8 11-8 11z" stroke-linejoin="round"/></svg>
           </button>
           ${renderLineupSyncButtonHTML(song)}
         </div>
@@ -26181,10 +26757,7 @@ function renderSongViewer(){
   renderSongBottomBar(song, amount, displayBlocks, flow, metPresetBpm, song.fontSize);
   attachSongMenuControls();
   attachLyricsTapToggle();
-  const fontMinusEl=document.getElementById('fontMinus');
-  const fontPlusEl=document.getElementById('fontPlus');
-  if(fontMinusEl)fontMinusEl.onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);skipNextScreenTransition=true;renderSongViewer();};
-  if(fontPlusEl)fontPlusEl.onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);skipNextScreenTransition=true;renderSongViewer();};
+  wireSongFontButtons();
   document.getElementById('transposeDown').onclick=()=>{song.transposeSteps--;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
   document.getElementById('transposeUp').onclick=()=>{song.transposeSteps++;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
   document.getElementById('transposeReset').onclick=()=>{song.transposeSteps=0;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast((song.originalText||song.text||''),song.transposeSteps);};
@@ -26509,10 +27082,7 @@ function renderMergedSongViewer(){
   renderSongBottomBar(part, amount, displayBlocks, flow, metPresetBpm, song.fontSize);
   attachSongMenuControls();
   attachLyricsTapToggle();
-  const fontMinusEl=document.getElementById('fontMinus');
-  const fontPlusEl=document.getElementById('fontPlus');
-  if(fontMinusEl)fontMinusEl.onclick=()=>{song.fontSize=Math.max(11,song.fontSize-1);skipNextScreenTransition=true;renderSongViewer();};
-  if(fontPlusEl)fontPlusEl.onclick=()=>{song.fontSize=Math.min(30,song.fontSize+1);skipNextScreenTransition=true;renderSongViewer();};
+  wireSongFontButtons();
   document.getElementById('transposeDown').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)-1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
   document.getElementById('transposeUp').onclick=()=>{part.transposeSteps=(part.transposeSteps||0)+1;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
   document.getElementById('transposeReset').onclick=()=>{part.transposeSteps=0;skipNextScreenTransition=true;renderSongViewer();showTransposeKeyToast(part.text,part.transposeSteps);};
@@ -26959,9 +27529,11 @@ function syncSongMenuBtnState(){
   const dropdown = document.getElementById('songMenuDropdown');
   const btn = document.getElementById('songMenuBtn');
 
-  if(!dropdown || !btn)return;
+  const open = !!(dropdown && dropdown.classList.contains('open'));
 
-  const open = dropdown.classList.contains('open');
+  document.body.classList.toggle('songMenuOpen', open);
+
+  if(!dropdown || !btn)return;
 
   btn.classList.toggle('menuOpen', open);
   btn.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -26997,6 +27569,9 @@ function attachSongMenuControls(){
     );
 
   if(!menuBtn)return;
+
+  /* a fresh bottom bar always starts with the menu closed */
+  syncSongMenuBtnState();
 
   menuBtn.onclick = event => {
 
@@ -29848,10 +30423,11 @@ function renderLibrary(){
         type="button"
         class="libraryTab"
         id="libraryFavoritesToggle"
-        style="flex:0 0 auto;padding:8px 14px;${libraryFavoritesOnly ? 'background:#f7c948;color:#111;border-color:#f7c948;' : ''}"
+        style="flex:0 0 auto;padding:8px 14px;${libraryFavoritesOnly ? 'background:#ff4d6d;color:#fff;border-color:#ff4d6d;' : ''}"
         aria-pressed="${libraryFavoritesOnly}"
         title="Show favorites only"
-      >★</button>
+        aria-label="Show favorites only"
+      ><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor" style="width:16px;height:16px;display:block;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
 
     </div>
 
@@ -29954,7 +30530,7 @@ function renderLibrary(){
                   data-favorite-song="${esc(song.id)}"
                   aria-label="${song.favorite?'Remove from favorites':'Add to favorites'}"
                 >
-                  <svg viewBox="0 0 24 24" fill="${song.favorite?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M12 17.3 6.2 20.6l1.1-6.6-4.8-4.7 6.6-1 3-6 3 6 6.6 1-4.8 4.7 1.1 6.6z"/></svg>
+                  <svg viewBox="0 0 24 24" fill="${song.favorite?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M12 20.5s-8-4.9-8-11A4.6 4.6 0 0 1 12 6.6 4.6 4.6 0 0 1 20 9.5c0 6.1-8 11-8 11z" stroke-linejoin="round"/></svg>
                 </button>
               `
               : ''
@@ -34759,6 +35335,14 @@ if('serviceWorker' in navigator){
 */
 
 function handleHardwareBack(){
+
+  if(document.getElementById('songLibSheetRoot')){
+
+    closeSongLibrarySheet();
+
+    return true;
+
+  }
 
   const songMenuDropdown =
     document.getElementById('songMenuDropdown');
