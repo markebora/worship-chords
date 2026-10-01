@@ -611,6 +611,57 @@ button{
   box-shadow:
     0 12px 40px rgba(0,0,0,.60),
     inset 0 1px 0 rgba(255,255,255,.06);
+
+  transition:transform .28s cubic-bezier(.22,.8,.36,1);
+}
+
+/* Slides away while scrolling down, back on scroll up (see navAutoHide) */
+.nav.navHidden{
+  transform:translateX(-50%) translateY(calc(100% + 28px));
+}
+
+/* Centre "Now playing" button — only visible while the metronome runs */
+.nav button.navNowPlaying{
+  display:none;
+
+  flex:0 0 48px;
+  width:48px;
+
+  border-radius:50%;
+
+  background:var(--accent);
+  color:var(--accent-ink);
+
+  box-shadow:0 0 16px var(--accent-glow);
+}
+
+.nav button.navNowPlaying.show{
+  display:flex;
+
+  animation:navDotIn .25s cubic-bezier(.2,.8,.3,1) both;
+}
+
+.nav button.navNowPlaying .navBars{
+  display:flex;
+  align-items:flex-end;
+  gap:3px;
+  height:18px;
+}
+
+.nav button.navNowPlaying .navBars i{
+  width:3.5px;
+  border-radius:2px;
+  background:currentColor;
+  animation:navBarsBounce .9s ease-in-out infinite;
+}
+
+.nav button.navNowPlaying .navBars i:nth-child(1){ height:8px; }
+.nav button.navNowPlaying .navBars i:nth-child(2){ height:16px; animation-delay:.15s; }
+.nav button.navNowPlaying .navBars i:nth-child(3){ height:11px; animation-delay:.3s; }
+
+@keyframes navBarsBounce{
+  0%,100%{ transform:scaleY(.45); }
+  50%{ transform:scaleY(1); }
 }
 
 .nav button{
@@ -642,16 +693,45 @@ button{
     backdrop-filter .25s ease;
 }
 
+.nav button{
+  position:relative;
+}
+
+/* Active tab: gold icon + a small gold dot under it (icon-only nav) */
 .nav button.active{
-  color:#fff;
+  color:var(--accent);
 
-  background:rgba(255,255,255,.07);
+  background:transparent;
 
-  border:1px solid rgba(255,255,255,.09);
+  border:0;
 
-  box-shadow:
-    0 0 14px rgba(255,255,255,.12),
-    inset 0 1px 0 rgba(255,255,255,.08);
+  box-shadow:none;
+}
+
+.nav button.active:not(.navNowPlaying)::after{
+  content:"";
+
+  position:absolute;
+  bottom:4px;
+  left:50%;
+
+  width:5px;
+  height:5px;
+
+  margin-left:-2.5px;
+
+  border-radius:50%;
+
+  background:var(--accent);
+
+  box-shadow:0 0 8px var(--accent-glow);
+
+  animation:navDotIn .22s cubic-bezier(.2,.8,.3,1) both;
+}
+
+@keyframes navDotIn{
+  from{ transform:scale(0); opacity:0; }
+  to{ transform:scale(1); opacity:1; }
 }
 
 .nav .icon{
@@ -685,14 +765,13 @@ button{
 }
 
 .nav button.active .icon{
-  color:#fff;
+  color:var(--accent);
 
   filter:
-    drop-shadow(0 0 4px rgba(255,255,255,1))
-    drop-shadow(0 0 9px rgba(255,255,255,.75))
-    drop-shadow(0 0 18px rgba(255,255,255,.35));
+    drop-shadow(0 0 4px rgba(232,185,35,.85))
+    drop-shadow(0 0 10px rgba(232,185,35,.45));
 
-  transform:translateY(-1px);
+  transform:translateY(-3px);
 }
 
 .nav button.active .icon svg{
@@ -836,6 +915,82 @@ button{
   height:100%;
 
   object-fit:cover;
+}
+
+
+/* ---- Profile: tabs, sync stat, collapsible members ---- */
+
+.profileTabs{
+  display:flex;
+  gap:6px;
+  padding:4px;
+  margin:0 0 18px;
+  border:1px solid #2d2d32;
+  border-radius:999px;
+  background:#151518;
+}
+
+.profileTab{
+  flex:1;
+  padding:8px 0;
+  border:0;
+  border-radius:999px;
+  background:transparent;
+  color:#a7a7ae;
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.profileTab.active{
+  background:var(--accent);
+  color:var(--accent-ink);
+}
+
+.profileStatCard.profileSyncStat{
+  cursor:pointer;
+  position:relative;
+}
+
+.profileStatCard.profileSyncStat:active{
+  background:var(--liquid-press), #18181b;
+}
+
+.profileSyncIcon{
+  display:inline-block;
+  margin-left:4px;
+  color:var(--accent);
+}
+
+.profileSyncIcon svg{
+  width:11px;
+  height:11px;
+  vertical-align:-1px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2.4;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+.profileSyncStat.syncing .profileSyncIcon svg{
+  animation:syncCloudSpin 1s linear infinite;
+}
+
+.teamMembersList:not(.expanded) .teamMemberExtra{
+  display:none;
+}
+
+.teamMembersToggle{
+  align-self:flex-start;
+  padding:6px 12px;
+  border:1px solid #303036;
+  border-radius:999px;
+  background:transparent;
+  color:var(--accent);
+  font-size:12.5px;
+  font-weight:700;
+  cursor:pointer;
 }
 
 .teamMembersList{
@@ -1217,6 +1372,95 @@ button{
   color:#777780;
 
   font-size:11px;
+}
+
+
+/* ---- Consistent screen headers (Lyrics / Library): same title, height, spacing ---- */
+
+.lyricsWorkspaceHead,
+.libraryHead{
+  min-height:48px;
+  margin-bottom:16px;
+}
+
+.lyricsWorkspaceTitle,
+.libraryTitle{
+  font-size:28px;
+  font-weight:800;
+  line-height:1.1;
+  letter-spacing:-.01em;
+}
+
+/* ---- Lyrics: compact action row, drafts, swipeable song rows ---- */
+
+.lyricsActions{
+  gap:8px;
+  margin-bottom:6px;
+}
+
+.lyricsAction{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+}
+
+.lyricsAction .lyricsActionIcon.importIcon,
+.lyricsAction .lyricsActionIcon.analyzeIcon{
+  flex:0 0 auto;
+  width:30px;
+  height:30px;
+  margin:0;
+  padding:5px;
+}
+
+.lyricsAction .lyricsActionTitle{
+  margin:0;
+  font-size:13.5px;
+}
+
+.lyricsAction .lyricsActionSub{
+  display:none;
+}
+
+.songCard.swipeable{
+  touch-action:pan-y;
+  will-change:transform;
+}
+
+.songCard.swipeable.swipeSnap{
+  transition:transform .22s cubic-bezier(.22,.8,.36,1);
+}
+
+.songCard.swipeRight{
+  box-shadow:inset 4px 0 0 var(--accent);
+}
+
+.songCard.swipeLeft{
+  box-shadow:inset -4px 0 0 #ff4d6d;
+}
+
+.draftSaveBtn{
+  flex:0 0 auto;
+  margin-left:8px;
+  padding:7px 14px;
+  border:0;
+  border-radius:10px;
+  font-size:12.5px;
+  font-weight:800;
+  background:var(--accent);
+  color:var(--accent-ink);
+  cursor:pointer;
+}
+
+.draftSaveBtn:active{
+  background:var(--accent-strong);
+  transform:scale(.96);
+}
+
+.songBpmTag{
+  color:var(--accent);
+  font-weight:700;
 }
 
 .recentTitle{
@@ -5797,6 +6041,241 @@ body.songBottomHidden .annotateToolbar{
   gap:8px;
 }
 
+
+/* ---- Library: More menu, sort/filter row, sync dot, resume bar ---- */
+
+.libMoreWrap{
+  position:relative;
+}
+
+.libMoreMenu{
+  position:absolute;
+  top:52px;
+  right:0;
+  z-index:60;
+
+  min-width:210px;
+  padding:6px;
+
+  display:none;
+  flex-direction:column;
+
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;
+
+  background:rgba(28,28,32,.97);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+
+  box-shadow:0 14px 36px rgba(0,0,0,.6);
+}
+
+.libMoreMenu.open{
+  display:flex;
+  animation:navDotIn .16s ease-out both;
+  transform-origin:top right;
+}
+
+.libMenuItem{
+  display:flex;
+  align-items:center;
+  gap:10px;
+
+  padding:11px 12px;
+
+  border:0;
+  border-radius:10px;
+
+  background:transparent;
+  color:#f2f2f5;
+
+  font-size:14px;
+  font-weight:600;
+  text-align:left;
+
+  cursor:pointer;
+}
+
+.libMenuItem:active{
+  background:rgba(255,255,255,.08);
+}
+
+.libMenuItem svg{
+  width:19px;
+  height:19px;
+  flex:0 0 auto;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+.libMenuItem.syncing svg{
+  animation:syncCloudSpin 1s linear infinite;
+}
+
+.librarySortRow{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:0 16px 12px;
+  overflow-x:auto;
+  scrollbar-width:none;
+}
+
+.librarySortRow::-webkit-scrollbar{
+  display:none;
+}
+
+.librarySortLabel{
+  flex:0 0 auto;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#77777f;
+}
+
+.librarySortChip{
+  flex:0 0 auto;
+  padding:6px 12px;
+  border:1px solid #2d2d32;
+  border-radius:999px;
+  background:#151518;
+  color:#a7a7ae;
+  font-size:12.5px;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.librarySortChip.active{
+  border-color:var(--accent);
+  color:var(--accent);
+  background:rgba(232,185,35,.10);
+}
+
+.libraryKeySelect{
+  flex:0 0 auto;
+  padding:6px 10px;
+  border:1px solid #2d2d32;
+  border-radius:999px;
+  background:#151518;
+  color:#a7a7ae;
+  font-size:12.5px;
+  font-weight:700;
+}
+
+.libraryKeySelect.active{
+  border-color:var(--accent);
+  color:var(--accent);
+}
+
+.songSyncDot{
+  flex:0 0 auto;
+  width:34px;
+  height:34px;
+  margin-left:2px;
+  border:0;
+  background:transparent;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+}
+
+.songSyncDot i{
+  display:block;
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  background:#3ecf8e;
+  box-shadow:0 0 8px rgba(62,207,142,.45);
+}
+
+.songSyncDot.pending i{
+  background:#e8a33d;
+  box-shadow:0 0 8px rgba(232,163,61,.45);
+}
+
+.songSyncDot.syncing i{
+  animation:navBarsBounce .6s ease-in-out infinite;
+}
+
+.libraryResume{
+  position:fixed;
+  left:50%;
+  bottom:calc(84px + env(safe-area-inset-bottom, 0px));
+  transform:translateX(-50%);
+
+  width:calc(100% - 24px);
+  max-width:620px;
+
+  z-index:98;
+
+  display:flex;
+  align-items:center;
+  gap:12px;
+
+  padding:9px 12px;
+
+  border:1px solid rgba(232,185,35,.3);
+  border-radius:16px;
+
+  background:rgba(24,24,27,.94);
+  backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+
+  box-shadow:0 10px 28px rgba(0,0,0,.5);
+
+  cursor:pointer;
+
+  animation:librarySelectBarIn .22s cubic-bezier(.2,.7,.3,1) both;
+}
+
+.libraryResumePlay{
+  flex:0 0 auto;
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:var(--accent);
+  color:var(--accent-ink);
+}
+
+.libraryResumePlay svg{
+  width:16px;
+  height:16px;
+  fill:currentColor;
+}
+
+.libraryResumeInfo{
+  flex:1;
+  min-width:0;
+}
+
+.libraryResumeKicker{
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--accent);
+}
+
+.libraryResumeTitle{
+  font-size:14.5px;
+  font-weight:800;
+  color:#fff;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.librarySection{
+  padding-bottom:70px;
+}
+
 .syncCloudBtn.syncing svg{
   animation:syncCloudSpin 1s linear infinite;
 }
@@ -7971,6 +8450,7 @@ body.songBottomHidden .annotateToolbar{
   ></main>
 
   <div id="libraryOverlay"></div>
+  <div id="libraryResumeOverlay"></div>
   <div id="songSectionOverlay"></div>
   <div id="mergeNavOverlay"></div>
   <div id="autoScrollOverlay"></div>
@@ -8057,6 +8537,16 @@ body.songBottomHidden .annotateToolbar{
 
       </span>
 
+    </button>
+
+
+    <button
+      type="button"
+      class="navNowPlaying"
+      id="navNowPlaying"
+      aria-label="Now playing — open metronome"
+    >
+      <span class="navBars" aria-hidden="true"><i></i><i></i><i></i></span>
     </button>
 
 
@@ -9700,6 +10190,9 @@ let libraryTab = 'songs';
 */
 let libraryFavoritesOnly = false;
 let libraryCategoryFilter = 'all';
+let librarySort = 'recent';      // 'recent' | 'az' | 'key' | 'bpm'
+let libraryKeyFilter = 'all';
+let profileTab = 'account';      // 'account' | 'team' | 'preferences'    // 'all' or a key label like 'G' / 'F#m'
 
 /*
   Set right before opening the Analyzer or Search from the
@@ -9750,7 +10243,96 @@ function updateLyricsNavIndicator(){
    NAVIGATION
 ========================================================= */
 
+/* =========================================================
+   NAV — Now Playing button + hide-on-scroll
+========================================================= */
+
+/* Shows the centre button while the metronome / cues are running */
+function navSyncNowPlaying(){
+
+  const btn =
+    document.getElementById('navNowPlaying');
+
+  if(!btn)return;
+
+  const running =
+    typeof metIsPlaying !== 'undefined' && metIsPlaying;
+
+  btn.classList.toggle('show', !!running);
+
+  btn.classList.toggle(
+    'active',
+    !!running && currentScreenName === 'metronome'
+  );
+
+}
+
+(function navAutoHide(){
+
+  const nav =
+    document.querySelector('.nav');
+
+  if(!nav)return;
+
+  const lastY =
+    new WeakMap();
+
+  function readY(target){
+
+    if(target === document || target === document.documentElement || target === document.body || !target || target.scrollTop === undefined){
+      return window.scrollY || document.documentElement.scrollTop || 0;
+    }
+
+    return target.scrollTop;
+
+  }
+
+  /* Capture phase so it works whichever element is the scroller */
+  window.addEventListener('scroll', event => {
+
+    const target =
+      event.target;
+
+    const y =
+      readY(target);
+
+    const prev =
+      lastY.has(target) ? lastY.get(target) : y;
+
+    lastY.set(target, y);
+
+    const delta =
+      y - prev;
+
+    if(y <= 40 || delta < -8){
+
+      nav.classList.remove('navHidden');
+
+    }else if(delta > 8 && y > 90){
+
+      nav.classList.add('navHidden');
+
+    }
+
+  }, { passive:true, capture:true });
+
+})();
+
+function navShow(){
+
+  const nav =
+    document.querySelector('.nav');
+
+  if(nav)nav.classList.remove('navHidden');
+
+}
+
+
 function setActiveNav(name){
+
+  navShow();
+
+  navSyncNowPlaying();
 
   /*
     The metronome's scheduler runs on its own setTimeout loop,
@@ -9830,6 +10412,15 @@ function setActiveNav(name){
   if(libraryOverlay){
 
     libraryOverlay.innerHTML = '';
+
+  }
+
+  const libraryResumeOverlay =
+    document.getElementById('libraryResumeOverlay');
+
+  if(libraryResumeOverlay){
+
+    libraryResumeOverlay.innerHTML = '';
 
   }
 
@@ -12968,9 +13559,13 @@ async function loadTeamMembersList(){
 
     if(!freshContainer)return;
 
+    const VISIBLE_MEMBERS = 3;
+
+    freshContainer.classList.remove('expanded');
+
     freshContainer.innerHTML =
-      members.map(member => `
-        <div class="teamMemberRow">
+      members.map((member, index) => `
+        <div class="teamMemberRow${index >= VISIBLE_MEMBERS ? ' teamMemberExtra' : ''}">
           <div class="teamMemberAvatar">
             ${
               member.photo
@@ -12982,7 +13577,29 @@ async function loadTeamMembersList(){
             ${esc(member.name)}${member.uid === myUid ? ' <span class="teamMemberYou">(you)</span>' : ''}
           </div>
         </div>
-      `).join('');
+      `).join('') +
+      (
+        members.length > VISIBLE_MEMBERS
+          ? `<button type="button" class="teamMembersToggle" id="teamMembersToggle">Show all (${members.length})</button>`
+          : ''
+      );
+
+    const membersToggle =
+      document.getElementById('teamMembersToggle');
+
+    if(membersToggle){
+
+      membersToggle.onclick = () => {
+
+        const expanded =
+          freshContainer.classList.toggle('expanded');
+
+        membersToggle.textContent =
+          expanded ? 'Show less' : `Show all (${members.length})`;
+
+      };
+
+    }
 
   }catch(error){
 
@@ -18289,6 +18906,8 @@ function metSetTempo(value){
 
 function metUpdatePlayButton(){
 
+  if(typeof navSyncNowPlaying === 'function')navSyncNowPlaying();
+
   const playBtnEl = document.getElementById('metPlayBtn');
   const playIconEl = document.getElementById('metPlayIcon');
 
@@ -20758,15 +21377,22 @@ function renderProfile(){
           <div class="profileStatLabel">Merged</div>
         </div>
 
-        <div class="profileStatCard">
+        <div class="profileStatCard profileSyncStat" id="profileSyncStat" role="button" aria-label="Sync now">
           <div class="profileStatValue">${esc(lastSyncedLabel)}</div>
-          <div class="profileStatLabel">Last Synced</div>
+          <div class="profileStatLabel">Last Synced <span class="profileSyncIcon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.5-4.4M4 4v4h4M4 13a8 8 0 0 0 14.5 4.4M20 20v-4h-4"/></svg></span></div>
         </div>
 
       </div>
 
 
-      <div class="profileSection">
+      <div class="profileTabs" id="profileTabs">
+        <button type="button" class="profileTab" data-profile-tab="account">Account</button>
+        ${ (user && getActiveTeamId()) ? '<button type="button" class="profileTab" data-profile-tab="team">Team</button>' : '' }
+        <button type="button" class="profileTab" data-profile-tab="preferences">Preferences</button>
+      </div>
+
+
+      <div class="profileSection" data-ptab="account">
 
         <div class="sectionLabel">
           Account
@@ -20858,7 +21484,7 @@ function renderProfile(){
       ${
         user && getActiveTeamId()
         ? `
-          <div class="profileSection">
+          <div class="profileSection" data-ptab="team">
 
             <div class="sectionLabel">
               Team
@@ -20909,7 +21535,7 @@ function renderProfile(){
       }
 
 
-      <div class="profileSection">
+      <div class="profileSection" data-ptab="preferences">
 
         <div class="settingsCard">
 
@@ -20937,6 +21563,81 @@ function renderProfile(){
     </div>
 
   `;
+
+
+  /* ---------- Tabs (Account / Team / Preferences) ---------- */
+
+  const hasTeamTab =
+    !!(user && getActiveTeamId());
+
+  if(profileTab === 'team' && !hasTeamTab)profileTab = 'account';
+
+  function applyProfileTab(){
+
+    screen
+      .querySelectorAll('[data-ptab]')
+      .forEach(section => {
+        section.style.display =
+          section.dataset.ptab === profileTab ? '' : 'none';
+      });
+
+    screen
+      .querySelectorAll('[data-profile-tab]')
+      .forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.profileTab === profileTab);
+      });
+
+  }
+
+  screen
+    .querySelectorAll('[data-profile-tab]')
+    .forEach(btn => {
+
+      btn.onclick = () => {
+        profileTab = btn.dataset.profileTab;
+        applyProfileTab();
+      };
+
+    });
+
+  applyProfileTab();
+
+
+  /* ---------- Sync shortcut on the Last Synced stat ---------- */
+
+  const syncStat =
+    document.getElementById('profileSyncStat');
+
+  if(syncStat){
+
+    syncStat.onclick = async () => {
+
+      if(!user){
+
+        showToast('Sign in first (Profile → Account).', 'error');
+
+        return;
+
+      }
+
+      if(syncStat.classList.contains('syncing'))return;
+
+      syncStat.classList.add('syncing');
+
+      await performDriveSync();
+
+      syncStat.classList.remove('syncing');
+
+      if(currentScreenName === 'profile'){
+
+        skipNextScreenTransition = true;
+        renderProfile();
+
+      }
+
+    };
+
+  }
 
 
   /* ---------- Profile photo + display name ---------- */
@@ -21832,6 +22533,247 @@ function renderProfileSettings(){
    REAL LYRICS WORKSPACE
 ========================================================= */
 
+/* Library "More" menu: tap anywhere outside it to close (registered once) */
+document.addEventListener('click', event => {
+
+  const menu =
+    document.getElementById('libraryMoreMenu');
+
+  if(menu && menu.classList.contains('open') && !(event.target.closest && event.target.closest('.libMoreWrap'))){
+    menu.classList.remove('open');
+  }
+
+});
+
+/* =========================================================
+   SONG ROW HELPERS — swipe actions + saving a draft
+========================================================= */
+
+/*
+  Swipe a song row: right = add to the active lineup,
+  left = toggle favorite. Horizontal intent only (vertical
+  scrolling is untouched), and a swipe never also counts as a
+  tap or a long-press.
+*/
+function attachSongSwipe(card, songId, label){
+
+  card.classList.add('swipeable');
+
+  const THRESHOLD = 80;
+
+  let startX = 0;
+  let startY = 0;
+  let dx = 0;
+  let tracking = false;
+  let horizontal = false;
+
+  /* Runs before the row's own click handler and eats the click that
+     follows a swipe. */
+  card.addEventListener('click', event => {
+
+    if(card._swipeBlock){
+
+      card._swipeBlock = false;
+
+      event.stopImmediatePropagation();
+      event.preventDefault();
+
+    }
+
+  }, true);
+
+  card.addEventListener('pointerdown', event => {
+
+    if(event.pointerType === 'mouse' && event.button !== 0)return;
+
+    tracking = true;
+    horizontal = false;
+    dx = 0;
+
+    startX = event.clientX;
+    startY = event.clientY;
+
+  });
+
+  card.addEventListener('pointermove', event => {
+
+    if(!tracking)return;
+
+    const moveX = event.clientX - startX;
+    const moveY = event.clientY - startY;
+
+    if(!horizontal){
+
+      if(Math.abs(moveX) > 12 && Math.abs(moveX) > Math.abs(moveY) * 1.4){
+
+        horizontal = true;
+
+        /* Cancel the Library's long-press timer for this row */
+        try{
+          card.dispatchEvent(new Event('pointercancel'));
+        }catch(error){}
+
+        try{ card.setPointerCapture(event.pointerId); }catch(error){}
+
+      }else if(Math.abs(moveY) > 12){
+
+        tracking = false;
+
+        return;
+
+      }
+
+    }
+
+    if(!horizontal)return;
+
+    dx = Math.max(-120, Math.min(120, moveX));
+
+    card.classList.remove('swipeSnap');
+    card.style.transform = `translateX(${dx * .6}px)`;
+
+    card.classList.toggle('swipeRight', dx >= THRESHOLD);
+    card.classList.toggle('swipeLeft', dx <= -THRESHOLD);
+
+  });
+
+  function finish(){
+
+    if(!tracking)return;
+
+    tracking = false;
+
+    const wasHorizontal = horizontal;
+    const finalDx = dx;
+
+    horizontal = false;
+    dx = 0;
+
+    card.classList.add('swipeSnap');
+    card.style.transform = '';
+    card.classList.remove('swipeRight', 'swipeLeft');
+
+    if(!wasHorizontal)return;
+
+    card._swipeBlock = true;
+
+    setTimeout(() => { card._swipeBlock = false; }, 350);
+
+    if(finalDx >= THRESHOLD){
+      swipeAddSongToLineup(songId, label);
+    }else if(finalDx <= -THRESHOLD){
+      swipeToggleFavorite(songId, label);
+    }
+
+  }
+
+  card.addEventListener('pointerup', finish);
+  card.addEventListener('pointercancel', () => {
+
+    /* A synthetic cancel (used above to stop the long-press timer)
+       arrives while a swipe is in progress — don't end the swipe. */
+    if(horizontal)return;
+
+    tracking = false;
+
+  });
+
+}
+
+async function swipeAddSongToLineup(songId, label){
+
+  const key =
+    getActiveLineupDateKey();
+
+  showToast(`Adding "${label}" to ${formatLineupWeekdayLabel(key)}'s lineup…`, 'success');
+
+  const ok =
+    await addSongsToLineupDate(key, [songId]);
+
+  if(ok){
+    showToast(`"${label}" added to ${formatLineupWeekdayLabel(key)}'s lineup.`, 'success');
+  }
+
+}
+
+function swipeToggleFavorite(songId, label){
+
+  toggleFavorite(songId);
+
+  const song =
+    getSongs().find(item => item.id === songId);
+
+  showToast(
+    song && song.favorite
+      ? `"${label}" added to favorites.`
+      : `"${label}" removed from favorites.`,
+    'success'
+  );
+
+  if(currentScreenName === 'library' || currentScreenName === 'lyrics'){
+
+    skipNextScreenTransition = true;
+
+    currentScreenName === 'library' ? renderLibrary() : renderLyrics();
+
+  }
+
+}
+
+/*
+  Saves a Lyrics "draft" (a recently viewed, not-yet-saved song)
+  straight into the Library without leaving the Lyrics screen.
+  The Recent entry is re-pointed at the new Library copy so it
+  stops showing as a draft.
+*/
+function saveDraftToLibrary(draftId){
+
+  const draft =
+    getRecentViews().find(item => item.id === draftId);
+
+  if(!draft)return false;
+
+  const songs =
+    getSongs();
+
+  const now =
+    new Date().toISOString();
+
+  const newId =
+    window.crypto && crypto.randomUUID
+      ? crypto.randomUUID()
+      : String(Date.now());
+
+  const copy = {
+    ...draft,
+    id: newId,
+    savedAt: now,
+    updatedAt: now,
+    originalText: draft.originalText || draft.text || '',
+    kind: 'analyzed'
+  };
+
+  songs.unshift(copy);
+
+  writeSongs(songs.slice(0, MAX_SONGS));
+
+  writeRecentViews(
+    getRecentViews().map(item =>
+      item.id === draftId
+        ? { ...item, id:newId, savedAt:now }
+        : item
+    )
+  );
+
+  try{ uploadNewSongToDrive(copy); }catch(error){ console.error(error); }
+
+  showToast('Song saved.', 'success');
+
+  return true;
+
+}
+
+
 function renderLyrics(){
 
   recordNavHistory('lyrics');
@@ -21843,6 +22785,65 @@ function renderLyrics(){
 
   const songs =
     getRecentViews();
+
+  const savedRecent =
+    songs.filter(song => song.savedAt).slice(0, 5);
+
+  const drafts =
+    songs.filter(song => !song.savedAt).slice(0, 3);
+
+  const lyricsCardHTML = (song, isDraft) => {
+
+    const bpm =
+      isDraft ? null : getSongBpmLabel(song);
+
+    const keyLabel =
+      detectSongKeyLabel(song);
+
+    const kind =
+      song.theme
+        ? esc(song.theme)
+        : (song.analysis ? 'Analyzed' : 'Imported');
+
+    const when =
+      song.viewedAt
+        ? ' · ' + new Date(song.viewedAt).toLocaleDateString()
+        : '';
+
+    return `
+      <div
+        class="songCard"
+        data-lyrics-song="${esc(song.id)}"
+        data-lyrics-draft="${isDraft ? '1' : ''}"
+        style="cursor:pointer;"
+      >
+
+        <div class="songIcon songThumb">${songThumbInnerHTML(song)}</div>
+
+        <div class="songInfo">
+
+          <div class="songName">
+            <span class="songNameText">${esc(song.title)}</span>
+          </div>
+
+          <div class="songMeta">${
+            isDraft ? '<span class="unsavedDot" aria-hidden="true"></span>' : ''
+          }${kind}${
+            bpm ? ` · <span class="songBpmTag">${esc(String(bpm))} BPM</span>` : ''
+          }${when}</div>
+
+        </div>
+
+        ${
+          isDraft
+            ? `<button type="button" class="draftSaveBtn" data-draft-save="${esc(song.id)}">Save</button>`
+            : (keyLabel ? `<span class="songKeyBadge">${esc(keyLabel)}</span>` : '')
+        }
+
+      </div>
+    `;
+
+  };
 
 
   screen.innerHTML = `
@@ -21938,75 +22939,30 @@ function renderLyrics(){
       </div>
 
 
-      <div class="recentTitle">
-        Recent Songs
-      </div>
-
+      ${
+        savedRecent.length
+          ? `<div class="recentTitle">Recent Songs</div>${savedRecent.map(song => lyricsCardHTML(song, false)).join('')}`
+          : ''
+      }
 
       ${
-        songs.length
+        drafts.length
+          ? `<div class="recentTitle">Drafts</div>${drafts.map(song => lyricsCardHTML(song, true)).join('')}`
+          : ''
+      }
 
-        ? songs
-            .slice(0,5)
-            .map(song => `
-
-              <div
-                class="songCard"
-                data-lyrics-song="${esc(song.id)}"
-                style="cursor:pointer;"
-              >
-
-                <div class="songIcon songThumb">${songThumbInnerHTML(song)}</div>
-
-                <div class="songInfo">
-
-                  <div class="songName">
-                    <span class="songNameText">${esc(song.title)}</span>
-                  </div>
-
-                  <div class="songMeta">
-                    ${
-                      !song.savedAt
-                        ? '<span class="unsavedDot" aria-hidden="true"></span>'
-                        : ''
-                    }${
-                      song.theme
-                        ? esc(song.theme) + (detectSongKeyLabel(song) ? ' · Key of ' + esc(detectSongKeyLabel(song)) : '')
-                        : (song.analysis ? 'Analyzed' : 'Imported')
-                    }
-                    ·
-                    ${
-                      song.savedAt
-                        ? 'Saved'
-                        : 'Not saved'
-                    }
-                    ${
-                      song.viewedAt
-                        ? ' · ' +
-                          new Date(
-                            song.viewedAt
-                          ).toLocaleDateString()
-                        : ''
-                    }
-                  </div>
-
-                </div>
-
-              </div>
-
-            `)
-            .join('')
-
-        : `
-
-          <div class="empty">
-            ${emptyStateIconHTML('clock')}
-            No recently viewed songs.<br>
-            Search or import a song to get started.
-            <button type="button" class="emptyAction" id="emptyRecentSearchBtn">Search</button>
-          </div>
-
-        `
+      ${
+        (!savedRecent.length && !drafts.length)
+          ? `
+            <div class="recentTitle">Recent Songs</div>
+            <div class="empty">
+              ${emptyStateIconHTML('clock')}
+              No recently viewed songs.<br>
+              Search or import a song to get started.
+              <button type="button" class="emptyAction" id="emptyRecentSearchBtn">Search</button>
+            </div>
+          `
+          : ''
       }
 
     </div>
@@ -22046,10 +23002,44 @@ function renderLyrics(){
 
 
   screen
+    .querySelectorAll('[data-draft-save]')
+    .forEach(btn => {
+
+      btn.addEventListener('pointerdown', event => event.stopPropagation());
+
+      btn.addEventListener('click', event => {
+
+        event.stopPropagation();
+
+        if(saveDraftToLibrary(btn.dataset.draftSave)){
+
+          skipNextScreenTransition = true;
+          renderLyrics();
+
+        }
+
+      });
+
+    });
+
+
+  screen
     .querySelectorAll(
       '[data-lyrics-song]'
     )
     .forEach(card => {
+
+      /* Swipe actions only for songs that are really in the Library */
+      if(!card.dataset.lyricsDraft){
+
+        const swipeSong =
+          getSongs().find(item => item.id === card.dataset.lyricsSong);
+
+        if(swipeSong){
+          attachSongSwipe(card, swipeSong.id, swipeSong.title || 'Song');
+        }
+
+      }
 
       card.onclick = () => {
 
@@ -31298,13 +32288,65 @@ function renderLibrary(){
     getSongs();
 
 
-  const list =
+  /* Keys present in the library, for the key filter */
+  const keyOptions =
+    [...new Set(
+      allSongs
+        .map(song => detectSongKeyLabel(song))
+        .filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b));
+
+  if(libraryKeyFilter !== 'all' && !keyOptions.includes(libraryKeyFilter)){
+    libraryKeyFilter = 'all';
+  }
+
+  let list =
     allSongs
       .filter(song => !libraryFavoritesOnly || song.favorite)
       .filter(song =>
         libraryCategoryFilter === 'all' ||
         song.category === libraryCategoryFilter
+      )
+      .filter(song =>
+        libraryKeyFilter === 'all' ||
+        detectSongKeyLabel(song) === libraryKeyFilter
       );
+
+  if(librarySort === 'az'){
+
+    list =
+      list.slice().sort(
+        (a, b) => (a.title || '').localeCompare(b.title || '')
+      );
+
+  }else if(librarySort === 'key'){
+
+    list =
+      list.slice().sort((a, b) => {
+
+        const ka = detectSongKeyLabel(a) || '~';
+        const kb = detectSongKeyLabel(b) || '~';
+
+        return ka.localeCompare(kb) || (a.title || '').localeCompare(b.title || '');
+
+      });
+
+  }else if(librarySort === 'bpm'){
+
+    list =
+      list.slice().sort((a, b) => {
+
+        const ba = Number(getSongBpmLabel(a)) || 9999;
+        const bb = Number(getSongBpmLabel(b)) || 9999;
+
+        return ba - bb;
+
+      });
+
+  }
+
+  const lastSyncAt =
+    getSyncStatus().at ? new Date(getSyncStatus().at).getTime() : 0;
 
 
   const selectMode =
@@ -31330,28 +32372,41 @@ function renderLibrary(){
 
       <div class="libraryHeadActions">
 
-        <button
-          class="searchBtn"
-          id="openCommunityDirectory"
-          aria-label="Discover shared songs"
-          title="Discover"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="12" r="9"/>
-            <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" style="stroke-linecap:round;"/>
-          </svg>
-        </button>
+        <div class="libMoreWrap">
 
-        <button
-          class="searchBtn syncCloudBtn"
-          id="librarySyncNow"
-          aria-label="Sync library"
-          title="Sync library"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M7 18a4.2 4.2 0 0 1-.6-8.35 5.5 5.5 0 0 1 10.6-1.9A4 4 0 0 1 17 18H7Z"/>
-          </svg>
-        </button>
+          <button
+            class="searchBtn"
+            id="libraryMoreBtn"
+            aria-label="More"
+            aria-haspopup="true"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="5.5" cy="12" r="1.6" style="fill:currentColor;stroke:none;"/>
+              <circle cx="12" cy="12" r="1.6" style="fill:currentColor;stroke:none;"/>
+              <circle cx="18.5" cy="12" r="1.6" style="fill:currentColor;stroke:none;"/>
+            </svg>
+          </button>
+
+          <div class="libMoreMenu" id="libraryMoreMenu">
+
+            <button type="button" class="libMenuItem" id="openCommunityDirectory">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>
+              </svg>
+              Discover shared songs
+            </button>
+
+            <button type="button" class="libMenuItem" id="librarySyncNow">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 18a4.2 4.2 0 0 1-.6-8.35 5.5 5.5 0 0 1 10.6-1.9A4 4 0 0 1 17 18H7Z"/>
+              </svg>
+              Sync library
+            </button>
+
+          </div>
+
+        </div>
 
         <button
           class="searchBtn"
@@ -31405,6 +32460,35 @@ function renderLibrary(){
         id="libraryAddSongBtn"
         style="flex:0 0 auto;font-weight:600;"
       >+ Add Song</button>
+
+    </div>
+
+
+    <div class="librarySortRow">
+
+      <span class="librarySortLabel">Sort</span>
+
+      ${
+        [
+          ['recent', 'Recent'],
+          ['az', 'A–Z'],
+          ['key', 'Key'],
+          ['bpm', 'BPM']
+        ].map(([id, label]) => `
+          <button type="button" class="librarySortChip${librarySort === id ? ' active' : ''}" data-library-sort="${id}">${label}</button>
+        `).join('')
+      }
+
+      ${
+        keyOptions.length
+        ? `
+          <select class="libraryKeySelect${libraryKeyFilter !== 'all' ? ' active' : ''}" id="libraryKeyFilterSelect" aria-label="Filter by key">
+            <option value="all">All keys</option>
+            ${keyOptions.map(key => `<option value="${esc(key)}"${libraryKeyFilter === key ? ' selected' : ''}>Key: ${esc(key)}</option>`).join('')}
+          </select>
+        `
+        : ''
+      }
 
     </div>
 
@@ -31489,11 +32573,22 @@ function renderLibrary(){
               !selectMode && getGoogleUser()
               ? `
                 <button
-                  class="songSyncBtn"
+                  class="songSyncDot${
+                    (new Date(song.updatedAt || song.savedAt || 0).getTime() > lastSyncAt) ? ' pending' : ''
+                  }"
                   type="button"
                   data-sync-song="${esc(song.id)}"
-                  title="Sync this song"
-                >⟳</button>
+                  aria-label="${
+                    (new Date(song.updatedAt || song.savedAt || 0).getTime() > lastSyncAt)
+                      ? 'Has changes not yet synced — tap to sync'
+                      : 'Synced — tap to sync again'
+                  }"
+                  title="${
+                    (new Date(song.updatedAt || song.savedAt || 0).getTime() > lastSyncAt)
+                      ? 'Not synced yet — tap to sync'
+                      : 'Synced'
+                  }"
+                ><i></i></button>
               `
               : ''
             }
@@ -31597,6 +32692,86 @@ function renderLibrary(){
     communityDirectorySearch = '';
     renderCommunityDirectory();
   };
+
+  /* More (⋯) menu: open/close, tap outside to dismiss */
+  const libraryMoreBtn =
+    document.getElementById('libraryMoreBtn');
+
+  const libraryMoreMenu =
+    document.getElementById('libraryMoreMenu');
+
+  libraryMoreBtn.onclick = event => {
+
+    event.stopPropagation();
+
+    libraryMoreMenu.classList.toggle('open');
+
+  };
+
+  libraryMoreMenu.onclick = event => event.stopPropagation();
+
+
+  screen
+    .querySelectorAll('[data-library-sort]')
+    .forEach(btn => {
+
+      btn.onclick = () => {
+        librarySort = btn.dataset.librarySort;
+        skipNextScreenTransition = true;
+        renderLibrary();
+      };
+
+    });
+
+  const libraryKeySelect =
+    document.getElementById('libraryKeyFilterSelect');
+
+  if(libraryKeySelect){
+
+    libraryKeySelect.onchange = () => {
+      libraryKeyFilter = libraryKeySelect.value;
+      skipNextScreenTransition = true;
+      renderLibrary();
+    };
+
+  }
+
+  /* Sticky "resume last song" bar above the nav */
+  const resumeOverlay =
+    document.getElementById('libraryResumeOverlay');
+
+  if(resumeOverlay){
+
+    const lastId =
+      homeGetRecentSongIds()[0];
+
+    const lastSong =
+      lastId ? allSongs.find(item => item.id === lastId) : null;
+
+    resumeOverlay.innerHTML =
+      (lastSong && !selectMode)
+        ? `
+          <div class="libraryResume" id="libraryResumeBar">
+            <div class="libraryResumePlay">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"></path></svg>
+            </div>
+            <div class="libraryResumeInfo">
+              <div class="libraryResumeKicker">Resume</div>
+              <div class="libraryResumeTitle">${esc(lastSong.title || 'Untitled Song')}</div>
+            </div>
+            ${songKeyBadgeHTML(lastSong)}
+          </div>
+        `
+        : '';
+
+    const resumeBar =
+      document.getElementById('libraryResumeBar');
+
+    if(resumeBar){
+      resumeBar.onclick = () => openSong(lastSong);
+    }
+
+  }
 
   const emptyLibrarySearchBtn =
     document.getElementById('emptyLibrarySearchBtn');
@@ -31860,6 +33035,15 @@ function renderLibrary(){
       const songId =
         card.dataset.songCard;
 
+      if(!selectMode){
+
+        const swipeTitle =
+          (list.find(item => item.id === songId) || {}).title || 'Song';
+
+        attachSongSwipe(card, songId, swipeTitle);
+
+      }
+
 
       function openThisSong(){
 
@@ -32046,12 +33230,13 @@ function renderLibrary(){
 
           }
 
-          btn.textContent = '…';
+          btn.classList.add('syncing');
 
           const result =
             await syncOneSong(song);
 
-          btn.textContent = '⟳';
+          btn.classList.remove('syncing');
+          btn.classList.remove('pending');
 
           if(!result){
 
@@ -35665,6 +36850,10 @@ document
 
   });
 
+
+document.getElementById('navNowPlaying').onclick = () => renderMetronome();
+
+navSyncNowPlaying();
 
 renderHome();
 
