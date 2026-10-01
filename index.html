@@ -26507,7 +26507,9 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm, 
     !songFlowMode && !showChords;
 
   const padsBpm =
-    metPresetBpm != null ? metPresetBpm : 80;
+    metPresetBpm != null
+      ? metPresetBpm
+      : (metIsPlaying ? Math.round(metTempo) : 80);   /* no saved BPM: show what the running click is at */
 
   overlay.innerHTML =
     renderSongBottomBarHTML(showChords, isLyricsMode, mdViewMode, flowHasMdNotes(flow), amount, padsBpm, fontSize);
@@ -26986,6 +26988,7 @@ function goToLineupSongById(targetId){
   flushLineupAutoSync(currentSong.id);
   if(pendingLineupRemoteUpdate.has(currentSong.id))applyPendingLineupUpdate(currentSong.id);
   stopAutoScroll();
+  stopCueRunOnSongChange();   /* voice off, BPM click keeps going */
 
   /*
     Same setup openSong() does, but without setActiveNav or the
