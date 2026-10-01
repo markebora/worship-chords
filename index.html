@@ -16946,6 +16946,24 @@ function metBuildArrangementBeatMap(){
   const announces = [];
 
   /*
+    SAFETY NET for fast tempos: a one-word-per-beat countdown needs
+    real time to actually be spoken, not just scheduled. If a beat
+    is shorter than the engine's own measured startup latency (plus
+    a margin), there's no amount of clever scheduling that fits
+    "1", "2", "3", "In" as four distinct, audible words — they'd
+    overlap/skip no matter how early each is dispatched. Past that
+    point, degrade to a single "In" on the last beat instead of a
+    broken-sounding full count. Uses the live measured latency
+    (metSpeechLatencyMs), so this adapts to the actual device/voice
+    rather than a guessed BPM cutoff.
+  */
+  const secondsPerBeatNow =
+    60.0 / (metTempo || 100);
+
+  const countFitsPerBeat =
+    secondsPerBeatNow > ((metSpeechLatencyMs + MET_SPEECH_EXTRA_MS) / 1000) * 1.3;
+
+  /*
     COUNT-IN: the first section is announced by voice BEFORE any
     click plays (see metStartMetronome), then the clicks begin on
     "1" — 1, 2, 3, In — and the section's downbeat is the very next
@@ -16953,8 +16971,12 @@ function metBuildArrangementBeatMap(){
   */
   if(spans.length){
 
-    for(let j = 0; j < metBeatsPerMeasure - 1; j++){
-      cues.set(j, String(j + 1));
+    if(countFitsPerBeat){
+
+      for(let j = 0; j < metBeatsPerMeasure - 1; j++){
+        cues.set(j, String(j + 1));
+      }
+
     }
 
     cues.set(metBeatsPerMeasure - 1, 'In');
@@ -16981,9 +17003,15 @@ function metBuildArrangementBeatMap(){
     const startBeat =
       spans[i].startBeat;
 
-    /* Same 1, 2, 3, In as the opening count-in, on the last bar */
-    for(let j = 0; j < countdownLen - 1; j++){
-      cues.set(startBeat - countdownLen + j, String(j + 1));
+    /* Same 1, 2, 3, In as the opening count-in, on the last bar —
+       shortened to just "In" at fast tempos, see countFitsPerBeat
+       above. */
+    if(countFitsPerBeat){
+
+      for(let j = 0; j < countdownLen - 1; j++){
+        cues.set(startBeat - countdownLen + j, String(j + 1));
+      }
+
     }
 
     cues.set(startBeat - 1, 'In');
@@ -17109,8 +17137,21 @@ if(typeof window.speechSynthesis !== 'undefined'){
   speechSynthesis.addEventListener?.('voiceschanged', () => { metSpeechVoice = null; });
 }
 
-/* Silent utterance so the first real cue doesn't pay the engine's
-   cold-start delay. Must run from a user gesture (Start / toggle). */
+/*
+  Silent utterance so the first real cue doesn't pay the engine's
+  cold-start delay. Must run from a user gesture (Start / toggle).
+
+  THE FIX: this used to have no onstart handler, so its own latency
+  was never measured — the first REAL cue was still flying blind on
+  the generic 250ms default. On a device whose actual cold-start is
+  higher than that (common on Android, especially after the engine's
+  been idle), that first cue lands late with no time to recover —
+  worse at a fast tempo, where a beat is a smaller window to begin
+  with (100 BPM = 600ms/beat). Recording this warm-up's real start
+  time means metSpeechLatencyMs is already grounded in a fresh,
+  real measurement from THIS device/session before the count-in
+  ever starts speaking.
+*/
 function metWarmUpSpeech(){
 
   if(typeof window.speechSynthesis === 'undefined')return;
@@ -17122,6 +17163,12 @@ function metWarmUpSpeech(){
 
     const voice = metPickSpeechVoice();
     if(voice)warm.voice = voice;
+
+    const calledAt = performance.now();
+
+    warm.onstart = () => {
+      metRecordSpeechLatency(performance.now() - calledAt);
+    };
 
     speechSynthesis.speak(warm);
 
