@@ -26,7 +26,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Cormorant+Garamond:ital,wght@0,600;1,500;1,600&display=swap" rel="stylesheet">
 
 
 <style>
@@ -8375,6 +8375,135 @@ body.songBottomHidden .annotateToolbar{
   touch-action:pan-y;
 }
 
+
+/* =========================================================
+   DYNAMIC HEADER BACKGROUND — candlelight aura
+   Pure CSS, GPU-friendly (transform/opacity only).
+========================================================= */
+.heroAura{
+  position:absolute; inset:0; z-index:0;
+  pointer-events:none; overflow:hidden;
+  mix-blend-mode:screen;
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 55%,transparent 100%);
+          mask-image:linear-gradient(180deg,#000 0%,#000 55%,transparent 100%);
+}
+.heroRays{
+  position:absolute; left:50%; top:-120%;
+  width:240%; aspect-ratio:1; margin-left:-120%;
+  background:repeating-conic-gradient(from 0deg at 50% 50%,
+    rgba(232,185,35,.16) 0deg 4deg, transparent 4deg 16deg);
+  -webkit-mask-image:radial-gradient(circle at 50% 50%,transparent 38%,#000 41%,transparent 50%);
+          mask-image:radial-gradient(circle at 50% 50%,transparent 38%,#000 41%,transparent 50%);
+  animation:heroRaysSpin 120s linear infinite;
+  opacity:.55;
+}
+.heroOrb{
+  position:absolute; border-radius:50%;
+  filter:blur(38px); will-change:transform;
+}
+.heroOrb1{
+  width:240px; height:240px; left:-70px; top:-50px;
+  background:radial-gradient(circle,rgba(232,185,35,.55),transparent 70%);
+  animation:heroDrift1 16s ease-in-out infinite alternate;
+}
+.heroOrb2{
+  width:280px; height:280px; right:-90px; top:20px;
+  background:radial-gradient(circle,rgba(255,140,40,.38),transparent 70%);
+  animation:heroDrift2 20s ease-in-out infinite alternate;
+}
+.heroOrb3{
+  width:200px; height:200px; left:30%; bottom:-70px;
+  background:radial-gradient(circle,rgba(255,226,140,.34),transparent 70%);
+  animation:heroDrift3 13s ease-in-out infinite alternate;
+}
+.heroEmbers i{
+  position:absolute; bottom:-8px; left:var(--x);
+  width:var(--s); height:var(--s); border-radius:50%;
+  background:#ffd978;
+  box-shadow:0 0 8px 2px rgba(255,200,80,.7);
+  opacity:0;
+  animation:heroEmber var(--d) ease-in infinite;
+  animation-delay:var(--t);
+}
+@keyframes heroRaysSpin{to{transform:rotate(360deg)}}
+@keyframes heroDrift1{from{transform:translate(0,0) scale(1)}to{transform:translate(120px,50px) scale(1.25)}}
+@keyframes heroDrift2{from{transform:translate(0,0) scale(1.1)}to{transform:translate(-110px,40px) scale(.85)}}
+@keyframes heroDrift3{from{transform:translate(-40px,0) scale(.9)}to{transform:translate(70px,-35px) scale(1.2)}}
+@keyframes heroEmber{
+  0%{transform:translate(0,0) scale(.6);opacity:0}
+  15%{opacity:.9}
+  70%{opacity:.5}
+  100%{transform:translate(18px,-210px) scale(1.1);opacity:0}
+}
+/* wordmark breathes gently */
+.hero h1{animation:heroBreathe 6s ease-in-out infinite}
+@keyframes heroBreathe{
+  0%,100%{text-shadow:0 0 28px rgba(232,185,35,.35),0 0 60px rgba(232,185,35,.15)}
+  50%{text-shadow:0 0 38px rgba(232,185,35,.6),0 0 90px rgba(232,185,35,.28)}
+}
+@media (prefers-reduced-motion:reduce){
+  .heroRays,.heroOrb,.heroEmbers i,.hero h1{animation:none}
+  .heroEmbers{display:none}
+}
+
+/* =========================================================
+   DAILY VERSE — scripture typography
+========================================================= */
+.homeVerse{
+  position:relative; overflow:hidden;
+  padding:20px 20px 18px 22px;
+  border-radius:18px;
+  border:1px solid rgba(232,185,35,.26);
+  border-left:3px solid var(--accent);
+  background:
+    radial-gradient(120% 140% at 0% 0%,rgba(232,185,35,.16),transparent 60%),
+    linear-gradient(135deg,rgba(232,185,35,.06),rgba(0,0,0,.2));
+  box-shadow:0 10px 30px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,226,140,.08);
+}
+/* oversized ghost quote mark */
+.homeVerse::before{
+  content:"\201C";
+  position:absolute; top:-18px; right:12px;
+  font-family:'Cormorant Garamond',Georgia,serif;
+  font-size:130px; line-height:1; font-weight:600;
+  color:rgba(232,185,35,.13);
+  pointer-events:none;
+}
+/* slow light sweep across the card */
+.homeVerse::after{
+  content:""; position:absolute; top:0; bottom:0; left:-60%; width:45%;
+  background:linear-gradient(100deg,transparent,rgba(255,226,140,.09),transparent);
+  transform:skewX(-18deg);
+  animation:verseSweep 9s ease-in-out infinite;
+  pointer-events:none;
+}
+@keyframes verseSweep{
+  0%,55%{left:-60%}
+  100%{left:130%}
+}
+.homeVerseText{
+  position:relative; z-index:1;
+  font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+  font-size:21px; line-height:1.38;
+  font-weight:500; font-style:italic;
+  letter-spacing:.005em;
+  color:#fbf4e2;
+  text-wrap:balance;
+  text-shadow:0 1px 18px rgba(232,185,35,.18);
+}
+.homeVerseRef{
+  position:relative; z-index:1;
+  display:flex; align-items:center; gap:10px;
+  margin-top:12px;
+  font-size:11px; font-weight:800;
+  letter-spacing:.2em; text-transform:uppercase;
+  color:var(--accent);
+}
+.homeVerseRef::before{
+  content:""; width:26px; height:1px;
+  background:linear-gradient(90deg,var(--accent),transparent);
+}
+@media (prefers-reduced-motion:reduce){.homeVerse::after{animation:none;display:none}}
 </style>
 
 </head>
@@ -8415,6 +8544,15 @@ body.songBottomHidden .annotateToolbar{
 
     <div class="heroBackdrop" id="heroBackdrop"></div>
     <div class="heroBackdropFade"></div>
+
+    <!-- Living "candlelight" backdrop: drifting gold glow, slow rays of light, rising embers -->
+    <div class="heroAura" aria-hidden="true">
+      <div class="heroRays"></div>
+      <div class="heroOrb heroOrb1"></div>
+      <div class="heroOrb heroOrb2"></div>
+      <div class="heroOrb heroOrb3"></div>
+      <div class="heroEmbers"><i style="--x:6%;--d:9s;--t:0s;--s:3px"></i><i style="--x:14%;--d:12s;--t:3s;--s:2px"></i><i style="--x:22%;--d:10s;--t:6s;--s:4px"></i><i style="--x:31%;--d:14s;--t:1s;--s:2px"></i><i style="--x:40%;--d:11s;--t:8s;--s:3px"></i><i style="--x:49%;--d:13s;--t:4s;--s:2px"></i><i style="--x:57%;--d:9s;--t:7s;--s:4px"></i><i style="--x:66%;--d:12s;--t:2s;--s:3px"></i><i style="--x:74%;--d:10s;--t:9s;--s:2px"></i><i style="--x:82%;--d:14s;--t:5s;--s:3px"></i><i style="--x:90%;--d:11s;--t:0.5s;--s:2px"></i><i style="--x:96%;--d:13s;--t:6.5s;--s:3px"></i></div>
+    </div>
 
     <div class="top">
 
