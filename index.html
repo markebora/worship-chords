@@ -13016,6 +13016,7 @@ async function publishSongToDirectory(song){
         originalText: song.originalText || song.text || '',
         analysis: song.analysis || null,
         sourceUrl: song.sourceUrl || '',
+        video: (song.video && song.video.id) ? { id: song.video.id, url: song.video.url || '' } : null,
 
         publishedByName:
           (user && user.name) || '',
@@ -13366,6 +13367,7 @@ async function importCommunitySong(entry){
     text: entry.text || '',
     originalText: entry.originalText || entry.text || '',
     sourceUrl: entry.sourceUrl || '',
+    ...(entry.video && entry.video.id ? { video: { id: entry.video.id, url: entry.video.url || '' } } : {}),
     savedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     kind: 'analyzed',
