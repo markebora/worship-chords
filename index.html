@@ -26,7 +26,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Cormorant+Garamond:ital,wght@0,600;1,500;1,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&display=swap" rel="stylesheet">
 
 
 <style>
@@ -8377,133 +8377,115 @@ body.songBottomHidden .annotateToolbar{
 
 
 /* =========================================================
-   DYNAMIC HEADER BACKGROUND — candlelight aura
-   Pure CSS, GPU-friendly (transform/opacity only).
+   LIVE SKY HEADER — sun follows the time of day, clouds drift
+   Pure CSS animation + a tiny JS clock (see initHeroSky).
 ========================================================= */
-.heroAura{
-  position:absolute; inset:0; z-index:0;
-  pointer-events:none; overflow:hidden;
-  mix-blend-mode:screen;
-  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 55%,transparent 100%);
-          mask-image:linear-gradient(180deg,#000 0%,#000 55%,transparent 100%);
-}
-.heroRays{
-  position:absolute; left:50%; top:-120%;
-  width:240%; aspect-ratio:1; margin-left:-120%;
-  background:repeating-conic-gradient(from 0deg at 50% 50%,
-    rgba(232,185,35,.16) 0deg 4deg, transparent 4deg 16deg);
-  -webkit-mask-image:radial-gradient(circle at 50% 50%,transparent 38%,#000 41%,transparent 50%);
-          mask-image:radial-gradient(circle at 50% 50%,transparent 38%,#000 41%,transparent 50%);
-  animation:heroRaysSpin 120s linear infinite;
-  opacity:.55;
-}
-.heroOrb{
-  position:absolute; border-radius:50%;
-  filter:blur(38px); will-change:transform;
-}
-.heroOrb1{
-  width:240px; height:240px; left:-70px; top:-50px;
-  background:radial-gradient(circle,rgba(232,185,35,.55),transparent 70%);
-  animation:heroDrift1 16s ease-in-out infinite alternate;
-}
-.heroOrb2{
-  width:280px; height:280px; right:-90px; top:20px;
-  background:radial-gradient(circle,rgba(255,140,40,.38),transparent 70%);
-  animation:heroDrift2 20s ease-in-out infinite alternate;
-}
-.heroOrb3{
-  width:200px; height:200px; left:30%; bottom:-70px;
-  background:radial-gradient(circle,rgba(255,226,140,.34),transparent 70%);
-  animation:heroDrift3 13s ease-in-out infinite alternate;
-}
-.heroEmbers i{
-  position:absolute; bottom:-8px; left:var(--x);
-  width:var(--s); height:var(--s); border-radius:50%;
-  background:#ffd978;
-  box-shadow:0 0 8px 2px rgba(255,200,80,.7);
-  opacity:0;
-  animation:heroEmber var(--d) ease-in infinite;
-  animation-delay:var(--t);
-}
-@keyframes heroRaysSpin{to{transform:rotate(360deg)}}
-@keyframes heroDrift1{from{transform:translate(0,0) scale(1)}to{transform:translate(120px,50px) scale(1.25)}}
-@keyframes heroDrift2{from{transform:translate(0,0) scale(1.1)}to{transform:translate(-110px,40px) scale(.85)}}
-@keyframes heroDrift3{from{transform:translate(-40px,0) scale(.9)}to{transform:translate(70px,-35px) scale(1.2)}}
-@keyframes heroEmber{
-  0%{transform:translate(0,0) scale(.6);opacity:0}
-  15%{opacity:.9}
-  70%{opacity:.5}
-  100%{transform:translate(18px,-210px) scale(1.1);opacity:0}
-}
-/* wordmark breathes gently */
-.hero h1{animation:heroBreathe 6s ease-in-out infinite}
-@keyframes heroBreathe{
-  0%,100%{text-shadow:0 0 28px rgba(232,185,35,.35),0 0 60px rgba(232,185,35,.15)}
-  50%{text-shadow:0 0 38px rgba(232,185,35,.6),0 0 90px rgba(232,185,35,.28)}
-}
-@media (prefers-reduced-motion:reduce){
-  .heroRays,.heroOrb,.heroEmbers i,.hero h1{animation:none}
-  .heroEmbers{display:none}
-}
+.heroBackdrop{display:none}
 
-/* =========================================================
-   DAILY VERSE — scripture typography
-========================================================= */
-.homeVerse{
-  position:relative; overflow:hidden;
-  padding:20px 20px 18px 22px;
-  border-radius:18px;
-  border:1px solid rgba(232,185,35,.26);
-  border-left:3px solid var(--accent);
-  background:
-    radial-gradient(120% 140% at 0% 0%,rgba(232,185,35,.16),transparent 60%),
-    linear-gradient(135deg,rgba(232,185,35,.06),rgba(0,0,0,.2));
-  box-shadow:0 10px 30px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,226,140,.08);
-}
-/* oversized ghost quote mark */
-.homeVerse::before{
-  content:"\201C";
-  position:absolute; top:-18px; right:12px;
-  font-family:'Cormorant Garamond',Georgia,serif;
-  font-size:130px; line-height:1; font-weight:600;
-  color:rgba(232,185,35,.13);
+.heroSky{
+  position:absolute; inset:0; z-index:0; overflow:hidden;
   pointer-events:none;
+  background:linear-gradient(180deg,
+    var(--sky-top,#123f73) 0%,
+    var(--sky-mid,#2f6fa3) 55%,
+    var(--sky-hor,#7fb0d0) 100%);
 }
-/* slow light sweep across the card */
-.homeVerse::after{
-  content:""; position:absolute; top:0; bottom:0; left:-60%; width:45%;
-  background:linear-gradient(100deg,transparent,rgba(255,226,140,.09),transparent);
-  transform:skewX(-18deg);
-  animation:verseSweep 9s ease-in-out infinite;
-  pointer-events:none;
+.heroStars{
+  position:absolute; inset:0; opacity:var(--stars,0);
+  background-image:
+    radial-gradient(1px 1px at 12% 18%,#fff,transparent),
+    radial-gradient(1px 1px at 27% 40%,#fff,transparent),
+    radial-gradient(1.5px 1.5px at 41% 12%,#fff,transparent),
+    radial-gradient(1px 1px at 58% 30%,#fff,transparent),
+    radial-gradient(1px 1px at 69% 8%,#fff,transparent),
+    radial-gradient(1.5px 1.5px at 83% 24%,#fff,transparent),
+    radial-gradient(1px 1px at 92% 44%,#fff,transparent),
+    radial-gradient(1px 1px at 5% 52%,#fff,transparent);
+  transition:opacity 4s ease;
 }
-@keyframes verseSweep{
-  0%,55%{left:-60%}
-  100%{left:130%}
+.heroMoon{
+  position:absolute; width:22px; height:22px; border-radius:50%;
+  margin:-11px 0 0 -11px;
+  background:#e9eefb;
+  box-shadow:0 0 18px 6px rgba(190,205,255,.35);
+  opacity:var(--moon,0);
+  left:var(--moon-x,50%); top:var(--moon-y,30%);
+  transition:opacity 4s ease,left 4s linear,top 4s linear;
 }
-.homeVerseText{
-  position:relative; z-index:1;
-  font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;
-  font-size:21px; line-height:1.38;
-  font-weight:500; font-style:italic;
-  letter-spacing:.005em;
-  color:#fbf4e2;
-  text-wrap:balance;
-  text-shadow:0 1px 18px rgba(232,185,35,.18);
+.heroSun{
+  position:absolute; width:38px; height:38px; border-radius:50%;
+  margin:-19px 0 0 -19px;
+  left:var(--sun-x,50%); top:var(--sun-y,40%);
+  opacity:var(--sun-o,1);
+  background:radial-gradient(circle,#fff 0%,var(--sun-core,#fff3c8) 35%,transparent 72%);
+  transition:left 4s linear,top 4s linear,opacity 4s ease;
 }
-.homeVerseRef{
-  position:relative; z-index:1;
-  display:flex; align-items:center; gap:10px;
-  margin-top:12px;
-  font-size:11px; font-weight:800;
-  letter-spacing:.2em; text-transform:uppercase;
-  color:var(--accent);
+/* wide soft light above the clouds so they catch the sun */
+.heroSunGlow{
+  position:absolute; width:520px; height:520px; border-radius:50%;
+  margin:-260px 0 0 -260px;
+  left:var(--sun-x,50%); top:var(--sun-y,40%);
+  opacity:calc(var(--sun-o,1) * var(--glow,.6));
+  background:radial-gradient(circle,var(--sun-glow,rgba(255,200,120,.9)) 0%,rgba(255,170,80,.25) 35%,transparent 68%);
+  mix-blend-mode:screen;
+  transition:left 4s linear,top 4s linear,opacity 4s ease;
 }
-.homeVerseRef::before{
-  content:""; width:26px; height:1px;
-  background:linear-gradient(90deg,var(--accent),transparent);
+.heroCloud{
+  position:absolute; left:0; width:200%; will-change:transform;
+  background-repeat:repeat-x; background-size:50% 100%;
+  filter:blur(5px);
+  color:var(--cloud,#dfe9f2);
 }
-@media (prefers-reduced-motion:reduce){.homeVerse::after{animation:none;display:none}}
+.heroCloud.c1{
+  top:4%; height:34%; opacity:calc(var(--cloud-o,.5) * .9);
+  background-image:
+    radial-gradient(ellipse 14% 22% at 18% 55%,currentColor,transparent 72%),
+    radial-gradient(ellipse 20% 16% at 30% 60%,currentColor,transparent 72%),
+    radial-gradient(ellipse 12% 20% at 70% 40%,currentColor,transparent 72%),
+    radial-gradient(ellipse 22% 14% at 82% 52%,currentColor,transparent 72%);
+  animation:heroCloudDrift 190s linear infinite;
+}
+.heroCloud.c2{
+  top:22%; height:38%; opacity:var(--cloud-o,.5);
+  background-image:
+    radial-gradient(ellipse 24% 16% at 12% 50%,currentColor,transparent 72%),
+    radial-gradient(ellipse 16% 22% at 27% 42%,currentColor,transparent 72%),
+    radial-gradient(ellipse 26% 14% at 62% 58%,currentColor,transparent 72%),
+    radial-gradient(ellipse 14% 20% at 88% 46%,currentColor,transparent 72%);
+  animation:heroCloudDrift 130s linear infinite;
+}
+.heroCloud.c3{
+  top:44%; height:30%; opacity:calc(var(--cloud-o,.5) * .75);
+  background-image:
+    radial-gradient(ellipse 30% 12% at 22% 55%,currentColor,transparent 72%),
+    radial-gradient(ellipse 24% 14% at 58% 48%,currentColor,transparent 72%),
+    radial-gradient(ellipse 20% 10% at 86% 60%,currentColor,transparent 72%);
+  animation:heroCloudDrift 90s linear infinite;
+}
+@keyframes heroCloudDrift{to{transform:translateX(-50%)}}
+
+.heroLand{
+  position:absolute; inset:0; width:100%; height:100%;
+  transition:opacity 4s ease;
+}
+.heroLand .mtn{fill:var(--mtn,#1b2a44)}
+.heroLand .hill{fill:var(--hill,#0b0f17)}
+.heroLand .cross{fill:var(--hill,#0b0f17);stroke:var(--rim,rgba(255,190,110,.0));stroke-width:.8}
+
+/* readable text over a bright sky; fade to the page's black at the bottom */
+.heroBackdropFade{
+  background:linear-gradient(180deg,
+    rgba(0,0,0,.12) 0%,
+    rgba(0,0,0,.18) 55%,
+    rgba(0,0,0,.7) 85%,
+    #000000 100%) !important;
+}
+.welcome,.hero p{text-shadow:0 1px 8px rgba(0,0,0,.65)}
+.hero h1{text-shadow:0 2px 16px rgba(0,0,0,.45),0 0 40px rgba(232,185,35,.3)}
+
+@media (prefers-reduced-motion:reduce){
+  .heroCloud{animation:none}
+}
 </style>
 
 </head>
@@ -8543,16 +8525,25 @@ body.songBottomHidden .annotateToolbar{
   <div class="homeHero">
 
     <div class="heroBackdrop" id="heroBackdrop"></div>
-    <div class="heroBackdropFade"></div>
-
-    <!-- Living "candlelight" backdrop: drifting gold glow, slow rays of light, rising embers -->
-    <div class="heroAura" aria-hidden="true">
-      <div class="heroRays"></div>
-      <div class="heroOrb heroOrb1"></div>
-      <div class="heroOrb heroOrb2"></div>
-      <div class="heroOrb heroOrb3"></div>
-      <div class="heroEmbers"><i style="--x:6%;--d:9s;--t:0s;--s:3px"></i><i style="--x:14%;--d:12s;--t:3s;--s:2px"></i><i style="--x:22%;--d:10s;--t:6s;--s:4px"></i><i style="--x:31%;--d:14s;--t:1s;--s:2px"></i><i style="--x:40%;--d:11s;--t:8s;--s:3px"></i><i style="--x:49%;--d:13s;--t:4s;--s:2px"></i><i style="--x:57%;--d:9s;--t:7s;--s:4px"></i><i style="--x:66%;--d:12s;--t:2s;--s:3px"></i><i style="--x:74%;--d:10s;--t:9s;--s:2px"></i><i style="--x:82%;--d:14s;--t:5s;--s:3px"></i><i style="--x:90%;--d:11s;--t:0.5s;--s:2px"></i><i style="--x:96%;--d:13s;--t:6.5s;--s:3px"></i></div>
+    <!-- Live sky: colors + sun/moon position are set by initHeroSky() from the device clock -->
+    <div class="heroSky" id="heroSky" aria-hidden="true">
+      <div class="heroStars"></div>
+      <div class="heroMoon"></div>
+      <div class="heroSun"></div>
+      <div class="heroCloud c1"></div>
+      <div class="heroCloud c2"></div>
+      <div class="heroCloud c3"></div>
+      <div class="heroSunGlow"></div>
+      <svg class="heroLand" viewBox="0 0 412 215" preserveAspectRatio="xMaxYMax slice" xmlns="http://www.w3.org/2000/svg">
+        <path class="mtn" opacity=".8" d="M0 150 L40 128 L78 142 L120 112 L165 140 L210 120 L250 146 L300 126 L412 150 L412 215 L0 215Z"/>
+        <path class="hill" d="M0 175 C60 160 110 170 170 168 C230 166 270 175 300 160 C325 148 340 140 356 138 C380 138 396 146 412 152 L412 215 L0 215Z"/>
+        <g class="cross" transform="rotate(-2 354 140)">
+          <rect x="350" y="34" width="9" height="108"/>
+          <rect x="331" y="56" width="47" height="8"/>
+        </g>
+      </svg>
     </div>
+    <div class="heroBackdropFade"></div>
 
     <div class="top">
 
@@ -37786,6 +37777,103 @@ if(
 
 }
 
+
+/* =========================================================
+   LIVE SKY — drives the Home header background.
+   Sun rises ~6:00 on the left, peaks at noon, sets ~18:00
+   behind the hill on the right; moon + stars take the night.
+   Test any time of day by adding ?sky=17.5 to the URL.
+========================================================= */
+(function initHeroSky(){
+
+  const el = document.getElementById('heroSky');
+  if(!el) return;
+
+  // [hour, top, mid, horizon, cloud color, cloud opacity, mountain, hill]
+  const STOPS = [
+    [0,    '#050914','#0a1230','#111a3a','#3a4468',.18,'#0d1226','#05070c'],
+    [5,    '#0a1230','#1b2250','#3a2a55','#59507a',.28,'#171c3a','#06080e'],
+    [6.5,  '#1c3358','#8a5a6a','#f0a050','#ffc08a',.55,'#3a3350','#07090f'],
+    [9,    '#1d4a7a','#3b78a8','#9cc3d8','#e6eef5',.50,'#2b4668','#0a0e16'],
+    [12.5, '#123f73','#2f6fa3','#7fb0d0','#e3edf5',.55,'#27415f','#0a0e16'],
+    [16,   '#1d4572','#4a7aa0','#c6a77c','#f1dcc0',.55,'#33405a','#0a0d14'],
+    [17.75,'#2a3f66','#b3705a','#f4a53a','#ffb877',.65,'#4a3a4a','#08090e'],
+    [19,   '#1a2048','#5a3a6a','#c0603a','#d98a78',.50,'#2a2342','#06070c'],
+    [20.25,'#0b1130','#1a2050','#3a2a55','#4a4a78',.28,'#141a38','#05070c'],
+    [24,   '#050914','#0a1230','#111a3a','#3a4468',.18,'#0d1226','#05070c']
+  ];
+
+  const hex = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+  const mix = (a,b,t) => {
+    const A = hex(a), B = hex(b);
+    return 'rgb(' + A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',') + ')';
+  };
+  const lerp = (a,b,t) => a+(b-a)*t;
+  const clamp = (v,a,b) => Math.min(b,Math.max(a,v));
+
+  function currentHour(){
+    const q = new URLSearchParams(location.search).get('sky');
+    if(q !== null && !isNaN(parseFloat(q))) return parseFloat(q) % 24;
+    const d = new Date();
+    return d.getHours() + d.getMinutes()/60;
+  }
+
+  function update(){
+
+    const h = currentHour();
+
+    let i = 0;
+    while(i < STOPS.length-2 && h >= STOPS[i+1][0]) i++;
+    const A = STOPS[i], B = STOPS[i+1];
+    const t = clamp((h-A[0])/(B[0]-A[0]),0,1);
+
+    const s = el.style;
+    s.setProperty('--sky-top', mix(A[1],B[1],t));
+    s.setProperty('--sky-mid', mix(A[2],B[2],t));
+    s.setProperty('--sky-hor', mix(A[3],B[3],t));
+    s.setProperty('--cloud',   mix(A[4],B[4],t));
+    s.setProperty('--cloud-o', lerp(A[5],B[5],t).toFixed(3));
+    s.setProperty('--mtn',     mix(A[6],B[6],t));
+    s.setProperty('--hill',    mix(A[7],B[7],t));
+
+    // ---- sun: 6:00 → 18:00 along an arc, behind the hill at each end
+    const p = (h-6)/12;
+    const dayAmt = clamp(1 - Math.abs(p-.5)*2*1.15 + .15, 0, 1);   // fades near the ends
+    const elev = Math.sin(Math.PI*clamp(p,0,1));
+    const sunX = 12 + clamp(p,0,1)*66;                              // % of width
+    const horizon = 64, peak = 10;                                  // % of height
+    const sunY = horizon - elev*(horizon-peak) + (p<0||p>1 ? 12 : 0);
+    const up = (p > -0.05 && p < 1.05);
+
+    s.setProperty('--sun-x', sunX.toFixed(2)+'%');
+    s.setProperty('--sun-y', sunY.toFixed(2)+'%');
+    s.setProperty('--sun-o', up ? '1' : '0');
+    // low sun = orange and strong, high sun = pale and soft
+    const warm = clamp(1 - elev*1.6, 0, 1);
+    s.setProperty('--sun-core', mix('#fff3c8','#ffb347',warm));
+    const g = mix('#fff0c0','#ff8a2a',warm).match(/\d+/g);
+    s.setProperty('--sun-glow', 'rgba('+g.join(',')+',.9)');
+    s.setProperty('--glow', (.28 + warm*.6).toFixed(2));
+    s.setProperty('--rim', 'rgba('+g.join(',')+','+(up ? warm*clamp(elev*12,0,1)*.9 : 0).toFixed(2)+')');
+
+    // ---- night: stars + moon (19:00 → 5:00)
+    const hn = h < 12 ? h+24 : h;                                    // 19..29
+    let night = 0;
+    if(h >= 20.25 || h <= 5) night = 1;
+    else if(h > 19)  night = (h-19)/1.25;
+    else if(h > 5 && h < 6.5) night = 1-(h-5)/1.5;
+    s.setProperty('--stars', night.toFixed(2));
+    s.setProperty('--moon',  (night*night*.9).toFixed(2));
+    const mp = clamp((hn-19)/10,0,1);                                // 0..1 across the night
+    s.setProperty('--moon-x', (14 + mp*60).toFixed(1)+'%');
+    s.setProperty('--moon-y', (62 - Math.sin(Math.PI*mp)*50).toFixed(1)+'%');
+  }
+
+  update();
+  setInterval(update, 60000);
+  document.addEventListener('visibilitychange', () => { if(!document.hidden) update(); });
+
+})();
 </script>
 
 </body>
