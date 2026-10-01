@@ -22145,21 +22145,62 @@ function detectKeyFromChords(chordTokens){
 
       });
 
-      let score =
+      /*
+        How well the song's chords fit this key. Squared so a key
+        that leaves a real share of the chords out of its scale
+        (e.g. a D major chord in the key of C) loses clearly to a
+        key that contains them all; the small bonuses below are only
+        there to separate keys that fit equally well (relative
+        major/minor) or nearly so — they must never outvote fit.
+      */
+      const fit =
         matchedWeight / totalWeight;
+
+      let score =
+        fit * fit;
 
       const tonicQuality =
         isMinor
           ? 'minor'
           : 'major';
 
+      const dominantRoot =
+        (rootIndex + 7) % 12;
+
+      let tonicWeight = 0;
+      let dominantWeight = 0;
+
+      entries.forEach(entry => {
+
+        if(
+          entry.parsed.root === rootIndex &&
+          entry.parsed.quality === tonicQuality
+        ){
+
+          tonicWeight += entry.weight;
+
+        }
+
+        if(entry.parsed.root === dominantRoot){
+
+          dominantWeight += entry.weight;
+
+        }
+
+      });
+
+      /* Songs live on their tonic and its dominant */
+      score += 0.25 * (tonicWeight / totalWeight);
+      score += 0.10 * (dominantWeight / totalWeight);
+
+      /* Where the song starts and lands (weak: many start on IV/vi) */
       if(
         firstParsed &&
         firstParsed.root === rootIndex &&
         firstParsed.quality === tonicQuality
       ){
 
-        score += 0.15;
+        score += 0.06;
 
       }
 
@@ -22169,7 +22210,7 @@ function detectKeyFromChords(chordTokens){
         lastParsed.quality === tonicQuality
       ){
 
-        score += 0.15;
+        score += 0.06;
 
       }
 
