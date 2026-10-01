@@ -1361,6 +1361,75 @@ button{
   stroke-linejoin:round;
 }
 
+/* Thumbnail tile (YouTube cover art over the music-note fallback) */
+.songIcon.songThumb{
+  position:relative;
+  width:52px;
+  height:52px;
+  border-radius:12px;
+  overflow:hidden;
+  background:#232328;
+}
+
+.songIcon.songThumb > svg{
+  width:20px;
+  height:20px;
+  color:#8a8a91;
+}
+
+.songThumbImg{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  background:#232328;
+}
+
+.songLibThumb{
+  flex:0 0 auto;
+  display:grid;
+  place-items:center;
+}
+
+.songLibItem .songIcon.songThumb{
+  width:44px;
+  height:44px;
+  border-radius:11px;
+}
+
+.setlistSongRow .songIcon.songThumb,
+.lineupEntry .songIcon.songThumb,
+.lineupPickerRow .songIcon.songThumb{
+  width:40px;
+  height:40px;
+  border-radius:10px;
+  flex:0 0 auto;
+  align-self:center;
+}
+
+.setlistSongRow .songKeyBadge,
+.lineupPickerRow .songKeyBadge{
+  min-width:28px;
+  height:28px;
+  font-size:12px;
+}
+
+.songKeyBadge{
+  flex:0 0 auto;
+  min-width:32px;
+  height:32px;
+  padding:0 9px;
+  border-radius:999px;
+  background:#232328;
+  color:#e8e8ea;
+  font-size:13px;
+  font-weight:800;
+  display:grid;
+  place-items:center;
+  box-sizing:border-box;
+}
+
 .songInfo{
   flex:1;
 
@@ -21256,15 +21325,7 @@ function renderLyrics(){
                 style="cursor:pointer;"
               >
 
-                <div class="songIcon">
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M9 18V5"/>
-                    <path d="M9 5l10-2" style="stroke-width:3.1;"/>
-                    <path d="M19 3v13"/>
-                    <circle cx="6" cy="18" r="3" style="fill:currentColor;stroke:none;"/>
-                    <circle cx="16" cy="16" r="3" style="fill:currentColor;stroke:none;"/>
-                  </svg>
-                </div>
+                <div class="songIcon songThumb">${songThumbInnerHTML(song)}</div>
 
                 <div class="songInfo">
 
@@ -26301,21 +26362,20 @@ function songLibSheetListHTML(){
 
   return list.map((song, index) => {
 
-    const key = detectSongKeyLabel(song);
-
     const meta = [
       Array.isArray(song.mergeParts) && song.mergeParts.length > 1 ? song.mergeParts.length + ' songs' : '',
-      song.theme || '',
-      key ? 'Key of ' + key : ''
+      song.theme || ''
     ].filter(Boolean).join(' · ');
 
     return `
       <button type="button" class="songLibItem${song.id === currentId ? ' current' : ''}" data-lib-song="${esc(song.id)}">
         ${numbered ? `<span class="songLibItemNum">${index + 1}</span>` : ''}
+        <span class="songIcon songThumb songLibThumb">${songThumbInnerHTML(song)}</span>
         <span class="songLibItemMain">
           <div class="songLibItemTitle">${esc(song.title || 'Untitled Song')}</div>
           ${meta ? `<div class="songLibItemMeta">${esc(meta)}</div>` : ''}
         </span>
+        ${songKeyBadgeHTML(song)}
         ${song.favorite ? '<span class="songLibItemStar"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></span>' : ''}
       </button>
     `;
@@ -30476,6 +30536,50 @@ function saveEditorChanges(){
    LIBRARY
 ========================================================= */
 
+/*
+  Song thumbnails: a song's saved YouTube link (song.video = {id, url})
+  doubles as its cover art. Merged songs borrow the first part that
+  has a link. No link, or the image fails to load (offline, removed
+  video): the music-note icon underneath simply shows instead.
+*/
+const SONG_ICON_SVG =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5"/><path d="M9 5l10-2" style="stroke-width:3.1;"/><path d="M19 3v13"/><circle cx="6" cy="18" r="3" style="fill:currentColor;stroke:none;"/><circle cx="16" cy="16" r="3" style="fill:currentColor;stroke:none;"/></svg>';
+
+function songThumbUrl(song){
+
+  if(!song)return '';
+
+  let video = song.video && song.video.id ? song.video : null;
+
+  if(!video && Array.isArray(song.mergeParts)){
+    const part = song.mergeParts.find(item => item && item.video && item.video.id);
+    if(part)video = part.video;
+  }
+
+  return video && /^[\w-]{11}$/.test(String(video.id))
+    ? 'https://i.ytimg.com/vi/' + video.id + '/mqdefault.jpg'
+    : '';
+
+}
+
+function songThumbInnerHTML(song){
+
+  const url = songThumbUrl(song);
+
+  return SONG_ICON_SVG + (url
+    ? `<img class="songThumbImg" src="${url}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">`
+    : '');
+
+}
+
+function songKeyBadgeHTML(song){
+
+  const key = detectSongKeyLabel(song);
+
+  return key ? `<span class="songKeyBadge">${esc(key)}</span>` : '';
+
+}
+
 function renderLibrary(){
 
   recordNavHistory('library');
@@ -30655,15 +30759,7 @@ function renderLibrary(){
                 : `<svg viewBox="0 0 24 24"><path d="M5 13l4 4 10-10"/></svg>`
             }</div>
 
-            <div class="songIcon">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M9 18V5"/>
-                <path d="M9 5l10-2" style="stroke-width:3.1;"/>
-                <path d="M19 3v13"/>
-                <circle cx="6" cy="18" r="3" style="fill:currentColor;stroke:none;"/>
-                <circle cx="16" cy="16" r="3" style="fill:currentColor;stroke:none;"/>
-              </svg>
-            </div>
+            <div class="songIcon songThumb">${songThumbInnerHTML(song)}</div>
 
 
             <div class="songInfo">
@@ -30681,7 +30777,7 @@ function renderLibrary(){
 
                 ${
                   song.theme
-                    ? esc(song.theme) + (detectSongKeyLabel(song) ? ' · Key of ' + esc(detectSongKeyLabel(song)) : '')
+                    ? esc(song.theme)
                     : (song.analysis ? 'Analyzed' : 'Imported')
                 }
 
@@ -30697,6 +30793,8 @@ function renderLibrary(){
               </div>
 
             </div>
+
+            ${songKeyBadgeHTML(song)}
 
             ${
               !selectMode
@@ -31706,7 +31804,11 @@ function renderSetlistDetail(setlistId){
             <button class="setlistOrderBtn" type="button" data-move-up="${esc(song.id)}" ${index===0?'disabled style="opacity:.3;"':''}>↑</button>
             <button class="setlistOrderBtn" type="button" data-move-down="${esc(song.id)}" ${index===orderedSongs.length-1?'disabled style="opacity:.3;"':''}>↓</button>
 
+            <div class="songIcon songThumb" data-open-setlist-song="${esc(song.id)}">${songThumbInnerHTML(song)}</div>
+
             <div class="setlistSongTitle" data-open-setlist-song="${esc(song.id)}">${esc(song.title)}</div>
+
+            ${songKeyBadgeHTML(song)}
 
             <button class="setlistOrderBtn" type="button" data-remove-from-setlist="${esc(song.id)}" title="Remove from setlist" style="color:#ff8b8b;">✕</button>
 
@@ -32356,6 +32458,8 @@ function renderLineupDetail(dateKey){
 
             return `
               <div class="lineupEntry" data-lineup-song-row="${esc(song.id)}">
+
+                <div class="songIcon songThumb" data-open-lineup-song="${esc(song.id)}">${songThumbInnerHTML(song)}</div>
 
                 <div class="lineupEntryParts">
 
@@ -33447,7 +33551,9 @@ function renderLineupSongPicker(dateKey){
               <span class="lineupPickerCheck">
                 <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>
               </span>
+              <span class="songIcon songThumb">${songThumbInnerHTML(song)}</span>
               <span class="lineupPickerTitle">${esc(song.title || 'Untitled Song')}</span>
+              ${songKeyBadgeHTML(song)}
             </div>
           `).join('')
         : `
