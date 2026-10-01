@@ -16896,6 +16896,8 @@ function metScheduler(){
   "note"-type flow items (free-text notes between sections) take no
   time here — they're not part of the counted arrangement.
 */
+const MET_ANNOUNCE_BARS_AHEAD = 3; // how many bars before a section its name is spoken
+
 function metBuildArrangementBeatMap(){
 
   if(!currentSong)return null;
@@ -16984,53 +16986,21 @@ function metBuildArrangementBeatMap(){
   }
 
   /*
-    Nothing to count INTO before the very first section — cues
-    only exist at transitions from span i-1 to span i, i >= 1.
-    The countdown borrows time from the END of the previous span
-    (so it doesn't run long if that span itself is short), clamped
-    so a 1- or 2-bar section still gets a sensible (shorter) count
-    instead of a countdown that starts before the section before
-    IT has even finished.
+    Later sections (verse, chorus, ...) get NO countdown — just the
+    section name, spoken MET_ANNOUNCE_BARS_AHEAD bars before the
+    section starts. It is never placed
+    before the previous section has begun. Only the opening
+    count-in above keeps "1, 2, 3, In".
   */
   for(let i = 1; i < spans.length; i++){
-
-    const prevLen =
-      spans[i - 1].endBeat - spans[i - 1].startBeat;
-
-    const countdownLen =
-      Math.max(1, Math.min(metBeatsPerMeasure, prevLen));
 
     const startBeat =
       spans[i].startBeat;
 
-    /* Same 1, 2, 3, In as the opening count-in, on the last bar —
-       shortened to just "In" at fast tempos, see countFitsPerBeat
-       above. */
-    if(countFitsPerBeat){
-
-      for(let j = 0; j < countdownLen - 1; j++){
-        cues.set(startBeat - countdownLen + j, String(j + 1));
-      }
-
-    }
-
-    cues.set(startBeat - 1, 'In');
-
-    /*
-      Section name: spoken on a BEAT, one full bar before the count
-      starts (counted in beats, not seconds, so it stays locked to
-      the BPM at any tempo). It is never placed before the previous
-      section has begun (so it can't talk over the previous
-      transition's "In"), and is skipped if there is no room left
-      before the count (a 1-bar section).
-    */
-    const countStart =
-      startBeat - countdownLen;
-
     const announceBeat =
-      Math.max(countStart - metBeatsPerMeasure, spans[i - 1].startBeat);
+      Math.max(startBeat - MET_ANNOUNCE_BARS_AHEAD * metBeatsPerMeasure, spans[i - 1].startBeat);
 
-    if(announceBeat < countStart){
+    if(announceBeat < startBeat){
       announces.push({ beat: announceBeat, text: spans[i].name });
     }
 
