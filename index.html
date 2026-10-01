@@ -8380,113 +8380,37 @@ body.songBottomHidden .annotateToolbar{
    LIVE SKY HEADER — sun follows the time of day, clouds drift
    Pure CSS animation + a tiny JS clock (see initHeroSky).
 ========================================================= */
+/* Full-page scenic sky, matching the reference worship-screen artwork. */
 .heroBackdrop{display:none}
-
+.app{background:transparent; isolation:isolate;}
+body{background:#05070d;}
+.homeHero{overflow:visible;}
 .heroSky{
-  position:absolute; inset:0; z-index:0; overflow:hidden;
-  pointer-events:none;
-  background:linear-gradient(180deg,
-    var(--sky-top,#123f73) 0%,
-    var(--sky-mid,#2f6fa3) 55%,
-    var(--sky-hor,#7fb0d0) 100%);
+  position:fixed; inset:0; width:100vw; height:100vh; height:100dvh;
+  z-index:0; overflow:hidden; pointer-events:none;
+  background:linear-gradient(180deg,var(--sky-top,#123f73) 0%,var(--sky-mid,#2f6fa3) 34%,var(--sky-hor,#7fb0d0) 53%,#111827 72%,#05070d 100%);
+  transition:background 4s ease;
 }
-.heroStars{
-  position:absolute; inset:0; opacity:var(--stars,0);
-  background-image:
-    radial-gradient(1px 1px at 12% 18%,#fff,transparent),
-    radial-gradient(1px 1px at 27% 40%,#fff,transparent),
-    radial-gradient(1.5px 1.5px at 41% 12%,#fff,transparent),
-    radial-gradient(1px 1px at 58% 30%,#fff,transparent),
-    radial-gradient(1px 1px at 69% 8%,#fff,transparent),
-    radial-gradient(1.5px 1.5px at 83% 24%,#fff,transparent),
-    radial-gradient(1px 1px at 92% 44%,#fff,transparent),
-    radial-gradient(1px 1px at 5% 52%,#fff,transparent);
-  transition:opacity 4s ease;
-}
-.heroMoon{
-  position:absolute; width:22px; height:22px; border-radius:50%;
-  margin:-11px 0 0 -11px;
-  background:#e9eefb;
-  box-shadow:0 0 18px 6px rgba(190,205,255,.35);
-  opacity:var(--moon,0);
-  left:var(--moon-x,50%); top:var(--moon-y,30%);
-  transition:opacity 4s ease,left 4s linear,top 4s linear;
-}
-.heroSun{
-  position:absolute; width:48px; height:48px; border-radius:50%;
-  margin:-24px 0 0 -24px;
-  filter:drop-shadow(0 0 16px rgba(255,190,95,.34));
-  left:var(--sun-x,50%); top:var(--sun-y,40%);
-  opacity:var(--sun-o,1);
-  background:radial-gradient(circle,#fff 0%,var(--sun-core,#fff3c8) 35%,transparent 72%);
-  transition:left 4s linear,top 4s linear,opacity 4s ease;
-}
-/* wide soft light above the clouds so they catch the sun */
-.heroSunGlow{
-  position:absolute; width:620px; height:620px; border-radius:50%;
-  margin:-310px 0 0 -310px;
-  left:var(--sun-x,50%); top:var(--sun-y,40%);
-  opacity:calc(var(--sun-o,1) * var(--glow,.6));
-  background:radial-gradient(circle,var(--sun-glow,rgba(255,200,120,.9)) 0%,rgba(255,170,80,.25) 35%,transparent 68%);
-  mix-blend-mode:screen;
-  transition:left 4s linear,top 4s linear,opacity 4s ease;
-}
-.heroCloud{
-  position:absolute; left:0; width:200%; will-change:transform;
-  background-repeat:repeat-x; background-size:50% 100%;
-  filter:blur(5px);
-  color:var(--cloud,#dfe9f2);
-}
-.heroCloud.c1{
-  top:4%; height:34%; opacity:calc(var(--cloud-o,.5) * .9);
-  background-image:
-    radial-gradient(ellipse 14% 22% at 18% 55%,currentColor,transparent 72%),
-    radial-gradient(ellipse 20% 16% at 30% 60%,currentColor,transparent 72%),
-    radial-gradient(ellipse 12% 20% at 70% 40%,currentColor,transparent 72%),
-    radial-gradient(ellipse 22% 14% at 82% 52%,currentColor,transparent 72%);
-  animation:heroCloudDrift 190s linear infinite;
-}
-.heroCloud.c2{
-  top:22%; height:38%; opacity:var(--cloud-o,.5);
-  background-image:
-    radial-gradient(ellipse 24% 16% at 12% 50%,currentColor,transparent 72%),
-    radial-gradient(ellipse 16% 22% at 27% 42%,currentColor,transparent 72%),
-    radial-gradient(ellipse 26% 14% at 62% 58%,currentColor,transparent 72%),
-    radial-gradient(ellipse 14% 20% at 88% 46%,currentColor,transparent 72%);
-  animation:heroCloudDrift 130s linear infinite;
-}
-.heroCloud.c3{
-  top:44%; height:30%; opacity:calc(var(--cloud-o,.5) * .75);
-  background-image:
-    radial-gradient(ellipse 30% 12% at 22% 55%,currentColor,transparent 72%),
-    radial-gradient(ellipse 24% 14% at 58% 48%,currentColor,transparent 72%),
-    radial-gradient(ellipse 20% 10% at 86% 60%,currentColor,transparent 72%);
-  animation:heroCloudDrift 90s linear infinite;
-}
+.heroStars{position:absolute;inset:0;opacity:var(--stars,0);background-image:radial-gradient(1px 1px at 12% 18%,#fff,transparent),radial-gradient(1px 1px at 27% 40%,#fff,transparent),radial-gradient(1.5px 1.5px at 41% 12%,#fff,transparent),radial-gradient(1px 1px at 58% 30%,#fff,transparent),radial-gradient(1.5px 1.5px at 69% 8%,#fff,transparent),radial-gradient(1px 1px at 83% 24%,#fff,transparent),radial-gradient(1px 1px at 92% 44%,#fff,transparent);transition:opacity 4s ease;}
+.heroMoon{position:absolute;width:25px;height:25px;border-radius:50%;margin:-12px 0 0 -12px;background:#e9eefb;box-shadow:0 0 28px 9px rgba(190,205,255,.35);opacity:var(--moon,0);left:var(--moon-x,50%);top:var(--moon-y,30%);transition:opacity 4s ease,left 4s linear,top 4s linear;}
+.heroSun{position:absolute;width:54px;height:54px;border-radius:50%;margin:-27px 0 0 -27px;filter:drop-shadow(0 0 24px rgba(255,190,95,.6));left:var(--sun-x,88%);top:var(--sun-y,36%);opacity:var(--sun-o,1);background:radial-gradient(circle,#fff 0%,var(--sun-core,#fff3c8) 36%,transparent 74%);transition:left 4s linear,top 4s linear,opacity 4s ease;}
+.heroSunGlow{position:absolute;width:760px;height:760px;border-radius:50%;margin:-380px 0 0 -380px;left:var(--sun-x,88%);top:var(--sun-y,36%);opacity:calc(var(--sun-o,1) * var(--glow,.6));background:radial-gradient(circle,var(--sun-glow,rgba(255,200,120,.9)) 0%,rgba(255,170,80,.28) 34%,transparent 70%);mix-blend-mode:screen;transition:left 4s linear,top 4s linear,opacity 4s ease;}
+.heroCloud{position:absolute;left:0;width:200%;background-repeat:repeat-x;background-size:50% 100%;filter:blur(9px);color:var(--cloud,#dfe9f2);}
+.heroCloud.c1{top:4%;height:30%;opacity:calc(var(--cloud-o,.5)*.85);background-image:radial-gradient(ellipse 14% 22% at 18% 55%,currentColor,transparent 72%),radial-gradient(ellipse 20% 16% at 30% 60%,currentColor,transparent 72%),radial-gradient(ellipse 12% 20% at 70% 40%,currentColor,transparent 72%),radial-gradient(ellipse 22% 14% at 82% 52%,currentColor,transparent 72%);animation:heroCloudDrift 190s linear infinite;}
+.heroCloud.c2{top:18%;height:30%;opacity:var(--cloud-o,.5);background-image:radial-gradient(ellipse 24% 16% at 12% 50%,currentColor,transparent 72%),radial-gradient(ellipse 16% 22% at 27% 42%,currentColor,transparent 72%),radial-gradient(ellipse 26% 14% at 62% 58%,currentColor,transparent 72%),radial-gradient(ellipse 14% 20% at 88% 46%,currentColor,transparent 72%);animation:heroCloudDrift 130s linear infinite;}
+.heroCloud.c3{top:32%;height:24%;opacity:calc(var(--cloud-o,.5)*.65);background-image:radial-gradient(ellipse 30% 12% at 22% 55%,currentColor,transparent 72%),radial-gradient(ellipse 24% 14% at 58% 48%,currentColor,transparent 72%),radial-gradient(ellipse 20% 10% at 86% 60%,currentColor,transparent 72%);animation:heroCloudDrift 90s linear infinite;}
 @keyframes heroCloudDrift{to{transform:translateX(-50%)}}
-
-.heroLand{
-  position:absolute; inset:0; width:100%; height:100%;
-  transition:opacity 4s ease;
-}
-.heroLand .mtn{fill:var(--mtn,#1b2a44)}
-.heroLand .hill{fill:var(--hill,#0b0f17)}
-.heroLand .cross{fill:var(--hill,#0b0f17);stroke:var(--rim,rgba(255,190,110,.0));stroke-width:.8}
-
-/* readable text over a bright sky; fade to the page's black at the bottom */
-.heroBackdropFade{
-  background:linear-gradient(180deg,
-    rgba(0,0,0,.12) 0%,
-    rgba(0,0,0,.18) 55%,
-    rgba(0,0,0,.7) 85%,
-    #000000 100%) !important;
-}
-.welcome,.hero p{text-shadow:0 1px 8px rgba(0,0,0,.65)}
-.hero h1{text-shadow:0 2px 16px rgba(0,0,0,.45),0 0 40px rgba(232,185,35,.3)}
-
-@media (prefers-reduced-motion:reduce){
-  .heroCloud{animation:none}
-}
+.heroLand{position:absolute;inset:0;width:100%;height:100%;}
+.heroLand .mtn{fill:var(--mtn,#1b2a44)}.heroLand .hill{fill:var(--hill,#0b0f17)}.heroLand .cross{fill:#090b10;stroke:var(--rim,rgba(255,190,110,.0));stroke-width:1.2}
+.heroBackdropFade{display:none}
+.top,.hero,.content{position:relative;z-index:2}
+.homeHero{z-index:1}
+.homeVerse,.homeLineupHero,.homeContinue,.homeQuickTile,.homeMini,.homeRecentCard,.homeCard{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);}
+.homeVerse{background:linear-gradient(115deg,rgba(9,14,25,.88),rgba(18,17,18,.78));}
+.homeLineupHero{background:linear-gradient(115deg,rgba(13,18,30,.91),rgba(31,27,25,.82));}
+.homeContinue,.homeQuickTile,.homeMini,.homeRecentCard,.homeCard{background:rgba(22,23,29,.82);}
+.nav{z-index:100;background:rgba(9,10,15,.78);}
+@media(prefers-reduced-motion:reduce){.heroCloud{animation:none}}
 </style>
 
 </head>
@@ -8535,12 +8459,12 @@ body.songBottomHidden .annotateToolbar{
       <div class="heroCloud c2"></div>
       <div class="heroCloud c3"></div>
       <div class="heroSunGlow"></div>
-      <svg class="heroLand" viewBox="0 0 412 215" preserveAspectRatio="xMaxYMax slice" xmlns="http://www.w3.org/2000/svg">
-        <path class="mtn" opacity=".8" d="M0 150 L40 128 L78 142 L120 112 L165 140 L210 120 L250 146 L300 126 L412 150 L412 215 L0 215Z"/>
-        <path class="hill" d="M0 175 C60 160 110 170 170 168 C230 166 270 175 300 160 C325 148 340 140 356 138 C380 138 396 146 412 152 L412 215 L0 215Z"/>
-        <g class="cross" transform="rotate(-2 354 140)">
-          <rect x="350" y="34" width="9" height="108"/>
-          <rect x="331" y="56" width="47" height="8"/>
+      <svg class="heroLand" viewBox="0 0 412 900" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg">
+        <path class="mtn" opacity=".88" d="M0 390 L42 365 L86 382 L132 350 L177 382 L220 360 L264 390 L310 365 L360 382 L412 355 L412 900 L0 900Z"/>
+        <path class="hill" d="M0 455 C60 420 120 445 180 438 C240 430 278 450 315 420 C345 395 365 388 382 395 C398 402 405 414 412 420 L412 900 L0 900Z"/>
+        <g class="cross" transform="rotate(-2 354 390)">
+          <rect x="350" y="105" width="10" height="310"/>
+          <rect x="300" y="175" width="110" height="11"/>
         </g>
       </svg>
     </div>
@@ -37841,8 +37765,8 @@ if(
     const p = (h-6)/12;
     const dayAmt = clamp(1 - Math.abs(p-.5)*2*1.15 + .15, 0, 1);   // fades near the ends
     const elev = Math.sin(Math.PI*clamp(p,0,1));
-    const sunX = 10 + clamp(p,0,1)*82;                              // travels across the full skyline
-    const horizon = 66, peak = 13;                                  // % of height
+    const sunX = 8 + clamp(p,0,1)*84;                              // travels across the full skyline
+    const horizon = 39, peak = 13;                                  // % of height
     const sunY = horizon - elev*(horizon-peak) + (p<0||p>1 ? 12 : 0);
     const up = (p > -0.05 && p < 1.05);
 
