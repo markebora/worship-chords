@@ -2438,10 +2438,11 @@ body.songViewerActive .nav{
   covers navigation back to Chords, plus Metronome/Library), and
   the floating Home button for getting all the way out.
 */
-body.songLyricsImmersive .songHeaderTop button,
-body.songLyricsImmersive .songHeaderMetaRow{
+body.songLyricsImmersive .songHeaderTop button{
   display:none;
 }
+
+/* The info row (song numbers, key, BPM, capo) stays visible in Lyrics mode. */
 
 /*
   Chords and Lyrics modes: tapping the song hides the whole bottom
@@ -17198,7 +17199,139 @@ function metPumpArrangementCues(){
   Flow while Arrangement Cues is already on takes effect the next
   time it's turned on, without needing its own change-listener.
 */
+/*
+  Turning Cue on while the click is ALREADY running (e.g. after moving
+  to the next song in the lineup): the beat clock is left alone and
+  the arrangement is laid onto it instead. The first section's name is
+  spoken, then the count (1, 2, 3, In) is placed on the first bar line
+  of the running click that leaves the voice enough time, so the count
+  and every later section change land on the click's own downbeats.
+
+  Beat positions in the map are relative to the count's "1", so we
+  just tell the engine how many beats ahead of the next click that
+  downbeat is (a negative beat count).
+*/
+let metJoinToken = 0;
+
+function metJoinArrangementToRunningClock(){
+
+  const map = metBuildArrangementBeatMap();
+
+  if(!map){
+    metArrangementEnabled = false;
+    return false;
+  }
+
+  const token = ++metJoinToken;
+
+  metArrangementEnabled = true;
+  metArrangementBeatMap = null;     /* no cues until aligned */
+
+  metWarmUpSpeech();
+
+  let aligned = false;
+  let fallbackTimer = null;
+  let speechStartPerf = performance.now();
+
+  const align = () => {
+
+    if(aligned)return;
+
+    aligned = true;
+
+    clearTimeout(fallbackTimer);
+
+    if(token !== metJoinToken || !metIsPlaying || !metArrangementEnabled)return;
+
+    const beatsPerBar = metBeatsPerMeasure;
+    const secondsPerBeat = 60.0 / metTempo;
+    const subSec = secondsPerBeat / metSubdivision;
+
+    /* The next main-beat click that is not scheduled yet */
+    let tNext = metNextNoteTime;
+    let bNext = metCurrentBeat;
+
+    if(metCurrentSubStep !== 0){
+      tNext += (metSubdivision - metCurrentSubStep) * subSec;
+      bNext = (metCurrentBeat + 1) % beatsPerBar;
+    }
+
+    /* Same spacing as a fresh start: the count begins one bar after
+       the name STARTED, never before the name is done. */
+    const sinceSpeechStart =
+      (performance.now() - speechStartPerf) / 1000;
+
+    const waitSec = Math.max(
+      (metSpeechLatencyMs + MET_SPEECH_EXTRA_MS + 120) / 1000,
+      beatsPerBar * secondsPerBeat - sinceSpeechStart
+    );
+
+    const tMin = metAudioCtx.currentTime + waitSec;
+
+    const k0 = Math.max(0, Math.ceil((tMin - tNext) / secondsPerBeat - 1e-6));
+    const k = k0 + ((beatsPerBar - ((bNext + k0) % beatsPerBar)) % beatsPerBar);
+
+    metArrangementBeatCount = -k;
+    metArrangementBeatMap = map;
+
+  };
+
+  try{
+
+    if(map.firstName && typeof window.speechSynthesis !== 'undefined'){
+
+      const intro =
+        new SpeechSynthesisUtterance(map.firstName);
+
+      intro.rate = Math.min(1.6, Math.max(1, metTempo / 100));
+      intro.volume = 1;
+
+      const voice = metPickSpeechVoice();
+      if(voice)intro.voice = voice;
+
+      intro.onstart = () => { speechStartPerf = performance.now(); };
+      intro.onend = align;
+      intro.onerror = align;
+
+      speechSynthesis.cancel();
+      speechSynthesis.speak(intro);
+
+      /* Some engines never fire onend */
+      fallbackTimer = setTimeout(align, 2500);
+
+    }else{
+
+      align();
+
+    }
+
+  }catch(error){
+
+    console.error(error);
+    align();
+
+  }
+
+  metUpdatePlayButton();
+
+  if(typeof metSyncMiniWidget === 'function')metSyncMiniWidget();
+
+  return true;
+
+}
+
 function metSetArrangementEnabled(enabled){
+
+  if(enabled && metIsPlaying && metClickAudible){
+
+    /* Click already running: join it, don't restart it */
+    if(!metArrangementEnabled)metJoinArrangementToRunningClock();
+
+    metUpdatePlayButton();
+
+    return;
+
+  }
 
   metArrangementEnabled = enabled;
 
@@ -17210,6 +17343,8 @@ function metSetArrangementEnabled(enabled){
     metWarmUpSpeech();
 
   }else{
+
+    metJoinToken++;   /* cancels a join still waiting on the name */
 
     if(typeof window.speechSynthesis !== 'undefined')speechSynthesis.cancel();
 
@@ -23414,7 +23549,31 @@ function transposeText(
    SONG VIEWER
 ========================================================= */
 
+/*
+  Cue voice is built from one song's Flow, so it must not carry over
+  to a different song or merged part (it would keep calling the old
+  sections). Only the VOICE ends: the BPM click keeps running without
+  a gap, and picks up the new song's saved BPM. Cue is pressed again
+  when the next song is ready.
+*/
+/* true when the Cue button itself started the click (so it stops it too) */
+let songCueOwnsClock = false;
+
+function stopCueRunOnSongChange(){
+
+  if(metArrangementEnabled){
+
+    metSetArrangementEnabled(false);
+
+  }
+
+}
+
 function openSong(song){
+
+  if(currentSong && song && currentSong.id !== song.id){
+    stopCueRunOnSongChange();
+  }
 
   currentSong =
     song;
@@ -25870,7 +26029,7 @@ function wireAnnotateToolbarButtons(){
 function songBottomMiddleSlotHTML(mdViewModeOn, fontSize){
 
   if(mdViewModeOn){
-    return `<button type="button" class="songBottomPadsBtn songBottomCueBtn${(metIsPlaying&&metArrangementEnabled)?' active':''}" id="songBottomCueBtn" data-mid-slot="1" aria-pressed="${(metIsPlaying&&metArrangementEnabled)?'true':'false'}" aria-label="Cue — spoken count-in and section names, synced to BPM">Cue</button>`;
+    return `<button type="button" class="songBottomPadsBtn songBottomCueBtn${(metIsPlaying&&metArrangementEnabled)?' active':''}" id="songBottomCueBtn" data-mid-slot="1" aria-pressed="${(metIsPlaying&&metArrangementEnabled)?'true':'false'}" aria-label="Cue — spoken count-in and section names with the BPM click">Cue</button>`;
   }
 
   return `
@@ -26505,11 +26664,10 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm, 
   if(padsBpmUpBtn)padsBpmUpBtn.onclick = () => stepPadsBpm(1);
 
   /*
-    BPM play/pause = the CLICK only. It never starts or stops the
-    spoken cues by itself: if cues are running, pausing the click just
-    mutes it (the beat clock keeps going, so resuming lands back on
-    the same grid); if nothing else is running it starts/stops the
-    beat clock like before.
+    BPM play/pause = the beat ONLY, never voice cueing. Starting it
+    runs the click with cues off; pressing it while anything is
+    running (including a Cue run, which is voice + click) stops the
+    beat and any cueing with it.
   */
   const songCurrentBpm = () =>
     metGetSongPresetBpm(target.id) != null ? metGetSongPresetBpm(target.id) : padsBpm;
@@ -26520,12 +26678,10 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm, 
 
       if(metIsPlaying && metClickAudible){
 
-        if(metArrangementEnabled){
-          metClickAudible = false;   /* pause click, cues keep going */
-          metUpdatePlayButton();
-        }else{
-          metStopMetronome();
-        }
+        /* Stop the beat; a running Cue run ends with it */
+        if(metArrangementEnabled)metSetArrangementEnabled(false);
+
+        metStopMetronome();
 
       }else if(metIsPlaying){
 
@@ -26534,7 +26690,7 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm, 
 
       }else{
 
-        /* Click-only start: cues are the Cue button's job */
+        /* Beat-only start: voice cues are the Cue button's job */
         if(metArrangementEnabled)metSetArrangementEnabled(false);
 
         metSetTempo(songCurrentBpm());
@@ -26547,13 +26703,15 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm, 
   }
 
   /*
-    Cue button (Chords and Lyrics views) = the spoken count-in + section names from
-    this song's Flow. Runs on the exact same beat clock as the click
-    (metPumpArrangementCues), so it follows every BPM change the same
-    way it did when it was tied to the play button. Starting it with no
-    click running is a cue-only run (click muted); starting it while the
-    click is playing restarts the arrangement from the top and keeps the
-    click sounding.
+    Cue button (Chords and Lyrics views) = spoken count-in + section
+    names from this song's Flow, locked to the BPM click.
+      - Nothing playing: starts the click AND the cues from the top.
+      - Click already running (BPM button, or carried over from the
+        previous song): the click is NOT touched. The cues are laid
+        onto it, count-in on its next suitable bar line.
+    Pressing Cue again turns the cues off; if Cue itself started the
+    click it stops too, otherwise the BPM click you had keeps going.
+    The BPM button is the beat-only counterpart.
   */
   function wireCueBtn(){
 
@@ -26566,8 +26724,12 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm, 
 
       if(metIsPlaying && metArrangementEnabled){
 
-        /* Cues off; a cue-only run stops itself, a click keeps going */
         metSetArrangementEnabled(false);
+
+        if(songCueOwnsClock)metStopMetronome();
+
+        songCueOwnsClock = false;
+
         return;
 
       }
@@ -26587,14 +26749,25 @@ function renderSongBottomBar(target, amount, displayBlocks, flow, metPresetBpm, 
         return;
       }
 
-      const keepClick = metIsPlaying && metClickAudible;
+      if(metIsPlaying && metClickAudible){
+
+        /* Sync to the click that is already going — leave it running */
+        songCueOwnsClock = false;
+
+        metSetArrangementEnabled(true);
+
+        return;
+
+      }
 
       metSetTempo(songCurrentBpm());
 
       if(metIsPlaying)metStopMetronome();
 
+      songCueOwnsClock = true;
+
       metSetArrangementEnabled(true);
-      metStartMetronome({ click: keepClick });
+      metStartMetronome({ click: true });
 
     };
 
@@ -26920,6 +27093,7 @@ function goToMergedPartIndex(index){
   const clamped=Math.max(0,Math.min(total-1,index));
   if(clamped===(song.activePartIndex||0))return;
   stopAutoScroll();
+  stopCueRunOnSongChange();
   song.activePartIndex=clamped;
   /*
     Without this, switching songs inside a merge replays the
