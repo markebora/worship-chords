@@ -4559,7 +4559,7 @@ body.songBottomHidden .annotateToolbar{
 
   padding:0;
 
-  line-height:1.35;
+  line-height:1.2;
 
   white-space:pre-wrap;
 }
@@ -4569,11 +4569,11 @@ body.songBottomHidden .annotateToolbar{
 
   min-height:0;
 
-  margin:0 0 10px;
+  margin:0 0 5px;
 
   padding:0;
 
-  line-height:1.55;
+  line-height:1.35;
 }
 
 .chordToken{
@@ -8443,6 +8443,56 @@ body.songBottomHidden .annotateToolbar{
 }
 .homeRecentCard:active,
 .homeContinue:active{background:#0c0c0e}
+
+/* =========================================================
+   STAGE MODE — full-screen, large-text view for playing live
+========================================================= */
+.stageOverlay{
+  position:fixed; inset:0; z-index:1500;
+  background:#000000; color:#ffffff;
+  display:flex; flex-direction:column;
+  padding-top:env(safe-area-inset-top, 0px);
+}
+.stageTop{
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px; border-bottom:1px solid #141417;
+}
+.stageIconBtn{
+  flex:0 0 auto; min-width:44px; height:44px; padding:0 12px;
+  border-radius:12px; background:#111114; border:1px solid #26262b;
+  color:#ffffff; font:inherit; font-size:13px; font-weight:800;
+  display:grid; place-items:center; cursor:pointer;
+}
+.stageIconBtn svg{width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round}
+.stageIconBtn.on{background:var(--accent); color:var(--accent-ink); border-color:transparent}
+.stageTitleBlock{flex:1; min-width:0}
+.stageTitle{font-size:19px; font-weight:800; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.stageMeta{font-size:12.5px; color:#9a9aa2; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.stageScroll{
+  flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain; padding:14px 16px 0;
+}
+.stageLyrics .lyricLine{color:#ffffff}
+.stageLyrics .chordLine{color:#ffd54a}
+.stageEndSpacer{height:45vh}
+.stageNext{
+  display:flex; align-items:center; gap:10px;
+  padding:9px 14px; background:#0a0a0c; border-top:1px solid #17171b;
+  cursor:pointer;
+}
+.stageNext[hidden]{display:none}
+.stageNextLabel{font-size:11px; font-weight:800; letter-spacing:.14em; color:var(--accent)}
+.stageNextTitle{flex:1; min-width:0; font-size:15px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.stageNextMeta{font-size:12.5px; color:#9a9aa2; white-space:nowrap}
+.stageControls{
+  display:flex; gap:6px; align-items:center;
+  padding:8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  background:#000000; border-top:1px solid #141417;
+}
+.stageControls .stageIconBtn{flex:1; min-width:0; height:46px; padding:0}
+.stageControls .stageIconBtn[disabled]{opacity:.35}
+.stageControls .stagePlay{flex:1.6}
+.stageControls .stageSpeed{flex:.9}
 </style>
 
 </head>
@@ -28635,6 +28685,9 @@ function renderSongViewer(){
           <button class="favoriteBtn${song.favorite?' active':''}" id="songFavoriteBtn" type="button" aria-label="${song.favorite?'Remove from favorites':'Add to favorites'}">
             <svg viewBox="0 0 24 24" fill="${song.favorite?'currentColor':'none'}" stroke="currentColor" stroke-width="2"><path d="M12 20.5s-8-4.9-8-11A4.6 4.6 0 0 1 12 6.6 4.6 4.6 0 0 1 20 9.5c0 6.1-8 11-8 11z" stroke-linejoin="round"/></svg>
           </button>
+          <button class="favoriteBtn" id="songStageBtn" type="button" aria-label="Stage mode">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+          </button>
           ${renderLineupSyncButtonHTML(song)}
         </div>
         ${
@@ -37789,6 +37842,354 @@ if(
 
 }
 
+
+/* =========================================================
+   STAGE MODE
+   Full-screen view of the current song: big lyrics + chords on
+   pure black, auto-scroll with a speed remembered per song, a "Next"
+   preview from the active lineup, prev/next buttons and swipe,
+   and the screen stays awake while it is open.
+========================================================= */
+let stageOpen = false;
+let stageScrollActive = false;
+let stageScrollRAF = null;
+let stageScrollLast = null;
+let stageScrollPos = 0;
+let stageSpeedLevel = 2;
+let stageShowChords = true;
+let stageWakeLock = null;
+
+const STAGE_PLAY_ICON = '<svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z" fill="currentColor"/></svg>';
+const STAGE_PAUSE_ICON = '<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>';
+
+function stageGetFont(){
+  try{
+    const v = parseInt(localStorage.getItem('disciplesStageFont'), 10);
+    if(v >= 14 && v <= 44) return v;
+  }catch(e){}
+  return 20;
+}
+
+function stageSetFont(v){
+  v = Math.max(14, Math.min(44, v));
+  try{ localStorage.setItem('disciplesStageFont', String(v)); }catch(e){}
+  const el = document.getElementById('stageLyrics');
+  if(el) el.style.fontSize = v + 'px';
+}
+
+function stageSongData(song){
+  const amount = song.transposeSteps || 0;
+  const text = transposeText(song.originalText || song.text || '', amount);
+  const keyInfo = detectKeyFromChords(extractChordTokens(text));
+  let bpm = null;
+  try{ bpm = metGetSongPresetBpm(song.id); }catch(e){}
+  return { text, keyInfo, bpm };
+}
+
+function stageBlocksFor(song, text){
+  const sections = getViewerSections(song, text);
+  const flow = getSongFlow(song, sections);
+  const hasFlow = Array.isArray(song.flow) && song.flow.length > 0;
+  return hasFlow
+    ? getExpandedDisplayBlocks(sections, flow)
+    : sections.map(sec => ({ isNote:false, id:sec._id, name:sec.name, lines:sec.lines }));
+}
+
+function stageLineupInfo(){
+  if(!currentSong) return null;
+  const songs = (getLocalLineup().songs) || [];
+  const idx = songs.findIndex(entry => entry.id === currentSong.id);
+  if(songs.length < 2 || idx === -1) return null;
+  return { songs, idx };
+}
+
+function stageNextMeta(entry){
+  const song = getSongs().find(item => item.id === entry.id);
+  if(!song) return '';
+  let meta = '';
+  try{
+    const copy = Object.assign({}, song, {
+      originalText: decodeHtmlEntities(song.originalText || song.text || '')
+    });
+    const data = stageSongData(copy);
+    if(data.keyInfo) meta += data.keyInfo.label;
+    if(data.bpm) meta += (meta ? ' · ' : '') + data.bpm + ' BPM';
+  }catch(e){}
+  return meta;
+}
+
+/* Scroll speed is the 1-5 level you pick (BPM says nothing about lyric pace). */
+function stagePxPerSecond(){
+  return AUTO_SCROLL_SPEEDS[stageSpeedLevel] || AUTO_SCROLL_SPEEDS[2];
+}
+
+/* Each song remembers its own scroll speed, so you only tune it once. */
+function stageGetSavedSpeed(songId){
+  try{
+    const map = JSON.parse(localStorage.getItem('disciplesStageSpeeds') || '{}');
+    const v = map[songId];
+    if(v >= 1 && v <= 5) return v;
+  }catch(e){}
+  return null;
+}
+
+function stageSaveSpeed(songId, level){
+  try{
+    const map = JSON.parse(localStorage.getItem('disciplesStageSpeeds') || '{}');
+    map[songId] = level;
+    localStorage.setItem('disciplesStageSpeeds', JSON.stringify(map));
+  }catch(e){}
+}
+
+function stageStopScroll(){
+  stageScrollActive = false;
+  stageScrollLast = null;
+  if(stageScrollRAF) cancelAnimationFrame(stageScrollRAF);
+  stageScrollRAF = null;
+  const btn = document.getElementById('stagePlayBtn');
+  if(btn){
+    btn.classList.remove('on');
+    btn.innerHTML = STAGE_PLAY_ICON;
+  }
+}
+
+function stageScrollStep(now){
+  if(!stageScrollActive) return;
+  const el = document.getElementById('stageScroll');
+  if(!el){ stageStopScroll(); return; }
+  if(stageScrollLast === null) stageScrollLast = now;
+  const dt = (now - stageScrollLast) / 1000;
+  stageScrollLast = now;
+  stageScrollPos += stagePxPerSecond() * dt;
+  el.scrollTop = stageScrollPos;
+  if(el.scrollTop + el.clientHeight >= el.scrollHeight - 2){
+    stageStopScroll();
+    return;
+  }
+  stageScrollRAF = requestAnimationFrame(stageScrollStep);
+}
+
+function stageStartScroll(){
+  const el = document.getElementById('stageScroll');
+  if(!el) return;
+  stageScrollActive = true;
+  stageScrollLast = null;
+  stageScrollPos = el.scrollTop;
+  const btn = document.getElementById('stagePlayBtn');
+  if(btn){
+    btn.classList.add('on');
+    btn.innerHTML = STAGE_PAUSE_ICON;
+  }
+  stageScrollRAF = requestAnimationFrame(stageScrollStep);
+}
+
+async function stageRequestWake(){
+  try{
+    if('wakeLock' in navigator && !stageWakeLock){
+      stageWakeLock = await navigator.wakeLock.request('screen');
+      stageWakeLock.addEventListener('release', () => { stageWakeLock = null; });
+    }
+  }catch(e){}
+}
+
+function stageReleaseWake(){
+  try{
+    if(stageWakeLock) stageWakeLock.release();
+  }catch(e){}
+  stageWakeLock = null;
+}
+
+function stageRefresh(){
+  const overlay = document.getElementById('stageOverlay');
+  if(!overlay || !currentSong) return;
+
+  stageStopScroll();
+
+  const data = stageSongData(currentSong);
+  const blocks = stageBlocksFor(currentSong, data.text);
+  const lineup = stageLineupInfo();
+
+  const meta = [];
+  if(data.keyInfo) meta.push('Key ' + data.keyInfo.label);
+  if(data.bpm) meta.push(data.bpm + ' BPM');
+  if(lineup) meta.push((lineup.idx + 1) + ' of ' + lineup.songs.length);
+
+  overlay.querySelector('.stageTitle').textContent = currentSong.title || 'Untitled Song';
+  overlay.querySelector('.stageMeta').textContent = meta.join(' · ');
+
+  const lyrics = document.getElementById('stageLyrics');
+  lyrics.style.fontSize = stageGetFont() + 'px';
+  lyrics.innerHTML =
+    '<div class="songStructure' + (stageShowChords ? '' : ' chordsHidden') + '" id="stageStructure">' +
+      renderSongStructureHTML(blocks) +
+    '</div>';
+
+  document.getElementById('stageScroll').scrollTop = 0;
+  stageScrollPos = 0;
+
+  const next = overlay.querySelector('#stageNext');
+  const prevBtn = overlay.querySelector('#stagePrevBtn');
+  const nextBtn = overlay.querySelector('#stageNextBtn');
+
+  if(lineup){
+    const hasNext = lineup.idx < lineup.songs.length - 1;
+    prevBtn.disabled = lineup.idx === 0;
+    nextBtn.disabled = !hasNext;
+    if(hasNext){
+      const entry = lineup.songs[lineup.idx + 1];
+      next.hidden = false;
+      next.querySelector('.stageNextTitle').textContent = entry.title || 'Untitled Song';
+      next.querySelector('.stageNextMeta').textContent = stageNextMeta(entry);
+    }else{
+      next.hidden = true;
+    }
+  }else{
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+    next.hidden = true;
+  }
+
+  const savedSpeed = stageGetSavedSpeed(currentSong.id);
+  if(savedSpeed) stageSpeedLevel = savedSpeed;
+  else stageSpeedLevel = Math.max(1, Math.min(5, autoScrollSpeedLevel || 2));
+
+  overlay.querySelector('#stageSpeedLabel').textContent = stageSpeedLevel + 'x';
+}
+
+function stageGo(delta){
+  const lineup = stageLineupInfo();
+  if(!lineup) return;
+  const target = lineup.idx + delta;
+  if(target < 0 || target >= lineup.songs.length) return;
+  goToLineupSongById(lineup.songs[target].id);
+  stageRefresh();
+}
+
+function openStageMode(){
+  if(stageOpen || !currentSong) return;
+
+  try{ stopAutoScroll(); }catch(e){}
+
+  stageOpen = true;
+  stageShowChords = (typeof showChords === 'undefined') ? true : !!showChords;
+  stageSpeedLevel = Math.max(1, Math.min(5, autoScrollSpeedLevel || 2));
+
+  const overlay = document.createElement('div');
+  overlay.id = 'stageOverlay';
+  overlay.className = 'stageOverlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-label', 'Stage mode');
+  overlay.innerHTML = `
+    <div class="stageTop">
+      <button class="stageIconBtn" id="stageCloseBtn" type="button" aria-label="Exit stage mode">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <div class="stageTitleBlock">
+        <div class="stageTitle"></div>
+        <div class="stageMeta"></div>
+      </div>
+      <button class="stageIconBtn${stageShowChords ? ' on' : ''}" id="stageChordsBtn" type="button" aria-label="Show or hide chords">Chords</button>
+    </div>
+    <div class="stageScroll" id="stageScroll">
+      <div class="stageLyrics" id="stageLyrics"></div>
+      <div class="stageEndSpacer"></div>
+    </div>
+    <div class="stageNext" id="stageNext" hidden>
+      <span class="stageNextLabel">NEXT</span>
+      <span class="stageNextTitle"></span>
+      <span class="stageNextMeta"></span>
+    </div>
+    <div class="stageControls">
+      <button class="stageIconBtn" id="stagePrevBtn" type="button" aria-label="Previous song">
+        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <button class="stageIconBtn" id="stageFontDown" type="button" aria-label="Smaller text">A−</button>
+      <button class="stageIconBtn" id="stageFontUp" type="button" aria-label="Larger text">A+</button>
+      <button class="stageIconBtn" id="stageSpeedDown" type="button" aria-label="Slower scroll">−</button>
+      <button class="stageIconBtn stagePlay" id="stagePlayBtn" type="button" aria-label="Start or stop auto-scroll">${STAGE_PLAY_ICON}</button>
+      <span class="stageIconBtn stageSpeed" id="stageSpeedLabel" style="pointer-events:none;background:transparent;border-color:transparent;">2x</span>
+      <button class="stageIconBtn" id="stageSpeedUp" type="button" aria-label="Faster scroll">+</button>
+      <button class="stageIconBtn" id="stageNextBtn" type="button" aria-label="Next song">
+        <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  document.getElementById('stageCloseBtn').onclick = closeStageMode;
+
+  document.getElementById('stageChordsBtn').onclick = () => {
+    stageShowChords = !stageShowChords;
+    document.getElementById('stageChordsBtn').classList.toggle('on', stageShowChords);
+    const st = document.getElementById('stageStructure');
+    if(st) st.classList.toggle('chordsHidden', !stageShowChords);
+  };
+
+  document.getElementById('stageFontDown').onclick = () => stageSetFont(stageGetFont() - 2);
+  document.getElementById('stageFontUp').onclick = () => stageSetFont(stageGetFont() + 2);
+
+  const setSpeed = delta => {
+    stageSpeedLevel = Math.max(1, Math.min(5, stageSpeedLevel + delta));
+    document.getElementById('stageSpeedLabel').textContent = stageSpeedLevel + 'x';
+    if(currentSong) stageSaveSpeed(currentSong.id, stageSpeedLevel);
+  };
+  document.getElementById('stageSpeedDown').onclick = () => setSpeed(-1);
+  document.getElementById('stageSpeedUp').onclick = () => setSpeed(1);
+
+  document.getElementById('stagePlayBtn').onclick = () => {
+    if(stageScrollActive) stageStopScroll(); else stageStartScroll();
+  };
+
+  document.getElementById('stagePrevBtn').onclick = () => stageGo(-1);
+  document.getElementById('stageNextBtn').onclick = () => stageGo(1);
+  document.getElementById('stageNext').onclick = () => stageGo(1);
+
+  /* swipe left / right between lineup songs; touching the text pauses auto-scroll */
+  const scroller = document.getElementById('stageScroll');
+  let sx = 0, sy = 0, tracking = false;
+  scroller.addEventListener('touchstart', event => {
+    if(stageScrollActive) stageStopScroll();
+    if(event.touches.length !== 1) return;
+    sx = event.touches[0].clientX;
+    sy = event.touches[0].clientY;
+    tracking = true;
+  }, { passive:true });
+  scroller.addEventListener('touchend', event => {
+    if(!tracking) return;
+    tracking = false;
+    const t = event.changedTouches[0];
+    const dx = t.clientX - sx;
+    const dy = t.clientY - sy;
+    if(Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 2){
+      stageGo(dx < 0 ? 1 : -1);
+    }
+  }, { passive:true });
+
+  stageRefresh();
+  stageRequestWake();
+}
+
+function closeStageMode(){
+  stageStopScroll();
+  stageReleaseWake();
+  const overlay = document.getElementById('stageOverlay');
+  if(overlay) overlay.remove();
+  stageOpen = false;
+}
+
+document.addEventListener('click', event => {
+  if(event.target.closest && event.target.closest('#songStageBtn')){
+    openStageMode();
+  }
+});
+
+document.addEventListener('keydown', event => {
+  if(event.key === 'Escape' && stageOpen) closeStageMode();
+});
+
+document.addEventListener('visibilitychange', () => {
+  if(stageOpen && !document.hidden) stageRequestWake();
+});
 </script>
 
 </body>
