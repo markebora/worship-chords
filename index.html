@@ -8404,28 +8404,45 @@ body.songBottomHidden .annotateToolbar{
 .hero h1{text-shadow:0 2px 18px rgba(0,0,0,.55),0 0 34px rgba(232,185,35,.28)}
 
 /* =========================================================
-   LIBRARY — flat song rows on pure black (thumbnail, title, key)
-   No card box, no border: just the cover art and text.
+   FLAT SONG ROWS ON PURE BLACK — everywhere a song appears
+   (Library, Lyrics list, setlists, lineups, picker, Home).
+   No card box, no border: cover art, title and key only.
 ========================================================= */
-.librarySection .songCard{
+.songCard{
   background:#000000; border:0; border-radius:0; box-shadow:none;
   padding:7px 4px 7px 4px; margin:0; gap:14px;
 }
-.librarySection .songCard:active{
+.songCard:active{
   background:#0c0c0e; box-shadow:none; transform:none;
   backdrop-filter:none; -webkit-backdrop-filter:none;
 }
-.librarySection .songCard.selected{background:#121216; border-radius:12px}
-.librarySection .songCard.selectable{padding-left:44px}
-.librarySection .songCard .songIcon.songThumb{
+.songCard.selected{background:#121216; border-radius:12px}
+.songCard.selectable{padding-left:44px}
+.songCard .songIcon.songThumb{
   width:46px; height:46px; border-radius:11px;
 }
-.librarySection .songCard .songName{font-size:16px; font-weight:700; line-height:1.2}
-.librarySection .songCard .songMeta{font-size:12.5px; color:#8c8c94; margin-top:2px; line-height:1.2}
-.librarySection .songCard .songKeyBadge{min-width:30px; height:30px; font-size:12.5px; padding:0 8px; background:#1c1c1f}
-.librarySection .songCard .favoriteBtn{padding:4px}
-.librarySection .songCard .favoriteBtn svg{width:19px; height:19px}
-.librarySection .songCard .songSyncDot{width:26px; height:26px; margin-left:0}
+.songCard .songName{font-size:16px; font-weight:700; line-height:1.2}
+.songCard .songMeta{font-size:12.5px; color:#8c8c94; margin-top:2px; line-height:1.2}
+.songCard .songKeyBadge{min-width:30px; height:30px; font-size:12.5px; padding:0 8px; background:#1c1c1f}
+.songCard .favoriteBtn{padding:4px}
+.songCard .favoriteBtn svg{width:19px; height:19px}
+.songCard .songSyncDot{width:26px; height:26px; margin-left:0}
+
+/* setlist + lineup entries, lineup song picker */
+.setlistSongRow,
+.lineupEntry{
+  background:#000000; border:0; box-shadow:none; border-radius:12px;
+}
+.lineupEntry.longPressing{background:#121216}
+.lineupPickerRow{border-bottom-color:transparent}
+
+/* Home: Recent songs and Continue */
+.homeRecentCard,
+.homeContinue{
+  background:#000000; border:0; box-shadow:none;
+}
+.homeRecentCard:active,
+.homeContinue:active{background:#0c0c0e}
 </style>
 
 </head>
