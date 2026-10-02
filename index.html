@@ -615,9 +615,9 @@ button{
   transition:transform .28s cubic-bezier(.22,.8,.36,1);
 }
 
-/* Slides away while scrolling down, back on scroll up (see navAutoHide) */
+/* (Auto-hide on scroll removed — nav stays fixed at the bottom.) */
 .nav.navHidden{
-  transform:translateX(-50%) translateY(calc(100% + 28px));
+  transform:translateX(-50%);
 }
 
 /* Centre "Now playing" button — only visible while the metronome runs */
@@ -10337,57 +10337,7 @@ function navSyncNowPlaying(){
 
 }
 
-(function navAutoHide(){
-
-  const nav =
-    document.querySelector('.nav');
-
-  if(!nav)return;
-
-  const lastY =
-    new WeakMap();
-
-  function readY(target){
-
-    if(target === document || target === document.documentElement || target === document.body || !target || target.scrollTop === undefined){
-      return window.scrollY || document.documentElement.scrollTop || 0;
-    }
-
-    return target.scrollTop;
-
-  }
-
-  /* Capture phase so it works whichever element is the scroller */
-  window.addEventListener('scroll', event => {
-
-    const target =
-      event.target;
-
-    const y =
-      readY(target);
-
-    const prev =
-      lastY.has(target) ? lastY.get(target) : y;
-
-    lastY.set(target, y);
-
-    const delta =
-      y - prev;
-
-    if(y <= 40 || delta < -8){
-
-      nav.classList.remove('navHidden');
-
-    }else if(delta > 8 && y > 90){
-
-      nav.classList.add('navHidden');
-
-    }
-
-  }, { passive:true, capture:true });
-
-})();
-
+/* The main nav is pinned to the bottom and never auto-hides on scroll. */
 function navShow(){
 
   const nav =
