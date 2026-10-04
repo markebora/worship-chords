@@ -5722,6 +5722,11 @@ body.songBottomHidden .annotateToolbar{
   border-color:var(--accent);
 }
 
+.lineupEventLabelInput{
+  margin-bottom:14px;
+  font-size:15px;
+}
+
 .lineupTimesSaveBtn{
   width:100%;
   margin-top:12px;
@@ -5846,6 +5851,105 @@ body.songBottomHidden .annotateToolbar{
 .lineupSetNowBtn{
   width:100%;
   margin-top:4px;
+}
+
+.lineupSheetChip{
+  display:inline-block;
+  max-width:100%;
+  margin-bottom:10px;
+  padding:5px 11px;
+
+  border-radius:99px;
+  background:var(--accent-glow);
+  border:1px solid var(--accent);
+  color:var(--accent-strong);
+
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.02em;
+
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.lineupSheetTitle{
+  margin-bottom:12px;
+  font-size:19px;
+  font-weight:800;
+  color:#f7f7f7;
+  overflow-wrap:anywhere;
+}
+
+.lineupSheetInfoBlock{
+  margin-bottom:14px;
+  padding:4px 12px;
+  background:#0e0e10;
+  border:1px solid #2a2a2f;
+  border-radius:12px;
+}
+
+.lineupSheetInfoRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 0;
+  font-size:13.5px;
+}
+
+.lineupSheetInfoRow + .lineupSheetInfoRow{
+  border-top:1px solid #232327;
+}
+
+.lineupSheetInfoLabel{
+  color:#a7a7ad;
+}
+
+.lineupSheetInfoValue{
+  font-weight:800;
+  color:#f7f7f7;
+}
+
+.lineupSheetSectionLabel{
+  margin:4px 0 6px;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:#8a8a92;
+}
+
+.lineupSheetSongNum{
+  width:22px;
+  flex-shrink:0;
+  font-size:12.5px;
+  font-weight:800;
+  color:var(--accent);
+}
+
+.lineupSheetSongTitle{
+  flex:1;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.lineupSheetSongMeta{
+  margin-left:10px;
+  flex-shrink:0;
+  font-size:12px;
+  color:#8a8a92;
+}
+
+.lineupSheetFoot{
+  margin-top:10px;
+  font-size:12.5px;
+  color:#8a8a92;
+}
+
+.lineupSheetBtns{
+  margin-top:18px;
 }
 
 
@@ -11413,6 +11517,7 @@ async function startLineupLiveListener(){
               videos: Array.isArray(data.videos) ? data.videos : [],
               updatedBy: data.updatedBy || '',
               eventType: data.eventType || 'sunday-worship',
+              eventLabel: data.eventLabel || '',
               rehearsalTime: data.rehearsalTime || '',
               serviceTime: data.serviceTime || ''
 
@@ -14730,10 +14835,21 @@ function formatLineupWeekdayLabel(key){
   widget, so the team sees exactly what they're about to open
   (Sunday Worship / Rehearsal / Event) before tapping in.
 */
-function formatLineupEventTypeLabel(eventType){
+function formatLineupEventTypeLabel(eventType, eventLabel){
 
   if(eventType === 'rehearsal')return 'Rehearsal';
-  if(eventType === 'event')return 'Event';
+
+  if(eventType === 'event'){
+
+    /* Free-text "what's it for?" (e.g. "Youth Night") wins over
+       the generic word when one's been typed in. */
+    const custom =
+      (eventLabel || '').trim();
+
+    return custom || 'Event';
+
+  }
+
   return 'Sunday Worship';
 
 }
@@ -14763,6 +14879,13 @@ function emptyLineup(key){
           on the other side, Disciples!"
     */
     eventType:'sunday-worship',
+    /*
+      Free-text "what's this event for?" — only used when
+      eventType is 'event' (e.g. "Youth Night", "Baptism").
+      Shown on the calendar day sheet and on the Home/Calendar
+      "Open ..." button.
+    */
+    eventLabel:'',
     /*
       HH:MM (24h, local time) for the reminder pushes above. Which
       day each one is anchored to depends on eventType (see
@@ -14846,6 +14969,12 @@ async function flushLineupTimesSave(){
   const serviceValue =
     serviceTimeInput ? serviceTimeInput.value || '' : null;
 
+  const eventLabelInput =
+    document.getElementById('lineupEventLabelInput');
+
+  const eventLabelValue =
+    eventLabelInput ? (eventLabelInput.value || '').trim() : null;
+
   /* Optimistically clear — a failure below sets it back to true
      so the next flush (or the next edit) retries. */
   lineupTimesDirty = false;
@@ -14879,6 +15008,7 @@ async function flushLineupTimesSave(){
 
       if(rehearsalValue !== null)remote.rehearsalTime = rehearsalValue;
       if(serviceValue !== null)remote.serviceTime = serviceValue;
+      if(eventLabelValue !== null)remote.eventLabel = eventLabelValue;
 
       await uploadLineup(remote, dateKeyBeingSaved);
 
@@ -15118,6 +15248,7 @@ async function downloadLineup(explicitDateKey){
     videos: Array.isArray(payload && payload.videos) ? payload.videos : [],
     updatedBy: (payload && payload.updatedBy) || '',
     eventType: (payload && payload.eventType) || 'sunday-worship',
+    eventLabel: (payload && payload.eventLabel) || '',
     rehearsalTime: (payload && payload.rehearsalTime) || '',
     serviceTime: (payload && payload.serviceTime) || ''
 
@@ -15161,6 +15292,7 @@ async function downloadAllLineups(){
       videos: Array.isArray(payload.videos) ? payload.videos : [],
       updatedBy: payload.updatedBy || '',
       eventType: payload.eventType || 'sunday-worship',
+      eventLabel: payload.eventLabel || '',
       rehearsalTime: payload.rehearsalTime || '',
       serviceTime: payload.serviceTime || ''
 
@@ -15193,6 +15325,7 @@ async function uploadLineup(state, explicitDateKey){
         updatedBy: state.updatedBy || '',
         updatedAt: new Date().toISOString(),
         eventType: state.eventType || 'sunday-worship',
+        eventLabel: state.eventLabel || '',
         rehearsalTime: state.rehearsalTime || '',
         serviceTime: state.serviceTime || ''
 
@@ -17329,7 +17462,7 @@ function renderHome(){
 
           <button type="button" class="homeOpenBtn" id="homeLineupOpenBtn">${
             lineupSongs.length
-              ? `Open ${esc(formatLineupEventTypeLabel(lineup.eventType))}`
+              ? `Open ${esc(formatLineupEventTypeLabel(lineup.eventType, lineup.eventLabel))}`
               : 'Plan lineup'
           }</button>
 
@@ -34410,6 +34543,21 @@ function renderLineupTimesCardHTML(lineup){
       >Event</button>
     </div>
 
+    ${
+      lineup.eventType === 'event' ? `
+        <div class="lineupTimesLabel">What's it for?</div>
+        <input
+          type="text"
+          class="lineupTimeInput lineupEventLabelInput"
+          id="lineupEventLabelInput"
+          maxlength="60"
+          placeholder="e.g. Youth Night, Baptism, Outreach"
+          autocomplete="off"
+          value="${esc(lineup.eventLabel || '')}"
+        >
+      ` : ''
+    }
+
     <div class="lineupTimesLabel">
       ${
         lineup.eventType === 'rehearsal'
@@ -34490,6 +34638,9 @@ function wireLineupTimesCard(){
   const timesSaveBtn =
     document.getElementById('lineupTimesSaveBtn');
 
+  const eventLabelInput =
+    document.getElementById('lineupEventLabelInput');
+
   /* Freshly (re)built card always reflects whatever's already
      saved (or, for the optimistic pill-tap render, about to be)
      — nothing pending on these particular inputs yet. */
@@ -34505,6 +34656,11 @@ function wireLineupTimesCard(){
   if(serviceTimeInput){
     serviceTimeInput.oninput = markLineupTimesDirty;
     serviceTimeInput.addEventListener('change', flushLineupTimesSave);
+  }
+
+  if(eventLabelInput){
+    eventLabelInput.oninput = markLineupTimesDirty;
+    eventLabelInput.addEventListener('change', flushLineupTimesSave);
   }
 
   if(timesSaveBtn)timesSaveBtn.onclick = flushLineupTimesSave;
@@ -35394,6 +35550,18 @@ function renderLineupCalendar(){
   const highlightedDates =
     new Set(getLineupDateKeysWithSongs());
 
+  /* A date with a named event is "planned" even before any song
+     is added, so it should light up on the calendar too. */
+  (() => {
+    const all = getAllLocalLineups();
+    Object.keys(all).forEach(k => {
+      const e = all[k];
+      if(e && e.eventType === 'event' && (e.eventLabel || '').trim()){
+        highlightedDates.add(k);
+      }
+    });
+  })();
+
   const viewYear =
     lineupCalendarViewDate.getFullYear();
 
@@ -35491,7 +35659,7 @@ function renderLineupCalendar(){
         }
 
         <button class="lineupTopWidgetOpenBtn" type="button" id="lineupTopWidgetOpenBtn">
-          Open ${esc(formatLineupEventTypeLabel(activeLineup.eventType))} →
+          Open ${esc(formatLineupEventTypeLabel(activeLineup.eventType, activeLineup.eventLabel))} →
         </button>
 
       </div>
@@ -35685,6 +35853,28 @@ function closeLineupDaySheet(onClosed){
 
 }
 
+function formatLineupTime12(hhmm){
+
+  const match =
+    /^(\d{1,2}):(\d{2})$/.exec(hhmm || '');
+
+  if(!match)return '';
+
+  let hour =
+    parseInt(match[1], 10);
+
+  const minute =
+    match[2];
+
+  const suffix =
+    hour >= 12 ? 'PM' : 'AM';
+
+  hour = hour % 12 || 12;
+
+  return hour + ':' + minute + ' ' + suffix;
+
+}
+
 function openLineupDaySheet(key){
 
   const host =
@@ -35698,11 +35888,67 @@ function openLineupDaySheet(key){
   const hasSongs =
     lineup.songs.length > 0;
 
+  const eventType =
+    lineup.eventType || 'sunday-worship';
+
+  const eventLabel =
+    (lineup.eventLabel || '').trim();
+
+  const hasVideos =
+    Array.isArray(lineup.videos) && lineup.videos.length > 0;
+
+  const hasTimes =
+    !!(lineup.rehearsalTime || lineup.serviceTime);
+
+  /* Anything at all planned for this date? A bare date with only
+     the default title and nothing else is "not set". */
+  const hasAnything =
+    hasSongs || hasVideos || hasTimes ||
+    (eventType === 'event' && !!eventLabel) ||
+    (lineup.title && lineup.title !== 'Worship Lineup');
+
   const longDate =
     dateFromKey(key).toLocaleDateString(
       undefined,
       { weekday:'long', year:'numeric', month:'long', day:'numeric' }
     );
+
+  const songsById =
+    new Map(getSongs().map(song => [song.id, song]));
+
+  /* Headline chip — "Event · Youth Night" when a custom label
+     was typed, otherwise just the type. */
+  const chipText =
+    eventType === 'event' && eventLabel
+      ? 'Event · ' + eventLabel
+      : formatLineupEventTypeLabel(eventType, eventLabel);
+
+  /* Which time(s) apply depends on the event type — a Sunday's
+     rehearsal is the evening BEFORE it. */
+  const timeRows = [];
+
+  const rehearsalDay =
+    eventType === 'sunday-worship'
+      ? (() => {
+          const d = dateFromKey(key);
+          d.setDate(d.getDate() - 1);
+          return d.toLocaleDateString(undefined, { weekday:'short' });
+        })()
+      : null;
+
+  if(eventType !== 'event' && lineup.rehearsalTime){
+    timeRows.push({
+      label: rehearsalDay ? 'Rehearsal (' + rehearsalDay + ')' : 'Rehearsal',
+      value: formatLineupTime12(lineup.rehearsalTime)
+    });
+  }
+
+  if(eventType !== 'rehearsal' && lineup.serviceTime){
+    timeRows.push({
+      label: eventType === 'event' ? 'Event' : 'Service',
+      value: formatLineupTime12(lineup.serviceTime)
+    });
+  }
 
   host.innerHTML = `
 
@@ -35713,27 +35959,82 @@ function openLineupDaySheet(key){
         <div class="lineupSheetHandle"></div>
 
         <div class="lineupSheetDate">${esc(formatLineupDateLabel(key))}</div>
-        <div class="lineupSheetMeta">${esc(longDate)}</div>
+        <div class="lineupSheetMeta" style="margin-bottom:12px;">${esc(longDate)}</div>
 
         ${
-          hasSongs
-          ? lineup.songs.map(entry => `
-              <div class="lineupSheetSongRow">
-                <span>${esc(entry.title || 'Untitled Song')}</span>
-              </div>
-            `).join('')
-          : `<div class="lineupSheetMeta" style="margin-bottom:18px;">No lineup set under it — set now?</div>`
+          hasAnything
+          ? `
+            <div class="lineupSheetChip">${esc(chipText)}</div>
+
+            <div class="lineupSheetTitle">${esc(lineup.title || 'Worship Lineup')}</div>
+
+            ${
+              timeRows.length
+              ? `
+                <div class="lineupSheetInfoBlock">
+                  ${timeRows.map(row => `
+                    <div class="lineupSheetInfoRow">
+                      <span class="lineupSheetInfoLabel">${esc(row.label)}</span>
+                      <span class="lineupSheetInfoValue">${esc(row.value)}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              `
+              : ''
+            }
+
+            <div class="lineupSheetSectionLabel">
+              Songs${hasSongs ? ' · ' + lineup.songs.length : ''}
+            </div>
+
+            ${
+              hasSongs
+              ? lineup.songs.map((entry, index) => {
+
+                  const song =
+                    songsById.get(entry.id);
+
+                  const meta =
+                    song ? formatLineupSongMeta(song) : '';
+
+                  return `
+                    <div class="lineupSheetSongRow">
+                      <span class="lineupSheetSongNum">${index + 1}</span>
+                      <span class="lineupSheetSongTitle">${esc(entry.title || 'Untitled Song')}</span>
+                      ${meta ? `<span class="lineupSheetSongMeta">${esc(meta)}</span>` : ''}
+                    </div>
+                  `;
+
+                }).join('')
+              : `<div class="lineupSheetMeta" style="margin-bottom:6px;">No songs yet.</div>`
+            }
+
+            ${
+              hasVideos
+              ? `<div class="lineupSheetFoot">▶ ${lineup.videos.length} YouTube link${lineup.videos.length === 1 ? '' : 's'}</div>`
+              : ''
+            }
+
+            ${
+              lineup.updatedBy
+              ? `<div class="lineupSheetFoot">Last updated by ${esc(lineup.updatedBy)}</div>`
+              : ''
+            }
+          `
+          : `<div class="lineupSheetMeta" style="margin-bottom:18px;">Nothing planned for this date yet.</div>`
         }
 
-        <button class="toolbarBtn primary lineupSetNowBtn" type="button" id="lineupSheetSetNowBtn">
-          ${hasSongs ? 'Add more songs' : 'Set now?'}
-        </button>
+        <div class="lineupSheetBtns">
 
-        ${
-          hasSongs
-          ? `<button class="toolbarBtn lineupSetNowBtn" type="button" id="lineupSheetOpenBtn" style="margin-top:8px;">Open full lineup</button>`
-          : ''
-        }
+          <button class="toolbarBtn primary lineupSetNowBtn" type="button" id="lineupSheetOpenBtn">
+            ${hasAnything ? 'Open full lineup' : 'Plan this date'}
+          </button>
+
+          <button class="toolbarBtn lineupSetNowBtn" type="button" id="lineupSheetSetNowBtn" style="margin-top:8px;">
+            ${hasSongs ? 'Add more songs' : 'Add songs'}
+          </button>
+
+        </div>
 
       </div>
 
@@ -35752,14 +36053,9 @@ function openLineupDaySheet(key){
     closeLineupDaySheet(() => renderLineupSongPicker(key));
   };
 
-  const openBtn =
-    document.getElementById('lineupSheetOpenBtn');
-
-  if(openBtn){
-    openBtn.onclick = () => {
-      closeLineupDaySheet(() => renderLineupDetail(key));
-    };
-  }
+  document.getElementById('lineupSheetOpenBtn').onclick = () => {
+    closeLineupDaySheet(() => renderLineupDetail(key));
+  };
 
   requestAnimationFrame(() => {
     back.classList.add('open');
