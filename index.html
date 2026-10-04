@@ -4409,6 +4409,10 @@ body.songBottomHidden .annotateToolbar{
 .analysisTitleRow{display:flex;align-items:center;gap:8px;min-width:0;margin-bottom:2px;}
 .keyBadge{display:inline-block;margin:10px 0 4px;background:#1d3a2b;color:#7fe0a3;font-size:12px;font-weight:800;padding:5px 12px;border-radius:20px;border:1px solid #2c5a41;}
 .capoBadge{display:inline-block;margin:10px 0 4px 6px;background:#2a2410;color:#e8c66a;font-size:12px;font-weight:800;padding:5px 12px;border-radius:20px;border:1px solid #4a3f18;}
+.keyBadgeBtn{font-family:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.keyPickGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+.keyPickBtn{padding:11px 0;border-radius:10px;border:1px solid #2d2d32;background:#1c1c1f;color:#f3f3f3;font:inherit;font-size:14px;font-weight:700;cursor:pointer;}
+.keyPickBtn.active{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
 .songHeaderKey{flex:0 0 auto;margin:0;font-size:11px;padding:4px 10px;white-space:nowrap;}
 .bpmHeaderBadge{display:inline-block;flex:0 0 auto;margin:0;background:#132a3d;color:#7fc4ff;font-size:11px;font-weight:800;padding:4px 10px;border-radius:20px;border:1px solid #1f4d70;white-space:nowrap;}
 .analysisTitle{margin:0;flex:1;min-width:0;font-size:17px;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -24158,6 +24162,47 @@ function detectKeyFromChords(chordTokens){
 
 
 /*
+  Manual key override. Detection can be wrong on odd charts, so a
+  song can carry keyOverride = the ORIGINAL key label ("G", "Em",
+  "F#m"). The shown key still follows the song's transpose steps.
+  Returns the same {tonic, mode, label} shape detection returns.
+*/
+function applyKeyOverride(song, detected){
+
+  const raw =
+    song && typeof song.keyOverride === 'string'
+      ? song.keyOverride.trim()
+      : '';
+
+  const match =
+    /^([A-G](?:#|b)?)(m?)$/.exec(raw);
+
+  if(!match)return detected;
+
+  const base =
+    chromatic.indexOf(normalizeNote(match[1]));
+
+  if(base === -1)return detected;
+
+  const shift =
+    ((song.transposeSteps || 0) % 12 + 12) % 12;
+
+  const tonic =
+    chromatic[(base + shift) % 12];
+
+  const isMinor =
+    match[2] === 'm';
+
+  return {
+    tonic,
+    mode: isMinor ? 'minor' : 'major',
+    label: isMinor ? tonic + 'm' : tonic,
+    manual: true
+  };
+
+}
+
+/*
   Suggests a capo position that lets a guitarist play open,
   beginner-friendly chord shapes instead of the song's actual
   (harder) key — e.g. key of D# suggested as "Capo 1, play in D".
@@ -24498,6 +24543,48 @@ function extractChordTokens(text){
 
 }
 
+/*
+  Chords for KEY detection only. extractChordTokens() scans every
+  line, so lyric words that look like chords ("A mighty God",
+  "Am I the one") get counted and can pull the key the wrong way.
+  Here only real chord lines and inline [G]-style chords count, and
+  every repeat counts (a chord played 8 times weighs more than one
+  played twice).
+*/
+function extractKeyChordTokens(text){
+
+  const out = [];
+
+  String(text || '').split(/\r?\n/).forEach(line => {
+
+    if(isChordOnlyLine(line)){
+
+      line
+        .split(/[\s|]+/)
+        .forEach(part => {
+          if(part && isChordToken(part))out.push(part.replace(/^[\[\(\{<]+|[\]\)\}>.,;:!?]+$/g,''));
+        });
+
+      return;
+
+    }
+
+    const bracketRegex = /\[([^\]\s]+)\]/g;
+
+    let m;
+
+    while((m = bracketRegex.exec(line))){
+      if(isChordToken(m[1]))out.push(m[1]);
+    }
+
+  });
+
+  /* No chord lines found (plain-text chart styles): fall back to
+     the old scan so detection never goes blank. */
+  return out.length ? out : extractChordTokens(text);
+
+}
+
 
 /* =========================================================
    ANALYZER
@@ -24592,7 +24679,7 @@ function analyzeFocusedSong(text){
 
     key:
       detectKeyFromChords(
-        extractChordTokens(text)
+        extractKeyChordTokens(text)
       )
 
   };
@@ -25836,7 +25923,7 @@ function getExpandedDisplayBlocks(sections, flow){
 
       const keyLabel =
         hasKeyChange
-          ? (detectKeyFromChords(extractChordTokens(lines.join('\n'))) || {}).label
+          ? (detectKeyFromChords(extractKeyChordTokens(lines.join('\n'))) || {}).label
           : undefined;
 
       blocks.push({
@@ -25874,7 +25961,7 @@ function showTransposeKeyToast(sourceText, steps){
 
   const info =
     detectKeyFromChords(
-      extractChordTokens(
+      extractKeyChordTokens(
         transposeText(sourceText || '', steps)
       )
     );
@@ -26362,7 +26449,7 @@ function renderFlowListHTML(flow, sections){
         ? (() => {
             const detected =
               detectKeyFromChords(
-                extractChordTokens(
+                extractKeyChordTokens(
                   section.lines.map(line => transposeText(line, item.keyChangeSteps)).join('\n')
                 )
               );
@@ -26793,7 +26880,7 @@ function attachFlowControls(target, flow, sections){
       const detected =
         targetSection
           ? detectKeyFromChords(
-              extractChordTokens(
+              extractKeyChordTokens(
                 targetSection.lines.map(line => transposeText(line, value)).join('\n')
               )
             )
@@ -28867,7 +28954,7 @@ function renderSongViewer(){
   const displayedText=transposeText(song.originalText||song.text||'',amount);
   song.text=displayedText;
   const sections=getViewerSections(song,displayedText);
-  const keyInfo=detectKeyFromChords(extractChordTokens(displayedText));
+  const keyInfo=applyKeyOverride(song,detectKeyFromChords(extractKeyChordTokens(displayedText)));
   const capoInfo=getCapoSuggestion(keyInfo);
   const metPresetBpm=metGetSongPresetBpm(song.id);
 
@@ -28901,7 +28988,7 @@ function renderSongViewer(){
           (lineupPillSongs||keyInfo||metPresetBpm!==null||capoInfo) ? `
             <div class="songHeaderMetaRow" id="lineupSongPills" aria-label="${lineupPillSongs?'Songs in this lineup':'Song details'}">
               ${lineupPillSongs?lineupPillSongs.map((entry,index)=>`<button type="button" class="mergePartPill${entry.id===song.id?' active':''}" data-lineup-pill-song="${esc(entry.id)}" aria-label="Song ${index+1}: ${esc(entry.title||'Untitled Song')}">${index+1}</button>`).join(''):''}
-              ${keyInfo?`<div class="keyBadge songHeaderKey">Key: ${esc(keyInfo.label)}</div>`:''}
+              ${keyInfo?`<button type="button" class="keyBadge songHeaderKey keyBadgeBtn" id="songKeyBadge" aria-label="Change key">Key: ${esc(keyInfo.label)}${keyInfo.manual?' ✎':''}</button>`:''}
               ${metPresetBpm!==null?`<div class="bpmHeaderBadge" id="bpmHeaderBadge">${metPresetBpm} BPM</div>`:''}
               ${capoInfo?`<div class="capoBadge">Capo ${capoInfo.fret} → ${esc(capoInfo.shape)} shape</div>`:''}
             </div>
@@ -29211,7 +29298,7 @@ function renderMergedSongViewer(){
   const amount=part.transposeSteps||0;
   const displayedText=transposeText(part.text||'',amount);
   const sections=getViewerSections(part,displayedText);
-  const keyInfo=detectKeyFromChords(extractChordTokens(displayedText));
+  const keyInfo=detectKeyFromChords(extractKeyChordTokens(displayedText));
   const capoInfo=getCapoSuggestion(keyInfo);
   const metPresetBpm=metGetSongPresetBpm(part.id);
 
@@ -30374,7 +30461,7 @@ function exportSourceInfo(){
     transposeText(source.originalText || source.text || '', amount);
   return {
     title: source.title || currentSong.title || 'Untitled Song',
-    keyInfo: detectKeyFromChords(extractChordTokens(text))
+    keyInfo: detectKeyFromChords(extractKeyChordTokens(text))
   };
 }
 
@@ -30925,7 +31012,7 @@ function generatePdfFromOptions(){
 
   const keyInfo =
     detectKeyFromChords(
-      extractChordTokens(
+      extractKeyChordTokens(
         displayedText
       )
     );
@@ -31296,7 +31383,7 @@ function generateDocxFromOptions(){
     transposeText(source.originalText || source.text || '', amount);
 
   const keyInfo =
-    detectKeyFromChords(extractChordTokens(displayedText));
+    detectKeyFromChords(extractKeyChordTokens(displayedText));
 
   /* same sizing as the PDF: 1 column 11pt, 2 columns 9.5pt, 3 columns 8.5pt */
   const columns = pdfExportColumns;
@@ -34441,7 +34528,7 @@ function getSongKeyLabel(part){
 
   const keyInfo =
     detectKeyFromChords(
-      extractChordTokens(displayedText)
+      extractKeyChordTokens(displayedText)
     );
 
   return keyInfo ? keyInfo.label : null;
@@ -35506,11 +35593,11 @@ function getSongKeyInfo(song){
 
   if(!song || song.missing)return null;
 
-  return detectKeyFromChords(
-    extractChordTokens(
+  return applyKeyOverride(song, detectKeyFromChords(
+    extractKeyChordTokens(
       transposeText(song.originalText || song.text || '', song.transposeSteps || 0)
     )
-  );
+  ));
 
 }
 
@@ -35962,6 +36049,19 @@ function openLineupDaySheet(key){
     (eventType === 'event' && !!eventLabel) ||
     (lineup.title && lineup.title !== 'Worship Lineup');
 
+  /* Offer a copy only on an empty date, and only if there's an
+     earlier lineup to copy from. */
+  const copySourceKey =
+    hasSongs ? null : findLineupCopySource(key);
+
+  const copySourceLabel =
+    copySourceKey
+      ? dateFromKey(copySourceKey).toLocaleDateString(
+          undefined,
+          { weekday:'short', month:'short', day:'numeric' }
+        )
+      : '';
+
   const longDate =
     dateFromKey(key).toLocaleDateString(
       undefined,
@@ -36089,6 +36189,14 @@ function openLineupDaySheet(key){
             ${hasSongs ? 'Add more songs' : 'Add songs'}
           </button>
 
+          ${
+            copySourceKey
+            ? `<button class="toolbarBtn lineupSetNowBtn" type="button" id="lineupSheetCopyBtn" style="margin-top:8px;">
+                Copy from ${esc(copySourceLabel)}
+              </button>`
+            : ''
+          }
+
         </div>
 
       </div>
@@ -36112,9 +36220,135 @@ function openLineupDaySheet(key){
     closeLineupDaySheet(() => renderLineupDetail(key));
   };
 
+  const copyBtn =
+    document.getElementById('lineupSheetCopyBtn');
+
+  if(copyBtn){
+
+    copyBtn.onclick = async () => {
+
+      copyBtn.disabled = true;
+      copyBtn.textContent = 'Copying…';
+
+      const ok =
+        await copyLineupFromDate(copySourceKey, key);
+
+      if(ok){
+        showToast('Lineup copied.', 'success');
+        renderLineupCalendar();
+        openLineupDaySheet(key);
+      }else{
+        copyBtn.disabled = false;
+        copyBtn.textContent = 'Copy from ' + copySourceLabel;
+      }
+
+    };
+
+  }
+
   requestAnimationFrame(() => {
     back.classList.add('open');
   });
+
+}
+
+
+/*
+  "Copy from last week" — finds the lineup to copy from: the same
+  weekday one week earlier if it has songs, otherwise the most
+  recent earlier date that does. Returns a date key or null.
+*/
+function findLineupCopySource(key){
+
+  const all =
+    getAllLocalLineups();
+
+  const weekAgo =
+    dateFromKey(key);
+
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  const weekAgoKey =
+    dateKey(weekAgo);
+
+  const hasSongs = k =>
+    all[k] && Array.isArray(all[k].songs) && all[k].songs.length > 0;
+
+  if(hasSongs(weekAgoKey))return weekAgoKey;
+
+  const earlier =
+    Object.keys(all)
+      .filter(k => k < key && hasSongs(k))
+      .sort();
+
+  return earlier.length ? earlier[earlier.length - 1] : null;
+
+}
+
+async function copyLineupFromDate(fromKey, toKey){
+
+  if(!await requireFirebaseConfigured())return false;
+
+  if(!(await ensureSyncSession())){
+    showToast('Sign in first to copy a lineup.', 'error');
+    return false;
+  }
+
+  try{
+
+    const source =
+      getLocalLineup(fromKey);
+
+    const remote =
+      await downloadLineup(toKey);
+
+    /* Never overwrite songs someone already added to this date. */
+    if(remote.songs.length){
+      showToast('That date already has songs.', 'error');
+      return false;
+    }
+
+    remote.songs =
+      source.songs.map(item => ({ ...item }));
+
+    remote.eventType =
+      source.eventType || 'sunday-worship';
+
+    remote.eventLabel =
+      source.eventLabel || '';
+
+    if(source.title && source.title !== 'Worship Lineup'){
+      remote.title = source.title;
+    }
+
+    remote.rehearsalTime = source.rehearsalTime || '';
+    remote.serviceTime = source.serviceTime || '';
+
+    if(Array.isArray(source.videos)){
+      remote.videos = source.videos.map(v => ({ ...v }));
+    }
+
+    const user =
+      getGoogleUser();
+
+    remote.updatedBy =
+      (user && user.name) || '';
+
+    await uploadLineup(remote, toKey);
+
+    setLocalLineup(remote, toKey);
+
+    return true;
+
+  }catch(error){
+
+    console.error(error);
+
+    showToast('Could not copy that lineup: ' + error.message, 'error');
+
+    return false;
+
+  }
 
 }
 
@@ -36406,14 +36640,14 @@ function detectSongKeyLabel(song){
   if(!song)return '';
 
   const info =
-    detectKeyFromChords(
-      extractChordTokens(
+    applyKeyOverride(song, detectKeyFromChords(
+      extractKeyChordTokens(
         transposeText(
           song.originalText || song.text || '',
           song.transposeSteps || 0
         )
       )
-    );
+    ));
 
   return info ? info.label : '';
 
@@ -38594,7 +38828,7 @@ function stageSetFont(v){
 function stageSongData(song){
   const amount = song.transposeSteps || 0;
   const text = transposeText(song.originalText || song.text || '', amount);
-  const keyInfo = detectKeyFromChords(extractChordTokens(text));
+  const keyInfo = applyKeyOverride(song, detectKeyFromChords(extractKeyChordTokens(text)));
   let bpm = null;
   try{ bpm = metGetSongPresetBpm(song.id); }catch(e){}
   return { text, keyInfo, bpm };
@@ -38901,7 +39135,95 @@ document.addEventListener('click', event => {
   if(event.target.closest && event.target.closest('#songStageBtn')){
     openStageMode();
   }
+  if(event.target.closest && event.target.closest('#songKeyBadge')){
+    openKeyPicker();
+  }
 });
+
+/*
+  Tap the "Key: X" badge → pick the right key when detection got it
+  wrong. The pick is the key shown NOW; it's stored against the
+  original (untransposed) text so later transposing still works.
+*/
+function openKeyPicker(){
+
+  if(!currentSong)return;
+
+  const old = document.getElementById('keyPickerOverlay');
+  if(old)old.remove();
+
+  const song = currentSong;
+  const shift = ((song.transposeSteps || 0) % 12 + 12) % 12;
+
+  const shownInfo = applyKeyOverride(
+    song,
+    detectKeyFromChords(extractKeyChordTokens(
+      transposeText(song.originalText || song.text || '', song.transposeSteps || 0)
+    ))
+  );
+
+  const shownLabel = shownInfo ? shownInfo.label : '';
+
+  const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+  const btn = (label) =>
+    `<button type="button" class="keyPickBtn${label === shownLabel ? ' active' : ''}" data-key-pick="${label}">${applyChordSpelling ? applyChordSpelling(label.replace(/m$/,'')) + (label.endsWith('m') ? 'm' : '') : label}</button>`;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'keyPickerOverlay';
+
+  overlay.innerHTML = `
+    <div class="lineupSheetBack" id="keyPickerBack">
+      <div class="lineupSheetBox">
+        <div class="lineupSheetHandle"></div>
+        <div class="lineupSheetDate">Song key</div>
+        <div class="lineupSheetMeta" style="margin-bottom:14px;">
+          ${song.keyOverride ? 'Set manually.' : 'Auto-detected' + (shownLabel ? ' as ' + esc(shownLabel) : '') + '.'} Pick the right one if it's off.
+        </div>
+        <div class="lineupSheetSectionLabel">Major</div>
+        <div class="keyPickGrid">${names.map(n => btn(n)).join('')}</div>
+        <div class="lineupSheetSectionLabel">Minor</div>
+        <div class="keyPickGrid">${names.map(n => btn(n + 'm')).join('')}</div>
+        <button class="toolbarBtn lineupSetNowBtn" type="button" id="keyPickAuto">Auto-detect</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const back = document.getElementById('keyPickerBack');
+
+  const close = () => {
+    back.classList.remove('open');
+    setTimeout(() => overlay.remove(), 220);
+  };
+
+  back.onclick = e => { if(e.target === back)close(); };
+
+  overlay.querySelectorAll('[data-key-pick]').forEach(b => {
+    b.onclick = () => {
+      const picked = b.getAttribute('data-key-pick');
+      const m = /^([A-G]#?)(m?)$/.exec(picked);
+      if(!m)return;
+      const shownIdx = chromatic.indexOf(m[1]);
+      const baseIdx = ((shownIdx - shift) % 12 + 12) % 12;
+      song.keyOverride = chromatic[baseIdx] + m[2];
+      saveCurrentSong();
+      close();
+      renderSongViewer();
+    };
+  });
+
+  document.getElementById('keyPickAuto').onclick = () => {
+    delete song.keyOverride;
+    saveCurrentSong();
+    close();
+    renderSongViewer();
+  };
+
+  requestAnimationFrame(() => back.classList.add('open'));
+
+}
 
 document.addEventListener('keydown', event => {
   if(event.key === 'Escape' && stageOpen) closeStageMode();
