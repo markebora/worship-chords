@@ -18041,6 +18041,42 @@ function metSetSongPresetBpm(songId, bpm){
 }
 
 /*
+  A song that hasn't been saved yet (a search/import/analyzer
+  preview) has a temporary id like "preview-…". A tempo saved while
+  viewing it is stored under THAT id, so when the song is saved and
+  gets its real Library id the tempo was orphaned and the default
+  showed instead. This carries the preset across the id change.
+*/
+function metMoveSongPresetBpm(oldId, newId){
+
+  if(!oldId || !newId || oldId === newId)return;
+
+  const presets = metLoadSongPresets();
+
+  if(typeof presets[oldId] !== 'number')return;
+
+  /* Never overwrite a tempo the new id already has. */
+  if(typeof presets[newId] !== 'number'){
+
+    presets[newId] = presets[oldId];
+
+  }
+
+  delete presets[oldId];
+
+  try{
+
+    localStorage.setItem(MET_SONG_PRESET_KEY, JSON.stringify(presets));
+
+  }catch(error){
+
+    console.warn('Could not carry tempo to the saved song:', error);
+
+  }
+
+}
+
+/*
   A "merge" song (a medley of several songs stitched together,
   most commonly built for the Sunday lineup) is one currentSong
   object holding multiple independent parts, each with its own
@@ -23123,6 +23159,8 @@ function saveDraftToLibrary(draftId, onSaved){
     originalText: draft.originalText || draft.text || '',
     kind: 'analyzed'
   };
+
+  metMoveSongPresetBpm(draftId, newId);
 
   songs.unshift(copy);
 
@@ -29833,11 +29871,35 @@ function saveCurrentSong(){
       Give it a real ID and save it.
     */
 
+    const previousSongId =
+      currentSong.id;
+
     currentSong.id =
       window.crypto &&
       crypto.randomUUID
         ? crypto.randomUUID()
         : String(Date.now());
+
+    metMoveSongPresetBpm(previousSongId, currentSong.id);
+
+    if(Array.isArray(currentSong.mergeParts)){
+
+      currentSong.mergeParts.forEach(part => {
+
+        if(!part || !part.id)return;
+
+        const newPartId =
+          String(part.id).startsWith(String(previousSongId))
+            ? currentSong.id + String(part.id).slice(String(previousSongId).length)
+            : part.id;
+
+        metMoveSongPresetBpm(part.id, newPartId);
+
+        part.id = newPartId;
+
+      });
+
+    }
 
 
     currentSong.savedAt =
@@ -29895,6 +29957,12 @@ function saveCurrentSong(){
 
   skipNextScreenTransition=true;
   renderSongViewer();
+
+  /* The song's id may have just changed (preview → saved), so make
+     sure the metronome's preset row reflects the carried-over BPM. */
+  if(typeof metRefreshMiniPresetRow === 'function'){
+    try{ metRefreshMiniPresetRow(); }catch(error){}
+  }
 
 }
 
