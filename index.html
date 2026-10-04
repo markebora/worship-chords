@@ -36864,4 +36864,1702 @@ function renderResults(){
         const song =
           getSongs().find(
             item =>
-       
+              item.id ===
+              button.dataset.open
+          );
+
+
+        if(song){
+
+          openSong(song);
+
+        }
+
+      };
+
+    });
+
+
+  const ugPasteBtn =
+    document.getElementById(
+      'ugPasteBtn'
+    );
+
+  if(ugPasteBtn){
+
+    ugPasteBtn.onclick = async () => {
+
+      if(
+        !navigator.clipboard ||
+        !navigator.clipboard.readText
+      ){
+
+        /*
+          Clipboard read isn't available/permitted (older
+          browser, insecure context, or the user hasn't
+          granted permission) — just focus the field so a
+          manual paste (Ctrl+V, or long-press → Paste on
+          mobile) is one tap away.
+        */
+
+        query.focus();
+
+        return;
+
+      }
+
+
+      try{
+
+        const clipboardText =
+          (await navigator.clipboard.readText())
+            .trim();
+
+        if(clipboardText){
+
+          query.value =
+            clipboardText;
+
+          if(looksLikeUrl(clipboardText)){
+
+            handleTopSearch();
+
+            return;
+
+          }
+
+        }
+
+        query.focus();
+
+      }catch(error){
+
+        query.focus();
+
+      }
+
+    };
+
+  }
+
+}
+
+
+/* =========================================================
+   TOP SEARCH BAR — one input, behavior depends on the
+   active source tab (All / Google Drive / Ultimate Guitar)
+========================================================= */
+
+function looksLikeUrl(value){
+
+  return /^https?:\/\//i.test(
+    value.trim()
+  );
+
+}
+
+
+function handleTopSearch(){
+
+  const value =
+    query.value.trim();
+
+
+  if(source === 'ug'){
+
+    if(!value){
+
+      renderResults();
+
+      return;
+
+    }
+
+
+    if(looksLikeUrl(value)){
+
+      /*
+        Make sure #ugResult exists in the DOM before we try
+        to write status/progress into it.
+      */
+
+      ugAwaitingPaste =
+        false;
+
+      renderResults();
+
+
+      importFromUG(value);
+
+
+      return;
+
+    }
+
+
+    /*
+      No scraping/search API for Ultimate Guitar's catalog —
+      only a direct-URL importer (/api/import) exists. So a
+      plain title search opens UG's own search page; the user
+      copies the chord-page link back here to import it, which
+      auto-detects the lyrics and chords.
+    */
+
+    window.open(
+
+      'https://www.ultimate-guitar.com/search.php?search_type=title&value=' +
+      encodeURIComponent(value),
+
+      '_blank'
+
+    );
+
+
+    ugAwaitingPaste =
+      true;
+
+    query.value =
+      '';
+
+    renderResults();
+
+    query.focus();
+
+
+    return;
+
+  }
+
+
+  /*
+    'all' and 'drive' both just filter/search — Drive search
+    itself is a placeholder until Drive OAuth is connected.
+  */
+
+  renderResults();
+
+}
+
+
+/* =========================================================
+   ULTIMATE GUITAR IMPORT
+   Given a direct chord-page URL, fetches the page through
+   the backend importer, then automatically detects the
+   song's lyrics and chords via the same analyzer used for
+   pasted-in songs, and saves it straight to the Library.
+========================================================= */
+
+async function importFromUG(url){
+
+  const box =
+    document.getElementById(
+      'ugResult'
+    );
+
+
+  if(!box){
+
+    return;
+
+  }
+
+
+  try{
+
+    const parsedUrl =
+      new URL(url);
+
+
+    if(
+      !parsedUrl.hostname.endsWith(
+        'ultimate-guitar.com'
+      )
+    ){
+
+      throw new Error(
+        'Please use an Ultimate Guitar URL.'
+      );
+
+    }
+
+  }catch(error){
+
+    box.innerHTML =
+      '<div class="hint">' +
+      esc(
+        error.message ||
+        "That doesn't look like a valid URL."
+      ) +
+      '</div>';
+
+    return;
+
+  }
+
+
+  box.innerHTML =
+    '<div class="hint">⏳ Loading song...</div>';
+
+
+  try{
+
+    const response =
+      await fetch(
+        API_BASE_URL + '/api/import',
+        {
+
+          method:'POST',
+
+          headers:{
+            'Content-Type':
+              'application/json'
+          },
+
+          body:
+            JSON.stringify({
+              url
+            })
+
+        }
+      );
+
+
+    const data =
+      await response
+        .json()
+        .catch(
+          () => ({})
+        );
+
+
+    if(!response.ok){
+
+      throw new Error(
+
+        data.error ||
+        `Importer returned HTTP ${response.status}`
+
+      );
+
+    }
+
+
+    const raw =
+      (
+        url.split('/').pop() ||
+        'Ultimate Guitar Song'
+      )
+      .replace(
+        /[-_]/g,
+        ' '
+      );
+
+
+    const title =
+      raw
+        .replace(
+          /\s+chords?\s+\d+.*$/i,
+          ''
+        )
+        .replace(
+          /\s+\d+.*$/,
+          ''
+        )
+        .trim()
+        .replace(
+          /\b\w/g,
+          character =>
+            character.toUpperCase()
+        );
+
+
+    const importedText =
+      decodeHtmlEntities(
+        data.text || ''
+      );
+
+
+    /*
+      Immediately analyze the imported song — this is what
+      detects the section structure, lyrics, and chords.
+    */
+
+    const analysis =
+      analyzeFocusedSong(
+        importedText
+      );
+
+
+    /*
+      Don't save to the Library yet — importing is just a
+      preview. It only becomes a Library entry if the user
+      opens it and taps Save (same pattern as the "Open Lyrics"
+      preview from the Analyzer). Opening it does add it to
+      Recent Songs, though.
+    */
+
+    const song = {
+
+      id:
+        'preview-' +
+        (
+          window.crypto &&
+          crypto.randomUUID
+            ? crypto.randomUUID()
+            : String(
+                Date.now() +
+                Math.random()
+              )
+        ),
+
+      title:
+        title ||
+        'Untitled Song',
+
+      text:
+        importedText,
+
+      originalText:
+        importedText,
+
+      sourceUrl:
+        data.sourceUrl || url,
+
+      analysis,
+
+      transposeSteps:
+        0,
+
+      fontSize:
+        getSettings().defaultFontSize
+
+    };
+
+
+    box.innerHTML = `
+
+      <div class="hint">
+
+        ✅ "${esc(song.title)}" imported —
+        lyrics and chords detected automatically.
+        Open it and tap Save to add it to your Library.
+
+      </div>
+
+
+      <div class="resultActions">
+
+        <button
+          class="smallBtn toolbarBtn primary"
+          id="openImportedSong"
+        >
+          Open Song
+        </button>
+
+      </div>
+
+    `;
+
+
+    document
+      .getElementById('openImportedSong')
+      .onclick = () => requireCategoryTheme(
+        { title: song.title, category: pendingNewSongCategory },
+        (category, theme) => {
+          song.category = category;
+          song.theme = theme;
+          openSong(song);
+        }
+      );
+
+
+  }catch(error){
+
+    box.innerHTML =
+      '<div class="hint">⚠️ ' +
+      esc(
+
+        error.message ||
+        'Something went wrong importing this song.'
+
+      ) +
+      '</div>';
+
+  }
+
+}
+
+
+/* =========================================================
+   GLOBAL BINDINGS / INIT
+========================================================= */
+
+document
+  .getElementById('closeSearch')
+  .onclick =
+    () => modal.classList.remove('open');
+
+
+/* Clicking the dimmed backdrop (not the sheet itself) closes it. */
+
+modal.addEventListener(
+  'click',
+  event => {
+
+    if(event.target === modal){
+
+      modal.classList.remove('open');
+
+    }
+
+  }
+);
+
+
+document
+  .getElementById('runSearch')
+  .onclick =
+    handleTopSearch;
+
+
+query.addEventListener(
+  'keydown',
+  event => {
+
+    if(event.key === 'Enter'){
+
+      event.preventDefault();
+
+      handleTopSearch();
+
+    }
+
+  }
+);
+
+
+document
+  .querySelectorAll(
+    '.sourceTabs button'
+  )
+  .forEach(button => {
+
+    button.onclick = () => {
+
+      source =
+        button.dataset.source;
+
+      ugAwaitingPaste =
+        false;
+
+      document
+        .querySelectorAll(
+          '.sourceTabs button'
+        )
+        .forEach(tab => {
+
+          tab.classList.toggle(
+            'active',
+            tab === button
+          );
+
+        });
+
+      renderResults();
+
+    };
+
+  });
+
+
+document
+  .querySelectorAll(
+    '.nav button[data-screen]'
+  )
+  .forEach(button => {
+
+    button.onclick = () => {
+
+      const target =
+        button.dataset.screen;
+
+      if(target === 'home'){
+
+        renderHome();
+
+      }else if(target === 'lyrics'){
+
+        currentSong
+          ? renderSongViewer()
+          : renderLyrics();
+
+      }else if(target === 'library'){
+
+        renderLibrary();
+
+      }else if(target === 'profile'){
+
+        renderProfile();
+
+      }
+
+    };
+
+  });
+
+
+document.getElementById('navNowPlaying').onclick = () => renderMetronome();
+
+navSyncNowPlaying();
+
+renderHome();
+
+restoreYtMiniPlayerOnBoot();
+
+
+/*
+  Fade out the startup splash once the home screen has actually
+  rendered. The minimum-display timer keeps it from flashing by
+  too quickly on fast loads; the fallback removal guarantees it
+  never gets stuck on screen even if something above throws.
+*/
+
+/*
+  Resolves to the live Firebase user (or null) once the SDK's
+  had a chance to restore a persisted session.
+
+  If Firebase can't be reached at all right now — genuinely not
+  configured (local/dev checkout), or just offline — there's no
+  way to ask it who's signed in. In that case fall back to this
+  device's own record of the last successful sign-in
+  (worshipChordsGoogleUser, cleared only by an explicit Sign
+  Out): if it's there, someone was already signed in here, so
+  let them straight into Home with their local Library instead
+  of locking them out just because the network is down. Only a
+  device that's never signed in (or was explicitly signed out)
+  falls through to the gate — and on that device, being offline
+  means the gate can't be satisfied yet either way, which is the
+  expected first-time-needs-internet behavior.
+*/
+async function currentAuthUser(){
+
+  await firebaseReadyPromise;
+
+  if(!firebaseAuth){
+
+    return getGoogleUser() ? true : null;
+
+  }
+
+  return firebaseAuth.currentUser || await waitForFirebaseAuthReady();
+
+}
+
+
+(function hideStartupSplash(){
+
+  const splash = document.getElementById('startupSplash');
+  if(!splash) return;
+
+  /*
+    The intro always plays for at least this long, and whether
+    the login gate appears next is decided before the splash
+    starts fading — so there's never a gap where Home is
+    visible/usable underneath for someone who isn't signed in.
+  */
+  const minDelay =
+    new Promise(resolve => setTimeout(resolve, 2200));
+
+  Promise.all([minDelay, currentAuthUser()]).then(([, user]) => {
+
+    splash.classList.add('splashHidden');
+    setTimeout(() => splash.remove(), 1000);
+
+    if(!user){
+
+      showLoginGate();
+
+    }
+
+  });
+
+})();
+
+
+/*
+  If there's a signed-in Firebase user (the SDK persists this
+  in IndexedDB/localStorage and restores it automatically), pick
+  it back up quietly and pull in any brand-new songs the other
+  people have saved — never overwrites a song already in this
+  Library. If there's no session, nothing breaks; signing in
+  again from Profile covers it.
+*/
+
+async function initSyncOnLoad(){
+
+  await firebaseReadyPromise;
+
+  if(!firebaseAuth){
+
+    return;
+
+  }
+
+  const user =
+    await waitForFirebaseAuthReady();
+
+  if(!user){
+
+    return;
+
+  }
+
+  if(!getGoogleUser()){
+
+    await onAuthReady(user);
+
+    return;
+
+  }
+
+  refreshUserProfile(user);
+
+  const hasTeam =
+    await ensureActiveTeam(user.uid);
+
+  if(!hasTeam){
+
+    renderTeamOnboarding();
+
+    return;
+
+  }
+
+  pullNewSongsFromDrive();
+
+  pullLineupFromDrive();
+
+  pullVideoArchiveFromDrive();
+
+  startLineupLiveListener();
+
+  startSharedPdfLiveListener();
+
+}
+
+
+initSyncOnLoad();
+
+
+/*
+  Register the service worker so Chrome/Android offers
+  "Install app" / "Add to Home Screen" and the app can open
+  even with a spotty connection. It only caches the app shell
+  (this HTML file) — Drive sync, imports, and search still go
+  over the network like normal, so nothing here changes app
+  behavior when you're online.
+*/
+
+/* =========================================================
+   NEW-SONG PUSH NOTIFICATIONS
+   Subscribes this device to Web Push so it gets a real phone
+   notification when the Drive-sync backend (see /api/drive-*)
+   detects a new song in the shared folder — even if the app
+   isn't open.
+========================================================= */
+
+function notificationsCurrentlyOn(){
+
+  return (
+    !!getSettings().songNotifications &&
+    typeof Notification !== 'undefined' &&
+    Notification.permission === 'granted'
+  );
+
+}
+
+
+function notificationStatusText(){
+
+  if(typeof Notification === 'undefined'){
+
+    return 'Not supported on this browser.';
+
+  }
+
+  if(Notification.permission === 'denied'){
+
+    return 'Blocked — enable notifications for this app in your phone settings.';
+
+  }
+
+  if(notificationsCurrentlyOn()){
+
+    return "On — you'll be notified when a new song is added.";
+
+  }
+
+  return 'Off — turn on to get notified when a new song is added.';
+
+}
+
+
+function urlBase64ToUint8Array(base64String){
+
+  const padding =
+    '='.repeat(
+      (4 - base64String.length % 4) % 4
+    );
+
+  const base64 =
+    (base64String + padding)
+      .replace(/-/g,'+')
+      .replace(/_/g,'/');
+
+  const rawData =
+    atob(base64);
+
+  const outputArray =
+    new Uint8Array(rawData.length);
+
+  for(let i = 0; i < rawData.length; i++){
+
+    outputArray[i] =
+      rawData.charCodeAt(i);
+
+  }
+
+  return outputArray;
+
+}
+
+
+/*
+  Tells the backend a brand-new song was just added to the
+  shared library, so it can push a "New song added" notification
+  to everyone else's device. Fire-and-forget — a failed request
+  here shouldn't block or fail the sync itself.
+*/
+async function notifyNewSong(title){
+
+  if(!NOTIFY_SECRET || NOTIFY_SECRET.includes('YOUR-'))return;
+
+  try{
+
+    await fetch(API_BASE_URL + '/api/notify-new-song', {
+
+      method:'POST',
+
+      headers:{
+        'Content-Type':'application/json',
+        'X-Notify-Secret': NOTIFY_SECRET
+      },
+
+      body: JSON.stringify({ title })
+
+    });
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+
+/*
+  Same endpoint as notifyNewSong, just with a heading override
+  so the push says "Worship Lineup updated" instead of
+  "New song added" — see the optional `heading` field handled
+  in api/notify-new-song.js.
+*/
+async function notifyLineupUpdate(songTitle){
+
+  if(!NOTIFY_SECRET || NOTIFY_SECRET.includes('YOUR-'))return;
+
+  try{
+
+    await fetch(API_BASE_URL + '/api/notify-new-song', {
+
+      method:'POST',
+
+      headers:{
+        'Content-Type':'application/json',
+        'X-Notify-Secret': NOTIFY_SECRET
+      },
+
+      body: JSON.stringify({
+
+        title: songTitle,
+        heading: 'Worship Lineup updated'
+
+      })
+
+    });
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+
+/* =========================================================
+   "SEE YOU ON THE OTHER SIDE" — IN-APP SERVICE CALL
+
+   The push notifications handled by scripts/lineup-reminders.js
+   stop at 3 hrs out ("Worship mamaya ha?"). The final call —
+   a few minutes before a service actually starts — is shown here
+   instead, as a full-screen moment inside the app, so it lands
+   while the team already has the lyrics open.
+
+   Only fires on the song viewer, only for a lineup dated today
+   with a serviceTime set, and only once per service (the
+   dismissal is remembered against that exact service instant,
+   so it won't reappear on the next re-render or after a
+   transpose).
+========================================================= */
+
+const SERVICE_CALL_MINUTES_BEFORE = 3;
+
+function serviceCallDismissedKey(){
+  return 'worshipChordsServiceCallSeen';
+}
+
+function serviceCallAlreadySeen(stamp){
+  try{
+    return localStorage.getItem(serviceCallDismissedKey()) === stamp;
+  }catch(error){
+    return false;
+  }
+}
+
+function markServiceCallSeen(stamp){
+  try{
+    localStorage.setItem(serviceCallDismissedKey(), stamp);
+  }catch(error){}
+}
+
+/*
+  Returns a stable id for today's service start if we're inside
+  the SERVICE_CALL_MINUTES_BEFORE window leading up to it,
+  otherwise null. The window closes at the service time itself,
+  so opening the app mid-service doesn't trigger it.
+*/
+function pendingServiceCallStamp(){
+
+  const today =
+    todayDateKey();
+
+  const lineup =
+    getAllLocalLineups()[today];
+
+  if(!lineup)return null;
+
+  const eventType =
+    lineup.eventType || 'sunday-worship';
+
+  /* A standalone rehearsal has no service to call out for. */
+  if(eventType === 'rehearsal')return null;
+
+  const timeStr =
+    lineup.serviceTime;
+
+  if(!timeStr)return null;
+
+  const [hour, minute] =
+    String(timeStr).split(':').map(Number);
+
+  if(!Number.isFinite(hour) || !Number.isFinite(minute))return null;
+
+  const serviceAt =
+    dateFromKey(today);
+
+  serviceAt.setHours(hour, minute, 0, 0);
+
+  const minutesOut =
+    (serviceAt.getTime() - Date.now()) / 60000;
+
+  if(
+    minutesOut > SERVICE_CALL_MINUTES_BEFORE ||
+    minutesOut <= 0
+  ){
+    return null;
+  }
+
+  return today + 'T' + timeStr;
+
+}
+
+function showServiceCall(stamp){
+
+  if(document.getElementById('serviceCallBackEl'))return;
+
+  const host =
+    document.createElement('div');
+
+  host.className = 'serviceCallBack';
+  host.id = 'serviceCallBackEl';
+
+  host.innerHTML = `
+    <div class="serviceCallBox">
+      <div class="serviceCallTitle">See you on the other side, Disciples!</div>
+      <div class="serviceCallSub">Worship starts in a few minutes.</div>
+      <button class="serviceCallBtn" type="button" id="serviceCallAmenBtn">Amen!</button>
+    </div>
+  `;
+
+  document.body.appendChild(host);
+
+  requestAnimationFrame(() => host.classList.add('open'));
+
+  document.getElementById('serviceCallAmenBtn').onclick = () => {
+
+    markServiceCallSeen(stamp);
+
+    host.classList.remove('open');
+
+    setTimeout(() => host.remove(), 280);
+
+  };
+
+}
+
+function maybeShowServiceCall(){
+
+  if(currentScreenName !== 'songViewer')return;
+
+  const stamp =
+    pendingServiceCallStamp();
+
+  if(!stamp)return;
+
+  if(serviceCallAlreadySeen(stamp))return;
+
+  showServiceCall(stamp);
+
+}
+
+/* Re-check every 30s so it appears even if the viewer has been
+   open, untouched, since before the window opened. */
+setInterval(maybeShowServiceCall, 30000);
+
+
+async function enableSongNotifications(){
+
+  if(
+    !('serviceWorker' in navigator) ||
+    !('PushManager' in window)
+  ){
+
+    alert(
+      "Push notifications aren't supported on this browser/device."
+    );
+
+    return;
+
+  }
+
+  try{
+
+    const permission =
+      await Notification.requestPermission();
+
+    if(permission !== 'granted'){
+
+      writeSettings({ songNotifications:false });
+
+      renderProfileSettings();
+
+      return;
+
+    }
+
+    const keyResponse =
+      await fetch(API_BASE_URL + '/api/vapid-public-key');
+
+    const { publicKey } =
+      await keyResponse.json();
+
+    if(!publicKey){
+
+      alert(
+        "Notifications aren't set up on the server yet."
+      );
+
+      return;
+
+    }
+
+    const registration =
+      await navigator.serviceWorker.ready;
+
+    let subscription =
+      await registration.pushManager.getSubscription();
+
+    if(!subscription){
+
+      subscription =
+        await registration.pushManager.subscribe({
+
+          userVisibleOnly:true,
+
+          applicationServerKey:
+            urlBase64ToUint8Array(publicKey)
+
+        });
+
+    }
+
+    await fetch(API_BASE_URL + '/api/push-subscribe', {
+
+      method:'POST',
+
+      headers:{
+        'Content-Type':'application/json'
+      },
+
+      body:
+        JSON.stringify({ subscription })
+
+    });
+
+    writeSettings({ songNotifications:true });
+
+  }catch(error){
+
+    console.error(
+      'Enable notifications failed:',
+      error
+    );
+
+    alert(
+      'Could not turn on notifications. Please try again.'
+    );
+
+  }
+
+  renderProfileSettings();
+
+}
+
+
+async function disableSongNotifications(){
+
+  try{
+
+    if('serviceWorker' in navigator){
+
+      const registration =
+        await navigator.serviceWorker.ready;
+
+      const subscription =
+        await registration.pushManager.getSubscription();
+
+      if(subscription){
+
+        await fetch(API_BASE_URL + '/api/push-subscribe', {
+
+          method:'DELETE',
+
+          headers:{
+            'Content-Type':'application/json'
+          },
+
+          body:
+            JSON.stringify({
+              endpoint:subscription.endpoint
+            })
+
+        });
+
+        await subscription.unsubscribe();
+
+      }
+
+    }
+
+  }catch(error){
+
+    console.error(
+      'Disable notifications failed:',
+      error
+    );
+
+  }
+
+  writeSettings({ songNotifications:false });
+
+  renderProfileSettings();
+
+}
+
+
+if('serviceWorker' in navigator){
+
+  window.addEventListener('load', () => {
+
+    navigator.serviceWorker
+      .register('/sw.js')
+      .catch(error => {
+
+        console.error(
+          'Service worker registration failed:',
+          error
+        );
+
+      });
+
+  });
+
+}
+
+
+/* =========================================================
+   HARDWARE BACK BUTTON (native app shell)
+
+   In a browser tab, the phone's back gesture/button falls back
+   to normal browser history — leaving the page, or doing
+   nothing if there's nowhere to go. In a bundled native app
+   (Capacitor), there IS no browser history to fall back on, so
+   without this the hardware back button just closes the app
+   from any screen.
+
+   This mirrors whatever the on-screen back button already does
+   for the current screen (see currentScreenName, set at the top
+   of each render* function above): closes an open song menu or
+   dialog first if one is open, otherwise goes back through
+   goBack()/navHistory to whichever screen was actually open
+   before this one, and only lets the app actually exit once
+   already on Home — same as tapping back manually would.
+*/
+
+function handleHardwareBack(){
+
+  if(document.getElementById('songLibSheetRoot')){
+
+    closeSongLibrarySheet();
+
+    return true;
+
+  }
+
+  const songMenuDropdown =
+    document.getElementById('songMenuDropdown');
+
+  if(songMenuDropdown && songMenuDropdown.classList.contains('open')){
+
+    closeSongMenu();
+
+    return true;
+
+  }
+
+  const confirmBack =
+    document.getElementById('confirmBack');
+
+  if(confirmBack && confirmBack.classList.contains('open')){
+
+    confirmBack.classList.remove('open');
+
+    const host =
+      document.getElementById('confirmOverlay');
+
+    setTimeout(() => {
+      if(host)host.innerHTML = '';
+    }, 200);
+
+    return true;
+
+  }
+
+  const lineupSheetBack =
+    document.getElementById('lineupSheetBackEl');
+
+  if(lineupSheetBack && lineupSheetBack.classList.contains('open')){
+
+    closeLineupDaySheet();
+
+    return true;
+
+  }
+
+  switch(currentScreenName){
+
+    case 'songViewer':
+
+      stopAutoScroll();
+      songFlowMode = false;
+      currentSong = null;
+      goBack(renderLyrics);
+
+      return true;
+
+    case 'setlistDetail':
+
+      goBack(() => {
+        libraryTab = 'setlists';
+        renderLibrary();
+      });
+
+      return true;
+
+    case 'lineupDetail':
+
+      currentLineupDate = null;
+      goBack(renderLineupCalendar);
+
+      return true;
+
+    case 'lineupCalendar':
+
+      goBack(renderHome);
+
+      return true;
+
+    case 'lineupPicker':
+
+      goBack(renderLineupCalendar);
+
+      return true;
+
+    case 'metronome':
+
+      goBack(renderHome);
+
+      return true;
+
+    case 'pads':
+
+      goBack(renderHome);
+
+      return true;
+
+    case 'keyBridge':
+
+      goBack(renderHome);
+
+      return true;
+
+    case 'pdfShare':
+
+      goBack(renderKeyBridge);
+
+      return true;
+
+    case 'profileSettings':
+
+      goBack(renderProfile);
+
+      return true;
+
+    case 'library':
+    case 'lyrics':
+    case 'profile':
+
+      renderHome();
+
+      return true;
+
+    case 'home':
+    default:
+
+      /*
+        Already on Home — nothing left to go "back" to inside
+        the app. Return false so the caller below lets the
+        native app actually exit, same as a person would expect
+        pressing back on a home screen to do.
+      */
+
+      return false;
+
+  }
+
+}
+
+
+if(
+  window.Capacitor &&
+  window.Capacitor.Plugins &&
+  window.Capacitor.Plugins.App
+){
+
+  window.Capacitor.Plugins.App.addListener(
+    'backButton',
+    () => {
+
+      const handled =
+        handleHardwareBack();
+
+      if(!handled){
+
+        window.Capacitor.Plugins.App.exitApp();
+
+      }
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   STAGE MODE
+   Full-screen view of the current song: big lyrics + chords on
+   pure black, auto-scroll with a speed remembered per song, a "Next"
+   preview from the active lineup, prev/next buttons and swipe,
+   and the screen stays awake while it is open.
+========================================================= */
+let stageOpen = false;
+let stageScrollActive = false;
+let stageScrollRAF = null;
+let stageScrollLast = null;
+let stageScrollPos = 0;
+let stageSpeedLevel = 2;
+let stageShowChords = true;
+let stageWakeLock = null;
+
+const STAGE_PLAY_ICON = '<svg viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z" fill="currentColor"/></svg>';
+const STAGE_PAUSE_ICON = '<svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>';
+
+function stageGetFont(){
+  try{
+    const v = parseInt(localStorage.getItem('disciplesStageFont'), 10);
+    if(v >= 14 && v <= 44) return v;
+  }catch(e){}
+  return 20;
+}
+
+function stageSetFont(v){
+  v = Math.max(14, Math.min(44, v));
+  try{ localStorage.setItem('disciplesStageFont', String(v)); }catch(e){}
+  const el = document.getElementById('stageLyrics');
+  if(el) el.style.fontSize = v + 'px';
+}
+
+function stageSongData(song){
+  const amount = song.transposeSteps || 0;
+  const text = transposeText(song.originalText || song.text || '', amount);
+  const keyInfo = detectKeyFromChords(extractChordTokens(text));
+  let bpm = null;
+  try{ bpm = metGetSongPresetBpm(song.id); }catch(e){}
+  return { text, keyInfo, bpm };
+}
+
+function stageBlocksFor(song, text){
+  const sections = getViewerSections(song, text);
+  const flow = getSongFlow(song, sections);
+  const hasFlow = Array.isArray(song.flow) && song.flow.length > 0;
+  return hasFlow
+    ? getExpandedDisplayBlocks(sections, flow)
+    : sections.map(sec => ({ isNote:false, id:sec._id, name:sec.name, lines:sec.lines }));
+}
+
+function stageLineupInfo(){
+  if(!currentSong) return null;
+  const songs = (getLocalLineup().songs) || [];
+  const idx = songs.findIndex(entry => entry.id === currentSong.id);
+  if(songs.length < 2 || idx === -1) return null;
+  return { songs, idx };
+}
+
+function stageNextMeta(entry){
+  const song = getSongs().find(item => item.id === entry.id);
+  if(!song) return '';
+  let meta = '';
+  try{
+    const copy = Object.assign({}, song, {
+      originalText: decodeHtmlEntities(song.originalText || song.text || '')
+    });
+    const data = stageSongData(copy);
+    if(data.keyInfo) meta += data.keyInfo.label;
+    if(data.bpm) meta += (meta ? ' · ' : '') + data.bpm + ' BPM';
+  }catch(e){}
+  return meta;
+}
+
+/* Scroll speed is the 1-5 level you pick (BPM says nothing about lyric pace). */
+/* Stage mode has its own, much slower speed table (px per second), 6 levels.
+   Level 2 is about 5x slower than the normal viewer's 2x. */
+const STAGE_SCROLL_SPEEDS = { 1: 6, 2: 10, 3: 15, 4: 21, 5: 28, 6: 38 };
+const STAGE_SPEED_MAX = 6;
+const STAGE_SPEED_DEFAULT = 2;
+
+function stagePxPerSecond(){
+  return STAGE_SCROLL_SPEEDS[stageSpeedLevel] || STAGE_SCROLL_SPEEDS[STAGE_SPEED_DEFAULT];
+}
+
+/* Each song remembers its own scroll speed, so you only tune it once. */
+function stageGetSavedSpeed(songId){
+  try{
+    const map = JSON.parse(localStorage.getItem('disciplesStageSpeeds') || '{}');
+    const v = map[songId];
+    if(v >= 1 && v <= STAGE_SPEED_MAX) return v;
+  }catch(e){}
+  return null;
+}
+
+function stageSaveSpeed(songId, level){
+  try{
+    const map = JSON.parse(localStorage.getItem('disciplesStageSpeeds') || '{}');
+    map[songId] = level;
+    localStorage.setItem('disciplesStageSpeeds', JSON.stringify(map));
+  }catch(e){}
+}
+
+function stageStopScroll(){
+  stageScrollActive = false;
+  stageScrollLast = null;
+  if(stageScrollRAF) cancelAnimationFrame(stageScrollRAF);
+  stageScrollRAF = null;
+  const btn = document.getElementById('stagePlayBtn');
+  if(btn){
+    btn.classList.remove('on');
+    btn.innerHTML = STAGE_PLAY_ICON;
+  }
+}
+
+function stageScrollStep(now){
+  if(!stageScrollActive) return;
+  const el = document.getElementById('stageScroll');
+  if(!el){ stageStopScroll(); return; }
+  if(stageScrollLast === null) stageScrollLast = now;
+  const dt = (now - stageScrollLast) / 1000;
+  stageScrollLast = now;
+  stageScrollPos += stagePxPerSecond() * dt;
+  el.scrollTop = stageScrollPos;
+  if(el.scrollTop + el.clientHeight >= el.scrollHeight - 2){
+    stageStopScroll();
+    return;
+  }
+  stageScrollRAF = requestAnimationFrame(stageScrollStep);
+}
+
+function stageStartScroll(){
+  const el = document.getElementById('stageScroll');
+  if(!el) return;
+  stageScrollActive = true;
+  stageScrollLast = null;
+  stageScrollPos = el.scrollTop;
+  const btn = document.getElementById('stagePlayBtn');
+  if(btn){
+    btn.classList.add('on');
+    btn.innerHTML = STAGE_PAUSE_ICON;
+  }
+  stageScrollRAF = requestAnimationFrame(stageScrollStep);
+}
+
+async function stageRequestWake(){
+  try{
+    if('wakeLock' in navigator && !stageWakeLock){
+      stageWakeLock = await navigator.wakeLock.request('screen');
+      stageWakeLock.addEventListener('release', () => { stageWakeLock = null; });
+    }
+  }catch(e){}
+}
+
+function stageReleaseWake(){
+  try{
+    if(stageWakeLock) stageWakeLock.release();
+  }catch(e){}
+  stageWakeLock = null;
+}
+
+function stageRefresh(){
+  const overlay = document.getElementById('stageOverlay');
+  if(!overlay || !currentSong) return;
+
+  stageStopScroll();
+
+  const data = stageSongData(currentSong);
+  const blocks = stageBlocksFor(currentSong, data.text);
+  const lineup = stageLineupInfo();
+
+  const meta = [];
+  if(data.keyInfo) meta.push('Key ' + data.keyInfo.label);
+  if(data.bpm) meta.push(data.bpm + ' BPM');
+  if(lineup) meta.push((lineup.idx + 1) + ' of ' + lineup.songs.length);
+
+  overlay.querySelector('.stageTitle').textContent = currentSong.title || 'Untitled Song';
+  overlay.querySelector('.stageMeta').textContent = meta.join(' · ');
+
+  const lyrics = document.getElementById('stageLyrics');
+  lyrics.style.fontSize = stageGetFont() + 'px';
+  lyrics.innerHTML =
+    '<div class="songStructure' + (stageShowChords ? '' : ' chordsHidden') + '" id="stageStructure">' +
+      renderSongStructureHTML(blocks) +
+    '</div>';
+
+  document.getElementById('stageScroll').scrollTop = 0;
+  stageScrollPos = 0;
+
+  const next = overlay.querySelector('#stageNext');
+  const prevBtn = overlay.querySelector('#stagePrevBtn');
+  const nextBtn = overlay.querySelector('#stageNextBtn');
+
+  if(lineup){
+    const hasNext = lineup.idx < lineup.songs.length - 1;
+    prevBtn.disabled = lineup.idx === 0;
+    nextBtn.disabled = !hasNext;
+    if(hasNext){
+      const entry = lineup.songs[lineup.idx + 1];
+      next.hidden = false;
+      next.querySelector('.stageNextTitle').textContent = entry.title || 'Untitled Song';
+      next.querySelector('.stageNextMeta').textContent = stageNextMeta(entry);
+    }else{
+      next.hidden = true;
+    }
+  }else{
+    prevBtn.disabled = true;
+    nextBtn.disabled = true;
+    next.hidden = true;
+  }
+
+  const savedSpeed = stageGetSavedSpeed(currentSong.id);
+  if(savedSpeed) stageSpeedLevel = savedSpeed;
+  else stageSpeedLevel = STAGE_SPEED_DEFAULT;
+
+  overlay.querySelector('#stageSpeedLabel').textContent = stageSpeedLevel + 'x';
+}
+
+function stageGo(delta){
+  const lineup = stageLineupInfo();
+  if(!lineup) return;
+  const target = lineup.idx + delta;
+  if(target < 0 || target >= lineup.songs.length) return;
+  goToLineupSongById(lineup.songs[target].id);
+  stageRefresh();
+}
+
+function openStageMode(){
+  if(stageOpen || !currentSong) return;
+
+  try{ stopAutoScroll(); }catch(e){}
+
+  stageOpen = true;
+  stageShowChords = (typeof showChords === 'undefined') ? true : !!showChords;
+  stageSpeedLevel = STAGE_SPEED_DEFAULT;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'stageOverlay';
+  overlay.className = 'stageOverlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-label', 'Stage mode');
+  overlay.innerHTML = `
+    <div class="stageTop">
+      <button class="stageIconBtn" id="stageCloseBtn" type="button" aria-label="Exit stage mode">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+      <div class="stageTitleBlock">
+        <div class="stageTitle"></div>
+        <div class="stageMeta"></div>
+      </div>
+      <button class="stageIconBtn${stageShowChords ? ' on' : ''}" id="stageChordsBtn" type="button" aria-label="Show or hide chords">Chords</button>
+    </div>
+    <div class="stageScroll" id="stageScroll">
+      <div class="stageLyrics" id="stageLyrics"></div>
+      <div class="stageEndSpacer"></div>
+    </div>
+    <div class="stageNext" id="stageNext" hidden>
+      <span class="stageNextLabel">NEXT</span>
+      <span class="stageNextTitle"></span>
+      <span class="stageNextMeta"></span>
+    </div>
+    <div class="stageControls">
+      <button class="stageIconBtn" id="stagePrevBtn" type="button" aria-label="Previous song">
+        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <button class="stageIconBtn" id="stageFontDown" type="button" aria-label="Smaller text">A−</button>
+      <button class="stageIconBtn" id="stageFontUp" type="button" aria-label="Larger text">A+</button>
+      <button class="stageIconBtn" id="stageSpeedDown" type="button" aria-label="Slower scroll">−</button>
+      <button class="stageIconBtn stagePlay" id="stagePlayBtn" type="button" aria-label="Start or stop auto-scroll">${STAGE_PLAY_ICON}</button>
+      <span class="stageIconBtn stageSpeed" id="stageSpeedLabel" style="pointer-events:none;background:transparent;border-color:transparent;">2x</span>
+      <button class="stageIconBtn" id="stageSpeedUp" type="button" aria-label="Faster scroll">+</button>
+      <button class="stageIconBtn" id="stageNextBtn" type="button" aria-label="Next song">
+        <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  document.getElementById('stageCloseBtn').onclick = closeStageMode;
+
+  document.getElementById('stageChordsBtn').onclick = () => {
+    stageShowChords = !stageShowChords;
+    document.getElementById('stageChordsBtn').classList.toggle('on', stageShowChords);
+    const st = document.getElementById('stageStructure');
+    if(st) st.classList.toggle('chordsHidden', !stageShowChords);
+  };
+
+  document.getElementById('stageFontDown').onclick = () => stageSetFont(stageGetFont() - 2);
+  document.getElementById('stageFontUp').onclick = () => stageSetFont(stageGetFont() + 2);
+
+  const setSpeed = delta => {
+    stageSpeedLevel = Math.max(1, Math.min(STAGE_SPEED_MAX, stageSpeedLevel + delta));
+    document.getElementById('stageSpeedLabel').textContent = stageSpeedLevel + 'x';
+    if(currentSong) stageSaveSpeed(currentSong.id, stageSpeedLevel);
+  };
+  document.getElementById('stageSpeedDown').onclick = () => setSpeed(-1);
+  document.getElementById('stageSpeedUp').onclick = () => setSpeed(1);
+
+  document.getElementById('stagePlayBtn').onclick = () => {
+    if(stageScrollActive) stageStopScroll(); else stageStartScroll();
+  };
+
+  document.getElementById('stagePrevBtn').onclick = () => stageGo(-1);
+  document.getElementById('stageNextBtn').onclick = () => stageGo(1);
+  document.getElementById('stageNext').onclick = () => stageGo(1);
+
+  /* swipe left / right between lineup songs; touching the text pauses auto-scroll */
+  const scroller = document.getElementById('stageScroll');
+  let sx = 0, sy = 0, tracking = false;
+  scroller.addEventListener('touchstart', event => {
+    if(stageScrollActive) stageStopScroll();
+    if(event.touches.length !== 1) return;
+    sx = event.touches[0].clientX;
+    sy = event.touches[0].clientY;
+    tracking = true;
+  }, { passive:true });
+  scroller.addEventListener('touchend', event => {
+    if(!tracking) return;
+    tracking = false;
+    const t = event.changedTouches[0];
+    const dx = t.clientX - sx;
+    const dy = t.clientY - sy;
+    if(Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 2){
+      stageGo(dx < 0 ? 1 : -1);
+    }
+  }, { passive:true });
+
+  stageRefresh();
+  stageRequestWake();
+}
+
+function closeStageMode(){
+  stageStopScroll();
+  stageReleaseWake();
+  const overlay = document.getElementById('stageOverlay');
+  if(overlay) overlay.remove();
+  stageOpen = false;
+}
+
+document.addEventListener('click', event => {
+  if(event.target.closest && event.target.closest('#songStageBtn')){
+    openStageMode();
+  }
+});
+
+document.addEventListener('keydown', event => {
+  if(event.key === 'Escape' && stageOpen) closeStageMode();
+});
+
+document.addEventListener('visibilitychange', () => {
+  if(stageOpen && !document.hidden) stageRequestWake();
+});
+</script>
+
+</body>
+</html>
