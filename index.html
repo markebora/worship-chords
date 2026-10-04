@@ -5628,6 +5628,55 @@ body.songBottomHidden .annotateToolbar{
   box-shadow:inset 0 0 0 1.5px var(--accent-ink);
 }
 
+/* Done — a past date's lineup, muted so it reads as finished */
+.lineupCalCell.hasLineup.isPast{
+  background:rgba(232,185,35,.16);
+  color:#b9a766;
+  font-weight:700;
+}
+
+/* Active — the lineup shown in the top widget gets a dot */
+.lineupCalCell.isActive::after{
+  content:'';
+  position:absolute;
+  bottom:5px;
+  left:50%;
+  width:5px;
+  height:5px;
+  margin-left:-2.5px;
+  border-radius:50%;
+  background:var(--accent-ink);
+}
+
+.lineupCalLegend{
+  display:flex;
+  justify-content:center;
+  gap:18px;
+  margin-top:14px;
+  font-size:12px;
+  color:#8a8a92;
+}
+
+.lineupCalLegend span{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+
+.legendDot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  display:inline-block;
+}
+
+.legendDone{ background:rgba(232,185,35,.3); }
+.legendUpcoming{ background:var(--accent); }
+.legendActive{
+  background:var(--accent);
+  box-shadow:inset 0 0 0 3px var(--accent), inset 0 0 0 10px var(--accent-ink);
+}
+
 
 /* =========================================================
    LINEUP TIMES (rehearsal + service, for reminder pushes)
@@ -35550,8 +35599,8 @@ function renderLineupCalendar(){
   const highlightedDates =
     new Set(getLineupDateKeysWithSongs());
 
-  /* A date with a named event is "planned" even before any song
-     is added, so it should light up on the calendar too. */
+  /* A named event counts as planned even before any song is
+     added, so it gets highlighted too. */
   (() => {
     const all = getAllLocalLineups();
     Object.keys(all).forEach(k => {
@@ -35695,13 +35744,19 @@ function renderLineupCalendar(){
               return `
                 <button
                   type="button"
-                  class="lineupCalCell${cell.otherMonth ? ' otherMonth' : ''}${highlightedDates.has(key) ? ' hasLineup' : ''}${key === today ? ' today' : ''}"
+                  class="lineupCalCell${cell.otherMonth ? ' otherMonth' : ''}${highlightedDates.has(key) ? (key < today ? ' hasLineup isPast' : ' hasLineup isUpcoming') : ''}${key === activeDateKey && highlightedDates.has(key) ? ' isActive' : ''}${key === today ? ' today' : ''}"
                   data-lineup-day="${key}"
                 >${cell.date.getDate()}</button>
               `;
 
             }).join('')
           }
+        </div>
+
+        <div class="lineupCalLegend">
+          <span><i class="legendDot legendDone"></i>Done</span>
+          <span><i class="legendDot legendUpcoming"></i>Upcoming</span>
+          <span><i class="legendDot legendActive"></i>Active</span>
         </div>
 
       </div>
