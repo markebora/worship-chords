@@ -9127,6 +9127,46 @@ if(window.pdfjsLib){
 const API_BASE_URL = 'https://worship-chords-rho.vercel.app';
 
 /*
+  Native (Capacitor) app helpers. In a normal browser/PWA these all
+  return false/null and nothing below changes behavior.
+*/
+function isNativeApp(){
+
+  try{
+
+    return !!(
+      window.Capacitor &&
+      typeof window.Capacitor.isNativePlatform === 'function' &&
+      window.Capacitor.isNativePlatform()
+    );
+
+  }catch(error){
+
+    return false;
+
+  }
+
+}
+
+function getNativePush(){
+
+  return (
+    window.Capacitor &&
+    window.Capacitor.Plugins &&
+    window.Capacitor.Plugins.PushNotifications
+  ) || null;
+
+}
+
+/* True when the app's files are bundled inside the APK (served from
+   https://localhost) rather than loaded from the live website. */
+function isBundledNativeApp(){
+
+  return isNativeApp() && location.hostname === 'localhost';
+
+}
+
+/*
   Powers in-app YouTube search (the search box inside "Add Video
   Link" — see showAddYouTubeVideoDialog/searchYouTube below), so
   people can find a song's video without leaving the app to copy
@@ -12070,6 +12110,18 @@ function recordRecentView(song){
       lets the Recent card show "Saved" vs just a view date.
     */
     savedAt: song.savedAt || null,
+
+    /*
+      Category + theme the person picked BEFORE opening the song.
+      Without these, saving a Recent "draft" from the Lyrics page
+      (saveDraftToLibrary) copied a song with no category, and it
+      had to be set again from the Library.
+    */
+    category: song.category || undefined,
+
+    theme: song.theme || undefined,
+
+    keyOverride: song.keyOverride || undefined,
 
     viewedAt: new Date().toISOString()
 
@@ -23012,12 +23064,45 @@ function swipeToggleFavorite(songId, label){
   The Recent entry is re-pointed at the new Library copy so it
   stops showing as a draft.
 */
-function saveDraftToLibrary(draftId){
+function saveDraftToLibrary(draftId, onSaved){
 
   const draft =
     getRecentViews().find(item => item.id === draftId);
 
   if(!draft)return false;
+
+  /*
+    A draft normally carries the category + theme picked before it
+    was opened. If it doesn't (an older Recent entry, or one that
+    was never categorized), ask now — same required popup as every
+    other new song — instead of silently saving it uncategorized.
+  */
+  if(!draft.category || !draft.theme){
+
+    requireCategoryTheme(
+      {
+        title: draft.title,
+        category: draft.category,
+        theme: draft.theme
+      },
+      (category, theme) => {
+
+        writeRecentViews(
+          getRecentViews().map(item =>
+            item.id === draftId
+              ? { ...item, category, theme }
+              : item
+          )
+        );
+
+        saveDraftToLibrary(draftId, onSaved);
+
+      }
+    );
+
+    return false;
+
+  }
 
   const songs =
     getSongs();
@@ -23054,6 +23139,8 @@ function saveDraftToLibrary(draftId){
   try{ uploadNewSongToDrive(copy); }catch(error){ console.error(error); }
 
   showToast('Song saved.', 'success');
+
+  if(typeof onSaved === 'function')onSaved();
 
   return true;
 
@@ -23297,12 +23384,13 @@ function renderLyrics(){
 
         event.stopPropagation();
 
-        if(saveDraftToLibrary(btn.dataset.draftSave)){
-
-          skipNextScreenTransition = true;
-          renderLyrics();
-
-        }
+        saveDraftToLibrary(
+          btn.dataset.draftSave,
+          () => {
+            skipNextScreenTransition = true;
+            renderLyrics();
+          }
+        );
 
       });
 
@@ -38153,7 +38241,19 @@ initSyncOnLoad();
    isn't open.
 ========================================================= */
 
+const NATIVE_PUSH_TOKEN_KEY = 'disciplesFcmToken';
+const NATIVE_PUSH_CHANNEL_ID = 'disciples-updates';
+
+let nativePushDenied = false;
+let nativePushListenersReady = false;
+
 function notificationsCurrentlyOn(){
+
+  if(isNativeApp()){
+
+    return !!getSettings().songNotifications && !nativePushDenied;
+
+  }
 
   return (
     !!getSettings().songNotifications &&
@@ -38165,6 +38265,20 @@ function notificationsCurrentlyOn(){
 
 
 function notificationStatusText(){
+
+  if(isNativeApp()){
+
+    if(nativePushDenied){
+
+      return 'Blocked — enable notifications for this app in your phone settings.';
+
+    }
+
+    return notificationsCurrentlyOn()
+      ? "On — you'll be notified when a new song is added."
+      : 'Off — turn on to get notified when a new song is added.';
+
+  }
 
   if(typeof Notification === 'undefined'){
 
@@ -38433,7 +38547,138 @@ function maybeShowServiceCall(){
 setInterval(maybeShowServiceCall, 30000);
 
 
+/* ---- Native (Capacitor) push: Firebase Cloud Messaging ---- */
+
+async function nativePushSendToken(token){
+
+  if(!token)return;
+
+  try{
+
+    localStorage.setItem(NATIVE_PUSH_TOKEN_KEY, token);
+
+    await fetch(API_BASE_URL + '/api/push-subscribe', {
+
+      method:'POST',
+
+      headers:{
+        'Content-Type':'application/json'
+      },
+
+      body:
+        JSON.stringify({ fcmToken:token })
+
+    });
+
+  }catch(error){
+
+    console.error('Could not send push token:', error);
+
+  }
+
+}
+
+async function nativePushSetupListeners(){
+
+  const Push = getNativePush();
+
+  if(!Push || nativePushListenersReady)return;
+
+  nativePushListenersReady = true;
+
+  try{
+
+    await Push.createChannel({
+      id: NATIVE_PUSH_CHANNEL_ID,
+      name: 'Disciples updates',
+      description: 'New songs and lineup reminders',
+      importance: 4,
+      visibility: 1,
+      vibration: true
+    });
+
+  }catch(error){
+
+    console.warn('Could not create notification channel:', error);
+
+  }
+
+  Push.addListener('registration', result => {
+    nativePushSendToken(result && result.value);
+  });
+
+  Push.addListener('registrationError', error => {
+    console.error('Push registration failed:', error);
+  });
+
+  /* App is open: Android doesn't show a banner by itself, so show
+     the same message in-app. */
+  Push.addListener('pushNotificationReceived', notification => {
+
+    const text =
+      [notification && notification.title, notification && notification.body]
+        .filter(Boolean)
+        .join(' — ');
+
+    if(text)showToast(text, 'success');
+
+  });
+
+}
+
 async function enableSongNotifications(){
+
+  if(isNativeApp()){
+
+    const Push = getNativePush();
+
+    if(!Push){
+
+      alert('Notifications are not available in this build.');
+
+      return;
+
+    }
+
+    try{
+
+      await nativePushSetupListeners();
+
+      const permission =
+        await Push.requestPermissions();
+
+      if(permission.receive !== 'granted'){
+
+        nativePushDenied = true;
+
+        writeSettings({ songNotifications:false });
+
+        renderProfileSettings();
+
+        return;
+
+      }
+
+      nativePushDenied = false;
+
+      writeSettings({ songNotifications:true });
+
+      /* The token arrives through the 'registration' listener. */
+      await Push.register();
+
+    }catch(error){
+
+      console.error('Enable notifications failed:', error);
+
+      alert('Could not turn on notifications. Please try again.');
+
+    }
+
+    renderProfileSettings();
+
+    return;
+
+  }
 
   if(
     !('serviceWorker' in navigator) ||
@@ -38534,6 +38779,50 @@ async function enableSongNotifications(){
 
 async function disableSongNotifications(){
 
+  if(isNativeApp()){
+
+    try{
+
+      const token =
+        localStorage.getItem(NATIVE_PUSH_TOKEN_KEY);
+
+      if(token){
+
+        await fetch(API_BASE_URL + '/api/push-subscribe', {
+
+          method:'DELETE',
+
+          headers:{
+            'Content-Type':'application/json'
+          },
+
+          body:
+            JSON.stringify({ fcmToken:token })
+
+        });
+
+      }
+
+      const Push = getNativePush();
+
+      if(Push)await Push.unregister();
+
+      localStorage.removeItem(NATIVE_PUSH_TOKEN_KEY);
+
+    }catch(error){
+
+      console.error('Disable notifications failed:', error);
+
+    }
+
+    writeSettings({ songNotifications:false });
+
+    renderProfileSettings();
+
+    return;
+
+  }
+
   try{
 
     if('serviceWorker' in navigator){
@@ -38583,7 +38872,51 @@ async function disableSongNotifications(){
 }
 
 
-if('serviceWorker' in navigator){
+/*
+  Native app start-up: create the notification channel, and if
+  notifications were already turned on, ask FCM for the current token
+  again (tokens can change) so the server always has a fresh one.
+*/
+(async function nativePushInit(){
+
+  if(!isNativeApp())return;
+
+  const Push = getNativePush();
+
+  if(!Push)return;
+
+  try{
+
+    await nativePushSetupListeners();
+
+    if(!getSettings().songNotifications)return;
+
+    const permission =
+      await Push.checkPermissions();
+
+    if(permission.receive !== 'granted'){
+
+      nativePushDenied = true;
+
+      writeSettings({ songNotifications:false });
+
+      return;
+
+    }
+
+    await Push.register();
+
+  }catch(error){
+
+    console.warn('Native push init failed:', error);
+
+  }
+
+})();
+
+/* The bundled native app (served from https://localhost) doesn't need
+   the service worker; the live-URL native app and the website do. */
+if('serviceWorker' in navigator && !isBundledNativeApp()){
 
   window.addEventListener('load', () => {
 
