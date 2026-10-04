@@ -22406,7 +22406,7 @@ function renderProfileSettings(){
         (Export, above). Valid JSON that ISN'T an array is a
         JSON file, just not one of ours. Anything else is
         treated as a single song exported as plain text
-        (Export as Text, from a song's ⋮ menu).
+        (the old text export — importing those files still works).
       */
 
       let backupSongs = null;
@@ -27918,9 +27918,7 @@ function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, h
             <button class="songMenuItem" type="button" id="menuSendToTeamBtn" role="menuitem">Send to Team</button>
             <button class="songMenuItem" type="button" id="menuShareCommunityBtn" role="menuitem">${currentSong&&currentSong.publishedToDirectory?'Remove from Community':'Share to Community'}</button>
             <button class="songMenuItem" type="button" id="menuAddVideoBtn" role="menuitem">${currentSong&&currentSong.video?'Change Video Link':'Add Video Link'}</button>
-            <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
-            <button class="songMenuItem" type="button" id="menuExportDocxBtn" role="menuitem">Export as Word (.docx)</button>
-            <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
+            <button class="songMenuItem" type="button" id="menuExportBtn" role="menuitem">Export</button>
           </div>
         </div>
 
@@ -29818,35 +29816,10 @@ function attachSongMenuControls(){
 
 
   document
-    .getElementById(
-      'menuExportPdfBtn'
-    )
+    .getElementById('menuExportBtn')
     .onclick = () => {
-
       closeSongMenu();
-
       openPdfExportOptions();
-
-    };
-
-  document
-    .getElementById('menuExportDocxBtn')
-    .onclick = () => {
-      closeSongMenu();
-      openPdfExportOptions('docx');
-    };
-
-
-  document
-    .getElementById(
-      'menuExportTxtBtn'
-    )
-    .onclick = () => {
-
-      closeSongMenu();
-
-      exportCurrentSongAsText();
-
     };
 
 }
@@ -29882,7 +29855,7 @@ document.addEventListener(
 
 /* =========================================================
    IMPORT (TEXT) — the inverse of the export below. Recognizes
-   the `Title: "X"` marker line exportCurrentSongAsText writes:
+   the `Title: "X"` marker line the old text export wrote:
    one marker means a single song, more than one means the file
    is a merged song (one marker per part), so the importer can
    rebuild it as a proper paginated merge instead of one flat
@@ -30070,164 +30043,6 @@ function parseLegacySingleSongTextFile(text){
 
 
 /* =========================================================
-   EXPORT (TEXT) — saves the currently viewed song to a local
-   .txt file (chords + lyrics, respecting the current
-   transpose), named after the song title. Each song's title is
-   written as a `Title: "X"` marker line — for a merged song,
-   every part gets its own marker, one after another, so a
-   later import can tell a merge apart from a single song just
-   by counting how many Title: lines the file has (see
-   parseSongTextFile).
-========================================================= */
-
-function exportCurrentSongAsText(){
-
-  if(!currentSong)return;
-
-  const song = currentSong;
-
-  const isMerged =
-    Array.isArray(song.mergeParts) &&
-    song.mergeParts.length > 1;
-
-  const parts =
-    isMerged
-      ? song.mergeParts
-      : [{
-
-          title:
-            song.title ||
-            'Untitled Song',
-
-          text:
-            song.originalText ||
-            song.text ||
-            ''
-
-        }];
-
-  const amount =
-    song.transposeSteps || 0;
-
-
-  const outputLines = [];
-
-
-  parts.forEach((part, partIndex) => {
-
-    const partAmount =
-      isMerged
-        ? (part.transposeSteps || 0)
-        : amount;
-
-    const displayedText =
-      transposeText(
-        part.text || '',
-        partAmount
-      );
-
-    const sections =
-      parseSections(
-        displayedText
-      );
-
-    const keyInfo =
-      detectKeyFromChords(
-        extractChordTokens(
-          displayedText
-        )
-      );
-
-
-    if(partIndex > 0){
-
-      outputLines.push('');
-
-    }
-
-
-    outputLines.push(
-      'Title: "' +
-      (part.title || 'Untitled Song') +
-      '"'
-    );
-
-
-    if(keyInfo){
-
-      outputLines.push(
-        'Key: ' + keyInfo.label
-      );
-
-    }
-
-
-    outputLines.push('');
-
-
-    sections.forEach(section => {
-
-      outputLines.push(
-        '[' + section.name + ']'
-      );
-
-      section.lines.forEach(
-        line => outputLines.push(line)
-      );
-
-      outputLines.push('');
-
-    });
-
-  });
-
-
-  const text =
-    sanitizeForPlainExport(
-      outputLines
-        .join('\n')
-        .replace(/\n{3,}/g,'\n\n')
-        .trim() +
-      '\n'
-    );
-
-
-  const filename =
-    (song.title || 'untitled-song')
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g,'-')
-      .replace(/(^-+|-+$)/g,'') ||
-    'song';
-
-
-  const blob =
-    new Blob(
-      ['\uFEFF' + text],
-      { type:'text/plain;charset=utf-8' }
-    );
-
-  const url =
-    URL.createObjectURL(blob);
-
-  const link =
-    document.createElement('a');
-
-  link.href = url;
-  link.download = filename + '.txt';
-
-  document.body.appendChild(link);
-
-  link.click();
-
-  link.remove();
-
-  URL.revokeObjectURL(url);
-
-}
-
-
-/* =========================================================
    EXPORT (PDF) — lets the user configure the export before
    generating it: how many columns to lay the lyrics out in,
    whether to include chords, and the order/inclusion of each
@@ -30236,6 +30051,12 @@ function exportCurrentSongAsText(){
 ========================================================= */
 
 function openPdfExportOptions(format){
+  /* format: 'pdf' | 'docx'. If not given, use the one last used. */
+  if(format !== 'pdf' && format !== 'docx'){
+    try{
+      format = localStorage.getItem('disciplesExportFormat');
+    }catch(e){ format = null; }
+  }
   exportOptionsFormat = (format === 'docx') ? 'docx' : 'pdf';
 
   if(!currentSong)return;
@@ -30371,7 +30192,7 @@ function renderPdfExportOptions(){
         <button class="backBtn" id="pdfExportBack">← Song</button>
 
         <div class="songHeading">
-          <h1>${exportOptionsFormat === 'docx' ? 'Export as Word' : 'Export as PDF'}</h1>
+          <h1 id="exportHeading">Export</h1>
           <p>${esc((Array.isArray(currentSong.mergeParts)&&currentSong.mergeParts.length>1?currentSong.mergeParts[clampMergedPartIndex(currentSong)].title:currentSong.title) || 'Untitled Song')}</p>
         </div>
 
@@ -30381,6 +30202,13 @@ function renderPdfExportOptions(){
         <button class="toolbarBtn primary" id="pdfExportGo">${exportOptionsFormat === 'docx' ? 'Export Word (.docx)' : 'Export PDF'}</button>
       </div>
 
+      <div class="pdfOptionGroup">
+        <div class="pdfOptionLabel">Format</div>
+        <div class="viewModeGroup" id="exportFormatGroup">
+          <button type="button" class="viewModeBtn${exportOptionsFormat==='pdf'?' active':''}" data-format="pdf">PDF</button>
+          <button type="button" class="viewModeBtn${exportOptionsFormat==='docx'?' active':''}" data-format="docx">Word (.docx)</button>
+        </div>
+      </div>
       <div class="pdfOptionGroup">
         <div class="pdfOptionLabel">Page Size</div>
         <div class="viewModeGroup" id="pdfPageSizeGroup">
@@ -30419,7 +30247,7 @@ function renderPdfExportOptions(){
         <div class="pdfPreviewPage" id="pdfPreviewPage" style="column-count:${pdfExportColumns};">
           ${renderPdfPreviewHTML()}
         </div>
-        <div class="pdfPreviewHint">Preview approximates the column layout — the actual ${exportOptionsFormat === 'docx' ? 'document' : 'PDF'} may span multiple pages.</div>
+        <div class="pdfPreviewHint" id="exportPreviewHint">Preview approximates the column layout — the actual ${exportOptionsFormat === 'docx' ? 'document' : 'PDF'} may span multiple pages.</div>
       </div>
 
     </div>
@@ -30438,6 +30266,26 @@ function renderPdfExportOptions(){
     }
   };
 
+  const syncExportFormatLabels = () => {
+    const isWord = exportOptionsFormat === 'docx';
+    const go = document.getElementById('pdfExportGo');
+    const hint = document.getElementById('exportPreviewHint');
+    if(go) go.textContent = isWord ? 'Export Word (.docx)' : 'Export PDF';
+    if(hint) hint.textContent =
+      'Preview approximates the column layout — the actual ' +
+      (isWord ? 'document' : 'PDF') + ' may span multiple pages.';
+  };
+  syncExportFormatLabels();
+  document.querySelectorAll('#exportFormatGroup .viewModeBtn').forEach(btn => {
+    btn.onclick = () => {
+      exportOptionsFormat = (btn.dataset.format === 'docx') ? 'docx' : 'pdf';
+      try{ localStorage.setItem('disciplesExportFormat', exportOptionsFormat); }catch(e){}
+      document.querySelectorAll('#exportFormatGroup .viewModeBtn').forEach(b => {
+        b.classList.toggle('active', b === btn);
+      });
+      syncExportFormatLabels();
+    };
+  });
   document.querySelectorAll('#pdfColumnsGroup .viewModeBtn').forEach(btn => {
     btn.onclick = () => {
       pdfExportColumns = Number(btn.dataset.columns);
