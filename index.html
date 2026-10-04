@@ -10335,6 +10335,7 @@ let pdfExportSections = [];
 let pdfExportColumns = 1;
 let pdfExportIncludeChords = true;
 let pdfExportPageSize = 'letter'; /* letter | legal | a4 */
+let exportOptionsFormat = 'pdf'; /* pdf | docx — the options page is shared */
 
 
 /*
@@ -27918,6 +27919,7 @@ function renderSongBottomBarHTML(showChordsActive, isLyricsMode, mdViewModeOn, h
             <button class="songMenuItem" type="button" id="menuShareCommunityBtn" role="menuitem">${currentSong&&currentSong.publishedToDirectory?'Remove from Community':'Share to Community'}</button>
             <button class="songMenuItem" type="button" id="menuAddVideoBtn" role="menuitem">${currentSong&&currentSong.video?'Change Video Link':'Add Video Link'}</button>
             <button class="songMenuItem" type="button" id="menuExportPdfBtn" role="menuitem">Export as PDF</button>
+            <button class="songMenuItem" type="button" id="menuExportDocxBtn" role="menuitem">Export as Word (.docx)</button>
             <button class="songMenuItem" type="button" id="menuExportTxtBtn" role="menuitem">Export as Text</button>
           </div>
         </div>
@@ -29827,6 +29829,13 @@ function attachSongMenuControls(){
 
     };
 
+  document
+    .getElementById('menuExportDocxBtn')
+    .onclick = () => {
+      closeSongMenu();
+      openPdfExportOptions('docx');
+    };
+
 
   document
     .getElementById(
@@ -30226,7 +30235,8 @@ function exportCurrentSongAsText(){
    from a CDN <script> tag above.
 ========================================================= */
 
-function openPdfExportOptions(){
+function openPdfExportOptions(format){
+  exportOptionsFormat = (format === 'docx') ? 'docx' : 'pdf';
 
   if(!currentSong)return;
 
@@ -30361,14 +30371,14 @@ function renderPdfExportOptions(){
         <button class="backBtn" id="pdfExportBack">← Song</button>
 
         <div class="songHeading">
-          <h1>Export as PDF</h1>
+          <h1>${exportOptionsFormat === 'docx' ? 'Export as Word' : 'Export as PDF'}</h1>
           <p>${esc((Array.isArray(currentSong.mergeParts)&&currentSong.mergeParts.length>1?currentSong.mergeParts[clampMergedPartIndex(currentSong)].title:currentSong.title) || 'Untitled Song')}</p>
         </div>
 
       </div>
 
       <div class="editorActions">
-        <button class="toolbarBtn primary" id="pdfExportGo">Export PDF</button>
+        <button class="toolbarBtn primary" id="pdfExportGo">${exportOptionsFormat === 'docx' ? 'Export Word (.docx)' : 'Export PDF'}</button>
       </div>
 
       <div class="pdfOptionGroup">
@@ -30409,7 +30419,7 @@ function renderPdfExportOptions(){
         <div class="pdfPreviewPage" id="pdfPreviewPage" style="column-count:${pdfExportColumns};">
           ${renderPdfPreviewHTML()}
         </div>
-        <div class="pdfPreviewHint">Preview approximates the column layout — the actual PDF may span multiple pages.</div>
+        <div class="pdfPreviewHint">Preview approximates the column layout — the actual ${exportOptionsFormat === 'docx' ? 'document' : 'PDF'} may span multiple pages.</div>
       </div>
 
     </div>
@@ -30421,7 +30431,11 @@ function renderPdfExportOptions(){
   };
 
   document.getElementById('pdfExportGo').onclick = () => {
-    generatePdfFromOptions();
+    if(exportOptionsFormat === 'docx'){
+      generateDocxFromOptions();
+    }else{
+      generatePdfFromOptions();
+    }
   };
 
   document.querySelectorAll('#pdfColumnsGroup .viewModeBtn').forEach(btn => {
@@ -30879,6 +30893,284 @@ function generatePdfFromOptions(){
 
 
 
+
+
+/* =========================================================
+   EXPORT (WORD / .docx)
+   Uses the same options as the PDF export (page size, columns,
+   chords + lyrics or lyrics only, section order / visibility)
+   and the same sizes and colours, but produces an editable
+   Word document. No library: the .docx is a ZIP of a few XML
+   files, written here directly (see makeZipStore below).
+========================================================= */
+function xmlEsc(text){
+  return String(text ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    /* strip characters that are illegal in XML 1.0 */
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
+}
+
+let _crcTable = null;
+function crc32Bytes(bytes){
+  if(!_crcTable){
+    _crcTable = new Uint32Array(256);
+    for(let n = 0; n < 256; n++){
+      let c = n;
+      for(let k = 0; k < 8; k++){
+        c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      }
+      _crcTable[n] = c >>> 0;
+    }
+  }
+  let crc = 0xFFFFFFFF;
+  for(let i = 0; i < bytes.length; i++){
+    crc = _crcTable[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+/* Minimal ZIP writer (no compression). files = [{ name, text }] */
+function makeZipStore(files){
+  const enc = new TextEncoder();
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+  const now = new Date();
+  const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+
+  files.forEach(file => {
+    const nameBytes = enc.encode(file.name);
+    const data = enc.encode(file.text);
+    const crc = crc32Bytes(data);
+
+    const local = new DataView(new ArrayBuffer(30));
+    local.setUint32(0, 0x04034B50, true);
+    local.setUint16(4, 20, true);
+    local.setUint16(6, 0x0800, true);          /* UTF-8 names */
+    local.setUint16(8, 0, true);               /* stored */
+    local.setUint16(10, dosTime, true);
+    local.setUint16(12, dosDate, true);
+    local.setUint32(14, crc, true);
+    local.setUint32(18, data.length, true);
+    local.setUint32(22, data.length, true);
+    local.setUint16(26, nameBytes.length, true);
+    local.setUint16(28, 0, true);
+
+    chunks.push(new Uint8Array(local.buffer), nameBytes, data);
+
+    const cd = new DataView(new ArrayBuffer(46));
+    cd.setUint32(0, 0x02014B50, true);
+    cd.setUint16(4, 20, true);
+    cd.setUint16(6, 20, true);
+    cd.setUint16(8, 0x0800, true);
+    cd.setUint16(10, 0, true);
+    cd.setUint16(12, dosTime, true);
+    cd.setUint16(14, dosDate, true);
+    cd.setUint32(16, crc, true);
+    cd.setUint32(20, data.length, true);
+    cd.setUint32(24, data.length, true);
+    cd.setUint16(28, nameBytes.length, true);
+    cd.setUint32(42, offset, true);
+    central.push(new Uint8Array(cd.buffer), nameBytes);
+
+    offset += 30 + nameBytes.length + data.length;
+  });
+
+  let centralSize = 0;
+  central.forEach(part => { centralSize += part.length; });
+
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054B50, true);
+  end.setUint16(8, files.length, true);
+  end.setUint16(10, files.length, true);
+  end.setUint32(12, centralSize, true);
+  end.setUint32(16, offset, true);
+
+  return new Blob(
+    [...chunks, ...central, new Uint8Array(end.buffer)],
+    { type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }
+  );
+}
+
+function docxRun(text, opts){
+  opts = opts || {};
+  return '<w:r><w:rPr>' +
+    '<w:rFonts w:ascii="' + opts.font + '" w:hAnsi="' + opts.font + '" w:cs="' + opts.font + '"/>' +
+    (opts.bold ? '<w:b/>' : '') +
+    '<w:color w:val="' + opts.color + '"/>' +
+    '<w:sz w:val="' + opts.size + '"/><w:szCs w:val="' + opts.size + '"/>' +
+    '</w:rPr><w:t xml:space="preserve">' + xmlEsc(text) + '</w:t></w:r>';
+}
+
+function docxParagraph(runXml, opts){
+  opts = opts || {};
+  return '<w:p><w:pPr>' +
+    (opts.keepNext ? '<w:keepNext/>' : '') +
+    '<w:spacing w:before="' + (opts.before || 0) + '" w:after="' + (opts.after || 0) + '"' +
+      (opts.line ? ' w:line="' + opts.line + '" w:lineRule="exact"' : '') + '/>' +
+    (opts.sectPr || '') +
+    '</w:pPr>' + runXml + '</w:p>';
+}
+
+function generateDocxFromOptions(){
+  if(!currentSong)return;
+
+  const sectionsToExport =
+    pdfExportSections.filter(section => !section.excluded);
+
+  if(!sectionsToExport.length){
+    showToast('Select at least one section to export.', 'error');
+    return;
+  }
+
+  const isMerged =
+    Array.isArray(currentSong.mergeParts) &&
+    currentSong.mergeParts.length > 1;
+
+  const source =
+    isMerged
+      ? currentSong.mergeParts[clampMergedPartIndex(currentSong)]
+      : currentSong;
+
+  const amount =
+    (isMerged ? source.transposeSteps : currentSong.transposeSteps) || 0;
+
+  const displayedText =
+    transposeText(source.originalText || source.text || '', amount);
+
+  const keyInfo =
+    detectKeyFromChords(extractChordTokens(displayedText));
+
+  /* same sizing as the PDF: 1 column 11pt, 2 columns 9.5pt, 3 columns 8.5pt */
+  const columns = pdfExportColumns;
+  const fontPt = columns === 1 ? 11 : columns === 2 ? 9.5 : 8.5;
+  const lineTwips = (columns === 1 ? 15 : 13) * 20;
+  const sectionGap = (columns === 1 ? 10 : 8) * 20;
+
+  const pageDims = {
+    letter:{ w:12240, h:15840 },
+    legal:{ w:12240, h:20160 },
+    a4:{ w:11906, h:16838 }
+  }[pdfExportPageSize] || { w:12240, h:15840 };
+
+  const margin = 800; /* 40pt, same as the PDF */
+
+  const pgSetup =
+    '<w:pgSz w:w="' + pageDims.w + '" w:h="' + pageDims.h + '"/>' +
+    '<w:pgMar w:top="' + margin + '" w:right="' + margin + '" w:bottom="' + margin +
+    '" w:left="' + margin + '" w:header="400" w:footer="400" w:gutter="0"/>';
+
+  const body = [];
+
+  /* Title + key (full width) */
+  const title = source.title || currentSong.title || 'Untitled Song';
+
+  body.push(docxParagraph(
+    docxRun(title, { font:'Arial', bold:true, color:'141414', size:40 }),
+    { after: keyInfo ? 40 : 160 }
+  ));
+
+  if(keyInfo){
+    body.push(docxParagraph(
+      docxRun('Key: ' + keyInfo.label, { font:'Arial', color:'646469', size:22 }),
+      { after:160 }
+    ));
+  }
+
+  /* Multi-column lyrics: close the full-width title section, then start a
+     continuous section laid out in N columns (columns === 1 needs neither). */
+  const colXml = n =>
+    '<w:cols w:num="' + n + '" w:space="360"' + (n > 1 ? ' w:equalWidth="1"' : '') + '/>';
+
+  if(columns > 1){
+    body.push(docxParagraph('', {
+      line: 20,
+      sectPr:'<w:sectPr>' + pgSetup + colXml(1) + '</w:sectPr>'
+    }));
+  }
+
+  sectionsToExport.forEach((section, index) => {
+
+    body.push(docxParagraph(
+      docxRun(
+        (section.name || 'Section').toUpperCase(),
+        { font:'Arial', bold:true, color:'3C3C41', size:Math.round((fontPt + 1) * 2) }
+      ),
+      { keepNext:true, line:lineTwips, before: index === 0 ? 0 : sectionGap, after:40 }
+    ));
+
+    section.lines
+      .filter(line => line.trim() !== '')
+      .filter(line => pdfExportIncludeChords || !isChordOnlyLine(line))
+      .forEach(line => {
+        const chord = isChordOnlyLine(line);
+        body.push(docxParagraph(
+          docxRun(line, {
+            font:'Courier New',
+            bold:chord,
+            color:chord ? '2563D1' : '19191C',
+            size:Math.round(fontPt * 2)
+          }),
+          { line:lineTwips }
+        ));
+      });
+
+  });
+
+  const finalSect =
+    '<w:sectPr>' +
+      (columns > 1 ? '<w:type w:val="continuous"/>' : '') +
+      pgSetup + colXml(columns) +
+    '</w:sectPr>';
+
+  const documentXml =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+    '<w:body>' + body.join('') + finalSect + '</w:body></w:document>';
+
+  const contentTypes =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+    '</Types>';
+
+  const rootRels =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>' +
+    '</Relationships>';
+
+  const blob = makeZipStore([
+    { name:'[Content_Types].xml', text:contentTypes },
+    { name:'_rels/.rels', text:rootRels },
+    { name:'word/document.xml', text:documentXml }
+  ]);
+
+  const filename =
+    (currentSong.title || 'untitled-song')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g,'-')
+      .replace(/(^-+|-+$)/g,'') ||
+    'song';
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename + '.docx';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  showToast('Word document exported.', 'success');
+}
 
 /* =========================================================
    EDIT CURRENT SONG
@@ -37919,8 +38211,14 @@ function stageNextMeta(entry){
 }
 
 /* Scroll speed is the 1-5 level you pick (BPM says nothing about lyric pace). */
+/* Stage mode has its own, much slower speed table (px per second), 6 levels.
+   Level 2 is about 5x slower than the normal viewer's 2x. */
+const STAGE_SCROLL_SPEEDS = { 1: 6, 2: 10, 3: 15, 4: 21, 5: 28, 6: 38 };
+const STAGE_SPEED_MAX = 6;
+const STAGE_SPEED_DEFAULT = 2;
+
 function stagePxPerSecond(){
-  return AUTO_SCROLL_SPEEDS[stageSpeedLevel] || AUTO_SCROLL_SPEEDS[2];
+  return STAGE_SCROLL_SPEEDS[stageSpeedLevel] || STAGE_SCROLL_SPEEDS[STAGE_SPEED_DEFAULT];
 }
 
 /* Each song remembers its own scroll speed, so you only tune it once. */
@@ -37928,7 +38226,7 @@ function stageGetSavedSpeed(songId){
   try{
     const map = JSON.parse(localStorage.getItem('disciplesStageSpeeds') || '{}');
     const v = map[songId];
-    if(v >= 1 && v <= 5) return v;
+    if(v >= 1 && v <= STAGE_SPEED_MAX) return v;
   }catch(e){}
   return null;
 }
@@ -38051,7 +38349,7 @@ function stageRefresh(){
 
   const savedSpeed = stageGetSavedSpeed(currentSong.id);
   if(savedSpeed) stageSpeedLevel = savedSpeed;
-  else stageSpeedLevel = Math.max(1, Math.min(5, autoScrollSpeedLevel || 2));
+  else stageSpeedLevel = STAGE_SPEED_DEFAULT;
 
   overlay.querySelector('#stageSpeedLabel').textContent = stageSpeedLevel + 'x';
 }
@@ -38072,7 +38370,7 @@ function openStageMode(){
 
   stageOpen = true;
   stageShowChords = (typeof showChords === 'undefined') ? true : !!showChords;
-  stageSpeedLevel = Math.max(1, Math.min(5, autoScrollSpeedLevel || 2));
+  stageSpeedLevel = STAGE_SPEED_DEFAULT;
 
   const overlay = document.createElement('div');
   overlay.id = 'stageOverlay';
@@ -38129,7 +38427,7 @@ function openStageMode(){
   document.getElementById('stageFontUp').onclick = () => stageSetFont(stageGetFont() + 2);
 
   const setSpeed = delta => {
-    stageSpeedLevel = Math.max(1, Math.min(5, stageSpeedLevel + delta));
+    stageSpeedLevel = Math.max(1, Math.min(STAGE_SPEED_MAX, stageSpeedLevel + delta));
     document.getElementById('stageSpeedLabel').textContent = stageSpeedLevel + 'x';
     if(currentSong) stageSaveSpeed(currentSong.id, stageSpeedLevel);
   };
