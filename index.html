@@ -9311,6 +9311,331 @@ function isBundledNativeApp(){
 }
 
 /*
+  Saves/exports a file (PDF, Word, JSON backup...).
+
+  In a browser or the old Chrome-based app, a hidden <a download>
+  link works. Inside the native (Capacitor) app's WebView it does
+  NOT — nothing happens — so there the file is written to the app's
+  cache and handed to Android's Share sheet, where the person picks
+  "Save to Drive / Files", sends it by WhatsApp or email, etc.
+
+  Needs the @capacitor/filesystem and @capacitor/share plugins.
+  Resolves true when the file was handed off, false if it failed
+  or was cancelled.
+*/
+function blobToBase64(blob){
+
+  return new Promise((resolve, reject) => {
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+
+      const result = String(reader.result || '');
+
+      resolve(result.slice(result.indexOf(',') + 1));
+
+    };
+
+    reader.onerror = () => reject(reader.error || new Error('Could not read file.'));
+
+    reader.readAsDataURL(blob);
+
+  });
+
+}
+
+/*
+  Remembered export folder (native app only).
+
+  The person picks a folder ONCE (Android's folder picker); the app
+  keeps permission to it and every later export is saved straight
+  there — no more share-sheet steps. Two settings keys:
+    disciplesExportFolder = { uri, name }
+    disciplesExportMode   = 'share' when they'd rather use the Share
+                            menu every time (otherwise folder mode)
+  Needs the small FolderSave plugin (native/android-extras).
+*/
+const EXPORT_FOLDER_KEY = 'disciplesExportFolder';
+const EXPORT_MODE_KEY = 'disciplesExportMode';
+
+function getFolderSavePlugin(){
+
+  return (
+    window.Capacitor &&
+    window.Capacitor.Plugins &&
+    window.Capacitor.Plugins.FolderSave
+  ) || null;
+
+}
+
+function getExportFolder(){
+
+  try{
+
+    const folder =
+      JSON.parse(localStorage.getItem(EXPORT_FOLDER_KEY) || 'null');
+
+    return folder && folder.uri ? folder : null;
+
+  }catch(error){
+
+    return null;
+
+  }
+
+}
+
+function setExportFolder(folder){
+
+  try{
+
+    if(folder){
+      localStorage.setItem(EXPORT_FOLDER_KEY, JSON.stringify(folder));
+    }else{
+      localStorage.removeItem(EXPORT_FOLDER_KEY);
+    }
+
+  }catch(error){}
+
+}
+
+function getExportMode(){
+
+  try{
+
+    return localStorage.getItem(EXPORT_MODE_KEY) === 'share' ? 'share' : 'folder';
+
+  }catch(error){
+
+    return 'folder';
+
+  }
+
+}
+
+function setExportMode(mode){
+
+  try{
+
+    localStorage.setItem(EXPORT_MODE_KEY, mode === 'share' ? 'share' : 'folder');
+
+  }catch(error){}
+
+}
+
+/* Opens Android's folder picker. Resolves {uri, name} or null if the
+   person backed out. */
+async function pickExportFolder(){
+
+  const FolderSave = getFolderSavePlugin();
+
+  if(!FolderSave)return null;
+
+  try{
+
+    const picked =
+      await FolderSave.pickFolder();
+
+    if(picked && picked.uri){
+
+      const folder =
+        { uri:picked.uri, name:picked.name || 'Selected folder' };
+
+      setExportFolder(folder);
+
+      setExportMode('folder');
+
+      return folder;
+
+    }
+
+  }catch(error){
+
+    const message =
+      String((error && error.message) || error || '');
+
+    if(!/cancel/i.test(message)){
+
+      showToast('Could not use that folder: ' + message, 'error');
+
+    }
+
+  }
+
+  return null;
+
+}
+
+function exportMimeType(filename){
+
+  const name = String(filename || '').toLowerCase();
+
+  if(name.endsWith('.pdf'))return 'application/pdf';
+  if(name.endsWith('.json'))return 'application/json';
+  if(name.endsWith('.docx'))return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if(name.endsWith('.txt'))return 'text/plain';
+
+  return 'application/octet-stream';
+
+}
+
+async function deliverFile(filename, blob){
+
+  if(isNativeApp()){
+
+    /* ---- Preferred: save straight into the remembered folder ---- */
+    const FolderSave = getFolderSavePlugin();
+
+    if(FolderSave && getExportMode() === 'folder'){
+
+      let folder = getExportFolder();
+
+      if(folder){
+
+        try{
+
+          const access =
+            await FolderSave.hasAccess({ uri:folder.uri });
+
+          if(!access || !access.granted){
+
+            /* The folder was deleted, or Android revoked access. */
+            setExportFolder(null);
+
+            folder = null;
+
+            showToast('Lost access to your export folder — pick it again.', 'error');
+
+          }
+
+        }catch(error){
+
+          folder = null;
+
+        }
+
+      }
+
+      if(!folder){
+
+        showToast('Choose a folder for your exports — you only do this once.', null, { small:true });
+
+        folder = await pickExportFolder();
+
+      }
+
+      if(folder){
+
+        try{
+
+          const data =
+            await blobToBase64(blob);
+
+          await FolderSave.saveFile({
+            uri: folder.uri,
+            filename,
+            mimeType: exportMimeType(filename),
+            data
+          });
+
+          showToast('Saved to ' + folder.name + ': ' + filename, 'success');
+
+          return true;
+
+        }catch(error){
+
+          console.error('Folder save failed:', error);
+
+          /* A broken folder shouldn't trap the person — forget it so
+             the next export asks again, and fall through to Share. */
+          setExportFolder(null);
+
+          showToast('Could not save to that folder — opening Share instead.', 'error');
+
+        }
+
+      }
+
+    }
+
+    /* ---- Fallback / "Share menu" mode ---- */
+    const Filesystem =
+      window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
+
+    const Share =
+      window.Capacitor.Plugins && window.Capacitor.Plugins.Share;
+
+    if(!Filesystem || !Share){
+
+      showToast('Saving files is not available in this build.', 'error');
+
+      return false;
+
+    }
+
+    try{
+
+      const data =
+        await blobToBase64(blob);
+
+      const written =
+        await Filesystem.writeFile({
+          path: filename,
+          data,
+          directory: 'CACHE',
+          recursive: true
+        });
+
+      await Share.share({
+        title: filename,
+        url: written.uri,
+        dialogTitle: 'Save or send ' + filename
+      });
+
+      return true;
+
+    }catch(error){
+
+      /* Closing the share sheet without choosing is reported as an
+         error by some Android versions — that's not a failure. */
+      const message =
+        String((error && error.message) || error || '');
+
+      if(!/cancel|dismiss/i.test(message)){
+
+        console.error('Could not export file:', error);
+
+        showToast('Could not export the file: ' + message, 'error');
+
+      }
+
+      return false;
+
+    }
+
+  }
+
+  const url =
+    URL.createObjectURL(blob);
+
+  const link =
+    document.createElement('a');
+
+  link.href = url;
+  link.download = filename;
+
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  return true;
+
+}
+
+/*
   Powers in-app YouTube search (the search box inside "Add Video
   Link" — see showAddYouTubeVideoDialog/searchYouTube below), so
   people can find a song's video without leaving the app to copy
@@ -22588,6 +22913,21 @@ function renderProfileSettings(){
 
           </div>
 
+          ${
+            isNativeApp() && notificationsCurrentlyOn() ? `
+              <div class="settingsRow">
+
+                <div>
+                  <div class="settingsRowLabel">Test Notification</div>
+                  <div class="settingsRowSub">Sends one to this phone only, and shows the reason if it fails</div>
+                </div>
+
+                <button class="toolbarBtn" id="notificationTestBtn" type="button">Send test</button>
+
+              </div>
+            ` : ''
+          }
+
         </div>
 
       </div>
@@ -22600,6 +22940,36 @@ function renderProfileSettings(){
         </div>
 
         <div class="settingsCard">
+
+          ${
+            isNativeApp() && getFolderSavePlugin() ? `
+              <div class="settingsRow">
+
+                <div>
+                  <div class="settingsRowLabel">Export Folder</div>
+                  <div class="settingsRowSub">${
+                    getExportMode() === 'share'
+                      ? 'Using the Share menu each time'
+                      : (getExportFolder()
+                          ? 'Saving to: ' + esc(getExportFolder().name)
+                          : "Not set — you'll pick one on your next export")
+                  }</div>
+                </div>
+
+                <div style="display:flex;gap:8px;">
+                  <button class="toolbarBtn" id="exportFolderChangeBtn" type="button">${
+                    getExportMode() === 'share' ? 'Use folder' : (getExportFolder() ? 'Change' : 'Choose')
+                  }</button>
+                  ${
+                    getExportMode() === 'share' ? '' : `
+                      <button class="toolbarBtn" id="exportFolderShareBtn" type="button">Share menu</button>
+                    `
+                  }
+                </div>
+
+              </div>
+            ` : ''
+          }
 
           <div class="settingsRow">
 
@@ -22670,6 +23040,23 @@ function renderProfileSettings(){
 
 
   /* ---------- Notifications ---------- */
+
+  const notificationTestBtn =
+    document.getElementById('notificationTestBtn');
+
+  if(notificationTestBtn){
+
+    notificationTestBtn.onclick = async () => {
+
+      notificationTestBtn.disabled = true;
+
+      await nativePushSendTest();
+
+      notificationTestBtn.disabled = false;
+
+    };
+
+  }
 
   const notificationToggleBtn =
     document.getElementById('notificationToggleBtn');
@@ -22803,6 +23190,36 @@ function renderProfileSettings(){
 
   /* ---------- Data management ---------- */
 
+  const exportFolderChangeBtn =
+    document.getElementById('exportFolderChangeBtn');
+
+  if(exportFolderChangeBtn){
+
+    exportFolderChangeBtn.onclick = async () => {
+
+      await pickExportFolder();
+
+      renderProfileSettings();
+
+    };
+
+  }
+
+  const exportFolderShareBtn =
+    document.getElementById('exportFolderShareBtn');
+
+  if(exportFolderShareBtn){
+
+    exportFolderShareBtn.onclick = () => {
+
+      setExportMode('share');
+
+      renderProfileSettings();
+
+    };
+
+  }
+
   document
     .getElementById('exportLibraryBtn')
     .onclick = () => {
@@ -22813,21 +23230,10 @@ function renderProfileSettings(){
           { type:'application/json' }
         );
 
-      const url =
-        URL.createObjectURL(blob);
-
-      const link =
-        document.createElement('a');
-
-      link.href = url;
-      link.download =
-        'disciples-library-backup.json';
-
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      URL.revokeObjectURL(url);
+      deliverFile(
+        'disciples-library-backup.json',
+        blob
+      );
 
     };
 
@@ -31541,8 +31947,11 @@ function generatePdfFromOptions(){
       .replace(/(^-+|-+$)/g,'') ||
     'song';
 
-  doc.save(
-    filename + '.pdf'
+  /* doc.save() is a browser download, which the native app can't
+     do — build the PDF as a file and hand it to deliverFile(). */
+  deliverFile(
+    filename + '.pdf',
+    doc.output('blob')
   );
 
 }
@@ -31816,16 +32225,11 @@ function generateDocxFromOptions(){
       .replace(/(^-+|-+$)/g,'') ||
     'song';
 
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename + '.docx';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-  showToast('Word document exported.', 'success');
+  deliverFile(filename + '.docx', blob).then(ok => {
+    if(ok && !isNativeApp()){
+      showToast('Word document exported.', 'success');
+    }
+  });
 }
 
 /* =========================================================
@@ -39125,6 +39529,10 @@ setInterval(maybeShowServiceCall, 30000);
 
 /* ---- Native (Capacitor) push: Firebase Cloud Messaging ---- */
 
+/* True right after the person taps "Turn On", so the first successful
+   registration is confirmed on screen (later silent refreshes aren't). */
+let nativePushAnnounce = false;
+
 async function nativePushSendToken(token){
 
   if(!token)return;
@@ -39133,22 +39541,112 @@ async function nativePushSendToken(token){
 
     localStorage.setItem(NATIVE_PUSH_TOKEN_KEY, token);
 
-    await fetch(API_BASE_URL + '/api/push-subscribe', {
+    const response =
+      await fetch(API_BASE_URL + '/api/push-subscribe', {
 
-      method:'POST',
+        method:'POST',
 
-      headers:{
-        'Content-Type':'application/json'
-      },
+        headers:{
+          'Content-Type':'application/json'
+        },
 
-      body:
-        JSON.stringify({ fcmToken:token })
+        body:
+          JSON.stringify({ fcmToken:token })
 
-    });
+      });
+
+    if(!response.ok){
+
+      showToast(
+        'This phone could not be registered for notifications (server said ' + response.status + ').',
+        'error'
+      );
+
+      return;
+
+    }
+
+    if(nativePushAnnounce){
+
+      nativePushAnnounce = false;
+
+      showToast('This phone is registered for notifications.', 'success');
+
+    }
 
   }catch(error){
 
     console.error('Could not send push token:', error);
+
+    showToast('Could not reach the server to register notifications.', 'error');
+
+  }
+
+}
+
+/* Sends a test push to THIS phone only (not the whole team) and shows
+   exactly what Firebase answered, so a failure names its cause. */
+async function nativePushSendTest(){
+
+  let token =
+    localStorage.getItem(NATIVE_PUSH_TOKEN_KEY);
+
+  if(!token){
+
+    nativePushAnnounce = true;
+
+    const Push = getNativePush();
+
+    if(Push)await Push.register();
+
+    showToast('Registering this phone — tap Send test again in a few seconds.', null);
+
+    return;
+
+  }
+
+  try{
+
+    const response =
+      await fetch(API_BASE_URL + '/api/push-test', {
+
+        method:'POST',
+
+        headers:{
+          'Content-Type':'application/json',
+          'X-Notify-Secret': NOTIFY_SECRET
+        },
+
+        body:
+          JSON.stringify({ fcmToken:token })
+
+      });
+
+    const result =
+      await response.json().catch(() => ({}));
+
+    if(response.ok && result.ok){
+
+      showToast('Test sent. Close the app (or lock the phone) to see the banner.', 'success');
+
+      return;
+
+    }
+
+    const detail =
+      [
+        result.code ? 'Code: ' + result.code : '',
+        result.message || result.error || ('HTTP ' + response.status),
+        result.serverProject ? 'Server Firebase project: ' + result.serverProject : ''
+      ].filter(Boolean).join('\n');
+
+    console.error('Test push failed:', result);
+
+    alert('Test notification failed.\n\n' + detail);
+
+  }catch(error){
+
+    alert('Could not reach the server: ' + (error && error.message || error));
 
   }
 
@@ -39184,7 +39682,14 @@ async function nativePushSetupListeners(){
   });
 
   Push.addListener('registrationError', error => {
+
     console.error('Push registration failed:', error);
+
+    const reason =
+      (error && (error.error || error.message)) || 'unknown reason';
+
+    showToast('Phone notification setup failed: ' + reason, 'error');
+
   });
 
   /* App is open: Android doesn't show a banner by itself, so show
@@ -39238,6 +39743,8 @@ async function enableSongNotifications(){
       nativePushDenied = false;
 
       writeSettings({ songNotifications:true });
+
+      nativePushAnnounce = true;
 
       /* The token arrives through the 'registration' listener. */
       await Push.register();
