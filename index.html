@@ -15924,6 +15924,8 @@ async function uploadLineup(state, explicitDateKey){
 
   }
 
+  logActivity('lineup', '');
+
 }
 
 
@@ -39154,7 +39156,31 @@ async function logActivity(type, title, detail){
           ? snap.data().items.slice()
           : [];
 
-      items.unshift(entry);
+      /* Same person, same kind of lineup/key event within 2 minutes:
+         update that entry instead of stacking duplicates. */
+
+      const top = items[0];
+
+      if(
+        top &&
+        top.type === entry.type &&
+        top.uid === entry.uid &&
+        entry.type !== 'song' &&
+        entry.at - top.at < 120000
+      ){
+
+        items[0] = {
+          ...top,
+          title: entry.title || top.title,
+          detail: entry.detail || top.detail,
+          at: entry.at
+        };
+
+      }else{
+
+        items.unshift(entry);
+
+      }
 
       tx.set(ref, { items: items.slice(0, ACTIVITY_MAX) });
 
@@ -39163,6 +39189,14 @@ async function logActivity(type, title, detail){
   }catch(error){
 
     console.error('logActivity failed', error);
+
+    try{
+      showToast(
+        'Team Activity could not save: ' +
+        ((error && (error.code || error.message)) || 'unknown error'),
+        'error'
+      );
+    }catch(e){}
 
   }
 
