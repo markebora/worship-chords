@@ -383,6 +383,145 @@ button{
   display:none;
 }
 
+/* ===== Team activity bell ===== */
+.top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.activityBellBtn{
+  pointer-events:auto;
+  position:relative;
+  width:40px;
+  height:40px;
+  flex:0 0 auto;
+  border-radius:50%;
+  border:0;
+  padding:0;
+  background:rgba(255,255,255,.10);
+  -webkit-backdrop-filter:blur(10px);
+  backdrop-filter:blur(10px);
+  color:#f7f7f7;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.activityBellBtn svg{
+  width:21px;
+  height:21px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.activityBellBadge{
+  position:absolute;
+  top:0;
+  right:0;
+  min-width:18px;
+  height:18px;
+  padding:0 5px;
+  box-sizing:border-box;
+  border-radius:9px;
+  background:#ff453a;
+  color:#fff;
+  font-size:11px;
+  font-weight:700;
+  line-height:18px;
+  text-align:center;
+  box-shadow:0 0 0 2px #000;
+}
+.activityBellBadge[hidden]{display:none}
+.activityOverlay{
+  position:fixed;
+  inset:0;
+  z-index:10000;
+  background:rgba(0,0,0,.6);
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  padding:max(env(safe-area-inset-top),16px) 14px 14px;
+  box-sizing:border-box;
+}
+.activityPanel{
+  width:100%;
+  max-width:460px;
+  max-height:82vh;
+  display:flex;
+  flex-direction:column;
+  background:#161618;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:20px;
+  overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);
+}
+.activityPanelHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:16px 18px 12px;
+  font-size:17px;
+  font-weight:700;
+}
+.activityPanelClose{
+  border:0;
+  background:rgba(255,255,255,.08);
+  color:#f7f7f7;
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  font-size:16px;
+  cursor:pointer;
+}
+.activityList{
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  padding:0 8px 12px;
+}
+.activityItem{
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+  padding:11px 10px;
+  border-radius:14px;
+}
+.activityItem.isNew{background:rgba(232,185,35,.10)}
+.activityIcon{
+  flex:0 0 auto;
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  background:rgba(255,255,255,.08);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:16px;
+}
+.activityBody{min-width:0;flex:1}
+.activityText{font-size:14px;line-height:1.35;color:#f2f2f2}
+.activityText b{font-weight:700}
+.activitySong{
+  margin-top:2px;
+  font-size:13.5px;
+  color:var(--accent);
+  font-weight:600;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.activityTime{margin-top:3px;font-size:12px;color:#8e8e93}
+.activityEmpty{
+  padding:34px 22px 40px;
+  text-align:center;
+  color:#8e8e93;
+  font-size:14px;
+  line-height:1.5;
+}
+
 .welcome{
   font-size:15px;
   color:#a7a7ad;
@@ -8723,6 +8862,11 @@ body.songBottomHidden .annotateToolbar{
         Welcome!
       </div>
 
+      <button type="button" class="activityBellBtn" id="activityBellBtn" aria-label="Team activity">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+        <span class="activityBellBadge" id="activityBellBadge" hidden>0</span>
+      </button>
+
     </div>
 
 
@@ -16903,6 +17047,22 @@ async function syncOneSong(localSong, opts){
       'synced',
       new Date().toISOString()
     );
+
+    if(
+      outcome === 'kept-local' &&
+      remoteSong &&
+      (remoteSong.transposeSteps || 0) !== (resultSong.transposeSteps || 0)
+    ){
+
+      let keyLabel = '';
+
+      try{
+        keyLabel = getSongKeyLabel(resultSong) || '';
+      }catch(error){}
+
+      logActivity('key', resultSong.title, keyLabel);
+
+    }
 
     return { outcome, song: resultSong };
 
@@ -38409,6 +38569,8 @@ function urlBase64ToUint8Array(base64String){
 */
 async function notifyNewSong(title){
 
+  logActivity('song', title);
+
   if(!NOTIFY_SECRET || NOTIFY_SECRET.includes('YOUR-'))return;
 
   try{
@@ -38443,6 +38605,8 @@ async function notifyNewSong(title){
 */
 async function notifyLineupUpdate(songTitle){
 
+  logActivity('lineup', songTitle);
+
   if(!NOTIFY_SECRET || NOTIFY_SECRET.includes('YOUR-'))return;
 
   try{
@@ -38472,6 +38636,350 @@ async function notifyLineupUpdate(songTitle){
   }
 
 }
+
+
+/* =========================================================
+   TEAM ACTIVITY FEED (the bell on Home)
+
+   One shared Firestore doc, activity/shared, holds the latest
+   events everyone on the team should see: new song, lineup
+   updated, key changed. Every device listens to it live, so the
+   bell works even when a push notification is missed. Which
+   events are "unread" is remembered per device (localStorage).
+   Needs the `activity` rule in firestore.rules to be published.
+   ========================================================= */
+
+const ACTIVITY_MAX = 50;
+const ACTIVITY_SEEN_KEY = 'disciplesActivitySeenAt';
+
+let activityItems = [];
+let activityUnsub = null;
+let activityOverlayEl = null;
+
+function activityGetSeenAt(){
+
+  try{
+    return Number(localStorage.getItem(ACTIVITY_SEEN_KEY)) || 0;
+  }catch(error){
+    return 0;
+  }
+
+}
+
+function activitySetSeenAt(value){
+
+  try{
+    localStorage.setItem(ACTIVITY_SEEN_KEY, String(value));
+  }catch(error){}
+
+}
+
+function activityMyUid(){
+
+  return (
+    typeof firebaseAuth !== 'undefined' &&
+    firebaseAuth &&
+    firebaseAuth.currentUser
+  ) ? firebaseAuth.currentUser.uid : '';
+
+}
+
+function activityUnreadCount(){
+
+  const seen = activityGetSeenAt();
+  const me = activityMyUid();
+
+  return activityItems.filter(
+    item => item.at > seen && item.uid !== me
+  ).length;
+
+}
+
+function updateActivityBadge(){
+
+  const badge = document.getElementById('activityBellBadge');
+
+  if(!badge)return;
+
+  const count = activityUnreadCount();
+
+  badge.hidden = count === 0;
+  badge.textContent = count > 9 ? '9+' : String(count);
+
+}
+
+async function logActivity(type, title, detail){
+
+  try{
+
+    await firebaseReadyPromise;
+
+    if(!firestoreDb || !firebaseAuth || !firebaseAuth.currentUser)return;
+
+    const user = getGoogleUser();
+
+    const entry = {
+
+      id: String(Date.now()) + '-' + Math.random().toString(36).slice(2, 7),
+      type,
+      title: String(title || '').slice(0, 120),
+      detail: String(detail || '').slice(0, 80),
+      by: (user && user.name) || 'Someone',
+      uid: firebaseAuth.currentUser.uid,
+      at: Date.now()
+
+    };
+
+    const ref =
+      firestoreDb.collection('activity').doc('shared');
+
+    await firestoreDb.runTransaction(async tx => {
+
+      const snap = await tx.get(ref);
+
+      const items =
+        (snap.exists && Array.isArray(snap.data().items))
+          ? snap.data().items.slice()
+          : [];
+
+      items.unshift(entry);
+
+      tx.set(ref, { items: items.slice(0, ACTIVITY_MAX) });
+
+    });
+
+  }catch(error){
+
+    console.error('logActivity failed', error);
+
+  }
+
+}
+
+function activityTimeAgo(ms){
+
+  const diff = Math.max(0, Date.now() - ms);
+  const min = Math.floor(diff / 60000);
+
+  if(min < 1)return 'Just now';
+  if(min < 60)return min + ' min ago';
+
+  const hr = Math.floor(min / 60);
+
+  if(hr < 24)return hr + ' hr ago';
+
+  const day = Math.floor(hr / 24);
+
+  if(day === 1)return 'Yesterday';
+  if(day < 7)return day + ' days ago';
+
+  return new Date(ms).toLocaleDateString(
+    undefined, { month:'short', day:'numeric' }
+  );
+
+}
+
+function activityDescribe(item){
+
+  const who = '<b>' + esc(item.by || 'Someone') + '</b>';
+
+  if(item.type === 'song'){
+    return { icon:'🎵', text: who + ' added a new song' };
+  }
+
+  if(item.type === 'lineup'){
+    return { icon:'📋', text: who + ' updated the Worship Lineup' };
+  }
+
+  if(item.type === 'key'){
+    return {
+      icon:'🎹',
+      text: who + ' updated the key' + (item.detail ? ' to ' + esc(item.detail) : '')
+    };
+  }
+
+  return { icon:'🔔', text: who + ' made an update' };
+
+}
+
+function renderActivityList(){
+
+  if(!activityOverlayEl)return;
+
+  const list = activityOverlayEl.querySelector('.activityList');
+
+  if(!list)return;
+
+  if(!activityMyUid()){
+
+    list.innerHTML =
+      '<div class="activityEmpty">Sign in (Profile → Account) to see what your team is adding.</div>';
+
+    return;
+
+  }
+
+  if(!activityItems.length){
+
+    list.innerHTML =
+      '<div class="activityEmpty">Nothing yet. New songs, lineup updates and key changes will show up here.</div>';
+
+    return;
+
+  }
+
+  const seen = activityOpenedSeenAt;
+  const me = activityMyUid();
+
+  list.innerHTML = activityItems.map(item => {
+
+    const d = activityDescribe(item);
+    const isNew = item.at > seen && item.uid !== me;
+
+    return `
+      <div class="activityItem${isNew ? ' isNew' : ''}">
+        <div class="activityIcon">${d.icon}</div>
+        <div class="activityBody">
+          <div class="activityText">${d.text}</div>
+          ${item.title ? `<div class="activitySong">${esc(item.title)}</div>` : ''}
+          <div class="activityTime">${esc(activityTimeAgo(item.at))}</div>
+        </div>
+      </div>`;
+
+  }).join('');
+
+}
+
+let activityOpenedSeenAt = 0;
+
+function closeActivityPanel(){
+
+  if(activityOverlayEl){
+    activityOverlayEl.remove();
+    activityOverlayEl = null;
+  }
+
+}
+
+function openActivityPanel(){
+
+  if(activityOverlayEl)return;
+
+  activityOpenedSeenAt = activityGetSeenAt();
+
+  const overlay = document.createElement('div');
+
+  overlay.className = 'activityOverlay';
+
+  overlay.innerHTML = `
+    <div class="activityPanel" role="dialog" aria-label="Team activity">
+      <div class="activityPanelHead">
+        <span>Team Activity</span>
+        <button type="button" class="activityPanelClose" aria-label="Close">✕</button>
+      </div>
+      <div class="activityList"></div>
+    </div>`;
+
+  overlay.addEventListener('click', event => {
+
+    if(event.target === overlay || event.target.closest('.activityPanelClose')){
+      closeActivityPanel();
+    }
+
+  });
+
+  document.body.appendChild(overlay);
+
+  activityOverlayEl = overlay;
+
+  renderActivityList();
+
+  /* Opening the panel marks everything currently in it as read. */
+
+  const newest = activityItems.reduce(
+    (max, item) => Math.max(max, item.at || 0), 0
+  );
+
+  if(newest)activitySetSeenAt(Math.max(newest, activityGetSeenAt()));
+
+  updateActivityBadge();
+
+}
+
+document.addEventListener('click', event => {
+
+  if(event.target.closest && event.target.closest('#activityBellBtn')){
+    openActivityPanel();
+  }
+
+});
+
+document.addEventListener('keydown', event => {
+
+  if(event.key === 'Escape')closeActivityPanel();
+
+});
+
+async function startActivityFeed(){
+
+  try{
+
+    await firebaseReadyPromise;
+
+    if(!firebaseAuth || !firestoreDb)return;
+
+    /* First run on this device: don't flag old history as unread. */
+
+    if(!localStorage.getItem(ACTIVITY_SEEN_KEY)){
+      activitySetSeenAt(Date.now());
+    }
+
+    firebaseAuth.onAuthStateChanged(user => {
+
+      if(activityUnsub){
+        activityUnsub();
+        activityUnsub = null;
+      }
+
+      if(!user){
+
+        activityItems = [];
+        updateActivityBadge();
+        renderActivityList();
+        return;
+
+      }
+
+      activityUnsub =
+        firestoreDb.collection('activity').doc('shared')
+          .onSnapshot(snap => {
+
+            activityItems =
+              (snap.exists && Array.isArray(snap.data().items))
+                ? snap.data().items
+                : [];
+
+            updateActivityBadge();
+            renderActivityList();
+
+          }, error => {
+
+            console.error('activity feed', error);
+
+          });
+
+    });
+
+  }catch(error){
+
+    console.error(error);
+
+  }
+
+}
+
+startActivityFeed();
+
 
 
 /* =========================================================
