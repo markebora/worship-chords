@@ -371,3 +371,77 @@ export async function broadcastNotification(payload){
   };
 
 }
+
+
+/*
+  Sends ONE test push to a single device and reports exactly what
+  Firebase answered. Used by the "Send test" button in the app's
+  Profile → Notifications, so a failure names its cause (wrong
+  project, FCM API off, bad key...) instead of failing silently.
+*/
+export async function sendFcmTest(token){
+
+  let serverProject = '';
+
+  try{
+
+    serverProject =
+      JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}').project_id || '';
+
+  }catch(error){
+
+    return {
+      ok:false,
+      code:'bad-service-account-json',
+      message:'FIREBASE_SERVICE_ACCOUNT_KEY on Vercel is not valid JSON. Paste the whole key file again.'
+    };
+
+  }
+
+  if(!process.env.FIREBASE_SERVICE_ACCOUNT_KEY){
+
+    return {
+      ok:false,
+      code:'no-service-account',
+      message:'FIREBASE_SERVICE_ACCOUNT_KEY is not set on Vercel (or Vercel has not redeployed since you added it).'
+    };
+
+  }
+
+  try{
+
+    const messaging =
+      await getFcmMessaging();
+
+    await messaging.send({
+
+      token,
+
+      notification: {
+        title: 'Disciples',
+        body: 'Test notification — it works!'
+      },
+
+      data: { url:'/', tag:'test' },
+
+      android: {
+        priority:'high',
+        notification: { channelId: FCM_CHANNEL_ID }
+      }
+
+    });
+
+    return { ok:true, serverProject };
+
+  }catch(error){
+
+    return {
+      ok:false,
+      code: error.code || 'unknown',
+      message: String(error.message || error).slice(0, 300),
+      serverProject
+    };
+
+  }
+
+}
