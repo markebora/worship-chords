@@ -13878,6 +13878,10 @@ function getActiveTeamInviteCode(){
 
 function setActiveTeam(id, name, inviteCode){
 
+  setTimeout(() => {
+    if(typeof restartActivityFeed === 'function')restartActivityFeed();
+  }, 0);
+
   activeTeamId = id || null;
   activeTeamName = name || '';
   activeTeamInviteCode = inviteCode || '';
@@ -39045,12 +39049,12 @@ async function notifyLineupUpdate(songTitle){
 /* =========================================================
    TEAM ACTIVITY FEED (the bell on Home)
 
-   One shared Firestore doc, activity/shared, holds the latest
+   One Firestore doc per team, activity/{teamId}, holds the latest
    events everyone on the team should see: new song, lineup
    updated, key changed. Every device listens to it live, so the
    bell works even when a push notification is missed. Which
    events are "unread" is remembered per device (localStorage).
-   Needs the `activity` rule in firestore.rules to be published.
+   Stored per team at activity/{teamId}; needs the matching rule in firestore.rules.
    ========================================================= */
 
 const ACTIVITY_MAX = 50;
@@ -39120,6 +39124,10 @@ async function logActivity(type, title, detail){
 
     if(!firestoreDb || !firebaseAuth || !firebaseAuth.currentUser)return;
 
+    const teamId = getActiveTeamId();
+
+    if(!teamId)return;
+
     const user = getGoogleUser();
 
     const entry = {
@@ -39135,7 +39143,7 @@ async function logActivity(type, title, detail){
     };
 
     const ref =
-      firestoreDb.collection('activity').doc('shared');
+      firestoreDb.collection('activity').doc(teamId);
 
     await firestoreDb.runTransaction(async tx => {
 
@@ -39324,6 +39332,47 @@ document.addEventListener('keydown', event => {
 
 });
 
+function restartActivityFeed(){
+
+  if(activityUnsub){
+    activityUnsub();
+    activityUnsub = null;
+  }
+
+  activityItems = [];
+  updateActivityBadge();
+  renderActivityList();
+
+  if(
+    typeof firestoreDb === 'undefined' || !firestoreDb ||
+    typeof firebaseAuth === 'undefined' || !firebaseAuth ||
+    !firebaseAuth.currentUser
+  )return;
+
+  const teamId = getActiveTeamId();
+
+  if(!teamId)return;
+
+  activityUnsub =
+    firestoreDb.collection('activity').doc(teamId)
+      .onSnapshot(snap => {
+
+        activityItems =
+          (snap.exists && Array.isArray(snap.data().items))
+            ? snap.data().items
+            : [];
+
+        updateActivityBadge();
+        renderActivityList();
+
+      }, error => {
+
+        console.error('activity feed', error);
+
+      });
+
+}
+
 async function startActivityFeed(){
 
   try{
@@ -39338,41 +39387,7 @@ async function startActivityFeed(){
       activitySetSeenAt(Date.now());
     }
 
-    firebaseAuth.onAuthStateChanged(user => {
-
-      if(activityUnsub){
-        activityUnsub();
-        activityUnsub = null;
-      }
-
-      if(!user){
-
-        activityItems = [];
-        updateActivityBadge();
-        renderActivityList();
-        return;
-
-      }
-
-      activityUnsub =
-        firestoreDb.collection('activity').doc('shared')
-          .onSnapshot(snap => {
-
-            activityItems =
-              (snap.exists && Array.isArray(snap.data().items))
-                ? snap.data().items
-                : [];
-
-            updateActivityBadge();
-            renderActivityList();
-
-          }, error => {
-
-            console.error('activity feed', error);
-
-          });
-
-    });
+    firebaseAuth.onAuthStateChanged(() => restartActivityFeed());
 
   }catch(error){
 
