@@ -1,4 +1,9 @@
-import { saveSubscription, removeSubscription } from './_lib/push.js';
+import {
+  saveSubscription,
+  removeSubscription,
+  saveFcmToken,
+  removeFcmToken
+} from './_lib/push.js';
 
 export default async function handler(req, res){
 
@@ -12,12 +17,21 @@ export default async function handler(req, res){
 
     try{
 
-      const { subscription } =
+      const { subscription, fcmToken } =
         req.body || {};
 
-      await saveSubscription(
-        subscription
-      );
+      if(fcmToken){
+
+        /* Native Android app (Capacitor + Firebase Cloud Messaging) */
+        await saveFcmToken(fcmToken);
+
+      }else{
+
+        await saveSubscription(
+          subscription
+        );
+
+      }
 
       return res.status(200).json({ ok:true });
 
@@ -35,8 +49,16 @@ export default async function handler(req, res){
 
     try{
 
-      const { endpoint } =
+      const { endpoint, fcmToken } =
         req.body || {};
+
+      if(fcmToken){
+
+        await removeFcmToken(fcmToken);
+
+        return res.status(200).json({ ok:true });
+
+      }
 
       if(!endpoint){
 

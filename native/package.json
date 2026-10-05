@@ -1,0 +1,11 @@
+{
+  "name": "disciples-native",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capacitor Android wrapper for the Disciples app",
+  "scripts": {
+    "www": "node build-www.cjs",
+    "sync": "node build-www.cjs && npx cap sync android",
+    "open": "npx cap open android"
+  }
+}
