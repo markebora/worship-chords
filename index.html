@@ -514,6 +514,23 @@ button{
   white-space:nowrap;
 }
 .activityTime{margin-top:3px;font-size:12px;color:#8e8e93}
+.activityDiag{
+  padding:10px 18px 14px;
+  border-top:1px solid rgba(255,255,255,.06);
+  font-size:11.5px;
+  line-height:1.5;
+  color:#8e8e93;
+}
+.activityTestBtn{
+  margin-top:6px;
+  border:0;
+  border-radius:10px;
+  padding:7px 12px;
+  background:rgba(255,255,255,.10);
+  color:#f2f2f2;
+  font-size:12px;
+  cursor:pointer;
+}
 .activityEmpty{
   padding:34px 22px 40px;
   text-align:center;
@@ -37102,6 +37119,8 @@ async function addSongsToLineupDate(key, songIds){
     const songsById =
       new Map(getSongs().map(song => [song.id, song]));
 
+    const addedTitles = [];
+
     songIds.forEach(id => {
 
       if(remote.songs.some(item => item.id === id))return;
@@ -37117,6 +37136,8 @@ async function addSongsToLineupDate(key, songIds){
         updatedAt: song.updatedAt || song.savedAt || new Date().toISOString()
       });
 
+      addedTitles.push(song.title);
+
     });
 
     const user =
@@ -37128,6 +37149,11 @@ async function addSongsToLineupDate(key, songIds){
     await uploadLineup(remote, key);
 
     setLocalLineup(remote, key);
+
+    /* Tell the team (push + bell) that songs were added to the lineup. */
+    if(addedTitles.length){
+      notifyLineupUpdate(addedTitles.join(', '));
+    }
 
     return true;
 
@@ -39060,6 +39086,7 @@ async function notifyLineupUpdate(songTitle){
    ========================================================= */
 
 const ACTIVITY_MAX = 50;
+const activityDiag = { listening:false, lastError:'', note:'' };
 const ACTIVITY_SEEN_KEY = 'disciplesActivitySeenAt';
 
 let activityItems = [];
@@ -39124,11 +39151,17 @@ async function logActivity(type, title, detail){
 
     await firebaseReadyPromise;
 
-    if(!firestoreDb || !firebaseAuth || !firebaseAuth.currentUser)return;
+    if(!firestoreDb || !firebaseAuth || !firebaseAuth.currentUser){
+      activityDiag.note = 'Not saved: not signed in yet.';
+      return;
+    }
 
     const teamId = getActiveTeamId();
 
-    if(!teamId)return;
+    if(!teamId){
+      activityDiag.note = 'Not saved: no active team on this phone.';
+      return;
+    }
 
     const user = getGoogleUser();
 
@@ -39186,9 +39219,15 @@ async function logActivity(type, title, detail){
 
     });
 
+    activityDiag.lastError = '';
+    activityDiag.note = 'Last save OK.';
+
   }catch(error){
 
     console.error('logActivity failed', error);
+
+    activityDiag.lastError =
+      (error && (error.code || error.message)) || 'unknown error';
 
     try{
       showToast(
@@ -39248,9 +39287,45 @@ function activityDescribe(item){
 
 }
 
+function renderActivityDiag(){
+
+  if(!activityOverlayEl)return;
+
+  const box = activityOverlayEl.querySelector('.activityDiag');
+
+  if(!box)return;
+
+  const team = getActiveTeamId();
+
+  box.innerHTML =
+    '<div>Team: ' + (team ? esc(String(team).slice(0, 6)) + '…' : 'none') +
+    ' · Signed in: ' + (activityMyUid() ? 'yes' : 'no') +
+    ' · Listening: ' + (activityDiag.listening ? 'yes' : 'no') +
+    ' · Events: ' + activityItems.length + '</div>' +
+    (activityDiag.lastError ? '<div>Error: ' + esc(activityDiag.lastError) + '</div>' : '') +
+    (activityDiag.note ? '<div>' + esc(activityDiag.note) + '</div>' : '') +
+    '<button type="button" class="activityTestBtn">Send test event</button>';
+
+}
+
+document.addEventListener('click', async event => {
+
+  if(!(event.target.closest && event.target.closest('.activityTestBtn')))return;
+
+  activityDiag.note = 'Saving test event…';
+  renderActivityDiag();
+
+  await logActivity('test', 'Test event');
+
+  renderActivityDiag();
+
+});
+
 function renderActivityList(){
 
   if(!activityOverlayEl)return;
+
+  renderActivityDiag();
 
   const list = activityOverlayEl.querySelector('.activityList');
 
@@ -39324,6 +39399,7 @@ function openActivityPanel(){
         <button type="button" class="activityPanelClose" aria-label="Close">✕</button>
       </div>
       <div class="activityList"></div>
+      <div class="activityDiag"></div>
     </div>`;
 
   overlay.addEventListener('click', event => {
@@ -39374,6 +39450,7 @@ function restartActivityFeed(){
   }
 
   activityItems = [];
+  activityDiag.listening = false;
   updateActivityBadge();
   renderActivityList();
 
@@ -39391,6 +39468,8 @@ function restartActivityFeed(){
     firestoreDb.collection('activity').doc(teamId)
       .onSnapshot(snap => {
 
+        activityDiag.listening = true;
+
         activityItems =
           (snap.exists && Array.isArray(snap.data().items))
             ? snap.data().items
@@ -39402,6 +39481,11 @@ function restartActivityFeed(){
       }, error => {
 
         console.error('activity feed', error);
+
+        activityDiag.listening = false;
+        activityDiag.lastError =
+          (error && (error.code || error.message)) || 'feed error';
+        renderActivityDiag();
 
       });
 
