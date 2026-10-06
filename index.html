@@ -16371,7 +16371,7 @@ function restoreYtMiniPlayerOnBoot(){
 
   }
 
-  openYouTubePlayer(saved.videoId);
+  openYouTubePlayer(saved.videoId, null, { web: true });
   setYouTubePlayerMinimized(true);
 
 }
@@ -16977,6 +16977,238 @@ async function removeVideoFromLineup(videoId){
 }
 
 
+/* =========================================================
+   NATIVE BACKGROUND YOUTUBE (Android app only)
+
+   In the Capacitor APK, videos open in a native "YouTube browser"
+   screen (the YtBackground plugin: a WebView on m.youtube.com kept
+   alive by a foreground service + media session) instead of the
+   iframe below, so audio keeps playing with the screen off or the
+   app in the background, with lock-screen / notification controls.
+
+   When that screen is minimized, a small bar floats over the app
+   (title, prev, play/pause, next, close). Tap the title to bring
+   the video back up. Everywhere else — browser, PWA, or an APK
+   built before this plugin existed — none of this runs and the
+   normal iframe player is used.
+========================================================= */
+
+const ytNative = {
+  state: null,
+  listening: false,
+  styled: false
+};
+
+function getYtBackground(){
+
+  return (
+    isNativeApp() &&
+    window.Capacitor &&
+    window.Capacitor.Plugins &&
+    window.Capacitor.Plugins.YtBackground
+  ) || null;
+
+}
+
+function ytNativeOpen(videoId, queue){
+
+  const plugin = getYtBackground();
+
+  if(!plugin)return false;
+
+  ytNativeListen(plugin);
+
+  const ids =
+    Array.isArray(queue) ? queue.filter(Boolean) : [];
+
+  plugin.open({ videoId, queue: ids }).catch(error => {
+
+    /* Plugin present but failed: fall back to the iframe player. */
+    showToast(
+      'Background player unavailable, using the normal player.',
+      'error'
+    );
+
+    openYouTubePlayer(videoId, queue, { web: true });
+
+  });
+
+  return true;
+
+}
+
+function ytNativeListen(plugin){
+
+  if(ytNative.listening)return;
+
+  ytNative.listening = true;
+
+  plugin.addListener('ytState', ytNativeApply);
+
+  ytNativeRefresh();
+
+}
+
+function ytNativeRefresh(){
+
+  const plugin = getYtBackground();
+
+  if(!plugin || !ytNative.listening)return;
+
+  plugin.getState().then(ytNativeApply).catch(() => {});
+
+}
+
+function ytNativeApply(state){
+
+  ytNative.state = state || null;
+
+  renderYtNativePill();
+
+}
+
+function ytNativeHandleBack(){
+
+  const plugin = getYtBackground();
+  const state = ytNative.state;
+
+  if(plugin && state && state.active && state.expanded){
+
+    plugin.minimize();
+
+    return true;
+
+  }
+
+  return false;
+
+}
+
+function ensureYtNativeStyles(){
+
+  if(ytNative.styled)return;
+
+  ytNative.styled = true;
+
+  const style = document.createElement('style');
+
+  style.textContent = `
+    #ytNativePill{
+      position:fixed;
+      left:10px;
+      right:10px;
+      bottom:calc(env(safe-area-inset-bottom, 0px) + 84px);
+      max-width:460px;
+      margin:0 auto;
+      z-index:2500;
+      display:flex;
+      align-items:center;
+      gap:2px;
+      background:#1e1e22;
+      border:1px solid #2d2d32;
+      border-radius:14px;
+      padding:4px 6px;
+      box-shadow:0 6px 22px rgba(0,0,0,.55);
+    }
+    #ytNativePill button{
+      background:none;
+      border:0;
+      color:#e8e8ea;
+      font-size:16px;
+      padding:8px 9px;
+      cursor:pointer;
+    }
+    #ytNativePill .ytNativePillTitle{
+      flex:1;
+      min-width:0;
+      text-align:left;
+      font-size:13px;
+      font-weight:700;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+  `;
+
+  document.head.appendChild(style);
+
+}
+
+function renderYtNativePill(){
+
+  const state = ytNative.state;
+
+  let pill = document.getElementById('ytNativePill');
+
+  /* Only shown while a video is loaded and the full screen is minimized. */
+  if(!state || !state.active || state.expanded){
+
+    if(pill)pill.remove();
+
+    return;
+
+  }
+
+  if(!pill){
+
+    ensureYtNativeStyles();
+
+    pill = document.createElement('div');
+
+    pill.id = 'ytNativePill';
+
+    pill.innerHTML = `
+      <button type="button" class="ytNativePillTitle" data-yt="expand"></button>
+      <button type="button" data-yt="prev" aria-label="Previous">⏮</button>
+      <button type="button" data-yt="toggle" aria-label="Play or pause"></button>
+      <button type="button" data-yt="next" aria-label="Next">⏭</button>
+      <button type="button" data-yt="close" aria-label="Close video">✕</button>
+    `;
+
+    pill.addEventListener('click', event => {
+
+      const btn = event.target.closest('[data-yt]');
+      const plugin = getYtBackground();
+
+      if(!btn || !plugin)return;
+
+      const act = btn.dataset.yt;
+
+      if(act === 'expand')plugin.expand();
+      else if(act === 'close')plugin.close();
+      else plugin.control({ action: act });
+
+    });
+
+    document.body.appendChild(pill);
+
+  }
+
+  pill.querySelector('.ytNativePillTitle').textContent =
+    state.title || 'YouTube';
+
+  pill.querySelector('[data-yt="toggle"]').textContent =
+    state.playing ? '⏸' : '▶';
+
+}
+
+/* The native player can outlive this page (the service keeps running
+   if the app is backgrounded and the page reloads), so re-sync. */
+setTimeout(() => {
+
+  const plugin = getYtBackground();
+
+  if(plugin)ytNativeListen(plugin);
+
+}, 1500);
+
+document.addEventListener('visibilitychange', () => {
+
+  if(!document.hidden)ytNativeRefresh();
+
+});
+
+
 /*
   Centered in-app player — opens as an overlay on top of whatever
   screen is showing, never a real new browser tab/window, so it
@@ -17075,7 +17307,19 @@ function setYouTubePlayerMinimized(minimized){
 }
 
 
-function openYouTubePlayer(videoId){
+function openYouTubePlayer(videoId, queue, options){
+
+  /*
+    In the Android app this hands off to the native background
+    player (see NATIVE BACKGROUND YOUTUBE above). In a browser/PWA,
+    or in an older APK without that plugin, it falls through to the
+    in-page iframe player below, exactly as before.
+  */
+  if(
+    videoId &&
+    !(options && options.web) &&
+    ytNativeOpen(videoId, queue)
+  )return;
 
   const host =
     document.getElementById('ytPlayerOverlay');
@@ -36486,7 +36730,13 @@ function wireLineupVideosSection(){
 
   section.querySelectorAll('[data-yt-play]').forEach(el => {
     el.onclick = () => {
-      openYouTubePlayer(el.dataset.ytPlay);
+      /* One id per row (the thumbnail), in playlist order, so the
+         native background player can advance to the next link on
+         its own while the app is in the background. */
+      const queue = Array.from(
+        section.querySelectorAll('.videoCardThumb[data-yt-play]')
+      ).map(item => item.dataset.ytPlay);
+      openYouTubePlayer(el.dataset.ytPlay, queue);
     };
   });
 
@@ -41437,6 +41687,8 @@ if('serviceWorker' in navigator && !isBundledNativeApp()){
 */
 
 function handleHardwareBack(){
+
+  if(ytNativeHandleBack())return true;
 
   if(document.getElementById('songLibSheetRoot')){
 
