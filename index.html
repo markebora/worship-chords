@@ -514,6 +514,30 @@ button{
   white-space:nowrap;
 }
 .activityTime{margin-top:3px;font-size:12px;color:#8e8e93}
+.activityHeadBtns{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.activityMarkAll{
+  border:0;
+  background:none;
+  color:var(--accent);
+  font-size:13px;
+  font-weight:600;
+  cursor:pointer;
+  padding:4px 2px;
+}
+.activityItem.tappable{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.activityItem.tappable:active{background:rgba(255,255,255,.07)}
+.activityChevron{
+  align-self:center;
+  flex:0 0 auto;
+  color:#8e8e93;
+  font-size:22px;
+  line-height:1;
+  padding-left:4px;
+}
 .activityDiag{
   padding:10px 18px 14px;
   border-top:1px solid rgba(255,255,255,.06);
@@ -9537,9 +9561,11 @@ async function askExportFileName(filename){
 
 }
 
-async function deliverFile(filename, blob){
+async function deliverFile(filename, blob, opts){
 
-  if(isNativeApp()){
+  opts = opts || {};
+
+  if(isNativeApp() && !opts.skipNamePrompt){
 
     const chosenName =
       await askExportFileName(filename);
@@ -9607,7 +9633,9 @@ async function deliverFile(filename, blob){
             data
           });
 
-          showToast('Saved to ' + folder.name + ': ' + filename, 'success');
+          if(!opts.quiet){
+            showToast('Saved to ' + folder.name + ': ' + filename, 'success');
+          }
 
           return true;
 
@@ -9619,6 +9647,11 @@ async function deliverFile(filename, blob){
              the next export asks again, and fall through to Share. */
           setExportFolder(null);
 
+          if(opts.noShareFallback){
+            showToast('Could not save to that folder — pick it again.', 'error');
+            return false;
+          }
+
           showToast('Could not save to that folder — opening Share instead.', 'error');
 
         }
@@ -9626,6 +9659,8 @@ async function deliverFile(filename, blob){
       }
 
     }
+
+    if(opts.noShareFallback)return false;
 
     /* ---- Fallback / "Share menu" mode ---- */
     const Filesystem =
@@ -9698,6 +9733,135 @@ async function deliverFile(filename, blob){
   link.remove();
 
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  return true;
+
+}
+
+/*
+  Delivers several files at once (a lineup split into one file per
+  song, or PDF + Word together). With a remembered export folder they
+  are all written there with a single summary message; in Share-menu
+  mode they go out in one share sheet; in a browser they download one
+  after another.
+*/
+async function deliverFiles(files){
+
+  if(!files || !files.length)return false;
+
+  if(files.length === 1){
+
+    return deliverFile(files[0].filename, files[0].blob);
+
+  }
+
+  if(isNativeApp()){
+
+    const FolderSave = getFolderSavePlugin();
+
+    if(FolderSave && getExportMode() === 'folder'){
+
+      let saved = 0;
+
+      for(const file of files){
+
+        const ok =
+          await deliverFile(
+            file.filename,
+            file.blob,
+            { skipNamePrompt:true, quiet:true, noShareFallback:true }
+          );
+
+        if(!ok)break;
+
+        saved++;
+
+      }
+
+      if(saved){
+
+        const folder = getExportFolder();
+
+        showToast(
+          'Saved ' + saved + (saved === files.length ? '' : ' of ' + files.length) +
+          ' files' + (folder ? ' to ' + folder.name : '') + '.',
+          saved === files.length ? 'success' : 'error'
+        );
+
+      }
+
+      return saved === files.length;
+
+    }
+
+    const Filesystem =
+      window.Capacitor.Plugins && window.Capacitor.Plugins.Filesystem;
+
+    const Share =
+      window.Capacitor.Plugins && window.Capacitor.Plugins.Share;
+
+    if(!Filesystem || !Share){
+
+      showToast('Saving files is not available in this build.', 'error');
+
+      return false;
+
+    }
+
+    try{
+
+      const uris = [];
+
+      for(const file of files){
+
+        const written =
+          await Filesystem.writeFile({
+            path: file.filename,
+            data: await blobToBase64(file.blob),
+            directory: 'CACHE',
+            recursive: true
+          });
+
+        uris.push(written.uri);
+
+      }
+
+      await Share.share({
+        title: 'Disciples export',
+        files: uris,
+        dialogTitle: 'Save or send ' + files.length + ' files'
+      });
+
+      return true;
+
+    }catch(error){
+
+      const message =
+        String((error && error.message) || error || '');
+
+      if(!/cancel|dismiss/i.test(message)){
+
+        console.error('Could not export files:', error);
+
+        showToast('Could not export the files: ' + message, 'error');
+
+      }
+
+      return false;
+
+    }
+
+  }
+
+  for(let i = 0; i < files.length; i++){
+
+    await deliverFile(files[i].filename, files[i].blob, { skipNamePrompt:true });
+
+    await new Promise(resolve => setTimeout(resolve, 400));
+
+  }
+
+  showToast(files.length + ' files exported.', 'success');
 
   return true;
 
@@ -11095,6 +11259,21 @@ let pdfExportColumns = 1;
 let pdfExportIncludeChords = true;
 let pdfExportPageSize = 'letter'; /* letter | legal | a4 */
 let exportOptionsFormat = 'pdf'; /* pdf | docx — the options page is shared */
+let exportBook = false;
+let exportCoverTitle = '';
+
+/* What to export: 'current' (this song, with section editing),
+   'choose' (songs picked from the library) or 'lineup' (the active
+   lineup). exportOutput: one combined file, or one file per song. */
+let exportScope = 'current';
+let exportScopeOverride = null;
+let exportOutput = 'combined';
+let exportBothFormats = false;
+let exportPickedIds = new Set();
+let exportLineupSelectedIds = null;
+let exportReturnTo = 'song';
+let exportReturnLineupDate = null;
+let exportPrevSong = null;
 
 
 /*
@@ -15269,7 +15448,7 @@ async function uploadNewSongToDrive(song){
         }
       );
 
-      notifyNewSong(song.title);
+      notifyNewSong(song.title, song.id);
 
     }
 
@@ -15992,7 +16171,7 @@ async function uploadLineup(state, explicitDateKey){
 
   }
 
-  logActivity('lineup', '');
+  logActivity('lineup', '', '', { dateKey: key });
 
 }
 
@@ -17078,7 +17257,7 @@ async function sendCurrentSongToLineup(song){
 
     if(!alreadyIn){
 
-      notifyLineupUpdate(song.title);
+      notifyLineupUpdate(song.title, targetDateKey);
 
     }
 
@@ -17459,7 +17638,7 @@ async function syncOneSong(localSong, opts){
         keyLabel = getSongKeyLabel(resultSong) || '';
       }catch(error){}
 
-      logActivity('key', resultSong.title, keyLabel);
+      logActivity('key', resultSong.title, keyLabel, { songId: resultSong.id });
 
     }
 
@@ -31148,6 +31327,24 @@ function openPdfExportOptions(format){
     }catch(e){ format = null; }
   }
   exportOptionsFormat = (format === 'docx') ? 'docx' : 'pdf';
+  exportBothFormats = false;
+
+  if(exportScopeOverride){
+
+    exportScope = exportScopeOverride;
+    exportScopeOverride = null;
+
+  }else{
+
+    exportScope = 'current';
+    exportReturnTo = 'song';
+
+  }
+
+  exportPickedIds = new Set();
+  exportLineupSelectedIds = null;
+  exportBook = false;
+  exportCoverTitle = '';
 
   if(!currentSong)return;
 
@@ -31459,7 +31656,7 @@ function renderPdfExportOptions(){
 
       <div class="songTop">
 
-        <button class="backBtn" id="pdfExportBack">← Song</button>
+        <button class="backBtn" id="pdfExportBack">${exportReturnTo === 'lineup' ? '← Lineup' : '← Song'}</button>
 
         <div class="songHeading">
           <h1 id="exportHeading">Export</h1>
@@ -31469,14 +31666,26 @@ function renderPdfExportOptions(){
       </div>
 
       <div class="editorActions">
-        <button class="toolbarBtn primary" id="pdfExportGo">${exportOptionsFormat === 'docx' ? 'Export Word (.docx)' : 'Export PDF'}</button>
+        <button class="toolbarBtn primary" id="pdfExportGo">${exportGoLabel()}</button>
       </div>
+
+      <div class="pdfOptionGroup">
+        <div class="pdfOptionLabel">What to export</div>
+        <div class="viewModeGroup" id="exportScopeGroup">
+          <button type="button" class="viewModeBtn${exportScope==='current'?' active':''}" data-scope="current">This song</button>
+          <button type="button" class="viewModeBtn${exportScope==='choose'?' active':''}" data-scope="choose">Choose songs</button>
+          <button type="button" class="viewModeBtn${exportScope==='lineup'?' active':''}" data-scope="lineup">Full lineup</button>
+        </div>
+      </div>
+
+      <div id="exportMultiBox"></div>
 
       <div class="pdfOptionGroup">
         <div class="pdfOptionLabel">Format</div>
         <div class="viewModeGroup" id="exportFormatGroup">
-          <button type="button" class="viewModeBtn${exportOptionsFormat==='pdf'?' active':''}" data-format="pdf">PDF</button>
-          <button type="button" class="viewModeBtn${exportOptionsFormat==='docx'?' active':''}" data-format="docx">Word (.docx)</button>
+          <button type="button" class="viewModeBtn${exportOptionsFormat==='pdf'&&!exportBothFormats?' active':''}" data-format="pdf">PDF</button>
+          <button type="button" class="viewModeBtn${exportOptionsFormat==='docx'&&!exportBothFormats?' active':''}" data-format="docx">Word (.docx)</button>
+          <button type="button" class="viewModeBtn${exportBothFormats?' active':''}" data-format="both">PDF + Word</button>
         </div>
       </div>
       <div class="pdfOptionGroup">
@@ -31505,6 +31714,8 @@ function renderPdfExportOptions(){
         </div>
       </div>
 
+      <div id="exportCurrentOnlyBox">
+
       <div class="pdfOptionGroup">
         <div class="pdfOptionLabel">Sections — drag ⠿ to reorder, tap to show/hide</div>
         <div class="pdfSectionList" id="pdfSectionList">
@@ -31526,27 +31737,54 @@ function renderPdfExportOptions(){
         <div class="pdfPreviewHint" id="exportPreviewHint"></div>
       </div>
 
+      </div>
+
     </div>
 
   `;
 
   document.getElementById('pdfExportBack').onclick = () => {
-    renderSongViewer();
+
+    if(exportReturnTo === 'lineup'){
+
+      currentSong = exportPrevSong;
+      exportReturnTo = 'song';
+
+      renderLineupDetail(exportReturnLineupDate);
+
+    }else{
+
+      renderSongViewer();
+
+    }
+
   };
 
   document.getElementById('pdfExportGo').onclick = () => {
-    if(exportOptionsFormat === 'docx'){
-      generateDocxFromOptions();
-    }else{
-      generatePdfFromOptions();
-    }
+    runExportFromOptions();
   };
+
+  document.querySelectorAll('#exportScopeGroup .viewModeBtn').forEach(btn => {
+    btn.onclick = () => {
+      exportScope =
+        (btn.dataset.scope === 'choose' || btn.dataset.scope === 'lineup')
+          ? btn.dataset.scope
+          : 'current';
+      if(exportScope === 'choose' && exportPickedIds.size === 0 && currentSong){
+        exportPickedIds.add(currentSong.id);
+      }
+      document.querySelectorAll('#exportScopeGroup .viewModeBtn').forEach(b => {
+        b.classList.toggle('active', b === btn);
+      });
+      renderExportMultiBox();
+    };
+  });
 
   const syncExportFormatLabels = () => {
     const isWord = exportOptionsFormat === 'docx';
     const go = document.getElementById('pdfExportGo');
     const hint = document.getElementById('exportPreviewHint');
-    if(go) go.textContent = isWord ? 'Export Word (.docx)' : 'Export PDF';
+    if(go) go.textContent = exportGoLabel();
     if(hint) hint.textContent = isWord
       ? 'Shows each page at true scale. Word may break a line or two slightly differently when it opens the file.'
       : 'Shows each page at true scale, laid out the same way the PDF is.';
@@ -31565,8 +31803,11 @@ function renderPdfExportOptions(){
   };
   document.querySelectorAll('#exportFormatGroup .viewModeBtn').forEach(btn => {
     btn.onclick = () => {
+      exportBothFormats = (btn.dataset.format === 'both');
       exportOptionsFormat = (btn.dataset.format === 'docx') ? 'docx' : 'pdf';
-      try{ localStorage.setItem('disciplesExportFormat', exportOptionsFormat); }catch(e){}
+      if(!exportBothFormats){
+        try{ localStorage.setItem('disciplesExportFormat', exportOptionsFormat); }catch(e){}
+      }
       document.querySelectorAll('#exportFormatGroup .viewModeBtn').forEach(b => {
         b.classList.toggle('active', b === btn);
       });
@@ -31625,6 +31866,8 @@ function renderPdfExportOptions(){
   });
 
   attachPdfSectionDragging();
+
+  renderExportMultiBox();
 
 }
 
@@ -31751,9 +31994,7 @@ function attachPdfSectionDragging(){
   overflows.
 */
 
-function generatePdfFromOptions(){
-
-  if(!currentSong)return;
+function buildPdfInner(jobs, book){
 
   if(
     !window.jspdf ||
@@ -31765,53 +32006,9 @@ function generatePdfFromOptions(){
       'error'
     );
 
-    return;
+    return null;
 
   }
-
-  const sectionsToExport =
-    pdfExportSections.filter(section => !section.excluded);
-
-  if(!sectionsToExport.length){
-
-    showToast(
-      'Select at least one section to export.',
-      'error'
-    );
-
-    return;
-
-  }
-
-  const isMerged =
-    Array.isArray(currentSong.mergeParts) &&
-    currentSong.mergeParts.length > 1;
-
-  const pdfSource =
-    isMerged
-      ? currentSong.mergeParts[clampMergedPartIndex(currentSong)]
-      : currentSong;
-
-  const amount =
-    (isMerged ? pdfSource.transposeSteps : currentSong.transposeSteps) || 0;
-
-  const displayedText =
-    transposeText(
-
-      pdfSource.originalText ||
-      pdfSource.text ||
-      '',
-
-      amount
-
-    );
-
-  const keyInfo =
-    detectKeyFromChords(
-      extractKeyChordTokens(
-        displayedText
-      )
-    );
 
   const { jsPDF } =
     window.jspdf;
@@ -31879,6 +32076,28 @@ function generatePdfFromOptions(){
     }
   }
 
+  const startPages = [];
+  let coverDrawn = false;
+
+  if(book){
+
+    drawPdfCover(doc, book, pageMargin);
+
+    coverDrawn = true;
+
+  }
+
+  jobs.forEach((job, jobIndex) => {
+
+  /* Each song after the first starts on a fresh page (and the first
+     one too when a cover page comes before it). */
+  if(jobIndex > 0 || coverDrawn)newPage();
+
+  startPages.push(doc.internal.getNumberOfPages());
+
+  const keyInfo = job.keyInfo;
+  const sectionsToExport = job.sections;
+
   /* Title (full width, first page only) */
 
   doc.setFont('helvetica','bold');
@@ -31887,9 +32106,7 @@ function generatePdfFromOptions(){
 
   doc.text(
     sanitizeForPlainExport(
-      pdfSource.title ||
-      currentSong.title ||
-      'Untitled Song'
+      job.title
     ),
     pageMargin,
     y
@@ -32013,20 +32230,231 @@ function generatePdfFromOptions(){
 
   });
 
-  const filename =
-    (currentSong.title || 'untitled-song')
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g,'-')
-      .replace(/(^-+|-+$)/g,'') ||
-    'song';
+  });
 
-  /* doc.save() is a browser download, which the native app can't
-     do — build the PDF as a file and hand it to deliverFile(). */
-  deliverFile(
-    filename + '.pdf',
-    doc.output('blob')
-  );
+  /* Page numbers for a chord book: every page except the cover. */
+  if(book){
+
+    const total = doc.internal.getNumberOfPages();
+
+    for(let i = 2; i <= total; i++){
+
+      doc.setPage(i);
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(9);
+      doc.setTextColor(140,140,145);
+
+      doc.text(String(i), pageWidth / 2, pageHeight - 22, { align:'center' });
+
+    }
+
+  }
+
+  return { doc, startPages };
+
+}
+
+/* ---- Chord book cover + contents (PDF) ---- */
+
+const PDF_COVER_ROW_H = 24;
+const PDF_COVER_FIRST_Y = 290;
+const PDF_COVER_CONT_Y = 70;
+
+/* Where each contents row goes, and how many cover pages that takes. */
+function pdfCoverLayout(count){
+
+  const dims = EXPORT_PAGE_PT[pdfExportPageSize] || EXPORT_PAGE_PT.letter;
+  const limit = dims.h - 70;
+
+  let pages = 1;
+  let y = PDF_COVER_FIRST_Y;
+
+  const rows = [];
+
+  for(let i = 0; i < count; i++){
+
+    if(y > limit){
+      pages++;
+      y = PDF_COVER_CONT_Y;
+    }
+
+    rows.push({ page: pages, y });
+
+    y += PDF_COVER_ROW_H;
+
+  }
+
+  return { pages, rows };
+
+}
+
+function drawPdfCover(doc, book, margin){
+
+  const pageW = doc.internal.pageSize.getWidth();
+  const centerX = pageW / 2;
+  const layout = pdfCoverLayout(book.items.length);
+
+  /* Title, shrunk until it fits on one line */
+  const title = sanitizeForPlainExport(book.title || 'Chord Book');
+
+  doc.setFont('helvetica','bold');
+  doc.setTextColor(20,20,20);
+
+  let size = 30;
+  doc.setFontSize(size);
+
+  while(size > 16 && doc.getTextWidth(title) > pageW - margin * 2 - 20){
+    size -= 2;
+    doc.setFontSize(size);
+  }
+
+  doc.text(title, centerX, 150, { align:'center' });
+
+  if(book.subtitle){
+
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(14);
+    doc.setTextColor(100,100,105);
+
+    doc.text(sanitizeForPlainExport(book.subtitle), centerX, 182, { align:'center' });
+
+  }
+
+  doc.setDrawColor(232,185,35);
+  doc.setLineWidth(1.4);
+  doc.line(centerX - 36, 208, centerX + 36, 208);
+
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(11);
+  doc.setTextColor(120,120,125);
+
+  doc.text('CONTENTS', centerX, 252, { align:'center' });
+
+  const left = margin + 20;
+  const right = pageW - margin - 20;
+
+  let currentPage = 1;
+
+  book.items.forEach((item, index) => {
+
+    const row = layout.rows[index];
+
+    while(currentPage < row.page){
+      doc.addPage();
+      currentPage++;
+    }
+
+    const y = row.y;
+    const pageStr = String(item.page);
+
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(13);
+    doc.setTextColor(25,25,28);
+
+    doc.text((index + 1) + '.', left, y);
+
+    const keyStr = item.key ? 'Key ' + item.key : '';
+
+    doc.setFontSize(10.5);
+    const keyW = keyStr ? doc.getTextWidth(keyStr) + 10 : 0;
+
+    doc.setFontSize(13);
+    doc.setFont('helvetica','bold');
+
+    const pageW2 = doc.getTextWidth(pageStr);
+    const titleX = left + 26;
+    const maxTitleW = right - titleX - pageW2 - keyW - 40;
+
+    let titleStr = sanitizeForPlainExport(item.title || 'Untitled Song');
+
+    if(doc.getTextWidth(titleStr) > maxTitleW){
+
+      while(titleStr.length > 3 && doc.getTextWidth(titleStr + '...') > maxTitleW){
+        titleStr = titleStr.slice(0, -1);
+      }
+
+      titleStr = titleStr.trimEnd() + '...';
+
+    }
+
+    doc.setFont('helvetica','normal');
+    doc.text(titleStr, titleX, y);
+
+    let cursor = titleX + doc.getTextWidth(titleStr);
+
+    if(keyStr){
+
+      doc.setFontSize(10.5);
+      doc.setTextColor(120,120,125);
+      doc.text(keyStr, cursor + 10, y);
+      cursor += keyW;
+
+    }
+
+    /* dotted leader out to the page number */
+    doc.setFontSize(13);
+    doc.setTextColor(185,185,190);
+
+    const unit = doc.getTextWidth('. ');
+    const available = right - pageW2 - 10 - (cursor + 8);
+    const dots = unit > 0 ? Math.floor(available / unit) : 0;
+
+    if(dots > 0){
+      doc.text('. '.repeat(dots).trimEnd(), cursor + 8, y);
+    }
+
+    doc.setTextColor(25,25,28);
+    doc.text(pageStr, right, y, { align:'right' });
+
+  });
+
+}
+
+function buildPdfBlob(jobs, book){
+
+  if(
+    !window.jspdf ||
+    !window.jspdf.jsPDF
+  ){
+
+    showToast(
+      'The PDF library failed to load. Check your connection and try again.',
+      'error'
+    );
+
+    return null;
+
+  }
+
+  if(!book){
+
+    const only = buildPdfInner(jobs, null);
+
+    return only ? only.doc.output('blob') : null;
+
+  }
+
+  /* Pass 1 lays the songs out with no cover to find which page each
+     starts on; pass 2 puts the cover (with those page numbers) in
+     front, shifting everything by the cover's page count. */
+  const first = buildPdfInner(jobs, null);
+
+  if(!first)return null;
+
+  const coverPages = pdfCoverLayout(jobs.length).pages;
+
+  const withPages =
+    Object.assign({}, book, {
+      items: jobs.map((job, index) => ({
+        title: job.title,
+        key: job.keyInfo ? job.keyInfo.label : '',
+        page: first.startPages[index] + coverPages
+      }))
+    });
+
+  const second = buildPdfInner(jobs, withPages);
+
+  return second ? second.doc.output('blob') : null;
 
 }
 
@@ -32149,40 +32577,15 @@ function docxParagraph(runXml, opts){
   opts = opts || {};
   return '<w:p><w:pPr>' +
     (opts.keepNext ? '<w:keepNext/>' : '') +
+    (opts.pageBreakBefore ? '<w:pageBreakBefore/>' : '') +
     '<w:spacing w:before="' + (opts.before || 0) + '" w:after="' + (opts.after || 0) + '"' +
       (opts.line ? ' w:line="' + opts.line + '" w:lineRule="exact"' : '') + '/>' +
+    (opts.align ? '<w:jc w:val="' + opts.align + '"/>' : '') +
     (opts.sectPr || '') +
     '</w:pPr>' + runXml + '</w:p>';
 }
 
-function generateDocxFromOptions(){
-  if(!currentSong)return;
-
-  const sectionsToExport =
-    pdfExportSections.filter(section => !section.excluded);
-
-  if(!sectionsToExport.length){
-    showToast('Select at least one section to export.', 'error');
-    return;
-  }
-
-  const isMerged =
-    Array.isArray(currentSong.mergeParts) &&
-    currentSong.mergeParts.length > 1;
-
-  const source =
-    isMerged
-      ? currentSong.mergeParts[clampMergedPartIndex(currentSong)]
-      : currentSong;
-
-  const amount =
-    (isMerged ? source.transposeSteps : currentSong.transposeSteps) || 0;
-
-  const displayedText =
-    transposeText(source.originalText || source.text || '', amount);
-
-  const keyInfo =
-    detectKeyFromChords(extractKeyChordTokens(displayedText));
+function buildDocxBlob(jobs, book){
 
   /* same sizing as the PDF: 1 column 11pt, 2 columns 9.5pt, 3 columns 8.5pt */
   const columns = pdfExportColumns;
@@ -32205,70 +32608,138 @@ function generateDocxFromOptions(){
 
   const body = [];
 
-  /* Title + key (full width) */
-  const title = source.title || currentSong.title || 'Untitled Song';
-
-  body.push(docxParagraph(
-    docxRun(title, { font:'Arial', bold:true, color:'141414', size:40 }),
-    { after: keyInfo ? 40 : 160 }
-  ));
-
-  if(keyInfo){
-    body.push(docxParagraph(
-      docxRun('Key: ' + keyInfo.label, { font:'Arial', color:'646469', size:22 }),
-      { after:160 }
-    ));
-  }
-
-  /* Multi-column lyrics: close the full-width title section, then start a
-     continuous section laid out in N columns (columns === 1 needs neither). */
+  /* Multi-column lyrics: each song's full-width title is its own
+     section, followed by a continuous section laid out in N columns
+     (columns === 1 needs neither). */
   const colXml = n =>
     '<w:cols w:num="' + n + '" w:space="360"' + (n > 1 ? ' w:equalWidth="1"' : '') + '/>';
 
-  if(columns > 1){
-    body.push(docxParagraph('', {
-      line: 20,
-      sectPr:'<w:sectPr>' + pgSetup + colXml(1) + '</w:sectPr>'
-    }));
-  }
+  /* Chord book: the footer (page numbers) is shared by every section;
+     the cover page itself has none (titlePg with no first-page footer). */
+  const ftrRef =
+    book ? '<w:footerReference w:type="default" r:id="rId1"/>' : '';
 
-  sectionsToExport.forEach((section, index) => {
+  if(book){
 
     body.push(docxParagraph(
-      docxRun(
-        (section.name || 'Section').toUpperCase(),
-        { font:'Arial', bold:true, color:'3C3C41', size:Math.round((fontPt + 1) * 2) }
-      ),
-      { keepNext:true, line:lineTwips, before: index === 0 ? 0 : sectionGap, after:40 }
+      docxRun(book.title || 'Chord Book', { font:'Arial', bold:true, color:'141414', size:72 }),
+      { before:2600, after:120, align:'center' }
     ));
 
-    section.lines
-      .filter(line => line.trim() !== '')
-      .filter(line => pdfExportIncludeChords || !isChordOnlyLine(line))
-      .forEach(line => {
-        const chord = isChordOnlyLine(line);
-        body.push(docxParagraph(
-          docxRun(line, {
-            font:'Courier New',
-            bold:chord,
-            color:chord ? '2563D1' : '19191C',
-            size:Math.round(fontPt * 2)
-          }),
-          { line:lineTwips }
-        ));
-      });
+    if(book.subtitle){
+      body.push(docxParagraph(
+        docxRun(book.subtitle, { font:'Arial', color:'646469', size:28 }),
+        { after:480, align:'center' }
+      ));
+    }
+
+    body.push(docxParagraph(
+      docxRun('CONTENTS', { font:'Arial', bold:true, color:'78787D', size:22 }),
+      { before:240, after:200, align:'center' }
+    ));
+
+    book.items.forEach((item, index) => {
+
+      body.push(docxParagraph(
+        docxRun((index + 1) + '.  ' + item.title, { font:'Arial', color:'19191C', size:26 }) +
+        (item.key
+          ? docxRun('     Key ' + item.key, { font:'Arial', color:'78787D', size:21 })
+          : ''),
+        { after:120 }
+      ));
+
+    });
+
+    if(columns > 1){
+
+      body.push(docxParagraph('', {
+        line: 20,
+        sectPr:'<w:sectPr>' + ftrRef + pgSetup + colXml(1) + '<w:titlePg/></w:sectPr>'
+      }));
+
+    }
+
+  }
+
+  jobs.forEach((job, jobIndex) => {
+
+    const keyInfo = job.keyInfo;
+    const sectionsToExport = job.sections;
+
+    /* Title + key (full width). Every song after the first starts on a
+       new page: a page break for 1 column, or the section break below
+       (default "next page") for multi-column layouts. */
+    body.push(docxParagraph(
+      docxRun(job.title, { font:'Arial', bold:true, color:'141414', size:40 }),
+      {
+        after: keyInfo ? 40 : 160,
+        pageBreakBefore: (jobIndex > 0 || !!book) && columns === 1
+      }
+    ));
+
+    if(keyInfo){
+      body.push(docxParagraph(
+        docxRun('Key: ' + keyInfo.label, { font:'Arial', color:'646469', size:22 }),
+        { after:160 }
+      ));
+    }
+
+    if(columns > 1){
+      body.push(docxParagraph('', {
+        line: 20,
+        sectPr:'<w:sectPr>' + ftrRef + pgSetup + colXml(1) + '</w:sectPr>'
+      }));
+    }
+
+    sectionsToExport.forEach((section, index) => {
+
+      body.push(docxParagraph(
+        docxRun(
+          (section.name || 'Section').toUpperCase(),
+          { font:'Arial', bold:true, color:'3C3C41', size:Math.round((fontPt + 1) * 2) }
+        ),
+        { keepNext:true, line:lineTwips, before: index === 0 ? 0 : sectionGap, after:40 }
+      ));
+
+      section.lines
+        .filter(line => line.trim() !== '')
+        .filter(line => pdfExportIncludeChords || !isChordOnlyLine(line))
+        .forEach(line => {
+          const chord = isChordOnlyLine(line);
+          body.push(docxParagraph(
+            docxRun(line, {
+              font:'Courier New',
+              bold:chord,
+              color:chord ? '2563D1' : '19191C',
+              size:Math.round(fontPt * 2)
+            }),
+            { line:lineTwips }
+          ));
+        });
+
+    });
+
+    /* Close this song's column section before the next song's title. */
+    if(columns > 1 && jobIndex < jobs.length - 1){
+      body.push(docxParagraph('', {
+        line: 20,
+        sectPr:'<w:sectPr>' + ftrRef + '<w:type w:val="continuous"/>' + pgSetup + colXml(columns) + '</w:sectPr>'
+      }));
+    }
 
   });
 
   const finalSect =
     '<w:sectPr>' +
+      ftrRef +
       (columns > 1 ? '<w:type w:val="continuous"/>' : '') +
       pgSetup + colXml(columns) +
+      (book && columns === 1 ? '<w:titlePg/>' : '') +
     '</w:sectPr>';
 
   const documentXml =
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' +
+    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
     '<w:body>' + body.join('') + finalSect + '</w:body></w:document>';
 
   const contentTypes =
@@ -32277,6 +32748,7 @@ function generateDocxFromOptions(){
     '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
     '<Default Extension="xml" ContentType="application/xml"/>' +
     '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+    (book ? '<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>' : '') +
     '</Types>';
 
   const rootRels =
@@ -32285,26 +32757,638 @@ function generateDocxFromOptions(){
     '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>' +
     '</Relationships>';
 
-  const blob = makeZipStore([
+  const parts = [
     { name:'[Content_Types].xml', text:contentTypes },
     { name:'_rels/.rels', text:rootRels },
     { name:'word/document.xml', text:documentXml }
-  ]);
+  ];
 
-  const filename =
-    (currentSong.title || 'untitled-song')
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g,'-')
-      .replace(/(^-+|-+$)/g,'') ||
-    'song';
+  if(book){
 
-  deliverFile(filename + '.docx', blob).then(ok => {
-    if(ok && !isNativeApp()){
-      showToast('Word document exported.', 'success');
-    }
-  });
+    const footerRun = inner =>
+      '<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>' +
+      '<w:color w:val="8E8E93"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr>' +
+      inner + '</w:r>';
+
+    parts.push({
+      name:'word/_rels/document.xml.rels',
+      text:
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>' +
+        '</Relationships>'
+    });
+
+    parts.push({
+      name:'word/footer1.xml',
+      text:
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+        '<w:p><w:pPr><w:jc w:val="center"/></w:pPr>' +
+        footerRun('<w:fldChar w:fldCharType="begin"/>') +
+        footerRun('<w:instrText xml:space="preserve"> PAGE </w:instrText>') +
+        footerRun('<w:fldChar w:fldCharType="separate"/>') +
+        footerRun('<w:t>2</w:t>') +
+        footerRun('<w:fldChar w:fldCharType="end"/>') +
+        '</w:p></w:ftr>'
+    });
+
+  }
+
+  const blob = makeZipStore(parts);
+
+  return blob;
 }
+
+
+/* =========================================================
+   EXPORT — what to export (this song / chosen songs / the whole
+   lineup), as one combined file or one file per song, in PDF,
+   Word, or both. The per-song section editor and preview above
+   apply to "This song"; other songs export with all their sections.
+========================================================= */
+
+function exportSlug(text, fallback){
+
+  return String(text || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g,'-')
+    .replace(/(^-+|-+$)/g,'') ||
+    fallback;
+
+}
+
+function exportJobForSong(song, useCustomSections){
+
+  const isMerged =
+    Array.isArray(song.mergeParts) &&
+    song.mergeParts.length > 1;
+
+  const source =
+    isMerged
+      ? song.mergeParts[clampMergedPartIndex(song)]
+      : song;
+
+  const amount =
+    (isMerged ? source.transposeSteps : song.transposeSteps) || 0;
+
+  const text =
+    transposeText(source.originalText || source.text || '', amount);
+
+  const keyInfo =
+    detectKeyFromChords(extractKeyChordTokens(text));
+
+  const sections =
+    useCustomSections
+      ? pdfExportSections.filter(section => !section.excluded)
+      : parseSections(text);
+
+  return {
+    song,
+    title: source.title || song.title || 'Untitled Song',
+    keyInfo,
+    sections
+  };
+
+}
+
+function getExportLineupInfo(dateKey){
+
+  const lineup =
+    getLocalLineup(dateKey);
+
+  const byId =
+    new Map(getSongs().map(song => [song.id, song]));
+
+  const songs = [];
+  let missing = 0;
+
+  (lineup.songs || []).forEach(entry => {
+
+    const song = byId.get(entry.id);
+
+    if(song){
+      songs.push(song);
+    }else{
+      missing++;
+    }
+
+  });
+
+  return {
+    lineup,
+    songs,
+    missing,
+    dateKey: resolveLineupDateKey(dateKey)
+  };
+
+}
+
+function exportSelectedCount(){
+
+  if(exportScope === 'current')return 1;
+
+  if(exportScope === 'lineup'){
+
+    const info = getExportLineupInfo();
+
+    if(exportLineupSelectedIds === null)return info.songs.length;
+
+    return info.songs.filter(song => exportLineupSelectedIds.has(song.id)).length;
+
+  }
+
+  return exportPickedIds.size;
+
+}
+
+function exportGoLabel(){
+
+  const formatLabel =
+    exportBothFormats
+      ? 'PDF + Word'
+      : (exportOptionsFormat === 'docx' ? 'Word (.docx)' : 'PDF');
+
+  if(exportScope === 'current'){
+
+    return 'Export ' + formatLabel;
+
+  }
+
+  const count = exportSelectedCount();
+
+  return 'Export ' + formatLabel + ' · ' + count + ' song' + (count === 1 ? '' : 's');
+
+}
+
+function collectExportJobs(){
+
+  if(exportScope === 'current'){
+
+    if(!currentSong)return null;
+
+    if(!pdfExportSections.some(section => !section.excluded)){
+
+      showToast('Select at least one section to export.', 'error');
+
+      return null;
+
+    }
+
+    return [exportJobForSong(currentSong, true)];
+
+  }
+
+  let songs;
+
+  if(exportScope === 'lineup'){
+
+    const info = getExportLineupInfo();
+
+    songs =
+      info.songs.filter(
+        song => exportLineupSelectedIds === null || exportLineupSelectedIds.has(song.id)
+      );
+
+  }else{
+
+    const byId =
+      new Map(getSongs().map(song => [song.id, song]));
+
+    songs =
+      [...exportPickedIds].map(id => byId.get(id)).filter(Boolean);
+
+  }
+
+  if(!songs.length){
+
+    showToast('Select at least one song to export.', 'error');
+
+    return null;
+
+  }
+
+  const jobs =
+    songs
+      .map(song => exportJobForSong(song, false))
+      .filter(job => job.sections.length);
+
+  if(!jobs.length){
+
+    showToast('Those songs have nothing to export.', 'error');
+
+    return null;
+
+  }
+
+  return jobs;
+
+}
+
+function exportLongDate(dateKey){
+
+  try{
+
+    const date = dateKey ? dateFromKey(dateKey) : new Date();
+
+    return date.toLocaleDateString(
+      undefined,
+      { weekday:'long', month:'long', day:'numeric', year:'numeric' }
+    );
+
+  }catch(error){
+
+    return '';
+
+  }
+
+}
+
+/* Default cover text for the current selection. */
+function exportBookDefaults(){
+
+  if(exportScope === 'lineup'){
+
+    const info = getExportLineupInfo();
+
+    return {
+      title: info.lineup.title || 'Worship Lineup',
+      subtitle: exportLongDate(info.dateKey)
+    };
+
+  }
+
+  return { title: 'Chord Book', subtitle: exportLongDate('') };
+
+}
+
+async function runExportFromOptions(){
+
+  const jobs = collectExportJobs();
+
+  if(!jobs)return;
+
+  const formats =
+    exportBothFormats
+      ? ['pdf', 'docx']
+      : [exportOptionsFormat === 'docx' ? 'docx' : 'pdf'];
+
+  const combined =
+    jobs.length === 1 || exportOutput === 'combined';
+
+  let combinedBase;
+
+  if(jobs.length === 1){
+
+    combinedBase = exportSlug(jobs[0].title, 'song');
+
+  }else if(exportScope === 'lineup'){
+
+    const info = getExportLineupInfo();
+
+    combinedBase =
+      exportSlug((info.lineup.title || 'Worship Lineup') + ' ' + info.dateKey, 'worship-lineup');
+
+  }else{
+
+    combinedBase = 'songs-' + jobs.length;
+
+  }
+
+  const used = new Set();
+
+  const uniqueName = (base, ext) => {
+
+    let name = base + ext;
+    let n = 2;
+
+    while(used.has(name)){
+      name = base + '-' + n + ext;
+      n++;
+    }
+
+    used.add(name);
+
+    return name;
+
+  };
+
+  const files = [];
+
+  let book = null;
+
+  if(exportBook && combined && jobs.length > 1){
+
+    const defaults = exportBookDefaults();
+
+    book = {
+      title: (exportCoverTitle || '').trim() || defaults.title,
+      subtitle: defaults.subtitle,
+      items: jobs.map(job => ({
+        title: job.title,
+        key: job.keyInfo ? job.keyInfo.label : '',
+        page: 0
+      }))
+    };
+
+  }
+
+  for(const format of formats){
+
+    const ext = format === 'docx' ? '.docx' : '.pdf';
+
+    const build =
+      list => format === 'docx'
+        ? buildDocxBlob(list, book)
+        : buildPdfBlob(list, book);
+
+    if(combined){
+
+      const blob = build(jobs);
+
+      if(!blob)return;
+
+      files.push({ filename: uniqueName(combinedBase, ext), blob });
+
+    }else{
+
+      for(const job of jobs){
+
+        const blob = build([job]);
+
+        if(!blob)return;
+
+        files.push({ filename: uniqueName(exportSlug(job.title, 'song'), ext), blob });
+
+      }
+
+    }
+
+  }
+
+  const ok = await deliverFiles(files);
+
+  if(ok && !isNativeApp() && files.length === 1 && files[0].filename.endsWith('.docx')){
+
+    showToast('Word document exported.', 'success');
+
+  }
+
+}
+
+function updateExportMultiMeta(){
+
+  const go = document.getElementById('pdfExportGo');
+
+  if(go){
+
+    go.textContent = exportGoLabel();
+    go.disabled = exportScope !== 'current' && exportSelectedCount() === 0;
+
+  }
+
+  const outputWrap = document.getElementById('exportOutputWrap');
+
+  if(outputWrap){
+
+    outputWrap.style.display = exportSelectedCount() > 1 ? '' : 'none';
+
+  }
+
+  const bookWrap = document.getElementById('exportBookWrap');
+
+  if(bookWrap){
+
+    bookWrap.style.display =
+      (exportSelectedCount() > 1 && exportOutput === 'combined') ? '' : 'none';
+
+  }
+
+}
+
+function renderExportMultiBox(){
+
+  const box = document.getElementById('exportMultiBox');
+  const currentOnly = document.getElementById('exportCurrentOnlyBox');
+
+  if(currentOnly){
+    currentOnly.style.display = exportScope === 'current' ? '' : 'none';
+  }
+
+  if(!box)return;
+
+  if(exportScope === 'current'){
+
+    box.innerHTML = '';
+    updateExportMultiMeta();
+    return;
+
+  }
+
+  let songs;
+  let selected;
+  let heading;
+
+  if(exportScope === 'lineup'){
+
+    const info = getExportLineupInfo();
+
+    songs = info.songs;
+
+    if(exportLineupSelectedIds === null){
+      exportLineupSelectedIds = new Set(songs.map(song => song.id));
+    }
+
+    selected = exportLineupSelectedIds;
+
+    heading =
+      esc(info.lineup.title || 'Worship Lineup') + ' · ' +
+      esc(formatLineupDateLabel(info.dateKey)) +
+      (info.missing ? ' · ' + info.missing + ' not in your library' : '');
+
+  }else{
+
+    songs =
+      getSongs().slice().sort(
+        (a, b) => (a.title || '').localeCompare(b.title || '')
+      );
+
+    selected = exportPickedIds;
+
+    heading = 'Tap the songs to export';
+
+  }
+
+  const rows =
+    songs.map(song => `
+      <div class="lineupPickerRow${selected.has(song.id) ? ' checked' : ''}" data-export-row="${esc(song.id)}" data-export-title="${esc((song.title || '').toLowerCase())}">
+        <span class="lineupPickerCheck">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>
+        </span>
+        <span class="songIcon songThumb">${songThumbInnerHTML(song)}</span>
+        <span class="lineupPickerTitle">${esc(song.title || 'Untitled Song')}</span>
+        ${songKeyBadgeHTML(song)}
+      </div>
+    `).join('');
+
+  const filterInput =
+    (exportScope === 'choose' && songs.length > 8)
+      ? '<input type="search" id="exportSongFilter" placeholder="Search songs…" style="width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:8px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#f2f2f2;font-size:14px;">'
+      : '';
+
+  box.innerHTML = `
+    <div class="pdfOptionGroup">
+      <div class="pdfOptionLabel">${heading}</div>
+      ${filterInput}
+      ${
+        songs.length
+          ? `<div style="max-height:46vh;overflow-y:auto;-webkit-overflow-scrolling:touch;">${rows}</div>`
+          : `<div class="pdfPreviewHint">${exportScope === 'lineup' ? 'This lineup has no songs yet.' : 'No songs in your library yet.'}</div>`
+      }
+    </div>
+    <div class="pdfOptionGroup" id="exportOutputWrap">
+      <div class="pdfOptionLabel">Save as</div>
+      <div class="viewModeGroup" id="exportOutputGroup">
+        <button type="button" class="viewModeBtn${exportOutput === 'combined' ? ' active' : ''}" data-output="combined">One file</button>
+        <button type="button" class="viewModeBtn${exportOutput === 'separate' ? ' active' : ''}" data-output="separate">One file per song</button>
+      </div>
+      <div class="pdfPreviewHint">Every song is exported with all its sections, using the format, page size, layout and content settings below.</div>
+    </div>
+    <div class="pdfOptionGroup" id="exportBookWrap">
+      <div class="pdfOptionLabel">Chord book</div>
+      <div class="viewModeGroup" id="exportBookGroup">
+        <button type="button" class="viewModeBtn${exportBook ? '' : ' active'}" data-book="0">Plain</button>
+        <button type="button" class="viewModeBtn${exportBook ? ' active' : ''}" data-book="1">Cover, contents &amp; page numbers</button>
+      </div>
+      <input type="text" id="exportCoverTitle" maxlength="60" placeholder="${esc(exportBookDefaults().title)}" value="${esc(exportCoverTitle)}" style="display:${exportBook ? 'block' : 'none'};width:100%;box-sizing:border-box;padding:10px 12px;margin-top:8px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#f2f2f2;font-size:14px;">
+      <div class="pdfPreviewHint">Adds a cover page with the title and date, a contents list, and page numbers on every page. In Word, the contents list shows the songs in order without page numbers.</div>
+    </div>
+  `;
+
+  box.querySelectorAll('[data-export-row]').forEach(row => {
+
+    row.onclick = () => {
+
+      const id = row.dataset.exportRow;
+
+      if(selected.has(id)){
+        selected.delete(id);
+        row.classList.remove('checked');
+      }else{
+        selected.add(id);
+        row.classList.add('checked');
+      }
+
+      updateExportMultiMeta();
+
+    };
+
+  });
+
+  const filter = document.getElementById('exportSongFilter');
+
+  if(filter){
+
+    filter.oninput = () => {
+
+      const query = filter.value.trim().toLowerCase();
+
+      box.querySelectorAll('[data-export-row]').forEach(row => {
+
+        row.style.display =
+          (!query || row.dataset.exportTitle.includes(query)) ? '' : 'none';
+
+      });
+
+    };
+
+  }
+
+  box.querySelectorAll('#exportOutputGroup .viewModeBtn').forEach(btn => {
+
+    btn.onclick = () => {
+
+      exportOutput = btn.dataset.output === 'separate' ? 'separate' : 'combined';
+
+      box.querySelectorAll('#exportOutputGroup .viewModeBtn').forEach(other => {
+        other.classList.toggle('active', other === btn);
+      });
+
+      updateExportMultiMeta();
+
+    };
+
+  });
+
+  box.querySelectorAll('#exportBookGroup .viewModeBtn').forEach(btn => {
+
+    btn.onclick = () => {
+
+      exportBook = btn.dataset.book === '1';
+
+      box.querySelectorAll('#exportBookGroup .viewModeBtn').forEach(other => {
+        other.classList.toggle('active', other === btn);
+      });
+
+      const titleInput = document.getElementById('exportCoverTitle');
+
+      if(titleInput)titleInput.style.display = exportBook ? 'block' : 'none';
+
+    };
+
+  });
+
+  const coverInput = document.getElementById('exportCoverTitle');
+
+  if(coverInput){
+
+    coverInput.oninput = () => {
+      exportCoverTitle = coverInput.value;
+    };
+
+  }
+
+  updateExportMultiMeta();
+
+}
+
+/* Entry point from the lineup screen's export button. */
+function openLineupExport(dateKey){
+
+  if(dateKey)currentLineupDate = dateKey;
+
+  const info = getExportLineupInfo(dateKey);
+
+  if(!info.songs.length){
+
+    showToast('This lineup has no songs to export yet.', 'error');
+
+    return;
+
+  }
+
+  exportPrevSong = currentSong;
+  exportReturnTo = 'lineup';
+  exportReturnLineupDate = info.dateKey;
+  exportScopeOverride = 'lineup';
+
+  /* The options screen is built around a song; use the lineup's first. */
+  currentSong = info.songs[0];
+
+  openPdfExportOptions();
+
+}
+
+document.addEventListener('click', event => {
+
+  if(event.target.closest && event.target.closest('#lineupExportBtn')){
+
+    openLineupExport(currentLineupDate);
+
+  }
+
+});
 
 /* =========================================================
    EDIT CURRENT SONG
@@ -35758,6 +36842,10 @@ function renderLineupDetail(dateKey){
         ${esc(lineup.title || 'Worship Lineup')}
       </div>
 
+      <button class="searchBtn" id="lineupExportBtn" aria-label="Export lineup">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>
+      </button>
+
       <button class="searchBtn" id="lineupClearBtn" aria-label="Clear lineup" style="font-size:13px;color:#ff8b8b;">✕</button>
 
     </div>
@@ -37203,7 +38291,7 @@ async function addSongsToLineupDate(key, songIds){
 
     /* Tell the team (push + bell) that songs were added to the lineup. */
     if(addedTitles.length){
-      notifyLineupUpdate(addedTitles.join(', '));
+      notifyLineupUpdate(addedTitles.join(', '), key);
     }
 
     return true;
@@ -39054,9 +40142,9 @@ function urlBase64ToUint8Array(base64String){
   to everyone else's device. Fire-and-forget — a failed request
   here shouldn't block or fail the sync itself.
 */
-async function notifyNewSong(title){
+async function notifyNewSong(title, songId){
 
-  logActivity('song', title);
+  logActivity('song', title, '', { songId });
 
   if(!NOTIFY_SECRET || NOTIFY_SECRET.includes('YOUR-'))return;
 
@@ -39090,9 +40178,9 @@ async function notifyNewSong(title){
   "New song added" — see the optional `heading` field handled
   in api/notify-new-song.js.
 */
-async function notifyLineupUpdate(songTitle){
+async function notifyLineupUpdate(songTitle, dateKey){
 
-  logActivity('lineup', songTitle);
+  logActivity('lineup', songTitle, '', { dateKey });
 
   if(!NOTIFY_SECRET || NOTIFY_SECRET.includes('YOUR-'))return;
 
@@ -39139,6 +40227,7 @@ async function notifyLineupUpdate(songTitle){
 const ACTIVITY_MAX = 50;
 const activityDiag = { listening:false, lastError:'', note:'' };
 const ACTIVITY_SEEN_KEY = 'disciplesActivitySeenAt';
+const ACTIVITY_READ_KEY = 'disciplesActivityReadIds';
 
 let activityItems = [];
 let activityUnsub = null;
@@ -39162,6 +40251,44 @@ function activitySetSeenAt(value){
 
 }
 
+function activityLoadReadIds(){
+
+  try{
+    const stored = JSON.parse(localStorage.getItem(ACTIVITY_READ_KEY) || '[]');
+    return new Set(Array.isArray(stored) ? stored : []);
+  }catch(error){
+    return new Set();
+  }
+
+}
+
+let activityReadIds = activityLoadReadIds();
+
+function activityMarkRead(id){
+
+  if(!id)return;
+
+  activityReadIds.add(id);
+
+  try{
+    localStorage.setItem(
+      ACTIVITY_READ_KEY,
+      JSON.stringify([...activityReadIds].slice(-200))
+    );
+  }catch(error){}
+
+}
+
+function isActivityUnread(item){
+
+  return (
+    item.at > activityGetSeenAt() &&
+    item.uid !== activityMyUid() &&
+    !activityReadIds.has(item.id)
+  );
+
+}
+
 function activityMyUid(){
 
   return (
@@ -39174,12 +40301,7 @@ function activityMyUid(){
 
 function activityUnreadCount(){
 
-  const seen = activityGetSeenAt();
-  const me = activityMyUid();
-
-  return activityItems.filter(
-    item => item.at > seen && item.uid !== me
-  ).length;
+  return activityItems.filter(isActivityUnread).length;
 
 }
 
@@ -39196,7 +40318,7 @@ function updateActivityBadge(){
 
 }
 
-async function logActivity(type, title, detail){
+async function logActivity(type, title, detail, target){
 
   try{
 
@@ -39224,6 +40346,8 @@ async function logActivity(type, title, detail){
       detail: String(detail || '').slice(0, 80),
       by: (user && user.name) || 'Someone',
       uid: firebaseAuth.currentUser.uid,
+      songId: String((target && target.songId) || ''),
+      dateKey: String((target && target.dateKey) || ''),
       at: Date.now()
 
     };
@@ -39257,6 +40381,8 @@ async function logActivity(type, title, detail){
           ...top,
           title: entry.title || top.title,
           detail: entry.detail || top.detail,
+          songId: entry.songId || top.songId || '',
+          dateKey: entry.dateKey || top.dateKey || '',
           at: entry.at
         };
 
@@ -39400,25 +40526,30 @@ function renderActivityList(){
 
   }
 
-  const seen = activityOpenedSeenAt;
-  const me = activityMyUid();
-
   list.innerHTML = activityItems.map(item => {
 
     const d = activityDescribe(item);
-    const isNew = item.at > seen && item.uid !== me;
+    const isNew = isActivityUnread(item);
+    const canOpen = ['song', 'key', 'lineup'].includes(item.type);
 
     return `
-      <div class="activityItem${isNew ? ' isNew' : ''}">
+      <div class="activityItem${isNew ? ' isNew' : ''}${canOpen ? ' tappable' : ''}" data-activity-id="${esc(item.id)}">
         <div class="activityIcon">${d.icon}</div>
         <div class="activityBody">
           <div class="activityText">${d.text}</div>
           ${item.title ? `<div class="activitySong">${esc(item.title)}</div>` : ''}
           <div class="activityTime">${esc(activityTimeAgo(item.at))}</div>
         </div>
+        ${canOpen ? '<div class="activityChevron">›</div>' : ''}
       </div>`;
 
   }).join('');
+
+  const markAll = activityOverlayEl.querySelector('.activityMarkAll');
+
+  if(markAll){
+    markAll.style.visibility = activityUnreadCount() ? 'visible' : 'hidden';
+  }
 
 }
 
@@ -39447,7 +40578,10 @@ function openActivityPanel(){
     <div class="activityPanel" role="dialog" aria-label="Team activity">
       <div class="activityPanelHead">
         <span>Team Activity</span>
-        <button type="button" class="activityPanelClose" aria-label="Close">✕</button>
+        <span class="activityHeadBtns">
+          <button type="button" class="activityMarkAll">Mark all read</button>
+          <button type="button" class="activityPanelClose" aria-label="Close">✕</button>
+        </span>
       </div>
       <div class="activityList"></div>
       <div class="activityDiag"></div>
@@ -39457,6 +40591,18 @@ function openActivityPanel(){
 
     if(event.target === overlay || event.target.closest('.activityPanelClose')){
       closeActivityPanel();
+      return;
+    }
+
+    if(event.target.closest('.activityMarkAll')){
+      activityMarkAllRead();
+      return;
+    }
+
+    const row = event.target.closest('.activityItem');
+
+    if(row){
+      activityOpenItem(row.dataset.activityId);
     }
 
   });
@@ -39467,7 +40613,9 @@ function openActivityPanel(){
 
   renderActivityList();
 
-  /* Opening the panel marks everything currently in it as read. */
+}
+
+function activityMarkAllRead(){
 
   const newest = activityItems.reduce(
     (max, item) => Math.max(max, item.at || 0), 0
@@ -39476,6 +40624,72 @@ function openActivityPanel(){
   if(newest)activitySetSeenAt(Math.max(newest, activityGetSeenAt()));
 
   updateActivityBadge();
+  renderActivityList();
+
+}
+
+/*
+  Tapping an event: marks it read, then jumps to what it is about —
+  a new song / key change opens that song, a lineup change opens the
+  lineup for that date.
+*/
+function activityOpenItem(id){
+
+  const item = activityItems.find(entry => entry.id === id);
+
+  if(!item)return;
+
+  activityMarkRead(item.id);
+  updateActivityBadge();
+
+  if(!['song', 'key', 'lineup'].includes(item.type)){
+
+    renderActivityList();
+    return;
+
+  }
+
+  closeActivityPanel();
+
+  try{
+
+    if(item.type === 'lineup'){
+
+      renderLineupDetail(item.dateKey || undefined);
+      return;
+
+    }
+
+    const songs = getSongs();
+
+    let song =
+      item.songId ? songs.find(entry => entry.id === item.songId) : null;
+
+    if(!song && item.title){
+
+      const wanted = item.title.trim().toLowerCase();
+
+      song = songs.find(
+        entry => (entry.title || '').trim().toLowerCase() === wanted
+      );
+
+    }
+
+    if(song){
+
+      openSong(song);
+
+    }else{
+
+      showToast('That song is not on this phone yet — it will appear after the next sync.');
+
+    }
+
+  }catch(error){
+
+    console.error('activityOpenItem', error);
+
+  }
 
 }
 
