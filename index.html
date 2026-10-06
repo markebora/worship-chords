@@ -9497,7 +9497,58 @@ function exportMimeType(filename){
 
 }
 
+/*
+  Lets the person rename an export before it is saved (native app
+  only). Shows the suggested name with the extension kept fixed, and
+  returns the final file name, or null if they cancel. Characters
+  Android/Windows don't allow in file names are removed.
+*/
+async function askExportFileName(filename){
+
+  const dot = filename.lastIndexOf('.');
+  const base = dot > 0 ? filename.slice(0, dot) : filename;
+  const ext = dot > 0 ? filename.slice(dot) : '';
+
+  const answer =
+    await showPromptDialog(
+      'Name this file' + (ext ? ' (' + ext + ')' : ''),
+      base,
+      { confirmLabel:'Save' }
+    );
+
+  if(answer === null)return null;
+
+  let name = String(answer);
+
+  if(ext && name.toLowerCase().endsWith(ext.toLowerCase())){
+    name = name.slice(0, name.length - ext.length);
+  }
+
+  name =
+    name
+      .replace(/[\\\/:*?"<>|\u0000-\u001f]/g, '')
+      .replace(/\s+/g, ' ')
+      .replace(/^[\s.]+|[\s.]+$/g, '')
+      .slice(0, 100);
+
+  if(!name)name = base;
+
+  return name + ext;
+
+}
+
 async function deliverFile(filename, blob){
+
+  if(isNativeApp()){
+
+    const chosenName =
+      await askExportFileName(filename);
+
+    if(chosenName === null)return false;
+
+    filename = chosenName;
+
+  }
 
   if(isNativeApp()){
 
