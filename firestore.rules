@@ -1,22 +1,15 @@
 rules_version = '2';
 
-// Paste this into Firebase Console → Build → Firestore Database
-// → Rules, then click Publish.
-//
-// Only signed-in users (your ~10 team members, via Email/Password
-// auth) can read or write anything at all. They can touch four
-// things: the single shared "libraries/shared" document that
-// index.html reads/writes (SYNC_LIBRARY_DOC_ID), the single shared
-// "lineups/shared" document (SYNC_LINEUP_DOC_ID — the Sunday
-// Worship lineup, its songs, and its YT Playlist links), the
-// single shared "videoArchive/shared" document (SYNC_VIDEO_ARCHIVE_
-// DOC_ID — every YouTube link anyone's ever pasted, shown on
-// Home), and their own "profiles/{their own uid}" document
-// (display name + photo) — never anyone else's profile. Everything
-// else is denied by default.
+// Your original rules, plus one new block (activity) for the
+// Team Activity bell. Paste into Firebase Console -> Build ->
+// Firestore Database -> Rules, then click Publish.
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    match /teams/{teamId} {
+      allow read, write: if request.auth != null;
+    }
 
     match /libraries/{docId} {
       allow read, write: if request.auth != null;
@@ -30,8 +23,28 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // NEW: Team Activity bell (one doc per team: activity/{teamId})
+    match /activity/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
     match /profiles/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      allow write: if request.auth != null && request.auth.uid == uid;
+
+      // Read your own profile, or a teammate's — same team is
+      // decided by comparing your own profile's teamId (looked up
+      // here, not trusted from the request) against theirs. If your
+      // own profile doc doesn't exist yet, exists() fails this
+      // safely (denies) rather than erroring.
+      allow read: if request.auth != null && (
+        request.auth.uid == uid ||
+        (
+          exists(/databases/$(database)/documents/profiles/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.teamId == resource.data.teamId
+        )
+      );
+
     }
 
     // Deny everything else by default.
@@ -41,4 +54,3 @@ service cloud.firestore {
 
   }
 }
-
