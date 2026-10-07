@@ -538,6 +538,42 @@ button{
   line-height:1;
   padding-left:4px;
 }
+.shareBody{padding:0 18px 20px}
+.shareHint{font-size:13px;line-height:1.5;color:#a1a1a6;margin:2px 0 12px}
+.shareLinkBox{
+  width:100%;
+  box-sizing:border-box;
+  padding:11px 12px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.06);
+  color:#f2f2f2;
+  font-size:13px;
+}
+.shareBtnRow{display:flex;gap:10px;margin-top:12px}
+.shareBtn{
+  flex:1;
+  border:0;
+  border-radius:12px;
+  padding:12px;
+  background:var(--accent);
+  color:#1a1400;
+  font-size:14.5px;
+  font-weight:700;
+  cursor:pointer;
+}
+.shareBtn.ghost{background:rgba(255,255,255,.10);color:#f2f2f2}
+.shareStop{
+  display:block;
+  margin:16px auto 0;
+  border:0;
+  background:none;
+  color:#ff8b8b;
+  font-size:13px;
+  cursor:pointer;
+}
+.sharedNum{font-weight:700;color:var(--accent);font-size:14px}
+.sharedKey{align-self:center;color:#8e8e93;font-size:13px;font-weight:600}
 .activityDiag{
   padding:10px 18px 14px;
   border-top:1px solid rgba(255,255,255,.06);
@@ -16173,6 +16209,8 @@ async function uploadLineup(state, explicitDateKey){
 
   logActivity('lineup', '', '', { dateKey: key });
 
+  refreshLineupShare(key, state);
+
 }
 
 
@@ -16371,7 +16409,7 @@ function restoreYtMiniPlayerOnBoot(){
 
   }
 
-  openYouTubePlayer(saved.videoId, null, { web: true });
+  openYouTubePlayer(saved.videoId);
   setYouTubePlayerMinimized(true);
 
 }
@@ -16977,238 +17015,6 @@ async function removeVideoFromLineup(videoId){
 }
 
 
-/* =========================================================
-   NATIVE BACKGROUND YOUTUBE (Android app only)
-
-   In the Capacitor APK, videos open in a native "YouTube browser"
-   screen (the YtBackground plugin: a WebView on m.youtube.com kept
-   alive by a foreground service + media session) instead of the
-   iframe below, so audio keeps playing with the screen off or the
-   app in the background, with lock-screen / notification controls.
-
-   When that screen is minimized, a small bar floats over the app
-   (title, prev, play/pause, next, close). Tap the title to bring
-   the video back up. Everywhere else — browser, PWA, or an APK
-   built before this plugin existed — none of this runs and the
-   normal iframe player is used.
-========================================================= */
-
-const ytNative = {
-  state: null,
-  listening: false,
-  styled: false
-};
-
-function getYtBackground(){
-
-  return (
-    isNativeApp() &&
-    window.Capacitor &&
-    window.Capacitor.Plugins &&
-    window.Capacitor.Plugins.YtBackground
-  ) || null;
-
-}
-
-function ytNativeOpen(videoId, queue){
-
-  const plugin = getYtBackground();
-
-  if(!plugin)return false;
-
-  ytNativeListen(plugin);
-
-  const ids =
-    Array.isArray(queue) ? queue.filter(Boolean) : [];
-
-  plugin.open({ videoId, queue: ids }).catch(error => {
-
-    /* Plugin present but failed: fall back to the iframe player. */
-    showToast(
-      'Background player unavailable, using the normal player.',
-      'error'
-    );
-
-    openYouTubePlayer(videoId, queue, { web: true });
-
-  });
-
-  return true;
-
-}
-
-function ytNativeListen(plugin){
-
-  if(ytNative.listening)return;
-
-  ytNative.listening = true;
-
-  plugin.addListener('ytState', ytNativeApply);
-
-  ytNativeRefresh();
-
-}
-
-function ytNativeRefresh(){
-
-  const plugin = getYtBackground();
-
-  if(!plugin || !ytNative.listening)return;
-
-  plugin.getState().then(ytNativeApply).catch(() => {});
-
-}
-
-function ytNativeApply(state){
-
-  ytNative.state = state || null;
-
-  renderYtNativePill();
-
-}
-
-function ytNativeHandleBack(){
-
-  const plugin = getYtBackground();
-  const state = ytNative.state;
-
-  if(plugin && state && state.active && state.expanded){
-
-    plugin.minimize();
-
-    return true;
-
-  }
-
-  return false;
-
-}
-
-function ensureYtNativeStyles(){
-
-  if(ytNative.styled)return;
-
-  ytNative.styled = true;
-
-  const style = document.createElement('style');
-
-  style.textContent = `
-    #ytNativePill{
-      position:fixed;
-      left:10px;
-      right:10px;
-      bottom:calc(env(safe-area-inset-bottom, 0px) + 84px);
-      max-width:460px;
-      margin:0 auto;
-      z-index:2500;
-      display:flex;
-      align-items:center;
-      gap:2px;
-      background:#1e1e22;
-      border:1px solid #2d2d32;
-      border-radius:14px;
-      padding:4px 6px;
-      box-shadow:0 6px 22px rgba(0,0,0,.55);
-    }
-    #ytNativePill button{
-      background:none;
-      border:0;
-      color:#e8e8ea;
-      font-size:16px;
-      padding:8px 9px;
-      cursor:pointer;
-    }
-    #ytNativePill .ytNativePillTitle{
-      flex:1;
-      min-width:0;
-      text-align:left;
-      font-size:13px;
-      font-weight:700;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-    }
-  `;
-
-  document.head.appendChild(style);
-
-}
-
-function renderYtNativePill(){
-
-  const state = ytNative.state;
-
-  let pill = document.getElementById('ytNativePill');
-
-  /* Only shown while a video is loaded and the full screen is minimized. */
-  if(!state || !state.active || state.expanded){
-
-    if(pill)pill.remove();
-
-    return;
-
-  }
-
-  if(!pill){
-
-    ensureYtNativeStyles();
-
-    pill = document.createElement('div');
-
-    pill.id = 'ytNativePill';
-
-    pill.innerHTML = `
-      <button type="button" class="ytNativePillTitle" data-yt="expand"></button>
-      <button type="button" data-yt="prev" aria-label="Previous">⏮</button>
-      <button type="button" data-yt="toggle" aria-label="Play or pause"></button>
-      <button type="button" data-yt="next" aria-label="Next">⏭</button>
-      <button type="button" data-yt="close" aria-label="Close video">✕</button>
-    `;
-
-    pill.addEventListener('click', event => {
-
-      const btn = event.target.closest('[data-yt]');
-      const plugin = getYtBackground();
-
-      if(!btn || !plugin)return;
-
-      const act = btn.dataset.yt;
-
-      if(act === 'expand')plugin.expand();
-      else if(act === 'close')plugin.close();
-      else plugin.control({ action: act });
-
-    });
-
-    document.body.appendChild(pill);
-
-  }
-
-  pill.querySelector('.ytNativePillTitle').textContent =
-    state.title || 'YouTube';
-
-  pill.querySelector('[data-yt="toggle"]').textContent =
-    state.playing ? '⏸' : '▶';
-
-}
-
-/* The native player can outlive this page (the service keeps running
-   if the app is backgrounded and the page reloads), so re-sync. */
-setTimeout(() => {
-
-  const plugin = getYtBackground();
-
-  if(plugin)ytNativeListen(plugin);
-
-}, 1500);
-
-document.addEventListener('visibilitychange', () => {
-
-  if(!document.hidden)ytNativeRefresh();
-
-});
-
-
 /*
   Centered in-app player — opens as an overlay on top of whatever
   screen is showing, never a real new browser tab/window, so it
@@ -17307,19 +17113,7 @@ function setYouTubePlayerMinimized(minimized){
 }
 
 
-function openYouTubePlayer(videoId, queue, options){
-
-  /*
-    In the Android app this hands off to the native background
-    player (see NATIVE BACKGROUND YOUTUBE above). In a browser/PWA,
-    or in an older APK without that plugin, it falls through to the
-    in-page iframe player below, exactly as before.
-  */
-  if(
-    videoId &&
-    !(options && options.web) &&
-    ytNativeOpen(videoId, queue)
-  )return;
+function openYouTubePlayer(videoId){
 
   const host =
     document.getElementById('ytPlayerOverlay');
@@ -33634,6 +33428,582 @@ document.addEventListener('click', event => {
 
 });
 
+
+/* =========================================================
+   SHARE A LINEUP BY LINK
+
+   "Share" on the lineup screen writes a snapshot (song titles +
+   keys) to lineupShares/{token} and gives out
+   <site>/lineup/<token>. Anyone can open it in a browser (the
+   public page, served from the snapshot by /api/lineup-share).
+   On Android with the app installed, the link opens the app
+   itself: team members land on that lineup, anyone else sees a
+   read-only copy. The snapshot refreshes whenever the lineup is
+   saved. "Stop sharing" switches the link off.
+========================================================= */
+
+const LINEUP_SHARE_KEY = 'disciplesLineupShareTokens';
+
+function loadLineupShareTokens(){
+
+  try{
+    return JSON.parse(localStorage.getItem(LINEUP_SHARE_KEY) || '{}') || {};
+  }catch(error){
+    return {};
+  }
+
+}
+
+function saveLineupShareToken(mapKey, token){
+
+  const all = loadLineupShareTokens();
+
+  if(token){
+    all[mapKey] = token;
+  }else{
+    delete all[mapKey];
+  }
+
+  try{
+    localStorage.setItem(LINEUP_SHARE_KEY, JSON.stringify(all));
+  }catch(error){}
+
+}
+
+function lineupShareMapKey(dateKey){
+
+  return (getActiveTeamId() || '') + '_' + dateKey;
+
+}
+
+function makeShareToken(){
+
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = new Uint8Array(20);
+
+  (window.crypto || window.msCrypto).getRandomValues(bytes);
+
+  return Array.from(bytes, byte => chars[byte % chars.length]).join('');
+
+}
+
+function lineupShareUrl(token){
+
+  return window.location.origin + '/lineup/' + token;
+
+}
+
+function lineupTokenFromUrl(url){
+
+  try{
+
+    const match =
+      new URL(url).pathname.match(/^\/lineup\/([A-Za-z0-9]{12,64})\/?$/);
+
+    return match ? match[1] : '';
+
+  }catch(error){
+
+    return '';
+
+  }
+
+}
+
+/* What visitors see: lineup title, date, and each song's title + key. */
+function buildLineupShareData(dateKey, lineupState){
+
+  const lineup = lineupState || getLocalLineup(dateKey);
+
+  const byId = new Map(getSongs().map(song => [song.id, song]));
+
+  const songs =
+    (lineup.songs || []).slice(0, 50).map(entry => {
+
+      const song = byId.get(entry.id);
+
+      let key = '';
+
+      try{
+        key = song ? (detectSongKeyLabel(song) || '') : '';
+      }catch(error){}
+
+      return {
+        title: (song && song.title) || entry.title || 'Untitled Song',
+        key
+      };
+
+    });
+
+  return {
+    teamId: getActiveTeamId() || '',
+    dateKey,
+    title: lineup.title || 'Worship Lineup',
+    dateLabel: exportLongDate(dateKey),
+    songs,
+    memberSongs: buildMemberSongs(lineup),
+    updatedAt: Date.now()
+  };
+
+}
+
+/*
+  Chords and lyrics for each lineup song, saved with the shared copy.
+  The server only hands this out to signed-in members of the team (the
+  app itself can't read these docs back — see firestore.rules). Stored
+  as plain strings plus the numbers of the chord-only lines, because
+  Firestore doesn't allow arrays inside arrays. Same order as `songs`.
+*/
+function buildMemberSongs(lineup){
+
+  const byId = new Map(getSongs().map(song => [song.id, song]));
+
+  const out =
+    (lineup.songs || []).slice(0, 50).map(entry => {
+
+      const song = byId.get(entry.id);
+
+      const result = {
+        title: (song && song.title) || entry.title || 'Untitled Song',
+        key: '',
+        sections: []
+      };
+
+      if(!song)return result;
+
+      try{
+
+        result.key = detectSongKeyLabel(song) || '';
+
+        result.sections =
+          exportJobForSong(song, false).sections.slice(0, 30).map(section => {
+
+            const lines = [];
+            const chords = [];
+
+            (section.lines || []).forEach(line => {
+
+              if(String(line).trim() === '' || lines.length >= 300)return;
+
+              if(isChordOnlyLine(line))chords.push(lines.length);
+
+              lines.push(String(line));
+
+            });
+
+            return { name: section.name || '', lines, chords };
+
+          });
+
+      }catch(error){
+
+        console.error('buildMemberSongs', error);
+
+      }
+
+      return result;
+
+    });
+
+  /* A Firestore doc tops out at 1 MiB; if a lineup is somehow bigger
+     than that, share titles and keys only rather than failing. */
+  return JSON.stringify(out).length > 800000 ? [] : out;
+
+}
+
+async function ensureLineupShare(dateKey){
+
+  await firebaseReadyPromise;
+
+  if(!firestoreDb || !firebaseAuth || !firebaseAuth.currentUser){
+
+    throw new Error('Sign in first (Profile → Account) to share a lineup.');
+
+  }
+
+  if(!getActiveTeamId()){
+
+    throw new Error('Join or create a team first.');
+
+  }
+
+  const mapKey = lineupShareMapKey(dateKey);
+
+  let token = loadLineupShareTokens()[mapKey] || '';
+
+  if(!token)token = makeShareToken();
+
+  const user = getGoogleUser();
+
+  await firestoreDb.collection('lineupShares').doc(token).set(
+    Object.assign(
+      buildLineupShareData(dateKey),
+      { revoked:false, createdBy:(user && user.name) || '' }
+    ),
+    { merge:true }
+  );
+
+  saveLineupShareToken(mapKey, token);
+
+  return token;
+
+}
+
+async function refreshLineupShare(dateKey, lineupState){
+
+  try{
+
+    const token = loadLineupShareTokens()[lineupShareMapKey(dateKey)];
+
+    if(!token || !firestoreDb || !firebaseAuth || !firebaseAuth.currentUser)return;
+
+    await firestoreDb.collection('lineupShares').doc(token).set(
+      buildLineupShareData(dateKey, lineupState),
+      { merge:true }
+    );
+
+  }catch(error){
+
+    console.error('refreshLineupShare', error);
+
+  }
+
+}
+
+function lineupShareMessage(data, url){
+
+  const lines = [
+    data.title + (data.dateLabel ? ' — ' + data.dateLabel : ''),
+    ''
+  ];
+
+  data.songs.forEach((song, index) => {
+    lines.push((index + 1) + '. ' + song.title + (song.key ? ' (' + song.key + ')' : ''));
+  });
+
+  lines.push('', url);
+
+  return lines.join('\n');
+
+}
+
+async function copyTextToClipboard(text, inputEl){
+
+  try{
+
+    if(navigator.clipboard && navigator.clipboard.writeText){
+
+      await navigator.clipboard.writeText(text);
+
+      return true;
+
+    }
+
+  }catch(error){}
+
+  try{
+
+    if(inputEl){
+      inputEl.select();
+      return document.execCommand('copy');
+    }
+
+  }catch(error){}
+
+  return false;
+
+}
+
+let shareOverlayEl = null;
+
+function closeSharePanel(){
+
+  if(shareOverlayEl){
+    shareOverlayEl.remove();
+    shareOverlayEl = null;
+  }
+
+}
+
+async function openLineupSharePanel(dateKey){
+
+  closeSharePanel();
+
+  dateKey = dateKey || currentLineupDate || getActiveLineupDateKey();
+
+  const overlay = document.createElement('div');
+
+  overlay.className = 'activityOverlay';
+
+  overlay.innerHTML = `
+    <div class="activityPanel" role="dialog" aria-label="Share this lineup">
+      <div class="activityPanelHead">
+        <span>Share this lineup</span>
+        <button type="button" class="activityPanelClose" aria-label="Close">✕</button>
+      </div>
+      <div class="shareBody" id="shareBody">
+        <div class="shareHint">Creating your link…</div>
+      </div>
+    </div>`;
+
+  overlay.addEventListener('click', event => {
+
+    if(event.target === overlay || event.target.closest('.activityPanelClose')){
+      closeSharePanel();
+    }
+
+  });
+
+  document.body.appendChild(overlay);
+
+  shareOverlayEl = overlay;
+
+  const body = overlay.querySelector('#shareBody');
+
+  let token;
+
+  try{
+
+    token = await ensureLineupShare(dateKey);
+
+  }catch(error){
+
+    body.innerHTML =
+      '<div class="shareHint">' +
+      esc((error && error.message) || 'Could not create the link.') +
+      '</div>';
+
+    return;
+
+  }
+
+  const url = lineupShareUrl(token);
+  const data = buildLineupShareData(dateKey);
+
+  body.innerHTML = `
+    <div class="shareHint">Anyone with this link can see the song titles and keys. Team members who are signed in (in the app, or in their browser) also see the chords and lyrics. Teammates with the app open it right inside the app.</div>
+    <input class="shareLinkBox" id="shareLinkInput" type="text" readonly value="${esc(url)}">
+    <div class="shareBtnRow">
+      <button type="button" class="shareBtn" id="shareSendBtn">Share…</button>
+      <button type="button" class="shareBtn ghost" id="shareCopyBtn">Copy link</button>
+    </div>
+    <button type="button" class="shareStop" id="shareStopBtn">Stop sharing</button>`;
+
+  const input = body.querySelector('#shareLinkInput');
+
+  input.onclick = () => input.select();
+
+  body.querySelector('#shareCopyBtn').onclick = async () => {
+
+    const ok = await copyTextToClipboard(url, input);
+
+    showToast(ok ? 'Link copied.' : 'Could not copy — press and hold the link to copy it.', ok ? 'success' : 'error');
+
+  };
+
+  body.querySelector('#shareSendBtn').onclick = async () => {
+
+    const text = lineupShareMessage(data, url);
+
+    try{
+
+      const NativeShare =
+        window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share;
+
+      if(isNativeApp() && NativeShare){
+
+        await NativeShare.share({ title:data.title, text, dialogTitle:'Share lineup' });
+
+      }else if(navigator.share){
+
+        await navigator.share({ title:data.title, text });
+
+      }else{
+
+        const ok = await copyTextToClipboard(text, input);
+
+        showToast(ok ? 'Lineup and link copied.' : 'Sharing is not available here.', ok ? 'success' : 'error');
+
+      }
+
+    }catch(error){
+
+      const message = String((error && error.message) || error || '');
+
+      if(!/cancel|abort|dismiss/i.test(message)){
+        showToast('Could not open the share menu: ' + message, 'error');
+      }
+
+    }
+
+  };
+
+  body.querySelector('#shareStopBtn').onclick = async () => {
+
+    try{
+
+      await firestoreDb.collection('lineupShares').doc(token).set(
+        { revoked:true, updatedAt:Date.now() },
+        { merge:true }
+      );
+
+      saveLineupShareToken(lineupShareMapKey(dateKey), '');
+
+      closeSharePanel();
+
+      showToast('Link turned off. It no longer opens.', 'success');
+
+    }catch(error){
+
+      showToast('Could not turn the link off: ' + ((error && error.message) || 'try again'), 'error');
+
+    }
+
+  };
+
+}
+
+document.addEventListener('click', event => {
+
+  if(event.target.closest && event.target.closest('#lineupShareBtn')){
+    openLineupSharePanel(currentLineupDate);
+  }
+
+});
+
+/* Read-only copy for someone who opens a link from another team. */
+function showSharedLineupOverlay(data){
+
+  closeSharePanel();
+
+  const overlay = document.createElement('div');
+
+  overlay.className = 'activityOverlay';
+
+  const rows =
+    (data.songs || []).map((song, index) => `
+      <div class="activityItem">
+        <div class="activityIcon sharedNum">${index + 1}</div>
+        <div class="activityBody">
+          <div class="activityText"><b>${esc(song.title)}</b></div>
+        </div>
+        ${song.key ? `<div class="sharedKey">${esc(song.key)}</div>` : ''}
+      </div>`).join('');
+
+  overlay.innerHTML = `
+    <div class="activityPanel" role="dialog" aria-label="Shared lineup">
+      <div class="activityPanelHead">
+        <span>${esc(data.title || 'Worship Lineup')}</span>
+        <button type="button" class="activityPanelClose" aria-label="Close">✕</button>
+      </div>
+      <div class="shareBody" style="padding-bottom:6px;">
+        <div class="shareHint">${esc(data.dateLabel || '')}</div>
+      </div>
+      <div class="activityList">${rows || '<div class="activityEmpty">No songs in this lineup yet.</div>'}</div>
+    </div>`;
+
+  overlay.addEventListener('click', event => {
+
+    if(event.target === overlay || event.target.closest('.activityPanelClose')){
+      overlay.remove();
+    }
+
+  });
+
+  document.body.appendChild(overlay);
+
+}
+
+/*
+  Opening a /lineup/<token> link inside the app: look the link up on
+  the server; teammates go straight to that lineup, anyone else sees a
+  read-only copy.
+*/
+async function openSharedLineupLink(url){
+
+  const token = lineupTokenFromUrl(url);
+
+  if(!token)return;
+
+  try{
+
+    const response =
+      await fetch('/api/lineup-share?token=' + encodeURIComponent(token), { cache:'no-store' });
+
+    const data = await response.json().catch(() => ({}));
+
+    if(!response.ok || !data.ok){
+
+      showToast(data.error || 'This lineup link is not available.', 'error');
+
+      return;
+
+    }
+
+    if(data.teamId && data.dateKey && data.teamId === getActiveTeamId()){
+
+      renderLineupDetail(data.dateKey);
+
+      return;
+
+    }
+
+    showSharedLineupOverlay(data);
+
+  }catch(error){
+
+    console.error('openSharedLineupLink', error);
+
+    showToast('Could not open that lineup link.', 'error');
+
+  }
+
+}
+
+let lineupLaunchLinkHandled = false;
+
+function initLineupDeepLinks(){
+
+  try{
+
+    if(!isNativeApp())return;
+
+    const App =
+      window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+
+    if(!App)return;
+
+    App.addListener('appUrlOpen', event => {
+
+      if(event && event.url)openSharedLineupLink(event.url);
+
+    });
+
+    /* App was closed when the link was tapped. */
+    Promise.resolve(App.getLaunchUrl())
+      .then(async result => {
+
+        if(lineupLaunchLinkHandled || !result || !result.url)return;
+
+        lineupLaunchLinkHandled = true;
+
+        await firebaseReadyPromise;
+
+        setTimeout(() => openSharedLineupLink(result.url), 1200);
+
+      })
+      .catch(() => {});
+
+  }catch(error){
+
+    console.error('initLineupDeepLinks', error);
+
+  }
+
+}
+
+initLineupDeepLinks();
+
 /* =========================================================
    EDIT CURRENT SONG
 ========================================================= */
@@ -36730,13 +37100,7 @@ function wireLineupVideosSection(){
 
   section.querySelectorAll('[data-yt-play]').forEach(el => {
     el.onclick = () => {
-      /* One id per row (the thumbnail), in playlist order, so the
-         native background player can advance to the next link on
-         its own while the app is in the background. */
-      const queue = Array.from(
-        section.querySelectorAll('.videoCardThumb[data-yt-play]')
-      ).map(item => item.dataset.ytPlay);
-      openYouTubePlayer(el.dataset.ytPlay, queue);
+      openYouTubePlayer(el.dataset.ytPlay);
     };
   });
 
@@ -37091,6 +37455,10 @@ function renderLineupDetail(dateKey){
       <div class="libraryTitle" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
         ${esc(lineup.title || 'Worship Lineup')}
       </div>
+
+      <button class="searchBtn" id="lineupShareBtn" aria-label="Share lineup link">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 8l5-5 5 5M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5"/></svg>
+      </button>
 
       <button class="searchBtn" id="lineupExportBtn" aria-label="Export lineup">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>
@@ -41687,8 +42055,6 @@ if('serviceWorker' in navigator && !isBundledNativeApp()){
 */
 
 function handleHardwareBack(){
-
-  if(ytNativeHandleBack())return true;
 
   if(document.getElementById('songLibSheetRoot')){
 
