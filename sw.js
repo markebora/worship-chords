@@ -1,4 +1,4 @@
-const CACHE_NAME = 'disciples-shell-v1';
+const CACHE_NAME = 'disciples-shell-v2';
 const SHELL_URL = '/';
 
 self.addEventListener('install', (event) => {
@@ -29,6 +29,13 @@ self.addEventListener('activate', (event) => {
 */
 self.addEventListener('fetch', (event) => {
   if (event.request.mode !== 'navigate') return;
+
+  /* Only the app itself is the cached "shell". Other pages (a shared
+     lineup at /lineup/<token>, pads.html, ...) go straight to the
+     network, so they never overwrite the cached app. */
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname !== '/' && url.pathname !== '/index.html') return;
 
   event.respondWith(
     fetch(event.request)
