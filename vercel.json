@@ -5,6 +5,13 @@
     },
     "api/notify-new-song.js": {
       "maxDuration": 15
+    },
+    "api/lineup-share.js": {
+      "maxDuration": 10
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/lineup/:token", "destination": "/lineup.html" },
+    { "source": "/.well-known/assetlinks.json", "destination": "/api/assetlinks" }
+  ]
 }
