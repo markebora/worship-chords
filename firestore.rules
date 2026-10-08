@@ -1,11 +1,22 @@
 rules_version = '2';
 
-// Your original rules, plus one new block (activity) for the
-// Team Activity bell. Paste into Firebase Console -> Build ->
-// Firestore Database -> Rules, then click Publish.
+// Your current rules, plus two new blocks for the PreCenter remote:
+//   presenter     - what the computer is showing right now (the computer
+//                   writes it, the phone reads it)
+//   presenterCmd  - button presses sent from the phone to the computer
+// Both are limited to members of that team (teams/{teamId}.memberUids).
+// Paste into Firebase Console -> Build -> Firestore Database -> Rules,
+// then click Publish.
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // True when the signed-in user is on this team.
+    function isTeamMember(teamId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/teams/$(teamId))
+        && request.auth.uid in get(/databases/$(database)/documents/teams/$(teamId)).data.memberUids;
+    }
 
     match /teams/{teamId} {
       allow read, write: if request.auth != null;
@@ -23,9 +34,27 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
-    // NEW: Team Activity bell (one doc per team: activity/{teamId})
+    // Team Activity bell (one doc per team: activity/{teamId})
     match /activity/{docId} {
       allow read, write: if request.auth != null;
+    }
+
+    // NEW: PreCenter remote - live state (one doc per team)
+    match /presenter/{teamId} {
+      allow read, write: if isTeamMember(teamId);
+    }
+
+    // NEW: PreCenter remote - button presses from the phone
+    match /presenterCmd/{teamId}/q/{cmdId} {
+      allow read, write: if isTeamMember(teamId);
+    }
+
+    // Shared lineup links: signed-in users can create / update / turn off a
+    // link, but nobody can read or list them from the app. The public page
+    // reads them through /api/lineup-share instead.
+    match /lineupShares/{token} {
+      allow get, list: if false;
+      allow create, update, delete: if request.auth != null;
     }
 
     match /profiles/{uid} {
