@@ -8927,7 +8927,12 @@ body.songBottomHidden .annotateToolbar{
 .rmtStat.bad{background:rgba(255,69,58,.18);color:#ff7a70}
 .rmtBody{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px;display:flex;flex-direction:column;gap:12px}
 .rmtNow{background:rgba(255,255,255,.06);border-radius:16px;padding:12px 14px}
-.rmtTitle{font-weight:700;font-size:16px}
+.rmtHead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.rmtTitle{font-weight:700;font-size:16px;min-width:0}
+.rmtNum{flex:none;background:var(--accent,#E8B923);color:var(--accent-ink,#171200);font-weight:800;font-size:15px;padding:4px 12px;border-radius:999px;white-space:nowrap}
+.rmtNum:empty{display:none}
+.rmtText.dim{color:#8a8a93;font-size:15px;font-style:italic}
+.stgNum{color:var(--accent,#E8B923);font-size:18px;margin-right:12px}
 .rmtLab{display:inline-block;margin-top:4px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent,#E8B923)}
 .rmtText{margin-top:6px;font-size:18px;line-height:1.3;white-space:pre-wrap;word-break:break-word}
 .rmtNextTxt{margin-top:8px;font-size:13px;line-height:1.3;color:#9a9aa3;white-space:pre-wrap;border-top:1px solid rgba(255,255,255,.08);padding-top:8px}
@@ -42768,14 +42773,14 @@ document.addEventListener('visibilitychange', () => {
       '<div class="rmtBody" id="rmtRemote">'+
         '<div class="rmtMsg" id="rmtMsg" hidden></div>'+
         '<div id="rmtLive">'+
-          '<div class="rmtNow"><div class="rmtTitle" id="rmtTitle"></div><div class="rmtLab" id="rmtLab"></div><div class="rmtText" id="rmtText"></div><div class="rmtNextTxt" id="rmtNextTxt"></div></div>'+
+          '<div class="rmtNow"><div class="rmtHead"><div class="rmtTitle" id="rmtTitle"></div><div class="rmtNum" id="rmtNum"></div></div><div class="rmtLab" id="rmtLab"></div><div class="rmtText" id="rmtText"></div><div class="rmtNextTxt" id="rmtNextTxt"></div></div>'+
           '<div class="rmtNav" style="margin-top:12px"><button type="button" class="rmtBtn big" id="rmtPrev">\u25C0 Back</button><button type="button" class="rmtBtn big go" id="rmtNext">Next \u25B6</button></div>'+
           '<div class="rmtSecs" id="rmtSecs" style="margin-top:12px"></div>'+
           '<div class="rmtRow" style="margin-top:12px"><button type="button" class="rmtBtn" id="rmtSongPrev">\u25C0 Song</button><button type="button" class="rmtBtn" id="rmtSongNext">Song \u25B6</button><button type="button" class="rmtBtn" id="rmtBlack">Black</button><button type="button" class="rmtBtn" id="rmtClear">Clear</button></div>'+
           '<details class="rmtList" id="rmtListBox" style="margin-top:12px"><summary>Songs &amp; items</summary><div id="rmtList"></div></details>'+
         '</div>'+
       '</div>'+
-      '<div class="rmtStage" id="rmtStageV" hidden><div class="stgTop"><span class="stgLab" id="stgLab"></span><span id="stgTitle"></span><span id="stgClock"></span></div>'+
+      '<div class="rmtStage" id="rmtStageV" hidden><div class="stgTop"><span class="stgLab" id="stgLab"></span><span id="stgTitle"></span><span><b class="stgNum" id="stgNum"></b><span id="stgClock"></span></span></div>'+
       '<div class="stgMain" id="stgMain"><div class="stgText" id="stgText"></div></div><div class="stgMsg" id="stgMsg"></div><div class="stgNext" id="stgNext"></div></div>';
     document.body.appendChild(ov);
     ov.querySelector('#rmtClose').onclick=close;
@@ -42833,8 +42838,12 @@ document.addEventListener('visibilitychange', () => {
     if(!live){if(tab==='stage'){$('stgText').textContent=m;$('stgLab').textContent='';$('stgTitle').textContent='';$('stgNext').textContent='';$('stgMsg').textContent='';fit()}return}
     $('rmtTitle').textContent=state.title||'';
     $('rmtLab').textContent=state.label||'';
-    $('rmtText').textContent=state.text||(state.black?'(black screen)':'');
-    $('rmtNextTxt').textContent=state.next?('Next: '+state.next):'';
+    const n=+state.n||0,at=(+state.idx||0)+1;
+    $('rmtNum').textContent=n?('Slide '+at+' / '+n):'';
+    const tx=$('rmtText');
+    tx.textContent=state.text||(state.black?'(black screen)':'(no text on this slide)');
+    tx.classList.toggle('dim',!state.text);
+    $('rmtNextTxt').textContent=state.next?('Next: '+state.next):(at<n?('Next: Slide '+(at+1)):'');
     const box=$('rmtSecs');box.textContent='';
     const secs=Array.isArray(state.secs)?state.secs:[];
     if(secs.length>=2){
@@ -42861,8 +42870,10 @@ document.addEventListener('visibilitychange', () => {
     $('stgTitle').textContent=state.title||'';
     $('stgText').textContent=state.black?'':(state.text||'');
     $('stgMsg').textContent=state.msg||'';
+    $('stgNum').textContent=n?(at+' / '+n):'';
     const nx=$('stgNext');nx.textContent='';
-    if(state.next){nx.append(el('b',null,'NEXT'),document.createTextNode(state.next))}
+    const nxt=state.next||(at<n?('Slide '+(at+1)):'');
+    if(nxt){nx.append(el('b',null,'NEXT'),document.createTextNode(nxt))}
     clock();
     if(tab==='stage')fit();
   }
