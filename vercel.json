@@ -12,6 +12,9 @@
   },
   "rewrites": [
     { "source": "/lineup/:token", "destination": "/lineup.html" },
-    { "source": "/.well-known/assetlinks.json", "destination": "/api/assetlinks" }
+    { "source": "/.well-known/assetlinks.json", "destination": "/api/assetlinks" },
+    { "source": "/api/drive-watch-setup", "destination": "/api/drive-watch?action=setup" },
+    { "source": "/api/drive-watch-renew", "destination": "/api/drive-watch?action=renew" },
+    { "source": "/api/drive-watch-status", "destination": "/api/drive-watch?action=status" }
   ]
 }
