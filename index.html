@@ -14,7 +14,7 @@
   content="#000000"
 >
 
-<title>Disciples</title>
+<title>Disciples: Harmony</title>
 
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/icons/icon-192.png">
@@ -146,32 +146,31 @@ button{
   align-items:center;
 }
 
+#startupSplash #splashKicker{
+  font-family:'Poppins', sans-serif;
+  font-weight:700;
+  font-size:13px;
+  letter-spacing:0.3em;
+  text-transform:uppercase;
+  margin:0 0 4px 0.3em;
+  color:#C99A1E;
+
+  opacity:0;
+  animation:splashTaglineIn .6s ease forwards .1s;
+}
+
 #startupSplash #wordText{
   font-family:'Poppins', sans-serif;
-  font-weight:800;
-  font-size:56px;
-  letter-spacing:0.14em;
-  text-transform:uppercase;
+  font-weight:700;
+  font-size:46px;line-height:1.1;
+  letter-spacing:0;
+  text-transform:none;
   white-space:nowrap;
-
-  background:linear-gradient(
-    90deg,
-    #C99A1E 0%,
-    #C99A1E 42%,
-    #FDE08A 50%,
-    #C99A1E 58%,
-    #C99A1E 100%
-  );
-  background-size:300% 100%;
-  -webkit-background-clip:text;
-  background-clip:text;
-  color:transparent;
+  color:#FFFFFF;
 
   opacity:0;
   transform:translateY(14px);
-  animation:
-    splashWordIn .6s cubic-bezier(.2,.8,.3,1) forwards .2s,
-    splashColorWave 3.4s linear infinite 1s;
+  animation:splashWordIn .6s cubic-bezier(.2,.8,.3,1) forwards .2s;
 }
 
 @keyframes splashWordIn{
@@ -190,10 +189,9 @@ button{
   margin-top:14px;
 
   font-family:'Poppins', sans-serif;
-  font-weight:700;
+  font-weight:500;
   font-size:13px;
-  letter-spacing:0.22em;
-  text-transform:uppercase;
+  letter-spacing:0.03em;
   color:#8a8a92;
 
   opacity:0;
@@ -248,27 +246,48 @@ button{
 }
 
 #loginGateCard{
-  width:min(340px,100%);
+  width:min(360px,100%);
+  box-sizing:border-box;
+  padding:30px 24px 26px;
+  background:#151518;
+  border:1px solid #2d2d32;
+  border-radius:16px;
+  box-shadow:0 12px 40px rgba(0,0,0,.55);
+}
+
+#loginGateBody input{
+  background:#000000;
+  border-color:#2d2d32;
+}
+
+#loginGateKicker{
+  font-family:'Poppins', sans-serif;
+  font-weight:700;
+  font-size:12px;
+  letter-spacing:0.3em;
+  text-transform:uppercase;
+  text-align:center;
+  margin:0 0 4px 0.3em;
+  color:var(--accent);
 }
 
 #loginGateBrand{
   font-family:'Poppins', sans-serif;
-  font-weight:800;
-  font-size:28px;
-  letter-spacing:0.12em;
-  text-transform:uppercase;
+  font-weight:700;
+  font-size:42px;
+  line-height:1.1;
+  letter-spacing:0;
   text-align:center;
-  color:var(--accent);
+  color:#FFFFFF;
 }
 
 #loginGateTagline{
-  margin:6px 0 30px;
+  margin:12px 0 30px;
 
   font-family:'Poppins', sans-serif;
-  font-weight:700;
-  font-size:11px;
-  letter-spacing:0.18em;
-  text-transform:uppercase;
+  font-weight:500;
+  font-size:13px;
+  letter-spacing:0.03em;
   text-align:center;
   color:#8a8a92;
 }
@@ -8901,7 +8920,8 @@ body.songBottomHidden .annotateToolbar{
 <div id="startupSplash">
 
   <div id="lockup">
-    <div id="wordText">Disciples</div>
+    <div id="splashKicker">Disciples</div>
+    <div id="wordText">Harmony</div>
     <div id="tagline">Follow Jesus. Make Him Known.</div>
   </div>
 
@@ -8911,7 +8931,8 @@ body.songBottomHidden .annotateToolbar{
 
   <div id="loginGateCard">
 
-    <div id="loginGateBrand">Disciples</div>
+    <div id="loginGateKicker">Disciples</div>
+    <div id="loginGateBrand">Harmony</div>
     <div id="loginGateTagline">Follow Jesus. Make Him Known.</div>
 
     <div id="loginGateBody"></div>
