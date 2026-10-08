@@ -8912,6 +8912,58 @@ body.songBottomHidden .annotateToolbar{
 }
 </style>
 
+<style id="remoteCss">
+.topBtns{display:flex;align-items:center;gap:8px}
+.rmtOv{position:fixed;inset:0;z-index:10050;background:#0b0b0c;color:#f7f7f7;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);font-family:inherit}
+.rmtOv[hidden],.rmtOv [hidden]{display:none!important}
+.rmtBar{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.1)}
+.rmtX{width:40px;height:40px;flex:none;border:0;border-radius:50%;background:rgba(255,255,255,.10);color:#fff;font-size:18px}
+.rmtTabs{display:flex;gap:4px;background:rgba(255,255,255,.08);border-radius:999px;padding:3px}
+.rmtTabs button{border:0;background:none;color:#cfcfd4;font-weight:600;font-size:14px;padding:7px 16px;border-radius:999px}
+.rmtTabs button.on{background:var(--accent,#E8B923);color:var(--accent-ink,#171200)}
+.rmtStat{margin-left:auto;font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.08);color:#cfcfd4;text-align:right;max-width:46%}
+.rmtStat.ok{background:rgba(48,209,88,.18);color:#6ee08a}
+.rmtStat.warn{background:rgba(255,159,10,.18);color:#ffb340}
+.rmtStat.bad{background:rgba(255,69,58,.18);color:#ff7a70}
+.rmtBody{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px;display:flex;flex-direction:column;gap:12px}
+.rmtNow{background:rgba(255,255,255,.06);border-radius:16px;padding:12px 14px}
+.rmtTitle{font-weight:700;font-size:16px}
+.rmtLab{display:inline-block;margin-top:4px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--accent,#E8B923)}
+.rmtText{margin-top:6px;font-size:18px;line-height:1.3;white-space:pre-wrap;word-break:break-word}
+.rmtNextTxt{margin-top:8px;font-size:13px;line-height:1.3;color:#9a9aa3;white-space:pre-wrap;border-top:1px solid rgba(255,255,255,.08);padding-top:8px}
+.rmtNextTxt:empty,.rmtLab:empty{display:none}
+.rmtNav{display:flex;gap:10px}
+.rmtBtn{border:0;border-radius:16px;background:rgba(255,255,255,.10);color:#fff;font-weight:700;font-size:16px;padding:14px 10px;-webkit-tap-highlight-color:transparent}
+.rmtBtn:active{filter:brightness(1.4)}
+.rmtBtn:disabled{opacity:.35}
+.rmtBtn.big{min-height:112px;font-size:22px}
+.rmtBtn.go{background:var(--accent,#E8B923);color:var(--accent-ink,#171200)}
+.rmtBtn.on{background:#ff453a;color:#fff}
+.rmtNav .rmtBtn:first-child{flex:1}
+.rmtNav .rmtBtn.go{flex:2}
+.rmtSecs{display:flex;flex-wrap:wrap;gap:8px}
+.rmtSec{display:flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#fff;font-weight:700;font-size:15px;border-radius:999px;padding:8px 14px 8px 8px;min-height:44px}
+.rmtSec i{font-style:normal;width:26px;height:26px;border-radius:50%;background:var(--c,#4b5160);color:#fff;font-size:12px;line-height:26px;text-align:center}
+.rmtSec.cur{border-color:var(--accent,#E8B923);box-shadow:0 0 0 1px var(--accent,#E8B923)}
+.rmtRow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.rmtRow .rmtBtn{font-size:14px;padding:12px 4px}
+.rmtList{background:rgba(255,255,255,.04);border-radius:14px;padding:4px 10px}
+.rmtList summary{padding:12px 2px;font-weight:700;font-size:14px;color:#cfcfd4}
+.rmtGrp{margin:10px 0 2px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#8a8a93}
+.rmtItem{display:block;width:100%;text-align:left;border:0;background:none;color:#fff;font-size:16px;padding:11px 6px;border-radius:10px}
+.rmtItem.cur{background:rgba(232,185,35,.16);color:var(--accent-strong,#F5CB3C);font-weight:700}
+.rmtMsg{text-align:center;color:#9a9aa3;font-size:14px;padding:30px 10px;line-height:1.4}
+.rmtStage{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 18px 16px;background:#000}
+.stgTop{display:flex;justify-content:space-between;align-items:baseline;gap:10px;color:#8a8a93;font-size:15px;font-weight:600}
+.stgLab{color:var(--accent,#E8B923);text-transform:uppercase;letter-spacing:.05em;font-size:14px;font-weight:700}
+.stgMain{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden}
+.stgText{font-weight:700;line-height:1.18;white-space:pre-wrap;word-break:break-word;width:100%}
+.stgNext{border-top:1px solid rgba(255,255,255,.14);padding-top:10px;color:#a8a8b0;font-size:clamp(16px,4.6vmin,34px);line-height:1.25;white-space:pre-wrap;max-height:28%;overflow:hidden}
+.stgNext b{display:block;font-size:11px;letter-spacing:.12em;color:#6c6c75;margin-bottom:3px}
+.stgNext:empty{display:none}
+.stgMsg{margin-top:8px;background:var(--accent,#E8B923);color:var(--accent-ink,#171200);font-weight:700;font-size:clamp(16px,4vmin,30px);text-align:center;border-radius:10px;padding:8px 12px}
+.stgMsg:empty{display:none}
+</style>
 </head>
 
 
@@ -8960,10 +9012,18 @@ body.songBottomHidden .annotateToolbar{
         Welcome!
       </div>
 
-      <button type="button" class="activityBellBtn" id="activityBellBtn" aria-label="Team activity">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
-        <span class="activityBellBadge" id="activityBellBadge" hidden>0</span>
-      </button>
+      <div class="topBtns">
+
+        <button type="button" class="activityBellBtn" id="remoteOpenBtn" aria-label="Remote control for PreCenter">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 21h8M12 16v5"></path></svg>
+        </button>
+
+        <button type="button" class="activityBellBtn" id="activityBellBtn" aria-label="Team activity">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+          <span class="activityBellBadge" id="activityBellBadge" hidden>0</span>
+        </button>
+
+      </div>
 
     </div>
 
@@ -42687,5 +42747,175 @@ document.addEventListener('visibilitychange', () => {
 });
 </script>
 
+<script id="remoteJs">
+/* ===== Remote control for PreCenter (the lyrics presenter on the computer) =====
+   Reads presenter/{teamId} (what the computer is showing) and sends button
+   presses to presenterCmd/{teamId}/q. Same Disciples team = automatically paired. */
+(function(){
+  const $=id=>document.getElementById(id);
+  let ov=null,unsub=null,state=null,tab='remote',teamId='',wake=null,tick=null,fatal='',signed=false;
+
+  function el(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+  function say(m){try{if(typeof showToast==='function')showToast(m)}catch(e){}}
+
+  function build(){
+    if(ov)return;
+    ov=el('div','rmtOv');ov.id='rmtOv';ov.hidden=true;ov.setAttribute('role','dialog');ov.setAttribute('aria-label','Remote control');
+    ov.innerHTML=
+      '<div class="rmtBar"><button type="button" class="rmtX" id="rmtClose" aria-label="Close">\u2715</button>'+
+      '<div class="rmtTabs"><button type="button" data-tab="remote" class="on">Remote</button><button type="button" data-tab="stage">Stage</button></div>'+
+      '<div class="rmtStat" id="rmtStat"></div></div>'+
+      '<div class="rmtBody" id="rmtRemote">'+
+        '<div class="rmtMsg" id="rmtMsg" hidden></div>'+
+        '<div id="rmtLive">'+
+          '<div class="rmtNow"><div class="rmtTitle" id="rmtTitle"></div><div class="rmtLab" id="rmtLab"></div><div class="rmtText" id="rmtText"></div><div class="rmtNextTxt" id="rmtNextTxt"></div></div>'+
+          '<div class="rmtNav" style="margin-top:12px"><button type="button" class="rmtBtn big" id="rmtPrev">\u25C0 Back</button><button type="button" class="rmtBtn big go" id="rmtNext">Next \u25B6</button></div>'+
+          '<div class="rmtSecs" id="rmtSecs" style="margin-top:12px"></div>'+
+          '<div class="rmtRow" style="margin-top:12px"><button type="button" class="rmtBtn" id="rmtSongPrev">\u25C0 Song</button><button type="button" class="rmtBtn" id="rmtSongNext">Song \u25B6</button><button type="button" class="rmtBtn" id="rmtBlack">Black</button><button type="button" class="rmtBtn" id="rmtClear">Clear</button></div>'+
+          '<details class="rmtList" id="rmtListBox" style="margin-top:12px"><summary>Songs &amp; items</summary><div id="rmtList"></div></details>'+
+        '</div>'+
+      '</div>'+
+      '<div class="rmtStage" id="rmtStageV" hidden><div class="stgTop"><span class="stgLab" id="stgLab"></span><span id="stgTitle"></span><span id="stgClock"></span></div>'+
+      '<div class="stgMain" id="stgMain"><div class="stgText" id="stgText"></div></div><div class="stgMsg" id="stgMsg"></div><div class="stgNext" id="stgNext"></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#rmtClose').onclick=close;
+    ov.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
+    $('rmtNext').onclick=()=>send('next');
+    $('rmtPrev').onclick=()=>send('prev');
+    $('rmtSongNext').onclick=()=>send('songNext');
+    $('rmtSongPrev').onclick=()=>send('songPrev');
+    $('rmtBlack').onclick=()=>send('black',{v:!(state&&state.black)});
+    $('rmtClear').onclick=()=>send('clear',{v:!(state&&state.clear)});
+    window.addEventListener('resize',()=>{if(ov&&!ov.hidden&&tab==='stage')fit()});
+    document.addEventListener('visibilitychange',()=>{if(ov&&!ov.hidden&&document.visibilityState==='visible')keepAwake()});
+  }
+
+  function send(t,extra){
+    if(!state||state.on===false){say('The laptop has Remote switched off.');return}
+    if(typeof firestoreDb==='undefined'||!firestoreDb||!teamId)return;
+    const u=(typeof firebaseAuth!=='undefined'&&firebaseAuth&&firebaseAuth.currentUser)||null;
+    const doc=Object.assign({t,ts:Date.now(),by:u?u.uid:''},extra||{});
+    firestoreDb.collection('presenterCmd').doc(teamId).collection('q').add(doc).catch(e=>{
+      const c=e&&e.code?String(e.code):'';
+      say(/permission-denied/.test(c)?'Remote is blocked by Firestore. Publish the new firestore.rules.':'Could not send. Check your connection.');
+    });
+    if(navigator.vibrate)try{navigator.vibrate(12)}catch(e){}
+  }
+
+  function status(){
+    if(fatal)return[fatal,'bad'];
+    if(!signed)return['Sign in to use the remote','bad'];
+    if(!teamId)return['Join a team first','bad'];
+    if(!state)return['Waiting for the laptop','warn'];
+    if(state.on===false)return['Remote is off on the laptop','warn'];
+    if(Date.now()-(+state.hb||0)>120000)return['No recent signal from the laptop','warn'];
+    return['Connected','ok'];
+  }
+
+  function msgFor(){
+    if(fatal)return fatal;
+    if(!signed)return'Sign in to Disciples on this phone, then open the remote again.';
+    if(!teamId)return'This account is not on a team yet.';
+    if(!state)return'Open PreCenter on the computer, sign in with the same Disciples team, and press the Remote button so it lights up.';
+    if(state.on===false)return'The computer turned Remote off. Press the Remote button in PreCenter to turn it back on.';
+    return'';
+  }
+
+  function render(){
+    if(!ov||ov.hidden)return;
+    ov.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+    const st=status(),sb=$('rmtStat');sb.textContent=st[0];sb.className='rmtStat '+st[1];
+    const live=!!(state&&state.on!==false);
+    $('rmtStageV').hidden=tab!=='stage';
+    $('rmtRemote').hidden=tab!=='remote';
+    const m=msgFor();$('rmtMsg').hidden=!m||live&&tab==='remote';$('rmtMsg').textContent=m;
+    $('rmtLive').hidden=!live;
+    if(!live){if(tab==='stage'){$('stgText').textContent=m;$('stgLab').textContent='';$('stgTitle').textContent='';$('stgNext').textContent='';$('stgMsg').textContent='';fit()}return}
+    $('rmtTitle').textContent=state.title||'';
+    $('rmtLab').textContent=state.label||'';
+    $('rmtText').textContent=state.text||(state.black?'(black screen)':'');
+    $('rmtNextTxt').textContent=state.next?('Next: '+state.next):'';
+    const box=$('rmtSecs');box.textContent='';
+    const secs=Array.isArray(state.secs)?state.secs:[];
+    if(secs.length>=2){
+      let ck=-1;secs.forEach((x,k)=>{if(x.i<=state.idx)ck=k});
+      secs.forEach((x,k)=>{
+        const b=el('button','rmtSec'+(k===ck?' cur':''));b.type='button';b.style.setProperty('--c',x.c||'#4b5160');
+        b.append(el('i',null,String(k+1)),el('span',null,x.k||x.l));
+        b.onclick=()=>send('go',{i:x.i,sid:state.sid});box.appendChild(b);
+      });
+    }
+    $('rmtBlack').classList.toggle('on',!!state.black);
+    $('rmtClear').classList.toggle('on',!!state.clear);
+    const list=$('rmtList');
+    if(!list.dataset.sig||list.dataset.sig!==JSON.stringify([state.items,state.sid])){
+      list.dataset.sig=JSON.stringify([state.items,state.sid]);list.textContent='';
+      let g=null;
+      (state.items||[]).forEach(x=>{
+        if(x.g!==g){g=x.g;list.appendChild(el('div','rmtGrp',g||''))}
+        const b=el('button','rmtItem'+(x.id===state.sid?' cur':''),x.t);b.type='button';
+        b.onclick=()=>{send('song',{id:x.id});$('rmtListBox').open=false};list.appendChild(b);
+      });
+    }
+    $('stgLab').textContent=state.label||'';
+    $('stgTitle').textContent=state.title||'';
+    $('stgText').textContent=state.black?'':(state.text||'');
+    $('stgMsg').textContent=state.msg||'';
+    const nx=$('stgNext');nx.textContent='';
+    if(state.next){nx.append(el('b',null,'NEXT'),document.createTextNode(state.next))}
+    clock();
+    if(tab==='stage')fit();
+  }
+
+  function clock(){
+    const c=$('stgClock');if(c)c.textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+    if(ov&&!ov.hidden){const st=status(),sb=$('rmtStat');if(sb){sb.textContent=st[0];sb.className='rmtStat '+st[1]}}
+  }
+
+  function fit(){
+    const box=$('stgMain'),t=$('stgText');if(!box||!t)return;
+    let lo=14,hi=Math.min(box.clientWidth,box.clientHeight)*0.62||60,best=lo;
+    for(let i=0;i<12;i++){
+      const mid=(lo+hi)/2;t.style.fontSize=mid+'px';
+      if(t.scrollHeight<=box.clientHeight&&t.scrollWidth<=box.clientWidth){best=mid;lo=mid}else hi=mid;
+    }
+    t.style.fontSize=best+'px';
+  }
+
+  async function keepAwake(){
+    try{if('wakeLock' in navigator&&!wake){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null})}}catch(e){}
+  }
+
+  async function open(){
+    build();ov.hidden=false;document.documentElement.style.overflow='hidden';
+    state=null;fatal='';render();keepAwake();
+    tick=setInterval(clock,1000);
+    try{await firebaseReadyPromise}catch(e){}
+    const ok=typeof firestoreDb!=='undefined'&&firestoreDb&&typeof firebaseAuth!=='undefined'&&firebaseAuth&&firebaseAuth.currentUser;
+    signed=!!ok;
+    teamId=ok&&typeof getActiveTeamId==='function'?(getActiveTeamId()||''):'';
+    if(!ok||!teamId){render();return}
+    unsub=firestoreDb.collection('presenter').doc(teamId).onSnapshot(snap=>{
+      state=snap.exists?snap.data():null;fatal='';render();
+    },err=>{
+      const c=err&&err.code?String(err.code):'';
+      fatal=/permission-denied/.test(c)?'Blocked by Firestore rules (publish the new firestore.rules)':'Could not connect';
+      render();
+    });
+  }
+
+  function close(){
+    if(unsub){unsub();unsub=null}
+    clearInterval(tick);tick=null;
+    if(wake){try{wake.release()}catch(e){}wake=null}
+    if(ov)ov.hidden=true;
+    document.documentElement.style.overflow='';
+  }
+
+  document.addEventListener('click',e=>{
+    if(e.target.closest&&e.target.closest('#remoteOpenBtn')){e.preventDefault();open()}
+  });
+})();
+</script>
 </body>
 </html>
