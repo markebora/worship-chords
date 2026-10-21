@@ -6924,6 +6924,52 @@ body.songBottomHidden .annotateToolbar{
   background:#1c1c1f;
 }
 
+.lineupEventRow{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  width:100%;
+  padding:12px 4px;
+  border:0;
+  border-top:1px solid #232327;
+  background:transparent;
+  color:#e6e6ea;
+  text-align:left;
+  cursor:pointer;
+}
+
+.lineupEventRow:first-of-type{
+  border-top:0;
+}
+
+.lineupEventTime{
+  flex:0 0 64px;
+  font-size:13px;
+  font-weight:800;
+  color:var(--accent);
+}
+
+.lineupEventInfo{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+
+.lineupEventTitle{
+  font-size:15px;
+  font-weight:700;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.lineupEventSub{
+  font-size:12px;
+  color:#8a8a92;
+}
+
 .lineupAddSongBtn{
   display:block;
   width:calc(100% - 32px);
@@ -12520,7 +12566,7 @@ async function startLineupLiveListener(){
               docSnap.data() || {};
 
             const dateKey =
-              data.dateKey || docSnap.id;
+              data.eventKey || data.dateKey || docSnap.id;
 
             map[dateKey] = {
 
@@ -15811,7 +15857,9 @@ function dateKey(date){
 }
 
 function dateFromKey(key){
-  const [y, m, d] = key.split('-').map(Number);
+  /* A lineup key is 'YYYY-MM-DD' for the first event of a day, or
+     'YYYY-MM-DD~2', '~3'… for extra events on the same day. */
+  const [y, m, d] = String(key).slice(0, 10).split('-').map(Number);
   return new Date(y, m - 1, d);
 }
 
@@ -15833,7 +15881,7 @@ function formatLineupDateLabel(key){
     dateFromKey(key);
 
   const isToday =
-    key === todayDateKey();
+    String(key).slice(0, 10) === todayDateKey();
 
   if(isToday)return 'Today';
 
@@ -15851,7 +15899,7 @@ function formatLineupDateLabel(key){
 */
 function formatLineupWeekdayLabel(key){
 
-  if(key === todayDateKey())return 'Today';
+  if(String(key).slice(0, 10) === todayDateKey())return 'Today';
 
   return dateFromKey(key).toLocaleDateString(
     undefined,
@@ -15908,7 +15956,7 @@ function emptyLineup(key){
           serviceTime falls ON this date. One reminder: "See you
           on the other side, Disciples!"
     */
-    eventType:'sunday-worship',
+    eventType: String(key || '').length > 10 ? 'event' : 'sunday-worship',
     /*
       Free-text "what's this event for?" — only used when
       eventType is 'event' (e.g. "Youth Night", "Baptism").
@@ -15959,6 +16007,84 @@ function lineupShortDateLabel(key){
   );
 }
 
+/* All events planned on one calendar date, earliest first. The
+   first event uses the plain date as its key; extra ones add ~2,
+   ~3… */
+function lineupKeysForDate(base){
+
+  const all =
+    getAllLocalLineups();
+
+  const keys =
+    Object.keys(all).filter(k =>
+      k.slice(0, 10) === base &&
+      lineupHasAnything({ ...emptyLineup(k), ...all[k], date:k })
+    );
+
+  const timeOf = k => {
+    const l = { ...emptyLineup(k), ...all[k], date:k };
+    const row = lineupScheduleRows(l).find(r => r.dateKey === base);
+    return (row && row.time) || '99:99';
+  };
+
+  return keys.sort((a, b) => timeOf(a).localeCompare(timeOf(b)) || a.localeCompare(b));
+
+}
+
+/* Other dates' lineups whose REHEARSAL falls on this date. */
+function lineupKeysRehearsingOn(base){
+
+  const all =
+    getAllLocalLineups();
+
+  return Object.keys(all).sort().filter(k => {
+
+    if(k.slice(0, 10) === base)return false;
+
+    const candidate =
+      { ...emptyLineup(k), ...all[k], date:k };
+
+    return (
+      lineupHasAnything(candidate) &&
+      lineupRehearsalDateKey(candidate) === base
+    );
+
+  });
+
+}
+
+/* Key for a brand-new extra event on this date. */
+function nextFreeLineupKey(base){
+
+  const all =
+    getAllLocalLineups();
+
+  let n = 2;
+
+  while(all[base + '~' + n] && lineupHasAnything({ ...emptyLineup(base + '~' + n), ...all[base + '~' + n] }))n++;
+
+  return base + '~' + n;
+
+}
+
+/* Title to show: an event's own label when the title is still
+   the default, so two events on one day read differently. */
+function lineupDisplayTitle(lineup){
+
+  const label =
+    (lineup.eventLabel || '').trim();
+
+  if(
+    lineup.eventType === 'event' && label &&
+    (!lineup.title || lineup.title === 'Worship Lineup')
+  ){
+    return label;
+  }
+
+  return lineup.title || 'Worship Lineup';
+
+}
+
 /* Anything at all planned on this lineup? A bare default doc
    (no songs, no times, default title) is "not set". */
 function lineupHasAnything(lineup){
@@ -15986,11 +16112,14 @@ function lineupRehearsalDateKey(lineup){
 
   if(eventType === 'event')return '';
 
-  if(eventType === 'rehearsal')return lineup.date;
+  const baseDate =
+    String(lineup.date).slice(0, 10);
+
+  if(eventType === 'rehearsal')return baseDate;
 
   if(lineup.rehearsalDate)return lineup.rehearsalDate;
 
-  return lineup.rehearsalTime ? lineupDayBeforeKey(lineup.date) : '';
+  return lineup.rehearsalTime ? lineupDayBeforeKey(baseDate) : '';
 
 }
 
@@ -16024,7 +16153,7 @@ function lineupScheduleRows(lineup){
     rows.push({
       role: eventType === 'event' ? 'event' : 'service',
       label: eventType === 'event' ? 'Event' : 'Service',
-      dateKey:lineup.date,
+      dateKey:String(lineup.date).slice(0, 10),
       dateLabel:lineupShortDateLabel(lineup.date),
       time:lineup.serviceTime || ''
     });
@@ -16462,7 +16591,7 @@ async function downloadLineup(explicitDateKey){
     songs: Array.isArray(payload && payload.songs) ? payload.songs : [],
     videos: Array.isArray(payload && payload.videos) ? payload.videos : [],
     updatedBy: (payload && payload.updatedBy) || '',
-    eventType: (payload && payload.eventType) || 'sunday-worship',
+    eventType: (payload && payload.eventType) || (String(key).length > 10 ? 'event' : 'sunday-worship'),
     eventLabel: (payload && payload.eventLabel) || '',
     rehearsalTime: (payload && payload.rehearsalTime) || '',
     rehearsalDate: (payload && payload.rehearsalDate) || '',
@@ -16498,7 +16627,7 @@ async function downloadAllLineups(){
       docSnap.data() || {};
 
     const dateKey =
-      payload.dateKey || docSnap.id;
+      payload.eventKey || payload.dateKey || docSnap.id;
 
     map[dateKey] = {
 
@@ -16535,7 +16664,11 @@ async function uploadLineup(state, explicitDateKey){
       .set({
 
         teamId: getActiveTeamId(),
-        dateKey: key,
+        /* dateKey stays the plain calendar date (the reminder
+           script reads it); eventKey is the full key, which has a
+           ~2, ~3… suffix for extra events on the same date. */
+        dateKey: String(key).slice(0, 10),
+        eventKey: key,
         title: state.title || 'Worship Lineup',
         songs: state.songs || [],
         videos: state.videos || [],
@@ -18695,7 +18828,7 @@ function renderHome(){
 
             <div class="homeLineupHeading">
               <span class="homeWhenPill">${esc(whenLabel)}</span>
-              <div class="homeLineupTitle">${esc(lineup.title || 'Worship Lineup')}</div>
+              <div class="homeLineupTitle">${esc(lineupDisplayTitle(lineup))}</div>
               <div class="homeLineupSub">${
                 lineupSongs.length
                   ? `${lineupSongs.length} song${lineupSongs.length === 1 ? '' : 's'}${lineup.updatedBy ? ' · sent by ' + esc(lineup.updatedBy) : ''}`
@@ -38641,7 +38774,7 @@ function renderLineupCalendar(){
     new Map(getSongs().map(song => [song.id, song]));
 
   const highlightedDates =
-    new Set(getLineupDateKeysWithSongs());
+    new Set(getLineupDateKeysWithSongs().map(k => k.slice(0, 10)));
 
   /* A named event counts as planned even before any song is
      added, so it gets highlighted too. A lineup also lights up
@@ -38652,9 +38785,12 @@ function renderLineupCalendar(){
       const e = all[k];
       if(!e)return;
       if(e.eventType === 'event' && (e.eventLabel || '').trim()){
-        highlightedDates.add(k);
+        highlightedDates.add(k.slice(0, 10));
       }
-      if(highlightedDates.has(k)){
+      if(
+        (e.songs || []).length ||
+        (e.eventType === 'event' && (e.eventLabel || '').trim())
+      ){
         const rehearsalKey =
           lineupRehearsalDateKey({ ...emptyLineup(k), ...e, date:k });
         if(rehearsalKey)highlightedDates.add(rehearsalKey);
@@ -38727,7 +38863,7 @@ function renderLineupCalendar(){
           </button>
         </div>
 
-        <div class="lineupTopWidgetTitle">${esc(activeLineup.title || 'Worship Lineup')}</div>
+        <div class="lineupTopWidgetTitle">${esc(lineupDisplayTitle(activeLineup))}</div>
         ${
           lineupScheduleRows(activeLineup).map(row => `
             <div class="lineupTopWidgetDate">${esc(row.label)} · ${esc(row.dateLabel)}${row.time ? ' · ' + esc(formatLineupTime12(row.time)) : ''}</div>
@@ -38799,7 +38935,7 @@ function renderLineupCalendar(){
               return `
                 <button
                   type="button"
-                  class="lineupCalCell${cell.otherMonth ? ' otherMonth' : ''}${highlightedDates.has(key) ? (key < today ? ' hasLineup isPast' : ' hasLineup isUpcoming') : ''}${key === activeDateKey && highlightedDates.has(key) ? ' isActive' : ''}${key === today ? ' today' : ''}"
+                  class="lineupCalCell${cell.otherMonth ? ' otherMonth' : ''}${highlightedDates.has(key) ? (key < today ? ' hasLineup isPast' : ' hasLineup isUpcoming') : ''}${key === activeDateKey.slice(0, 10) && highlightedDates.has(key) ? ' isActive' : ''}${key === today ? ' today' : ''}"
                   data-lineup-day="${key}"
                 >${cell.date.getDate()}</button>
               `;
@@ -38985,6 +39121,106 @@ function formatLineupTime12(hhmm){
 
 }
 
+/*
+  Day sheet for a date with 2+ events: one row each, soonest
+  first (the order Home uses), tap to open, plus a button to add
+  another.
+*/
+function openLineupDayListSheet(key, dayKeys, linkedKeys){
+
+  const host =
+    document.getElementById('lineupSheetOverlay');
+
+  if(!host)return;
+
+  const all =
+    getAllLocalLineups();
+
+  const entries =
+    [
+      ...dayKeys.map(k => ({ k, linked:false })),
+      ...linkedKeys.map(k => ({ k, linked:true }))
+    ].map(item => {
+
+      const lineup =
+        { ...emptyLineup(item.k), ...all[item.k], date:item.k };
+
+      const row =
+        lineupScheduleRows(lineup).find(r => r.dateKey === key);
+
+      return { ...item, lineup, row, time:(row && row.time) || '' };
+
+    }).sort((a, b) =>
+      (a.time || '99:99').localeCompare(b.time || '99:99')
+    );
+
+  const longDate =
+    dateFromKey(key).toLocaleDateString(
+      undefined,
+      { weekday:'long', year:'numeric', month:'long', day:'numeric' }
+    );
+
+  host.innerHTML = `
+
+    <div class="lineupSheetBack" id="lineupSheetBackEl">
+
+      <div class="lineupSheetBox">
+
+        <div class="lineupSheetHandle"></div>
+
+        <div class="lineupSheetDate">${esc(formatLineupDateLabel(key))}</div>
+        <div class="lineupSheetMeta" style="margin-bottom:12px;">${esc(longDate)} · ${entries.length} events</div>
+
+        ${
+          entries.map(item => `
+            <button class="lineupEventRow" type="button" data-open-event="${esc(item.k)}">
+              <span class="lineupEventTime">${item.time ? esc(formatLineupTime12(item.time)) : '—'}</span>
+              <span class="lineupEventInfo">
+                <span class="lineupEventTitle">${esc(lineupDisplayTitle(item.lineup))}</span>
+                <span class="lineupEventSub">${esc(
+                  (item.row ? item.row.label + ' · ' : '') +
+                  formatLineupEventTypeLabel(item.lineup.eventType, item.lineup.eventLabel) +
+                  ' · ' + item.lineup.songs.length + ' song' + (item.lineup.songs.length === 1 ? '' : 's')
+                )}</span>
+              </span>
+              <span class="activityChevron">›</span>
+            </button>
+          `).join('')
+        }
+
+        <div class="lineupSheetBtns">
+          <button class="toolbarBtn lineupSetNowBtn" type="button" id="lineupSheetAnotherBtn" style="margin-top:12px;">+ Add another event on this date</button>
+        </div>
+
+      </div>
+
+    </div>
+
+  `;
+
+  const back =
+    document.getElementById('lineupSheetBackEl');
+
+  back.onclick = event => {
+    if(event.target === back)closeLineupDaySheet();
+  };
+
+  host.querySelectorAll('[data-open-event]').forEach(btn => {
+    btn.onclick = () => {
+      closeLineupDaySheet(() => renderLineupDetail(btn.dataset.openEvent));
+    };
+  });
+
+  document.getElementById('lineupSheetAnotherBtn').onclick = () => {
+    closeLineupDaySheet(() => renderLineupDetail(nextFreeLineupKey(key)));
+  };
+
+  requestAnimationFrame(() => {
+    back.classList.add('open');
+  });
+
+}
+
 function openLineupDaySheet(key){
 
   const host =
@@ -38998,34 +39234,24 @@ function openLineupDaySheet(key){
     its own, show that lineup instead, so the lineup is visible
     on both days. viewKey is whichever lineup is being shown.
   */
-  let viewKey = key;
+  const dayKeys =
+    lineupKeysForDate(key);
+
+  const linkedKeys =
+    lineupKeysRehearsingOn(key);
+
+  /* Two or more events touch this date → list them instead. */
+  if(dayKeys.length + linkedKeys.length >= 2){
+    openLineupDayListSheet(key, dayKeys, linkedKeys);
+    return;
+  }
+
+  let viewKey = dayKeys.length ? dayKeys[0] : key;
   let isRehearsalView = false;
 
-  if(!lineupHasAnything(getLocalLineup(key))){
-
-    const all =
-      getAllLocalLineups();
-
-    const linkedKey =
-      Object.keys(all).sort().find(k => {
-
-        if(k === key)return false;
-
-        const candidate =
-          { ...emptyLineup(k), ...all[k], date:k };
-
-        return (
-          lineupHasAnything(candidate) &&
-          lineupRehearsalDateKey(candidate) === key
-        );
-
-      });
-
-    if(linkedKey){
-      viewKey = linkedKey;
-      isRehearsalView = true;
-    }
-
+  if(!dayKeys.length && linkedKeys.length){
+    viewKey = linkedKeys[0];
+    isRehearsalView = true;
   }
 
   const lineup =
@@ -39100,7 +39326,7 @@ function openLineupDaySheet(key){
           ? `
             <div class="lineupSheetChip">${esc(isRehearsalView ? 'Rehearsal · ' + chipText : chipText)}</div>
 
-            <div class="lineupSheetTitle">${esc(lineup.title || 'Worship Lineup')}</div>
+            <div class="lineupSheetTitle">${esc(lineupDisplayTitle(lineup))}</div>
 
             ${
               timeRows.length
@@ -39169,6 +39395,12 @@ function openLineupDaySheet(key){
           </button>
 
           ${
+            hasAnything && !isRehearsalView
+            ? `<button class="toolbarBtn lineupSetNowBtn" type="button" id="lineupSheetAnotherBtn" style="margin-top:8px;">+ Add another event on this date</button>`
+            : ''
+          }
+
+          ${
             copySourceKey
             ? `<button class="toolbarBtn lineupSetNowBtn" type="button" id="lineupSheetCopyBtn" style="margin-top:8px;">
                 Copy from ${esc(copySourceLabel)}
@@ -39198,6 +39430,15 @@ function openLineupDaySheet(key){
   document.getElementById('lineupSheetOpenBtn').onclick = () => {
     closeLineupDaySheet(() => renderLineupDetail(viewKey));
   };
+
+  const anotherBtn =
+    document.getElementById('lineupSheetAnotherBtn');
+
+  if(anotherBtn){
+    anotherBtn.onclick = () => {
+      closeLineupDaySheet(() => renderLineupDetail(nextFreeLineupKey(key)));
+    };
+  }
 
   const copyBtn =
     document.getElementById('lineupSheetCopyBtn');
@@ -41947,43 +42188,53 @@ function pendingServiceCallStamp(){
   const today =
     todayDateKey();
 
-  const lineup =
-    getAllLocalLineups()[today];
+  const all =
+    getAllLocalLineups();
 
-  if(!lineup)return null;
+  /* Every event dated today, not just the first. */
+  for(const key of Object.keys(all).filter(k => k.slice(0, 10) === today)){
 
-  const eventType =
-    lineup.eventType || 'sunday-worship';
+    const lineup =
+      all[key];
 
-  /* A standalone rehearsal has no service to call out for. */
-  if(eventType === 'rehearsal')return null;
+    if(!lineup)continue;
 
-  const timeStr =
-    lineup.serviceTime;
+    const eventType =
+      lineup.eventType || 'sunday-worship';
 
-  if(!timeStr)return null;
+    /* A standalone rehearsal has no service to call out for. */
+    if(eventType === 'rehearsal')continue;
 
-  const [hour, minute] =
-    String(timeStr).split(':').map(Number);
+    const timeStr =
+      lineup.serviceTime;
 
-  if(!Number.isFinite(hour) || !Number.isFinite(minute))return null;
+    if(!timeStr)continue;
 
-  const serviceAt =
-    dateFromKey(today);
+    const [hour, minute] =
+      String(timeStr).split(':').map(Number);
 
-  serviceAt.setHours(hour, minute, 0, 0);
+    if(!Number.isFinite(hour) || !Number.isFinite(minute))continue;
 
-  const minutesOut =
-    (serviceAt.getTime() - Date.now()) / 60000;
+    const serviceAt =
+      dateFromKey(today);
 
-  if(
-    minutesOut > SERVICE_CALL_MINUTES_BEFORE ||
-    minutesOut <= 0
-  ){
-    return null;
+    serviceAt.setHours(hour, minute, 0, 0);
+
+    const minutesOut =
+      (serviceAt.getTime() - Date.now()) / 60000;
+
+    if(
+      minutesOut > SERVICE_CALL_MINUTES_BEFORE ||
+      minutesOut <= 0
+    ){
+      continue;
+    }
+
+    return today + 'T' + timeStr;
+
   }
 
-  return today + 'T' + timeStr;
+  return null;
 
 }
 
