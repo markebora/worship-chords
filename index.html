@@ -5487,7 +5487,7 @@ body.songBottomHidden .annotateToolbar{
   position:fixed;
   left:0;
   right:0;
-  bottom:calc(84px + env(safe-area-inset-bottom, 0px));
+  top:calc(10px + env(safe-area-inset-top, 0px));
   z-index:2000;
 
   display:flex;
@@ -5518,9 +5518,7 @@ body.songBottomHidden .annotateToolbar{
   transform:translateY(10px);
   transition:opacity .25s ease, transform .25s ease;
 
-  pointer-events:auto;
-  touch-action:pan-y;
-  cursor:grab;
+  pointer-events:none;
 }
 
 .toast.toastDragging{
@@ -5550,7 +5548,7 @@ body.songBottomHidden .annotateToolbar{
    out of the way instead of reading as a full alert. */
 
 .toast.toastSmall{
-  max-width:220px;
+  max-width:300px;
   width:auto;
 
   padding:6px 14px;
@@ -5569,6 +5567,18 @@ body.songBottomHidden .annotateToolbar{
   backdrop-filter:blur(10px);
 
   box-shadow:0 4px 16px rgba(0,0,0,.25);
+}
+
+.toast.toastSmall.toastError{
+  background:rgba(35,22,22,.72);
+  border-color:rgba(74,35,35,.8);
+  color:#ffb4b4;
+}
+
+.toast.toastSmall:not(.toastSuccess):not(.toastError){
+  background:rgba(29,29,33,.72);
+  border-color:rgba(47,47,53,.8);
+  color:#f2f2f4;
 }
 
 
@@ -6909,6 +6919,14 @@ body.songBottomHidden .annotateToolbar{
 .lineupEntry{
   align-items:center;
   padding:8px 12px;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+}
+
+.lineupEntry img{
+  pointer-events:none;
+  -webkit-user-drag:none;
 }
 
 .lineupEntry .songInfo{
@@ -10378,7 +10396,11 @@ function showToast(message, type, opts){
 
   opts = opts || {};
   const id = typeof opts === 'string' ? opts : opts.id;
-  const small = !!(opts && opts.small);
+  /* Every toast is the compact kind now — a small highlighted
+     line that never intercepts taps — so it can't cover the
+     transport / bottom buttons. */
+  const small = true;
+  const dismissMs = type === 'error' ? 2600 : 1500;
 
   /* If this toast has an id and one with the same id is already
      showing, just update its text and reset its timer instead of
@@ -10398,7 +10420,7 @@ function showToast(message, type, opts){
       if(existing._dismiss){
         clearTimeout(existing._dismissTimer);
         existing._dismissTimer =
-          setTimeout(existing._dismiss, small ? 1100 : 3200);
+          setTimeout(existing._dismiss, dismissMs);
       }
 
       return;
@@ -10449,7 +10471,7 @@ function showToast(message, type, opts){
 
   toast._dismiss = dismiss;
 
-  dismissTimer = setTimeout(dismiss, small ? 1100 : 3200);
+  dismissTimer = setTimeout(dismiss, dismissMs);
   toast._dismissTimer = dismissTimer;
 
   /* Swipe left or right to dismiss early — handy when a
@@ -38402,9 +38424,16 @@ function attachLineupSongDragging(){
 
   };
 
-  const onUp = () => {
+  const onTouchMove = event => {
+    if(draggingRow)event.preventDefault();
+  };
+
+  const onUp = event => {
 
     if(!draggingRow)return;
+
+    const cancelled =
+      !!(event && event.type === 'pointercancel');
 
     draggingRow.classList.remove('dragging');
     draggingRow.dataset.justDragged = '1';
@@ -38424,7 +38453,7 @@ function attachLineupSongDragging(){
 
       reorderLineupSongs(orderedIds);
 
-    }else if(!dragMoved){
+    }else if(!dragMoved && !cancelled){
 
       /* Held without dragging → open the row's menu
          (move up / down, remove). */
@@ -38438,8 +38467,14 @@ function attachLineupSongDragging(){
     document.removeEventListener('pointermove', onMove);
     document.removeEventListener('pointerup', onUp);
     document.removeEventListener('pointercancel', onUp);
+    document.removeEventListener('touchmove', onTouchMove);
 
   };
+
+  /* A long-press on a phone also raises the browser's own
+     context menu (and image-save menu on the thumbnail), which
+     cancels the gesture — block it inside the list. */
+  list.addEventListener('contextmenu', event => event.preventDefault());
 
   list.querySelectorAll('.lineupEntry').forEach(row => {
 
@@ -38449,6 +38484,9 @@ function attachLineupSongDragging(){
       row.classList.add('longPressing');
 
       const startY = event.clientY;
+
+      row._pressStartX = event.clientX;
+      row._pressStartY = startY;
 
       pressTimer = setTimeout(() => {
 
@@ -38465,8 +38503,9 @@ function attachLineupSongDragging(){
         document.addEventListener('pointermove', onMove);
         document.addEventListener('pointerup', onUp);
         document.addEventListener('pointercancel', onUp);
+        document.addEventListener('touchmove', onTouchMove, { passive:false });
 
-      }, 500);
+      }, 380);
 
     });
 
@@ -38487,7 +38526,15 @@ function attachLineupSongDragging(){
          actually started this is a no-op since the document-level
          onMove above already takes over. */
 
-      if(pressTimer && !draggingRow){
+      /* Finger jitter while holding still is normal — only a real
+         move (more than ~10px) counts as a scroll. */
+      if(
+        pressTimer && !draggingRow &&
+        (
+          Math.abs(event.clientX - (row._pressStartX || 0)) > 10 ||
+          Math.abs(event.clientY - (row._pressStartY || 0)) > 10
+        )
+      ){
         clearPress();
         row.classList.remove('longPressing');
       }
