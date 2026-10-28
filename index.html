@@ -16132,10 +16132,15 @@ function lineupRehearsalDateKey(lineup){
   const eventType =
     lineup.eventType || 'sunday-worship';
 
-  if(eventType === 'event')return '';
-
   const baseDate =
     String(lineup.date).slice(0, 10);
+
+  /* An event can rehearse too. Unless a rehearsal date was picked,
+     it rehearses on the event's own day (once a rehearsal time is set). */
+  if(eventType === 'event'){
+    if(lineup.rehearsalDate)return lineup.rehearsalDate;
+    return lineup.rehearsalTime ? baseDate : '';
+  }
 
   if(eventType === 'rehearsal')return baseDate;
 
@@ -16243,21 +16248,36 @@ function getLineupOccurrences(){
 }
 
 /*
-  What Home shows: the next moment that hasn't finished yet and
-  starts within the CURRENT week (Mon–Sun). Anything planned for
-  a later week stays hidden until that week begins, and nothing
-  is shown at all when nothing is planned this week.
+  What Home shows: the next moment (rehearsal, service or event)
+  that hasn't finished yet and starts within the NEXT 7 DAYS from
+  right now. Moments are taken in time order, so with several
+  schedules Home walks through them one by one: each stays up until
+  3 hours after it starts, then the next one takes over. Anything
+  further than 7 days away stays hidden, and nothing is shown at
+  all when nothing is planned in that window.
 */
+const HOME_LINEUP_LOOKAHEAD_DAYS = 7;
+
 function homeNextLineupOccurrence(){
 
   const now =
     new Date();
 
-  const weekEnd =
-    new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7) + 7);
+  const horizon =
+    new Date(now.getTime() + HOME_LINEUP_LOOKAHEAD_DAYS * 86400000);
 
-  return getLineupOccurrences()
-    .find(item => item.end > now && item.start < weekEnd) || null;
+  const upcoming =
+    getLineupOccurrences()
+      .filter(item => item.end > now && item.start < horizon);
+
+  /* If two moments overlap (e.g. a 4:00 PM rehearsal and a 6:00 PM
+     event), the one that started most recently wins once it begins. */
+  const live =
+    upcoming.filter(item => item.start <= now);
+
+  if(live.length)return live[live.length - 1];
+
+  return upcoming[0] || null;
 
 }
 
@@ -17789,7 +17809,8 @@ async function sendCurrentSongToLineup(song){
 
         id: song.id,
         title: song.title,
-        updatedAt: song.updatedAt || song.savedAt || new Date().toISOString()
+        updatedAt: song.updatedAt || song.savedAt || new Date().toISOString(),
+        ...(lineupEntryBpm(song) ? { bpm:lineupEntryBpm(song) } : {})
 
       });
 
@@ -18702,11 +18723,29 @@ function homeDaysUntil(dateKey){
 
 }
 
+/* The tempo saved for a song in the metronome on THIS device, to
+   travel with the lineup entry so teammates see it too. */
+function lineupEntryBpm(song){
+
+  try{
+
+    const bpm = song ? metGetSongPresetBpm(song.id) : null;
+
+    return (typeof bpm === 'number' && bpm > 0) ? bpm : 0;
+
+  }catch(e){
+
+    return 0;
+
+  }
+
+}
+
 function homeSongMetaLabel(song){
 
   if(!song || song.missing)return '';
 
-  const bpm = getSongBpmLabel(song);
+  const bpm = getSongBpmLabel(song) || song.lineupBpm || null;
   const key = getSongKeyLabel(song);
 
   return [key, bpm ? bpm + ' BPM' : null].filter(Boolean).join(' · ');
@@ -18783,10 +18822,12 @@ function renderHome(){
       : '';
 
   const lineupSongs =
-    lineup.songs.map(entry =>
-      songsById.get(entry.id) ||
-      { id:entry.id, title:entry.title || 'Untitled Song', missing:true }
-    );
+    lineup.songs.map(entry => {
+      const local = songsById.get(entry.id);
+      return local
+        ? { ...local, lineupBpm:entry.bpm || 0 }
+        : { id:entry.id, title:entry.title || 'Untitled Song', missing:true };
+    });
 
   const lineupPreview =
     lineupSongs.slice(0, 4);
@@ -37720,11 +37761,14 @@ function renderLineupTimesCardHTML(lineup){
         type="button"
         data-event-type="sunday-worship"
       >Sunday Worship</button>
+      ${
+        lineup.eventType === 'rehearsal' ? `
       <button
-        class="eventTypePill${lineup.eventType === 'rehearsal' ? ' active' : ''}"
+        class="eventTypePill active"
         type="button"
         data-event-type="rehearsal"
-      >Rehearsal</button>
+      >Rehearsal</button>` : ''
+      }
       <button
         class="eventTypePill${lineup.eventType === 'event' ? ' active' : ''}"
         type="button"
@@ -37752,7 +37796,7 @@ function renderLineupTimesCardHTML(lineup){
         lineup.eventType === 'rehearsal'
           ? 'Rehearsal time'
           : lineup.eventType === 'event'
-            ? 'Event time'
+            ? 'Rehearsal &amp; event · date and time'
             : 'Rehearsal &amp; service · date and time'
       }
     </div>
@@ -37760,16 +37804,16 @@ function renderLineupTimesCardHTML(lineup){
     <div class="lineupTimesRow">
 
       ${
-        lineup.eventType !== 'event' ? `
+        true ? `
           <div class="lineupTimeField">
             <div class="lineupTimeFieldLabel">Rehearsal</div>
             ${
-              (lineup.eventType || 'sunday-worship') === 'sunday-worship'
+              (lineup.eventType || 'sunday-worship') !== 'rehearsal'
                 ? `<input
                     type="date"
                     class="lineupTimeInput lineupDateInput"
                     id="lineupRehearsalDateInput"
-                    value="${esc(lineup.rehearsalDate || lineupDayBeforeKey(lineup.date))}"
+                    value="${esc(lineup.rehearsalDate || ((lineup.eventType || 'sunday-worship') === 'event' ? String(lineup.date).slice(0, 10) : lineupDayBeforeKey(lineup.date)))}"
                   >`
                 : `<div class="lineupTimeDateText">${esc(lineupShortDateLabel(lineup.date))}</div>`
             }
@@ -38779,10 +38823,10 @@ function getSongBpmLabel(song){
 
 }
 
-function formatLineupSongMeta(song){
+function formatLineupSongMeta(song, entry){
 
   const bpm =
-    getSongBpmLabel(song);
+    getSongBpmLabel(song) || (entry && entry.bpm) || null;
 
   const key =
     getSongKeyLabel(song);
@@ -38929,7 +38973,7 @@ function renderLineupCalendar(){
                     activeSongsById.get(entry.id);
 
                   const meta =
-                    song ? formatLineupSongMeta(song) : '';
+                    song ? formatLineupSongMeta(song, entry) : '';
 
                   return `
                     <li data-open-lineup-widget-song="${esc(entry.id)}">
@@ -39402,7 +39446,7 @@ function openLineupDaySheet(key){
                     songsById.get(entry.id);
 
                   const meta =
-                    song ? formatLineupSongMeta(song) : '';
+                    song ? formatLineupSongMeta(song, entry) : '';
 
                   return `
                     <div class="lineupSheetSongRow">
@@ -39657,7 +39701,8 @@ async function addSongsToLineupDate(key, songIds){
       remote.songs.push({
         id: song.id,
         title: song.title,
-        updatedAt: song.updatedAt || song.savedAt || new Date().toISOString()
+        updatedAt: song.updatedAt || song.savedAt || new Date().toISOString(),
+        ...(lineupEntryBpm(song) ? { bpm:lineupEntryBpm(song) } : {})
       });
 
       addedTitles.push(song.title);
