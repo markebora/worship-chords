@@ -43666,7 +43666,7 @@ document.addEventListener('visibilitychange', () => {
   }
 
   /* ---- Bible tab: the search runs on the computer (it has the Bible files); the answer comes back in state.bq ---- */
-  const BV_DEF=[['kjv','KJV'],['asv','ASV'],['bbe','BBE'],['abtag','AB1905'],['mbb','MBB'],['asnd','ASND'],['niv','NIV'],['nkrv','NKRV']];
+  const BV_DEF=[{i:'kjv',n:'KJV'},{i:'asv',n:'ASV'},{i:'bbe',n:'BBE'},{i:'abtag',n:'AB1905'},{i:'mbb',n:'MBB'},{i:'asnd',n:'ASND'},{i:'niv',n:'NIV'},{i:'nkrv',n:'NKRV'}];
   let bqPend=null,sentKey='';
   const bibleVer=()=>{try{return localStorage.getItem('rmtBibleVer')||'kjv'}catch(e){return'kjv'}};
   function bqSearch(){
@@ -43681,7 +43681,7 @@ document.addEventListener('visibilitychange', () => {
     const sel=$('rmtBqVer'),list=(Array.isArray(state.bv)&&state.bv.length)?state.bv:BV_DEF,sg=JSON.stringify(list);
     if(sel.dataset.sig!==sg){
       sel.dataset.sig=sg;sel.textContent='';
-      list.forEach(v=>{const o=el('option',null,v[1]);o.value=v[0];sel.appendChild(o)});
+      list.forEach(v=>{const o=el('option',null,Array.isArray(v)?v[1]:v.n);o.value=Array.isArray(v)?v[0]:v.i;sel.appendChild(o)});
       sel.value=bibleVer();if(sel.value!==bibleVer())sel.selectedIndex=0;
     }
     const out=$('rmtBqOut'),want=bqPend?bqPend.rid:(state.bq&&state.bq.rid),r=(state.bq&&state.bq.rid===want)?state.bq:null;
