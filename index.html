@@ -9110,6 +9110,15 @@ body.songBottomHidden .annotateToolbar{
 .rmtItem{display:block;width:100%;text-align:left;border:0;background:none;color:#fff;font-size:16px;padding:11px 6px;border-radius:10px}
 .rmtItem.cur{background:rgba(232,185,35,.16);color:var(--accent-strong,#F5CB3C);font-weight:700}
 .rmtMsg{text-align:center;color:#9a9aa3;font-size:14px;padding:30px 10px;line-height:1.4}
+.rmtSlH{margin-top:4px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8a8a93}
+.rmtSlH b{background:rgba(232,185,35,.18);color:var(--accent,#E8B923);border-radius:999px;padding:2px 9px;font-size:12px}
+.rmtSl{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rmtCard{display:flex;flex-direction:column;gap:6px;text-align:left;border:1px solid rgba(255,255,255,.12);background:#000;color:#fff;border-radius:14px;padding:10px 12px;min-height:92px;-webkit-tap-highlight-color:transparent}
+.rmtCard:active{filter:brightness(1.4)}
+.rmtCard.cur{border-color:var(--accent,#E8B923);box-shadow:0 0 0 1px var(--accent,#E8B923)}
+.rmtCH{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#9a9aa3}
+.rmtCH i{font-style:normal;flex:none;min-width:22px;height:22px;border-radius:11px;background:rgba(255,255,255,.12);color:var(--accent,#E8B923);text-align:center;line-height:22px;font-size:11px;padding:0 4px}
+.rmtCT{font-size:13px;line-height:1.3;white-space:pre-wrap;word-break:break-word;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .rmtStage{flex:1;min-height:0;display:flex;flex-direction:column;padding:12px 18px 16px;background:#000}
 .stgTop{display:flex;justify-content:space-between;align-items:baseline;gap:10px;color:#8a8a93;font-size:15px;font-weight:600}
 .stgLab{color:var(--accent,#E8B923);text-transform:uppercase;letter-spacing:.05em;font-size:14px;font-weight:700}
@@ -43550,7 +43559,7 @@ document.addEventListener('visibilitychange', () => {
     return '';
   }
   function fitPrev(){
-    const box=$('rmtPrev'),sp=$('rmtPrevTxI');
+    const box=$('rmtPv'),sp=$('rmtPrevTxI');
     if(!box||box.hidden||!sp)return;
     const maxH=box.clientHeight*0.84;
     let lo=7,hi=box.clientHeight*0.42,best=lo;
@@ -43561,7 +43570,7 @@ document.addEventListener('visibilitychange', () => {
     sp.style.fontSize=best+'px';
   }
   function paintPrev(){
-    const prev=$('rmtPrev'),plain=$('rmtText');
+    const prev=$('rmtPv'),plain=$('rmtText');
     if(!prev)return;
     const b=bgResolve(state&&state.bg),css=bgCss(b);
     prev.hidden=!css;
@@ -43584,9 +43593,10 @@ document.addEventListener('visibilitychange', () => {
       '<div class="rmtBody" id="rmtRemote">'+
         '<div class="rmtMsg" id="rmtMsg" hidden></div>'+
         '<div id="rmtLive">'+
-          '<div class="rmtNow"><div class="rmtHead"><div class="rmtTitle" id="rmtTitle"></div><div class="rmtNum" id="rmtNum"></div></div><div class="rmtLab" id="rmtLab"></div><div class="rmtPrev" id="rmtPrev" hidden><div class="rmtPrevBg" id="rmtPrevBg"></div><div class="rmtPrevDim" id="rmtPrevDim"></div><div class="rmtPrevTx"><span class="rmtPrevTxI" id="rmtPrevTxI"></span></div></div><div class="rmtText" id="rmtText"></div><div class="rmtNextTxt" id="rmtNextTxt"></div></div>'+
+          '<div class="rmtNow"><div class="rmtHead"><div class="rmtTitle" id="rmtTitle"></div><div class="rmtNum" id="rmtNum"></div></div><div class="rmtLab" id="rmtLab"></div><div class="rmtPrev" id="rmtPv" hidden><div class="rmtPrevBg" id="rmtPrevBg"></div><div class="rmtPrevDim" id="rmtPrevDim"></div><div class="rmtPrevTx"><span class="rmtPrevTxI" id="rmtPrevTxI"></span></div></div><div class="rmtText" id="rmtText"></div><div class="rmtNextTxt" id="rmtNextTxt"></div></div>'+
           '<div class="rmtNav" style="margin-top:12px"><button type="button" class="rmtBtn big" id="rmtPrev">\u25C0 Back</button><button type="button" class="rmtBtn big go" id="rmtNext">Next \u25B6</button></div>'+
           '<div class="rmtSecs" id="rmtSecs" style="margin-top:12px"></div>'+
+          '<div class="rmtSlH" id="rmtSlH" hidden>Slides <b id="rmtSlN"></b></div><div class="rmtSl" id="rmtSl"></div>'+
           '<div class="rmtRow" style="margin-top:12px"><button type="button" class="rmtBtn" id="rmtSongPrev">\u25C0 Song</button><button type="button" class="rmtBtn" id="rmtSongNext">Song \u25B6</button><button type="button" class="rmtBtn" id="rmtBlack">Black</button><button type="button" class="rmtBtn" id="rmtClear">Clear</button></div>'+
           '<details class="rmtList" id="rmtListBox" style="margin-top:12px"><summary>Songs &amp; items</summary><div id="rmtList"></div></details>'+
         '</div>'+
@@ -43665,6 +43675,24 @@ document.addEventListener('visibilitychange', () => {
         b.append(el('i',null,String(k+1)),el('span',null,x.k||x.l));
         b.onclick=()=>send('go',{i:x.i,sid:state.sid});box.appendChild(b);
       });
+    }
+    /* slide grid: text-only cards, tap one to jump to it */
+    {
+      const cards=Array.isArray(state.sl)?state.sl:[],slBox=$('rmtSl');
+      $('rmtSlH').hidden=!cards.length;$('rmtSlN').textContent=cards.length||'';
+      const sig=JSON.stringify([state.sid,cards]);
+      if(slBox.dataset.sig!==sig){
+        slBox.dataset.sig=sig;slBox.textContent='';
+        cards.forEach((c,k)=>{
+          const b=el('button','rmtCard');b.type='button';
+          const hd=el('div','rmtCH');hd.append(el('i',null,String(k+1)),el('span',null,c.l||('Slide '+(k+1))));
+          b.append(hd,el('div','rmtCT',c.t||'(blank slide)'));
+          b.onclick=()=>send('go',{i:k,sid:state&&state.sid});
+          slBox.appendChild(b);
+        });
+      }
+      const cur=+state.idx||0;
+      for(let k=0;k<slBox.children.length;k++)slBox.children[k].classList.toggle('cur',k===cur);
     }
     $('rmtBlack').classList.toggle('on',!!state.black);
     $('rmtClear').classList.toggle('on',!!state.clear);
