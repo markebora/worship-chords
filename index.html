@@ -9129,6 +9129,41 @@ body.songBottomHidden .annotateToolbar{
 .stgNext:empty{display:none}
 .stgMsg{margin-top:8px;background:var(--accent,#E8B923);color:var(--accent-ink,#171200);font-weight:700;font-size:clamp(16px,4vmin,30px);text-align:center;border-radius:10px;padding:8px 12px}
 .stgMsg:empty{display:none}
+
+/* --- remote v2: Flow / Slide / Bible / Stage tabs, preview pinned to the top --- */
+.rmtTabs{flex:1;min-width:0;justify-content:space-between}
+.rmtTabs button{flex:1;padding:7px 4px;font-size:13px}
+.rmtStat{margin-left:0;flex:none;width:12px;height:12px;min-width:12px;padding:0;border-radius:50%;background:#8a8a93;font-size:0;color:transparent;max-width:none}
+.rmtStat.ok{background:#30d158}.rmtStat.warn{background:#ff9f0a}.rmtStat.bad{background:#ff453a}
+.rmtTop{flex:none;padding:8px 12px 10px;background:#0b0b0c;border-bottom:1px solid rgba(255,255,255,.10)}
+.rmtTop[hidden]{display:none!important}
+.rmtTop .rmtTitle{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rmtTop .rmtNum{font-size:13px;padding:3px 10px}
+.rmtTop .rmtLab{margin-top:2px}
+.rmtTop .rmtPrev{width:min(100%,calc(20vh*16/9));margin:8px auto 0}
+.rmtTop .rmtText{max-height:22vh;overflow:auto;font-size:16px;margin-top:8px}
+.rmtTop .rmtNextTxt{margin-top:6px;padding-top:6px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rmtTop .rmtNav{margin-top:8px}
+.rmtTop .rmtBtn.big{min-height:52px;font-size:18px;padding:8px}
+.rmtSecs{gap:10px}
+.rmtFlowBtn{min-width:64px;min-height:54px;padding:8px 16px;border:2px solid transparent;border-radius:14px;background:var(--c,#4b5160);color:#fff;font-weight:800;font-size:18px;-webkit-tap-highlight-color:transparent}
+.rmtFlowBtn:active{filter:brightness(1.35)}
+.rmtFlowBtn.cur{border-color:#fff;box-shadow:0 0 0 2px var(--accent,#E8B923)}
+.rmtCard{scroll-margin:12px}
+.rmtBq{display:flex;gap:8px}
+.rmtBq input[type=search],.rmtBq2 select{flex:1;min-width:0;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#fff;border-radius:12px;padding:12px;font-size:16px;font-family:inherit}
+.rmtBq .rmtBtn{padding:10px 16px;flex:none}
+.rmtBq2{display:flex;gap:10px;align-items:center;margin-top:8px}
+.rmtChk{display:flex;align-items:center;gap:6px;font-size:14px;color:#cfcfd4;flex:none}
+.rmtChk input{width:18px;height:18px}
+#rmtBqOut{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.rmtBR{display:block;width:100%;text-align:left;border:1px solid rgba(255,255,255,.12);background:#000;color:#fff;border-radius:14px;padding:10px 12px;-webkit-tap-highlight-color:transparent}
+.rmtBR:active{filter:brightness(1.4)}
+.rmtBR.sent{border-color:var(--accent,#E8B923);box-shadow:0 0 0 1px var(--accent,#E8B923)}
+.rmtBRh{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px}
+.rmtBRh b{color:var(--accent,#E8B923)}
+.rmtBRh span{font-size:11px;font-weight:800;letter-spacing:.06em;color:#9a9aa3}
+.rmtBRt{margin-top:6px;font-size:15px;line-height:1.35;white-space:pre-wrap;word-break:break-word;color:#e8e8ec}
 </style>
 </head>
 
@@ -43537,7 +43572,7 @@ document.addEventListener('visibilitychange', () => {
    No bg in the doc = the remote looks exactly as it did before. */
 (function(){
   const $=id=>document.getElementById(id);
-  let ov=null,unsub=null,state=null,tab='remote',teamId='',wake=null,tick=null,fatal='',signed=false;
+  let ov=null,unsub=null,state=null,tab='flow',lastScroll='',teamId='',wake=null,tick=null,fatal='',signed=false;
 
   function el(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
   function say(m){try{if(typeof showToast==='function')showToast(m)}catch(e){}}
@@ -43587,33 +43622,85 @@ document.addEventListener('visibilitychange', () => {
     if(ov)return;
     ov=el('div','rmtOv');ov.id='rmtOv';ov.hidden=true;ov.setAttribute('role','dialog');ov.setAttribute('aria-label','Remote control');
     ov.innerHTML=
-      '<div class="rmtBar"><button type="button" class="rmtX" id="rmtClose" aria-label="Close">\u2715</button>'+
-      '<div class="rmtTabs"><button type="button" data-tab="remote" class="on">Remote</button><button type="button" data-tab="stage">Stage</button></div>'+
-      '<div class="rmtStat" id="rmtStat"></div></div>'+
+      '<div class="rmtBar"><button type="button" class="rmtX" id="rmtClose" aria-label="Close">✕</button>'+
+      '<div class="rmtTabs"><button type="button" data-tab="flow" class="on">Flow</button><button type="button" data-tab="slide">Slide</button><button type="button" data-tab="bible">Bible</button><button type="button" data-tab="stage">Stage</button></div>'+
+      '<div class="rmtStat" id="rmtStat" role="status"></div></div>'+
+      '<div class="rmtTop" id="rmtTop" hidden>'+
+        '<div class="rmtHead"><div class="rmtTitle" id="rmtTitle"></div><div class="rmtNum" id="rmtNum"></div></div><div class="rmtLab" id="rmtLab"></div>'+
+        '<div class="rmtPrev" id="rmtPv" hidden><div class="rmtPrevBg" id="rmtPrevBg"></div><div class="rmtPrevDim" id="rmtPrevDim"></div><div class="rmtPrevTx"><span class="rmtPrevTxI" id="rmtPrevTxI"></span></div></div>'+
+        '<div class="rmtText" id="rmtText"></div><div class="rmtNextTxt" id="rmtNextTxt"></div>'+
+        '<div class="rmtNav"><button type="button" class="rmtBtn big" id="rmtPrev">◀ Back</button><button type="button" class="rmtBtn big go" id="rmtNext">Next ▶</button></div>'+
+      '</div>'+
       '<div class="rmtBody" id="rmtRemote">'+
         '<div class="rmtMsg" id="rmtMsg" hidden></div>'+
         '<div id="rmtLive">'+
-          '<div class="rmtNow"><div class="rmtHead"><div class="rmtTitle" id="rmtTitle"></div><div class="rmtNum" id="rmtNum"></div></div><div class="rmtLab" id="rmtLab"></div><div class="rmtPrev" id="rmtPv" hidden><div class="rmtPrevBg" id="rmtPrevBg"></div><div class="rmtPrevDim" id="rmtPrevDim"></div><div class="rmtPrevTx"><span class="rmtPrevTxI" id="rmtPrevTxI"></span></div></div><div class="rmtText" id="rmtText"></div><div class="rmtNextTxt" id="rmtNextTxt"></div></div>'+
-          '<div class="rmtNav" style="margin-top:12px"><button type="button" class="rmtBtn big" id="rmtPrev">\u25C0 Back</button><button type="button" class="rmtBtn big go" id="rmtNext">Next \u25B6</button></div>'+
-          '<div class="rmtSecs" id="rmtSecs" style="margin-top:12px"></div>'+
-          '<div class="rmtSlH" id="rmtSlH" hidden>Slides <b id="rmtSlN"></b></div><div class="rmtSl" id="rmtSl"></div>'+
-          '<div class="rmtRow" style="margin-top:12px"><button type="button" class="rmtBtn" id="rmtSongPrev">\u25C0 Song</button><button type="button" class="rmtBtn" id="rmtSongNext">Song \u25B6</button><button type="button" class="rmtBtn" id="rmtBlack">Black</button><button type="button" class="rmtBtn" id="rmtClear">Clear</button></div>'+
-          '<details class="rmtList" id="rmtListBox" style="margin-top:12px"><summary>Songs &amp; items</summary><div id="rmtList"></div></details>'+
+          '<div id="rmtFlow">'+
+            '<div class="rmtSecs" id="rmtSecs"></div><div class="rmtMsg" id="rmtNoSec" hidden>No sections in this item. Use the Slide tab to pick a slide.</div>'+
+            '<div class="rmtRow" style="margin-top:16px"><button type="button" class="rmtBtn" id="rmtSongPrev">◀ Song</button><button type="button" class="rmtBtn" id="rmtSongNext">Song ▶</button><button type="button" class="rmtBtn" id="rmtBlack">Black</button><button type="button" class="rmtBtn" id="rmtClear">Clear</button></div>'+
+            '<details class="rmtList" id="rmtListBox" style="margin-top:12px"><summary>Songs &amp; items</summary><div id="rmtList"></div></details>'+
+          '</div>'+
+          '<div id="rmtSlideP" hidden><div class="rmtSlH" id="rmtSlH" hidden>Slides <b id="rmtSlN"></b></div><div class="rmtSl" id="rmtSl"></div></div>'+
+          '<div id="rmtBibleP" hidden>'+
+            '<div class="rmtBq"><input type="search" id="rmtBqIn" enterkeyhint="search" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="John 3:16, Psalm 23, or a word"><button type="button" class="rmtBtn go" id="rmtBqGo">Search</button></div>'+
+            '<div class="rmtBq2"><select id="rmtBqVer" aria-label="Bible version"></select><label class="rmtChk"><input type="checkbox" id="rmtBqW"> Words</label></div>'+
+            '<div id="rmtBqOut"></div>'+
+          '</div>'+
         '</div>'+
       '</div>'+
       '<div class="rmtStage" id="rmtStageV" hidden><div class="stgTop"><span class="stgLab" id="stgLab"></span><span id="stgTitle"></span><span><b class="stgNum" id="stgNum"></b><span id="stgClock"></span></span></div>'+
       '<div class="stgMain" id="stgMain"><div class="stgText" id="stgText"></div></div><div class="stgMsg" id="stgMsg"></div><div class="stgNext" id="stgNext"></div></div>';
     document.body.appendChild(ov);
     ov.querySelector('#rmtClose').onclick=close;
-    ov.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
+    ov.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;lastScroll='';render()});
     $('rmtNext').onclick=()=>send('next');
     $('rmtPrev').onclick=()=>send('prev');
     $('rmtSongNext').onclick=()=>send('songNext');
     $('rmtSongPrev').onclick=()=>send('songPrev');
     $('rmtBlack').onclick=()=>send('black',{v:!(state&&state.black)});
     $('rmtClear').onclick=()=>send('clear',{v:!(state&&state.clear)});
+    $('rmtBqGo').onclick=bqSearch;
+    $('rmtBqIn').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();bqSearch()}};
+    $('rmtBqVer').onchange=()=>{try{localStorage.setItem('rmtBibleVer',$('rmtBqVer').value)}catch(e){}if($('rmtBqIn').value.trim())bqSearch()};
     window.addEventListener('resize',()=>{if(ov&&!ov.hidden&&tab==='stage')fit();if(ov&&!ov.hidden)fitPrev()});
     document.addEventListener('visibilitychange',()=>{if(ov&&!ov.hidden&&document.visibilityState==='visible')keepAwake()});
+  }
+
+  /* ---- Bible tab: the search runs on the computer (it has the Bible files); the answer comes back in state.bq ---- */
+  const BV_DEF=[['kjv','KJV'],['asv','ASV'],['bbe','BBE'],['abtag','AB1905'],['mbb','MBB'],['asnd','ASND'],['niv','NIV'],['nkrv','NKRV']];
+  let bqPend=null,sentKey='';
+  const bibleVer=()=>{try{return localStorage.getItem('rmtBibleVer')||'kjv'}catch(e){return'kjv'}};
+  function bqSearch(){
+    const q=$('rmtBqIn').value.trim();if(!q)return;
+    const rid=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    bqPend={rid,at:Date.now()};sentKey='';
+    send('bq',{q,ver:$('rmtBqVer').value,w:$('rmtBqW').checked?1:0,rid});
+    $('rmtBqIn').blur();render();
+    setTimeout(()=>{if(bqPend&&bqPend.rid===rid)render()},12500);
+  }
+  function renderBible(){
+    const sel=$('rmtBqVer'),list=(Array.isArray(state.bv)&&state.bv.length)?state.bv:BV_DEF,sg=JSON.stringify(list);
+    if(sel.dataset.sig!==sg){
+      sel.dataset.sig=sg;sel.textContent='';
+      list.forEach(v=>{const o=el('option',null,v[1]);o.value=v[0];sel.appendChild(o)});
+      sel.value=bibleVer();if(sel.value!==bibleVer())sel.selectedIndex=0;
+    }
+    const out=$('rmtBqOut'),want=bqPend?bqPend.rid:(state.bq&&state.bq.rid),r=(state.bq&&state.bq.rid===want)?state.bq:null;
+    const late=!!(bqPend&&!r&&Date.now()-bqPend.at>12000);
+    const sig=JSON.stringify([want,r,late,sentKey]);
+    if(out.dataset.sig===sig)return;
+    out.dataset.sig=sig;out.textContent='';
+    if(!want){out.append(el('div','rmtMsg','Type a verse (John 3:16) or a word, then tap Search. Tap a result to show it on the screen.'));return}
+    if(!r){out.append(el('div','rmtMsg',late?'The computer did not answer. Check that PreCenter is open and up to date, with Remote on.':'Searching…'));return}
+    if(r.busy){out.append(el('div','rmtMsg','Searching…'));return}
+    if(r.err){out.append(el('div','rmtMsg',r.err));return}
+    (r.res||[]).forEach(x=>{
+      const k=r.ver+'|'+x.r,b=el('button','rmtBR'+(k===sentKey?' sent':''));b.type='button';
+      const h=el('div','rmtBRh');h.append(el('b',null,x.r+(x.n>1?' ('+x.n+' verses)':'')),el('span',null,k===sentKey?'SHOWING':'SHOW ▶'));
+      b.append(h,el('div','rmtBRt',x.t||''));
+      b.onclick=()=>{sentKey=k;send('bgo',{ver:r.ver,ref:x.r});say('Sent '+x.r);render()};
+      out.appendChild(b);
+    });
+    if(r.more)out.append(el('div','rmtMsg','Showing the first 25. Add another word to narrow it down.'));
   }
 
   function send(t,extra){
@@ -43647,14 +43734,20 @@ document.addEventListener('visibilitychange', () => {
     return'';
   }
 
+  function setStat(){
+    const st=status(),sb=$('rmtStat');if(!sb)return;
+    sb.className='rmtStat '+st[1];sb.title=st[0];sb.setAttribute('aria-label',st[0]);
+  }
   function render(){
     if(!ov||ov.hidden)return;
     ov.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
-    const st=status(),sb=$('rmtStat');sb.textContent=st[0];sb.className='rmtStat '+st[1];
+    setStat();
     const live=!!(state&&state.on!==false);
     $('rmtStageV').hidden=tab!=='stage';
-    $('rmtRemote').hidden=tab!=='remote';
-    const m=msgFor();$('rmtMsg').hidden=!m||live&&tab==='remote';$('rmtMsg').textContent=m;
+    $('rmtRemote').hidden=tab==='stage';
+    $('rmtTop').hidden=tab==='stage'||!live;
+    $('rmtFlow').hidden=tab!=='flow';$('rmtSlideP').hidden=tab!=='slide';$('rmtBibleP').hidden=tab!=='bible';
+    const m=msgFor();$('rmtMsg').hidden=!m||live;$('rmtMsg').textContent=m;
     $('rmtLive').hidden=!live;
     if(!live){if(tab==='stage'){$('stgText').textContent=m;$('stgLab').textContent='';$('stgTitle').textContent='';$('stgNext').textContent='';$('stgMsg').textContent='';fit()}return}
     $('rmtTitle').textContent=state.title||'';
@@ -43666,17 +43759,19 @@ document.addEventListener('visibilitychange', () => {
     tx.classList.toggle('dim',!state.text);
     paintPrev();
     $('rmtNextTxt').textContent=state.next?('Next: '+state.next):(at<n?('Next: Slide '+(at+1)):'');
-    const box=$('rmtSecs');box.textContent='';
-    const secs=Array.isArray(state.secs)?state.secs:[];
-    if(secs.length>=2){
+    /* Flow: one button per section (V1, V2, C ...) */
+    {
+      const box=$('rmtSecs');box.textContent='';
+      const secs=Array.isArray(state.secs)?state.secs:[];
+      $('rmtNoSec').hidden=secs.length>0;
       let ck=-1;secs.forEach((x,k)=>{if(x.i<=state.idx)ck=k});
       secs.forEach((x,k)=>{
-        const b=el('button','rmtSec'+(k===ck?' cur':''));b.type='button';b.style.setProperty('--c',x.c||'#4b5160');
-        b.append(el('i',null,String(k+1)),el('span',null,x.k||x.l));
+        const b=el('button','rmtFlowBtn'+(k===ck?' cur':''),x.k||x.l);b.type='button';b.title=x.l||'';
+        b.style.setProperty('--c',x.c||'#4b5160');
         b.onclick=()=>send('go',{i:x.i,sid:state.sid});box.appendChild(b);
       });
     }
-    /* slide grid: text-only cards, tap one to jump to it */
+    /* Slide: text-only cards, tap one to jump to it; the list follows the live slide */
     {
       const cards=Array.isArray(state.sl)?state.sl:[],slBox=$('rmtSl');
       $('rmtSlH').hidden=!cards.length;$('rmtSlN').textContent=cards.length||'';
@@ -43693,6 +43788,14 @@ document.addEventListener('visibilitychange', () => {
       }
       const cur=+state.idx||0;
       for(let k=0;k<slBox.children.length;k++)slBox.children[k].classList.toggle('cur',k===cur);
+      if(tab==='slide'){
+        const key=state.sid+':'+cur+':'+cards.length;
+        if(key!==lastScroll){
+          const first=!lastScroll;lastScroll=key;
+          const c=slBox.children[cur];
+          if(c)requestAnimationFrame(()=>{try{c.scrollIntoView({block:'nearest',behavior:first?'auto':'smooth'})}catch(e){c.scrollIntoView()}});
+        }
+      }
     }
     $('rmtBlack').classList.toggle('on',!!state.black);
     $('rmtClear').classList.toggle('on',!!state.clear);
@@ -43706,6 +43809,7 @@ document.addEventListener('visibilitychange', () => {
         b.onclick=()=>{send('song',{id:x.id});$('rmtListBox').open=false};list.appendChild(b);
       });
     }
+    if(tab==='bible')renderBible();
     $('stgLab').textContent=state.label||'';
     $('stgTitle').textContent=state.title||'';
     $('stgText').textContent=state.black?'':(state.text||'');
@@ -43720,7 +43824,7 @@ document.addEventListener('visibilitychange', () => {
 
   function clock(){
     const c=$('stgClock');if(c)c.textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-    if(ov&&!ov.hidden){const st=status(),sb=$('rmtStat');if(sb){sb.textContent=st[0];sb.className='rmtStat '+st[1]}}
+    if(ov&&!ov.hidden)setStat();
   }
 
   function fit(){
@@ -43760,6 +43864,7 @@ document.addEventListener('visibilitychange', () => {
     clearInterval(tick);tick=null;
     if(wake){try{wake.release()}catch(e){}wake=null}
     if(ov)ov.hidden=true;
+    lastScroll='';
     document.documentElement.style.overflow='';
   }
 
