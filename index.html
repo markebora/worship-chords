@@ -43651,6 +43651,7 @@ document.addEventListener('visibilitychange', () => {
       '<div class="stgMain" id="stgMain"><div class="stgText" id="stgText"></div></div><div class="stgMsg" id="stgMsg"></div><div class="stgNext" id="stgNext"></div></div>';
     document.body.appendChild(ov);
     ov.querySelector('#rmtClose').onclick=close;
+    $('rmtStat').onclick=()=>{subscribe();say('Reconnecting\u2026')};
     ov.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;lastScroll='';render()});
     $('rmtNext').onclick=()=>send('next');
     $('rmtPrev').onclick=()=>send('prev');
@@ -43713,6 +43714,9 @@ document.addEventListener('visibilitychange', () => {
       say(/permission-denied/.test(c)?'Remote is blocked by Firestore. Publish the new firestore.rules.':'Could not send. Check your connection.');
     });
     if(navigator.vibrate)try{navigator.vibrate(12)}catch(e){}
+    /* if the screen did not change after a press, re-attach the listener to fetch the latest */
+    const before=stamp();
+    setTimeout(()=>{if(ov&&!ov.hidden&&state&&stamp()===before)subscribe()},2500);
   }
 
   function status(){
@@ -43841,6 +43845,22 @@ document.addEventListener('visibilitychange', () => {
     try{if('wakeLock' in navigator&&!wake){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null})}}catch(e){}
   }
 
+  /* (re)attach the listener. Re-attaching makes Firestore hand over the latest copy straight away. */
+  function subscribe(){
+    if(unsub){try{unsub()}catch(e){}unsub=null}
+    if(!teamId||typeof firestoreDb==='undefined'||!firestoreDb)return;
+    unsub=firestoreDb.collection('presenter').doc(teamId).onSnapshot(snap=>{
+      state=snap.exists?snap.data():null;fatal='';render();
+    },err=>{
+      const c=err&&err.code?String(err.code):'';
+      const denied=/permission-denied/.test(c);
+      fatal=denied?'Blocked by Firestore rules (publish the new firestore.rules)':'Connection lost, reconnecting…';
+      render();
+      if(!denied)setTimeout(()=>{if(ov&&!ov.hidden&&fatal)subscribe()},4000);
+    });
+  }
+  const stamp=()=>state?[state.sid,state.idx,state.black,state.clear,state.hb,state.bq&&state.bq.rid].join('|'):'';
+
   async function open(){
     build();ov.hidden=false;document.documentElement.style.overflow='hidden';
     state=null;fatal='';render();keepAwake();
@@ -43850,13 +43870,7 @@ document.addEventListener('visibilitychange', () => {
     signed=!!ok;
     teamId=ok&&typeof getActiveTeamId==='function'?(getActiveTeamId()||''):'';
     if(!ok||!teamId){render();return}
-    unsub=firestoreDb.collection('presenter').doc(teamId).onSnapshot(snap=>{
-      state=snap.exists?snap.data():null;fatal='';render();
-    },err=>{
-      const c=err&&err.code?String(err.code):'';
-      fatal=/permission-denied/.test(c)?'Blocked by Firestore rules (publish the new firestore.rules)':'Could not connect';
-      render();
-    });
+    subscribe();
   }
 
   function close(){
