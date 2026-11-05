@@ -9154,6 +9154,12 @@ body.songBottomHidden .annotateToolbar{
 .rmtBq input[type=search],.rmtBq2 select{flex:1;min-width:0;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#fff;border-radius:12px;padding:12px;font-size:16px;font-family:inherit}
 .rmtBq .rmtBtn{padding:10px 16px;flex:none}
 .rmtBq2{display:flex;gap:10px;align-items:center;margin-top:8px}
+.rmtPlH{margin-top:14px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8a8a93}
+.rmtPlH span{font-weight:600;letter-spacing:0;text-transform:none}
+.rmtPlace{display:grid;grid-template-columns:repeat(3,64px);grid-auto-rows:46px;gap:6px;margin-top:8px;justify-content:center}
+.rmtPl{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#fff;border-radius:12px;font-size:20px;-webkit-tap-highlight-color:transparent}
+.rmtPl:active{filter:brightness(1.4)}
+.rmtPl.cur{background:var(--accent,#E8B923);color:var(--accent-ink,#171200);border-color:var(--accent,#E8B923)}
 .rmtChk{display:flex;align-items:center;gap:6px;font-size:14px;color:#cfcfd4;flex:none}
 .rmtChk input{width:18px;height:18px}
 #rmtBqOut{display:flex;flex-direction:column;gap:8px;margin-top:12px}
@@ -43643,6 +43649,7 @@ document.addEventListener('visibilitychange', () => {
           '<div id="rmtBibleP" hidden>'+
             '<div class="rmtBq"><input type="search" id="rmtBqIn" enterkeyhint="search" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="John 3:16, Psalm 23, or a word"><button type="button" class="rmtBtn go" id="rmtBqGo">Search</button></div>'+
             '<div class="rmtBq2"><select id="rmtBqVer" aria-label="Bible version"></select><label class="rmtChk"><input type="checkbox" id="rmtBqW"> Words</label></div>'+
+            '<div class="rmtPlH">Text position <span>(this item)</span></div><div class="rmtPlace" id="rmtPlace"></div>'+
             '<div id="rmtBqOut"></div>'+
           '</div>'+
         '</div>'+
@@ -43668,7 +43675,7 @@ document.addEventListener('visibilitychange', () => {
 
   /* ---- Bible tab: the search runs on the computer (it has the Bible files); the answer comes back in state.bq ---- */
   const BV_DEF=[{i:'kjv',n:'KJV'},{i:'asv',n:'ASV'},{i:'bbe',n:'BBE'},{i:'abtag',n:'AB1905'},{i:'mbb',n:'MBB'},{i:'asnd',n:'ASND'},{i:'niv',n:'NIV'},{i:'nkrv',n:'NKRV'}];
-  let bqPend=null,sentKey='';
+  let bqPend=null,sentKey='',plMine=null,plSid='';
   const bibleVer=()=>{try{return localStorage.getItem('rmtBibleVer')||'kjv'}catch(e){return'kjv'}};
   function bqSearch(){
     const q=$('rmtBqIn').value.trim();if(!q)return;
@@ -43678,7 +43685,25 @@ document.addEventListener('visibilitychange', () => {
     $('rmtBqIn').blur();render();
     setTimeout(()=>{if(bqPend&&bqPend.rid===rid)render()},12500);
   }
+  /* text position pad: row = top/middle/bottom, column = left/center/right (left and right make a side column) */
+  const PL_ROWS=['Top','Middle','Bottom'],PL_COLS=['left','center','right'],PL_G=['\u2196','\u2191','\u2197','\u2190','\u25CF','\u2192','\u2199','\u2193','\u2198'],PL_T=['Top left','Top','Top right','Left','Center','Right','Bottom left','Bottom','Bottom right'];
+  function renderPlace(){
+    const box=$('rmtPlace');if(!box)return;
+    if(!box.dataset.built){
+      box.dataset.built='1';
+      PL_G.forEach((g,k)=>{
+        const b=el('button','rmtPl',g);b.type='button';b.title=PL_T[k];b.setAttribute('aria-label','Text '+PL_T[k].toLowerCase());
+        b.dataset.p=PL_ROWS[Math.floor(k/3)];b.dataset.a=PL_COLS[k%3];
+        b.onclick=()=>{if(!state)return;send('place',{sid:state.sid,pos:b.dataset.p,al:b.dataset.a});plMine={p:b.dataset.p,a:b.dataset.a};say('Text: '+PL_T[k].toLowerCase());renderPlace()};
+        box.appendChild(b);
+      });
+    }
+    const cur=plMine||(state&&state.pl?{p:state.pl.p,a:state.pl.a}:null);
+    box.querySelectorAll('.rmtPl').forEach(b=>b.classList.toggle('cur',!!cur&&b.dataset.p===cur.p&&b.dataset.a===cur.a));
+  }
   function renderBible(){
+    if(state&&state.sid!==plSid){plSid=state.sid;plMine=null}
+    renderPlace();
     const sel=$('rmtBqVer'),list=(Array.isArray(state.bv)&&state.bv.length)?state.bv:BV_DEF,sg=JSON.stringify(list);
     if(sel.dataset.sig!==sg){
       sel.dataset.sig=sg;sel.textContent='';
