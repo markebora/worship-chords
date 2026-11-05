@@ -9084,6 +9084,8 @@ body.songBottomHidden .annotateToolbar{
 .rmtPrev{position:relative;width:100%;aspect-ratio:16/9;margin-top:10px;border-radius:12px;overflow:hidden;background:#000;box-shadow:0 0 0 1px rgba(255,255,255,.10)}
 .rmtPrev[hidden]{display:none}
 .rmtPrevBg{position:absolute;inset:0;background:#000}
+.rmtPrevVid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent;pointer-events:none}
+.rmtPrevVid[hidden]{display:none}
 .rmtPrevDim{position:absolute;inset:0;background:rgba(0,0,0,.35)}
 .rmtPrevTx{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:4% 6%;text-align:center}
 .rmtPrevTxI{display:block;width:100%;font-weight:800;line-height:1.15;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.75);white-space:pre-wrap;word-break:break-word}
@@ -43611,14 +43613,40 @@ document.addEventListener('visibilitychange', () => {
     }
     sp.style.fontSize=best+'px';
   }
+  /* The computer uploads a short looping clip and sends its https link in bg.u (only for k:'vid').
+     Only https links to .mp4/.webm files are played; the thumbnail stays underneath until the clip is really playing. */
+  function bgVidUrl(){
+    const b=state&&state.bg;
+    if(!b||b.k!=='vid'||typeof b.u!=='string')return '';
+    return /^https:\/\/[^\s"'<>()]+\.(mp4|webm)(\?[^\s"'<>()]*)?$/i.test(b.u)?b.u:'';
+  }
+  function paintVid(show){
+    const v=$('rmtPrevVid');if(!v)return;
+    const u=show?bgVidUrl():'';
+    if(!u){
+      if(v.getAttribute('src')){try{v.pause()}catch(e){}v.removeAttribute('src');try{v.load()}catch(e){}}
+      v.hidden=true;return;
+    }
+    if(v.getAttribute('src')!==u){
+      v.hidden=true;
+      v.muted=true;v.defaultMuted=true;v.loop=true;v.playsInline=true;
+      v.setAttribute('muted','');v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
+      v.onplaying=()=>{v.hidden=false};
+      v.onerror=()=>{v.hidden=true};
+      v.src=u;
+    }
+    const pr=v.play();if(pr&&pr.catch)pr.catch(()=>{});
+  }
   function paintPrev(){
     const prev=$('rmtPv'),plain=$('rmtText');
     if(!prev)return;
-    const b=bgResolve(state&&state.bg),css=bgCss(b);
-    prev.hidden=!css;
-    plain.hidden=!!css;            /* the preview already shows the words */
-    if(!css)return;
-    $('rmtPrevBg').style.background=state.black?'#000':css;
+    const b=bgResolve(state&&state.bg),css=bgCss(b),vu=bgVidUrl();
+    const show=!!(css||vu);
+    prev.hidden=!show;
+    plain.hidden=show;             /* the preview already shows the words */
+    if(!show){paintVid(false);return}
+    $('rmtPrevBg').style.background=state.black?'#000':(css||'#000');
+    paintVid(!state.black);
     const dim=Math.min(0.9,Math.max(0,+state.dim));
     $('rmtPrevDim').style.background='rgba(0,0,0,'+(state.black?0:(isFinite(dim)?dim:0.35))+')';
     $('rmtPrevTxI').textContent=(state.black||state.clear)?'':(state.text||'');
@@ -43634,7 +43662,7 @@ document.addEventListener('visibilitychange', () => {
       '<div class="rmtStat" id="rmtStat" role="status"></div></div>'+
       '<div class="rmtTop" id="rmtTop" hidden>'+
         '<div class="rmtHead"><div class="rmtTitle" id="rmtTitle"></div><div class="rmtNum" id="rmtNum"></div></div><div class="rmtLab" id="rmtLab"></div>'+
-        '<div class="rmtPrev" id="rmtPv" hidden><div class="rmtPrevBg" id="rmtPrevBg"></div><div class="rmtPrevDim" id="rmtPrevDim"></div><div class="rmtPrevTx"><span class="rmtPrevTxI" id="rmtPrevTxI"></span></div></div>'+
+        '<div class="rmtPrev" id="rmtPv" hidden><div class="rmtPrevBg" id="rmtPrevBg"></div><video class="rmtPrevVid" id="rmtPrevVid" muted playsinline loop autoplay preload="auto" hidden></video><div class="rmtPrevDim" id="rmtPrevDim"></div><div class="rmtPrevTx"><span class="rmtPrevTxI" id="rmtPrevTxI"></span></div></div>'+
         '<div class="rmtText" id="rmtText"></div><div class="rmtNextTxt" id="rmtNextTxt"></div>'+
         '<div class="rmtNav"><button type="button" class="rmtBtn big" id="rmtPrev">◀ Back</button><button type="button" class="rmtBtn big go" id="rmtNext">Next ▶</button></div>'+
       '</div>'+
@@ -43671,7 +43699,7 @@ document.addEventListener('visibilitychange', () => {
     $('rmtBqIn').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();bqSearch()}};
     $('rmtBqVer').onchange=()=>{try{localStorage.setItem('rmtBibleVer',$('rmtBqVer').value)}catch(e){}if($('rmtBqIn').value.trim())bqSearch()};
     window.addEventListener('resize',()=>{if(ov&&!ov.hidden&&tab==='stage')fit();if(ov&&!ov.hidden)fitPrev()});
-    document.addEventListener('visibilitychange',()=>{if(ov&&!ov.hidden&&document.visibilityState==='visible')keepAwake()});
+    document.addEventListener('visibilitychange',()=>{if(ov&&!ov.hidden&&document.visibilityState==='visible'){keepAwake();try{paintVid(!(state&&state.black))}catch(e){}}});
   }
 
   /* ---- Bible tab: the search runs on the computer (it has the Bible files); the answer comes back in state.bq ---- */
