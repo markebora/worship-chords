@@ -43617,44 +43617,59 @@ document.addEventListener('visibilitychange', () => {
   }
   /* The computer uploads a short looping clip and sends its https link in bg.u (only for k:'vid').
      Only https links to .mp4/.webm files are played; the thumbnail stays underneath until the clip is really playing. */
-  function bgVidUrl(){
+  const VID_RE=/^https:\/\/[^\s"'<>()]+\.(mp4|webm)(\?[^\s"'<>()]*)?$/i;
+  /* candidate clip links: PreCenter may send a WebM and an MP4 copy (bg.u, bg.u2); try the one this phone says it can play first */
+  function bgVidList(){
     const b=state&&state.bg;
-    if(!b||b.k!=='vid'||typeof b.u!=='string')return '';
-    return /^https:\/\/[^\s"'<>()]+\.(mp4|webm)(\?[^\s"'<>()]*)?$/i.test(b.u)?b.u:'';
+    if(!b||b.k!=='vid')return [];
+    const l=[b.u,b.u2].filter(x=>typeof x==='string'&&VID_RE.test(x));
+    const v=document.createElement('video');
+    const ok=x=>{const m=/\.webm(\?|$)/i.test(x)?'video/webm; codecs="vp8"':'video/mp4';return v.canPlayType(m)?0:1};
+    return l.sort((x,y)=>ok(x)-ok(y)||(/\.webm/i.test(y)?1:0)-(/\.webm/i.test(x)?1:0));
   }
   function vidDbg(t){const d=$('rmtPrevDbg');if(!d)return;d.hidden=!t;d.textContent=t||''}
+  async function vidWhy(u){
+    try{const r=await fetch(u,{method:'HEAD',cache:'no-store'});return 'HTTP '+r.status+' '+(r.headers.get('content-type')||'no type')+' '+(r.headers.get('content-length')||'?')+' B'}
+    catch(e){return 'link not reachable from this app (bucket public access/CORS?)'}
+  }
   function paintVid(show){
     const v=$('rmtPrevVid');if(!v)return;
+    const list=show?bgVidList():[];
     const raw=state&&state.bg&&state.bg.k==='vid'?state.bg.u:'';
-    const u=show?bgVidUrl():'';
-    if(!u){
+    if(!list.length){
       if(v.getAttribute('src')){try{v.pause()}catch(e){}v.removeAttribute('src');try{v.load()}catch(e){}}
-      v.hidden=true;
+      v._k='';v.hidden=true;
       vidDbg(!show||!(state&&state.bg&&state.bg.k==='vid')?'':(raw?'Video link rejected (must be https .mp4/.webm)':'Video: no clip link from PreCenter yet'));
       return;
     }
-    if(v.getAttribute('src')!==u){
-      v.hidden=true;
+    const k=list.join('|');
+    if(v._k!==k){
+      v._k=k;v._l=list;v._i=0;v.hidden=true;
       v.muted=true;v.defaultMuted=true;v.loop=true;v.playsInline=true;
       v.setAttribute('muted','');v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
       v.onplaying=()=>{v.hidden=false;vidDbg('')};
       v.onwaiting=()=>vidDbg('Video: buffering\u2026');
-      v.onloadstart=()=>vidDbg('Video: loading clip\u2026');
-      v.onerror=()=>{v.hidden=true;const e=v.error;vidDbg('Video error '+(e?e.code:'?')+(e&&e.message?': '+e.message:'')+' \u2014 tap to retry')};
-      v.src=u;
+      v.onerror=async()=>{
+        v.hidden=true;const e=v.error,cur=v._l[v._i];
+        if(v._i<v._l.length-1){v._i++;vidDbg('Video: trying other format\u2026');v.src=v._l[v._i];return}
+        vidDbg('Video error '+(e?e.code:'?')+' \u2014 checking link\u2026');
+        const why=await vidWhy(cur);
+        vidDbg('Video error '+(e?e.code:'?')+': '+why+' \u2014 tap to retry');
+      };
+      v.src=list[0];
       vidDbg('Video: loading clip\u2026');
     }
     const pr=v.play();if(pr&&pr.catch)pr.catch(err=>{if(v.hidden)vidDbg('Tap the preview to play video ('+(err&&err.name||'blocked')+')')});
   }
   function tapVid(){
-    const v=$('rmtPrevVid');if(!v||!v.getAttribute('src'))return;
-    if(v.error){const u=v.getAttribute('src');v.removeAttribute('src');v.load();v.src=u}
+    const v=$('rmtPrevVid');if(!v||!v._l)return;
+    if(v.error||!v.getAttribute('src')){v._i=0;v.removeAttribute('src');v.load();v.src=v._l[0]}
     const pr=v.play();if(pr&&pr.catch)pr.catch(()=>{});
   }
   function paintPrev(){
     const prev=$('rmtPv'),plain=$('rmtText');
     if(!prev)return;
-    const b=bgResolve(state&&state.bg),css=bgCss(b),vu=bgVidUrl();
+    const b=bgResolve(state&&state.bg),css=bgCss(b),vu=bgVidList().length;
     const show=!!(css||vu);
     prev.hidden=!show;
     plain.hidden=show;             /* the preview already shows the words */
