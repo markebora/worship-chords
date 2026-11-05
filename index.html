@@ -9156,8 +9156,9 @@ body.songBottomHidden .annotateToolbar{
 .rmtBq2{display:flex;gap:10px;align-items:center;margin-top:8px}
 .rmtPlH{margin-top:14px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8a8a93}
 .rmtPlH span{font-weight:600;letter-spacing:0;text-transform:none}
-.rmtPlace{display:grid;grid-template-columns:repeat(3,64px);grid-auto-rows:46px;gap:6px;margin-top:8px;justify-content:center}
-.rmtPl{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#fff;border-radius:12px;font-size:20px;-webkit-tap-highlight-color:transparent}
+.rmtPlace{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:8px}
+.rmtPlRow{display:flex;gap:8px}
+.rmtPl{width:60px;height:46px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#fff;border-radius:12px;-webkit-tap-highlight-color:transparent}
 .rmtPl:active{filter:brightness(1.4)}
 .rmtPl.cur{background:var(--accent,#E8B923);color:var(--accent-ink,#171200);border-color:var(--accent,#E8B923)}
 .rmtChk{display:flex;align-items:center;gap:6px;font-size:14px;color:#cfcfd4;flex:none}
@@ -43649,7 +43650,7 @@ document.addEventListener('visibilitychange', () => {
           '<div id="rmtBibleP" hidden>'+
             '<div class="rmtBq"><input type="search" id="rmtBqIn" enterkeyhint="search" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="John 3:16, Psalm 23, or a word"><button type="button" class="rmtBtn go" id="rmtBqGo">Search</button></div>'+
             '<div class="rmtBq2"><select id="rmtBqVer" aria-label="Bible version"></select><label class="rmtChk"><input type="checkbox" id="rmtBqW"> Words</label></div>'+
-            '<div class="rmtPlH">Text position <span>(this item)</span></div><div class="rmtPlace" id="rmtPlace"></div>'+
+            '<div class="rmtPlH">Text <span>(this item)</span></div><div class="rmtPlace" id="rmtPlace"></div>'+
             '<div id="rmtBqOut"></div>'+
           '</div>'+
         '</div>'+
@@ -43685,21 +43686,29 @@ document.addEventListener('visibilitychange', () => {
     $('rmtBqIn').blur();render();
     setTimeout(()=>{if(bqPend&&bqPend.rid===rid)render()},12500);
   }
-  /* text position pad: row = top/middle/bottom, column = left/center/right (left and right make a side column) */
-  const PL_ROWS=['Top','Middle','Bottom'],PL_COLS=['left','center','right'],PL_G=['\u2196','\u2191','\u2197','\u2190','\u25CF','\u2192','\u2199','\u2193','\u2198'],PL_T=['Top left','Top','Top right','Left','Center','Right','Bottom left','Bottom','Bottom right'];
+  /* text position: alignment icons (left, center, right, justify) + a vertical row (top, middle, bottom) */
+  const IC=d=>'<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="'+d+'"/></svg>';
+  const PL_AL=[['left','Align left','M3 4h14M3 8h18M3 12h14M3 16h18M3 20h14'],['center','Align center','M5 4h14M3 8h18M5 12h14M3 16h18M5 20h14'],['right','Align right','M7 4h14M3 8h18M7 12h14M3 16h18M7 20h14'],['justify','Justify','M3 4h18M3 8h18M3 12h18M3 16h18M3 20h18']];
+  const PL_V=[['Top','Text at the top','M4 4h16M8 8h8'],['Middle','Text in the middle','M4 10h16M8 14h8'],['Bottom','Text at the bottom','M4 16h16M8 20h8']];
   function renderPlace(){
     const box=$('rmtPlace');if(!box)return;
     if(!box.dataset.built){
       box.dataset.built='1';
-      PL_G.forEach((g,k)=>{
-        const b=el('button','rmtPl',g);b.type='button';b.title=PL_T[k];b.setAttribute('aria-label','Text '+PL_T[k].toLowerCase());
-        b.dataset.p=PL_ROWS[Math.floor(k/3)];b.dataset.a=PL_COLS[k%3];
-        b.onclick=()=>{if(!state)return;send('place',{sid:state.sid,pos:b.dataset.p,al:b.dataset.a});plMine={p:b.dataset.p,a:b.dataset.a};say('Text: '+PL_T[k].toLowerCase());renderPlace()};
-        box.appendChild(b);
-      });
+      const mk=(list,key,wrap)=>{
+        const row=el('div','rmtPlRow');
+        list.forEach(x=>{
+          const b=el('button','rmtPl');b.type='button';b.innerHTML=IC(x[2]);b.title=x[1];b.setAttribute('aria-label',x[1]);b.dataset.k=key;b.dataset.v=x[0];
+          b.onclick=()=>{if(!state)return;
+            const msg=key==='a'?{sid:state.sid,al:x[0]}:{sid:state.sid,pos:x[0]};
+            send('place',msg);plMine=Object.assign(plMine||{},key==='a'?{a:x[0]}:{p:x[0]});say(x[1]);renderPlace()};
+          row.appendChild(b);
+        });
+        box.appendChild(row);
+      };
+      mk(PL_V,'p');mk(PL_AL,'a');
     }
-    const cur=plMine||(state&&state.pl?{p:state.pl.p,a:state.pl.a}:null);
-    box.querySelectorAll('.rmtPl').forEach(b=>b.classList.toggle('cur',!!cur&&b.dataset.p===cur.p&&b.dataset.a===cur.a));
+    const cur=Object.assign({},state&&state.pl?{p:state.pl.p,a:state.pl.a}:{},plMine||{});
+    box.querySelectorAll('.rmtPl').forEach(b=>b.classList.toggle('cur',cur[b.dataset.k]===b.dataset.v));
   }
   function renderBible(){
     if(state&&state.sid!==plSid){plSid=state.sid;plMine=null}
