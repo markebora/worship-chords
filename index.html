@@ -9086,6 +9086,8 @@ body.songBottomHidden .annotateToolbar{
 .rmtPrevBg{position:absolute;inset:0;background:#000}
 .rmtPrevVid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent;pointer-events:none}
 .rmtPrevVid[hidden]{display:none}
+.rmtPrevDbg{position:absolute;left:6px;bottom:6px;z-index:3;font:600 10px/1.3 system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.6);border-radius:6px;padding:2px 7px;pointer-events:none;max-width:90%}
+.rmtPrevDbg[hidden]{display:none}
 .rmtPrevDim{position:absolute;inset:0;background:rgba(0,0,0,.35)}
 .rmtPrevTx{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:4% 6%;text-align:center}
 .rmtPrevTxI{display:block;width:100%;font-weight:800;line-height:1.15;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.75);white-space:pre-wrap;word-break:break-word}
@@ -43620,21 +43622,33 @@ document.addEventListener('visibilitychange', () => {
     if(!b||b.k!=='vid'||typeof b.u!=='string')return '';
     return /^https:\/\/[^\s"'<>()]+\.(mp4|webm)(\?[^\s"'<>()]*)?$/i.test(b.u)?b.u:'';
   }
+  function vidDbg(t){const d=$('rmtPrevDbg');if(!d)return;d.hidden=!t;d.textContent=t||''}
   function paintVid(show){
     const v=$('rmtPrevVid');if(!v)return;
+    const raw=state&&state.bg&&state.bg.k==='vid'?state.bg.u:'';
     const u=show?bgVidUrl():'';
     if(!u){
       if(v.getAttribute('src')){try{v.pause()}catch(e){}v.removeAttribute('src');try{v.load()}catch(e){}}
-      v.hidden=true;return;
+      v.hidden=true;
+      vidDbg(!show||!(state&&state.bg&&state.bg.k==='vid')?'':(raw?'Video link rejected (must be https .mp4/.webm)':'Video: no clip link from PreCenter yet'));
+      return;
     }
     if(v.getAttribute('src')!==u){
       v.hidden=true;
       v.muted=true;v.defaultMuted=true;v.loop=true;v.playsInline=true;
       v.setAttribute('muted','');v.setAttribute('playsinline','');v.setAttribute('webkit-playsinline','');
-      v.onplaying=()=>{v.hidden=false};
-      v.onerror=()=>{v.hidden=true};
+      v.onplaying=()=>{v.hidden=false;vidDbg('')};
+      v.onwaiting=()=>vidDbg('Video: buffering\u2026');
+      v.onloadstart=()=>vidDbg('Video: loading clip\u2026');
+      v.onerror=()=>{v.hidden=true;const e=v.error;vidDbg('Video error '+(e?e.code:'?')+(e&&e.message?': '+e.message:'')+' \u2014 tap to retry')};
       v.src=u;
+      vidDbg('Video: loading clip\u2026');
     }
+    const pr=v.play();if(pr&&pr.catch)pr.catch(err=>{if(v.hidden)vidDbg('Tap the preview to play video ('+(err&&err.name||'blocked')+')')});
+  }
+  function tapVid(){
+    const v=$('rmtPrevVid');if(!v||!v.getAttribute('src'))return;
+    if(v.error){const u=v.getAttribute('src');v.removeAttribute('src');v.load();v.src=u}
     const pr=v.play();if(pr&&pr.catch)pr.catch(()=>{});
   }
   function paintPrev(){
@@ -43662,7 +43676,7 @@ document.addEventListener('visibilitychange', () => {
       '<div class="rmtStat" id="rmtStat" role="status"></div></div>'+
       '<div class="rmtTop" id="rmtTop" hidden>'+
         '<div class="rmtHead"><div class="rmtTitle" id="rmtTitle"></div><div class="rmtNum" id="rmtNum"></div></div><div class="rmtLab" id="rmtLab"></div>'+
-        '<div class="rmtPrev" id="rmtPv" hidden><div class="rmtPrevBg" id="rmtPrevBg"></div><video class="rmtPrevVid" id="rmtPrevVid" muted playsinline loop autoplay preload="auto" hidden></video><div class="rmtPrevDim" id="rmtPrevDim"></div><div class="rmtPrevTx"><span class="rmtPrevTxI" id="rmtPrevTxI"></span></div></div>'+
+        '<div class="rmtPrev" id="rmtPv" hidden><div class="rmtPrevBg" id="rmtPrevBg"></div><video class="rmtPrevVid" id="rmtPrevVid" muted playsinline loop autoplay preload="auto" hidden></video><div class="rmtPrevDim" id="rmtPrevDim"></div><div class="rmtPrevTx"><span class="rmtPrevTxI" id="rmtPrevTxI"></span></div><div class="rmtPrevDbg" id="rmtPrevDbg" hidden></div></div>'+
         '<div class="rmtText" id="rmtText"></div><div class="rmtNextTxt" id="rmtNextTxt"></div>'+
         '<div class="rmtNav"><button type="button" class="rmtBtn big" id="rmtPrev">◀ Back</button><button type="button" class="rmtBtn big go" id="rmtNext">Next ▶</button></div>'+
       '</div>'+
@@ -43687,6 +43701,7 @@ document.addEventListener('visibilitychange', () => {
       '<div class="stgMain" id="stgMain"><div class="stgText" id="stgText"></div></div><div class="stgMsg" id="stgMsg"></div><div class="stgNext" id="stgNext"></div></div>';
     document.body.appendChild(ov);
     ov.querySelector('#rmtClose').onclick=close;
+    $('rmtPv').onclick=tapVid;
     $('rmtStat').onclick=()=>{subscribe();say('Reconnecting\u2026')};
     ov.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;lastScroll='';render()});
     $('rmtNext').onclick=()=>send('next');
