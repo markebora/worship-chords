@@ -43629,8 +43629,23 @@ document.addEventListener('visibilitychange', () => {
   }
   function vidDbg(t){const d=$('rmtPrevDbg');if(!d)return;d.hidden=!t;d.textContent=t||''}
   async function vidWhy(u){
-    try{const r=await fetch(u,{method:'HEAD',cache:'no-store'});return 'HTTP '+r.status+' '+(r.headers.get('content-type')||'no type')+' '+(r.headers.get('content-length')||'?')+' B'}
-    catch(e){return 'link not reachable from this app (bucket public access/CORS?)'}
+    let host='',file='';try{const x=new URL(u);host=x.host;file=x.pathname.split('/').pop()}catch(e){}
+    try{const r=await fetch(u,{method:'HEAD'});return 'HTTP '+r.status+' '+(r.headers.get('content-type')||'no type')+' '+(r.headers.get('content-length')||'?')+' B ('+host+'/'+file+')'}
+    catch(e){
+      try{await fetch(u,{method:'HEAD',mode:'no-cors'});return 'link answers but the app cannot read it (CORS). Open '+host+'/\u2026/'+file+' in the browser to see the error'}
+      catch(e2){return 'cannot reach '+host+' (wrong public link, or blocked network)'}
+    }
+  }
+  const IMG_RE=/^https:\/\/[^\s"'<>()]+\.(jpe?g|png|webp)(\?[^\s"'<>()]*)?$/i;
+  /* sharper 720p picture from the computer's R2 bucket (bg.iu); the small thumbnail stays until it has loaded */
+  function paintImg(){
+    const b=state&&state.bg,el=$('rmtPrevBg');if(!el)return;
+    const u=b&&b.k==='img'&&typeof b.iu==='string'&&IMG_RE.test(b.iu)&&!state.black?b.iu:'';
+    const css='url("'+u+'") center/cover no-repeat';
+    if(!u){el._iu='';el._ok='';return}
+    if(el._iu===u){if(el._ok===u)el.style.background=css;return}
+    el._iu=u;el._ok='';
+    const im=new Image();im.onload=()=>{if(el._iu===u){el._ok=u;el.style.background=css}};im.src=u;
   }
   function paintVid(show){
     const v=$('rmtPrevVid');if(!v)return;
@@ -43675,7 +43690,7 @@ document.addEventListener('visibilitychange', () => {
     plain.hidden=show;             /* the preview already shows the words */
     if(!show){paintVid(false);return}
     $('rmtPrevBg').style.background=state.black?'#000':(css||'#000');
-    paintVid(!state.black);
+    paintVid(!state.black);paintImg();
     const dim=Math.min(0.9,Math.max(0,+state.dim));
     $('rmtPrevDim').style.background='rgba(0,0,0,'+(state.black?0:(isFinite(dim)?dim:0.35))+')';
     $('rmtPrevTxI').textContent=(state.black||state.clear)?'':(state.text||'');
