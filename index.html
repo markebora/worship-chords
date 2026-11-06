@@ -43994,5 +43994,91 @@ document.addEventListener('visibilitychange', () => {
   });
 })();
 </script>
+
+<style id="stageLiveCss">
+#stageLiveBtn{min-width:64px;font-weight:800;letter-spacing:.04em;font-size:12px;padding:0 10px}
+#stageLiveBtn.on{background:#e8b826;color:#111;border-color:#e8b826}
+#stageLiveBtn.on::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#d92b2b;margin-right:6px;vertical-align:middle;animation:pcLiveDot 1.2s infinite}
+@keyframes pcLiveDot{50%{opacity:.25}}
+#stageStructure.pcFollow .flowLineWrap{opacity:.38;transition:opacity .25s}
+#stageStructure.pcFollow .flowLineWrap.pcLive{opacity:1;background:rgba(232,184,38,.14);border-left:4px solid #e8b826;border-radius:6px;padding-left:8px;margin-left:-12px}
+</style>
+<script id="stageLiveJs">
+/* ===== Stage mode follows PreCenter =====
+   While Stage mode (the square icon on the song page) is open, this watches presenter/{teamId} (the same
+   document the Remote tab reads). When PreCenter is showing a song that is in this phone's lineup, Stage
+   mode opens that song, highlights the lines of the slide that is live, and scrolls to them. The LIVE button
+   turns following off and on. */
+(function(){
+  let unsub=null,st=null,follow=true,subbing=false;
+  const norm=s=>String(s||'').toLowerCase().replace(/\[[^\]]*\]/g,'').replace(/[^a-z0-9À-￿]+/g,'');
+  const $=id=>document.getElementById(id);
+  function clearHL(){const r=$('stageStructure');if(!r)return;r.classList.remove('pcFollow');r.querySelectorAll('.pcLive').forEach(e=>e.classList.remove('pcLive'))}
+  function sync(){const b=$('stageLiveBtn');if(!b)return;const live=!!(st&&st.on);b.textContent=live?(follow?'LIVE':'Live off'):'No live';b.classList.toggle('on',live&&follow);b.title=live?('PreCenter: '+(st.title||'')+(st.label?' · '+st.label:'')):'PreCenter is not live'}
+  const lines=t=>String(t||'').split('\n').map(x=>x.trim()).filter(Boolean);
+  const same=(a,b)=>{if(a.length<3||b.length<3)return false;const n=Math.min(18,a.length,b.length);return a.slice(0,n)===b.slice(0,n)};
+  function highlight(){
+    const root=$('stageStructure');if(!root)return;
+    clearHL();
+    const wraps=[...root.querySelectorAll('.flowLineWrap')];
+    const ly=[];wraps.forEach((w,i)=>{const l=w.querySelector('.lyricLine');if(l)ly.push({w,i,n:norm(l.textContent)})});
+    const k=Math.max(0,st.idx|0),cards=Array.isArray(st.sl)?st.sl:[];
+    const cardLines=j=>lines(j===k?st.text:(cards[j]&&cards[j].t));
+    /* walk through the song in order so a chorus that repeats lands on the right copy */
+    let p=0,start=-1,tn=cardLines(k);
+    for(let j=0;j<=k;j++){
+      const cl=cardLines(j);if(!cl.length)continue;
+      const a=norm(cl[0]);let q=-1;for(let x=p;x<ly.length;x++)if(same(ly[x].n,a)){q=x;break}
+      if(q>=0){p=q+cl.length;if(j===k)start=q}
+    }
+    if(start<0&&tn.length){const a=norm(tn[0]);for(let x=0;x<ly.length;x++)if(same(ly[x].n,a)){start=x;break}}
+    if(start<0)return;
+    root.classList.add('pcFollow');
+    const first=[];
+    for(let x=start;x<Math.min(ly.length,start+Math.max(1,tn.length));x++){
+      ly[x].w.classList.add('pcLive');
+      const prev=wraps[ly[x].i-1];if(prev&&prev.querySelector('.chordLine'))prev.classList.add('pcLive');
+      first.push(prev&&prev.querySelector('.chordLine')?prev:ly[x].w);
+    }
+    try{if(typeof stageStopScroll==='function')stageStopScroll()}catch(e){}
+    if(first[0])first[0].scrollIntoView({block:'center',behavior:'smooth'});
+  }
+  function apply(){
+    sync();
+    if(!$('stageOverlay')||!st||!st.on||!follow||typeof currentSong==='undefined'||!currentSong){clearHL();return}
+    if(norm(st.title)!==norm(currentSong.title)){
+      let li=null;try{li=stageLineupInfo()}catch(e){}
+      const hit=li&&li.songs.find(e=>norm(e.title)===norm(st.title));
+      if(hit){goToLineupSongById(hit.id);stageRefresh();return}
+      clearHL();return;
+    }
+    highlight();
+  }
+  async function subscribe(){
+    if(unsub||subbing)return;subbing=true;
+    try{try{await firebaseReadyPromise}catch(e){}
+      if(typeof firestoreDb==='undefined'||!firestoreDb||typeof firebaseAuth==='undefined'||!firebaseAuth||!firebaseAuth.currentUser)return;
+      const team=typeof getActiveTeamId==='function'?(getActiveTeamId()||''):'';if(!team)return;
+      if(!$('stageOverlay'))return;
+      unsub=firestoreDb.collection('presenter').doc(team).onSnapshot(s=>{st=s.exists?s.data():null;apply()},()=>{});
+    }finally{subbing=false}
+  }
+  function stop(){if(unsub){try{unsub()}catch(e){}unsub=null}st=null}
+  const oOpen=window.openStageMode,oClose=window.closeStageMode,oRef=window.stageRefresh;
+  if(typeof oOpen!=='function'||typeof oRef!=='function')return;
+  window.openStageMode=function(){
+    oOpen.apply(this,arguments);
+    const top=document.querySelector('#stageOverlay .stageTop'),chords=$('stageChordsBtn');
+    if(top&&chords&&!$('stageLiveBtn')){
+      const b=document.createElement('button');b.type='button';b.id='stageLiveBtn';b.className='stageIconBtn';b.textContent='No live';
+      b.onclick=()=>{follow=!follow;if(!follow)clearHL();apply()};
+      top.insertBefore(b,chords);
+    }
+    subscribe();
+  };
+  window.stageRefresh=function(){oRef.apply(this,arguments);if(st&&st.on&&follow&&$('stageOverlay')){sync();if(norm(st.title)===norm(currentSong&&currentSong.title))highlight()}else sync()};
+  if(typeof oClose==='function')window.closeStageMode=function(){stop();return oClose.apply(this,arguments)};
+})();
+</script>
 </body>
 </html>
