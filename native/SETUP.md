@@ -70,6 +70,13 @@ Vercel deploy updates everyone instantly, and offline works through your existin
 service worker. To ship the files inside the APK instead, delete the `"server"` block
 and run `npm run sync` (then each index.html change needs a new APK).
 
+## Wi-Fi remote opens inside the app (not Chrome)
+Scanning the PreCenter QR loads `http://<computer-ip>:<port>/?pin=...` in the app's own window.
+This needs two things, both already set up here:
+- `capacitor.config.json` -> `server.allowNavigation` lists the LAN ranges (192.168.*.*, 10.*.*.*, 172.*.*.*), so Capacitor does not hand those links to Chrome.
+- `android:usesCleartextTraffic="true"` on the `<application>` tag (the GitHub build adds it automatically; with Android Studio add it yourself) because the PreCenter page is plain http.
+After changing either, run `npm run sync` and rebuild the APK.
+
 ## Changing the package name
 Only before step 5's `npx cap add android`: edit `appId` here and use the same name in
 step 1. (The old TWA used `app.vercel.worship_chords_rho.twa`; using a new name means

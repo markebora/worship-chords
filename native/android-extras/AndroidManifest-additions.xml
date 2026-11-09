@@ -8,5 +8,7 @@
 <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
 <!-- Inside <application> -->
+<!-- Also add this attribute to the <application ...> tag itself (lets the Wi-Fi remote page from PreCenter, plain http on the LAN, open inside the app):
+     android:usesCleartextTraffic="true" -->
 <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="disciples-updates" />
 <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_name" />
