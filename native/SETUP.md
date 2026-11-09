@@ -23,14 +23,19 @@ Node.js (LTS) and Android Studio (it installs its own JDK and the Android SDK).
 ## 5. Create the Android project
 ```
 cd native
-npm install @capacitor/core @capacitor/app @capacitor/push-notifications
+npm install @capacitor/core @capacitor/app @capacitor/push-notifications @capacitor/filesystem @capacitor/share
 npm install -D @capacitor/cli
 npx cap add android
 ```
 Copy `google-services.json` into `native/android/app/`.
 
-Then open `native/android/app/src/main/AndroidManifest.xml` and add these two lines
-inside the `<application>` tag:
+Copy the files from `native/android-extras/` into the Android project:
+- `FolderSavePlugin.java` and `MainActivity.java` -> `android/app/src/main/java/app/disciples/worship/` (replace the generated MainActivity)
+- In `android/app/build.gradle` add under `dependencies`: `implementation "androidx.documentfile:documentfile:1.0.1"`
+- Add everything in `AndroidManifest-additions.xml` to `android/app/src/main/AndroidManifest.xml`
+  (camera, microphone and notification permissions; without them the QR scanner and mic fail in the app).
+
+Then, in that manifest, these two lines go inside the `<application>` tag (already in the file above):
 ```
 <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="disciples-updates" />
 <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_name" />
@@ -40,6 +45,7 @@ New → Image Asset → Icon Type **Notification Icons**, name it `ic_stat_name`
 (a simple white shape; colored images show as a white square on Android).
 
 ## 6. Build and install
+After ANY change to plugins or the manifest you must run `npm run sync` and rebuild the APK.
 ```
 npm run sync
 npm run open

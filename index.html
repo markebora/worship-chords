@@ -34690,7 +34690,7 @@ async function openSharedLineupLink(url){
   try{
 
     const response =
-      await fetch('/api/lineup-share?token=' + encodeURIComponent(token), { cache:'no-store' });
+      await fetch(API_BASE_URL + '/api/lineup-share?token=' + encodeURIComponent(token), { cache:'no-store' });
 
     const data = await response.json().catch(() => ({}));
 
