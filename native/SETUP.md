@@ -76,17 +76,7 @@ step 1. (The old TWA used `app.vercel.worship_chords_rho.twa`; using a new name 
 people install the new app next to the old one, then delete the old one.)
 
 ## Build the APK on GitHub (no Android Studio)
-The workflow `.github/workflows/build-android.yml` creates the Android project, adds the
-plugins/permissions and builds the APK. Set it up once:
-
-1. GitHub repo -> Settings -> Secrets and variables -> Actions -> New repository secret:
-   - `GOOGLE_SERVICES_JSON_BASE64` (required): `base64 -w0 google-services.json`
-   - `DEBUG_KEYSTORE_BASE64` (recommended): makes every build use the same signing key so a
-     new APK installs OVER the old one. Create once with:
-     `keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"`
-     then `base64 -w0 debug.keystore`. Keep that file safe.
-2. Actions tab -> **Build Android APK** -> Run workflow.
-3. When it finishes, open the run and download the **Disciples-apk** artifact (zip), unzip and install the APK.
-
-It also runs automatically on pushes that change `native/`. Normal web changes (index.html)
-don't need a new APK, since the app loads the live site.
+Add two secrets: repo -> Settings -> Secrets and variables -> Actions -> New repository secret.
+- `GOOGLE_SERVICES_JSON`: open google-services.json in Notepad, copy ALL the text, paste it as the value.
+- `DEBUG_KEYSTORE_BASE64`: paste the long text you were given (keeps the signing key the same every build).
+Then: Actions tab -> **Build Android APK** -> Run workflow -> download the **Disciples-apk** artifact when done.
