@@ -9181,6 +9181,13 @@ body.songBottomHidden .annotateToolbar{
 .rmtScanFrame{position:absolute;left:50%;top:42%;width:min(70vw,300px);aspect-ratio:1;transform:translate(-50%,-50%);border:3px solid var(--accent,#E8B923);border-radius:20px;box-shadow:0 0 0 100vmax rgba(0,0,0,.45)}
 .rmtScanMsg{position:relative;color:#fff;font-weight:600;text-align:center;font-size:14px;text-shadow:0 1px 3px #000;max-width:90%}
 .rmtScan .rmtBtn{position:relative;min-width:200px}
+.rmtScanMsg.err{color:#ffb4a8}
+.rmtScanBtns{position:relative;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;width:100%}
+.rmtScanBtns .rmtBtn{min-width:0;flex:1 1 140px;max-width:220px}
+.rmtScanPaste{position:relative;display:flex;gap:8px;width:100%;max-width:440px}
+.rmtScanPaste[hidden],.rmtScan [hidden]{display:none!important}
+.rmtScanPaste input{flex:1;min-width:0;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.65);color:#fff;font-size:16px}
+.rmtScanPaste .rmtBtn{flex:0 0 auto;min-width:0}
 </style>
 </head>
 
@@ -43965,27 +43972,84 @@ document.addEventListener('visibilitychange', () => {
     try{localStorage.setItem('dscLanLast',t)}catch(e){}
     say('Connecting over Wi-Fi\u2026');location.href=t;return true;
   }
+  /* Scans the QR code PreCenter shows. It never closes by itself: when something goes wrong it says what, and offers
+     "Try again", "Paste the link" and "Cancel". Works with the phone's built-in QR reader (BarcodeDetector) and, where
+     the phone has none, with the jsQR library loaded when needed. */
+  function loadJsQR(){
+    return new Promise(res=>{
+      if(window.jsQR)return res(window.jsQR);
+      const urls=['https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js','https://unpkg.com/jsqr@1.4.0/dist/jsQR.js'];
+      const next=()=>{
+        const u=urls.shift();if(!u)return res(null);
+        const sc=document.createElement('script');sc.src=u;sc.onload=()=>res(window.jsQR||null);sc.onerror=()=>{sc.remove();next()};document.head.appendChild(sc);
+      };next();
+    });
+  }
   async function wifiScan(){
-    if(!('BarcodeDetector' in window)||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-      const v=prompt('This phone cannot scan inside the app. Scan the QR with the phone camera, or paste the link from PreCenter (Screens \u203a Phone remote on this Wi-Fi):','');
-      if(v&&!wifiGo(v))say('That is not a PreCenter Wi-Fi link.');return;
-    }
-    let stream=null,det=null,stop=false;
-    const box=el('div','rmtScan');box.innerHTML='<video playsinline muted autoplay></video><div class="rmtScanFrame"></div><div class="rmtScanMsg">Point the camera at the QR code in PreCenter</div><button type="button" class="rmtBtn big">Cancel</button>';
+    const box=el('div','rmtScan');
+    box.innerHTML='<video playsinline muted autoplay></video><div class="rmtScanFrame"></div><div class="rmtScanMsg">Starting the camera\u2026</div>'
+      +'<div class="rmtScanPaste" hidden><input type="url" inputmode="url" autocomplete="off" placeholder="http://192.168.1.5:8080/?pin=123456"><button type="button" class="rmtBtn" data-a="open">Open</button></div>'
+      +'<div class="rmtScanBtns"><button type="button" class="rmtBtn" data-a="retry" hidden>Try again</button><button type="button" class="rmtBtn" data-a="paste">Paste the link</button><button type="button" class="rmtBtn big" data-a="cancel">Cancel</button></div>';
     document.body.appendChild(box);
-    const end=()=>{stop=true;try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}box.remove()};
-    box.querySelector('button').onclick=end;
-    try{
-      det=new BarcodeDetector({formats:['qr_code']});
-      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-      const vid=box.querySelector('video');vid.srcObject=stream;await vid.play();
+    const vid=box.querySelector('video'),msgEl=box.querySelector('.rmtScanMsg'),pasteRow=box.querySelector('.rmtScanPaste'),inp=pasteRow.querySelector('input'),btn=a=>box.querySelector('[data-a="'+a+'"]');
+    const msg=(t,err)=>{msgEl.textContent=t;msgEl.classList.toggle('err',!!err)};
+    let stream=null,stop=false,timer=0,runId=0;
+    const stopCam=()=>{clearTimeout(timer);try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}stream=null;try{vid.srcObject=null}catch(e){}};
+    const end=()=>{stop=true;runId++;stopCam();box.remove()};
+    const bad=e=>{
+      const n=String(e&&e.name||''),m=String(e&&e.message||e||'');
+      if(/NotAllowed|Security/i.test(n))return 'The camera is blocked. Allow the camera for this app in the phone settings (Settings \u203a Apps \u203a this app \u203a Permissions), then tap Try again.';
+      if(/NotFound|DevicesNotFound/i.test(n))return 'No camera was found on this phone.';
+      if(/NotReadable|TrackStart/i.test(n))return 'The camera is being used by another app. Close it, then tap Try again.';
+      return 'Could not start the camera ('+(n||'error')+(m?': '+m:'')+'). Tap Try again, or paste the link.';
+    };
+    const submit=v=>{if(wifiGo(v)){end();return true}return false};
+    box.onclick=e=>{                                   /* the phone may need one tap before it lets the camera picture start */
+      const b=e.target.closest&&e.target.closest('button');
+      if(!b){if(vid.srcObject&&vid.paused)vid.play().catch(()=>{});return}
+      const a=b.dataset.a;
+      if(a==='cancel')end();
+      else if(a==='retry')start();
+      else if(a==='paste'){pasteRow.hidden=!pasteRow.hidden;if(!pasteRow.hidden){stopCam();msg('Paste the link shown in PreCenter (Screens \u203a Phone remote on this Wi-Fi).');inp.focus()}else start()}
+      else if(a==='open'){if(!submit(inp.value.trim()))msg('That is not a PreCenter Wi-Fi link. It looks like http://192.168.1.5:8080/?pin=123456',true)}
+    };
+    inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();btn('open').click()}};
+
+    async function start(){
+      const my=++runId;stopCam();btn('retry').hidden=true;pasteRow.hidden=true;msg('Starting the camera\u2026');
+      if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){msg('This phone cannot open the camera here. Scan the QR with the phone\u2019s own Camera app, or tap Paste the link.',true);btn('retry').hidden=true;return}
+      let err=null;
+      for(const c of [{video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false},{video:{facingMode:'environment'},audio:false},{video:true,audio:false}]){
+        try{stream=await navigator.mediaDevices.getUserMedia(c);err=null;break}catch(e){err=e;if(/NotAllowed|Security|NotFound/i.test(String(e&&e.name)))break}
+      }
+      if(my!==runId){try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}return}
+      if(!stream){msg(bad(err),true);btn('retry').hidden=false;return}
+      vid.muted=true;vid.setAttribute('muted','');vid.setAttribute('playsinline','');vid.srcObject=stream;
+      try{await vid.play()}catch(e){msg('Tap the screen to start the camera.')}          /* blocked until a tap: wait, do not give up */
+      /* pick the reader: the phone's own, or jsQR */
+      let det=null,jsq=null;
+      try{if('BarcodeDetector' in window){const f=BarcodeDetector.getSupportedFormats?await BarcodeDetector.getSupportedFormats():['qr_code'];if(!f||f.includes('qr_code'))det=new BarcodeDetector({formats:['qr_code']})}}catch(e){det=null}
+      if(!det){msg('Loading the QR reader\u2026');jsq=await loadJsQR();if(my!==runId)return;
+        if(!jsq){msg('This phone has no QR reader built in and the reader could not be loaded (no internet?). Scan the QR with the phone\u2019s own Camera app, or tap Paste the link.',true);btn('retry').hidden=false;return}}
+      msg(vid.paused?'Tap the screen to start the camera.':'Point the camera at the QR code in PreCenter');
+      const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});let fails=0;
       const tick=async()=>{
-        if(stop)return;
-        try{const r=await det.detect(vid);for(const c of r){if(wifiGo(c.rawValue)){end();return}else{box.querySelector('.rmtScanMsg').textContent='That QR is not from PreCenter. Try the one in Screens \u203a Phone remote on this Wi-Fi.'}}}catch(e){}
-        setTimeout(tick,250);
+        if(stop||my!==runId)return;
+        try{
+          if(vid.readyState>=2&&vid.videoWidth&&!vid.paused){
+            if(/^Tap the screen/.test(msgEl.textContent))msg('Point the camera at the QR code in PreCenter');
+            let val='';
+            if(det){const r=await det.detect(vid);if(r&&r[0])val=r[0].rawValue}
+            else{const k=Math.min(1,640/vid.videoWidth);cv.width=Math.round(vid.videoWidth*k);cv.height=Math.round(vid.videoHeight*k);cx.drawImage(vid,0,0,cv.width,cv.height);const d=cx.getImageData(0,0,cv.width,cv.height),r=jsq(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});if(r)val=r.data}
+            fails=0;
+            if(val){if(submit(val))return;msg('That QR is not from PreCenter. Use the one in Screens \u203a Phone remote on this Wi-Fi.',true)}
+          }
+        }catch(e){if(det&&++fails>=10){det=null;jsq=await loadJsQR();if(!jsq){msg('The phone\u2019s QR reader is not working and the other reader could not be loaded. Tap Paste the link.',true);btn('retry').hidden=false;return}}}
+        timer=setTimeout(tick,200);
       };
       tick();
-    }catch(e){end();say(/denied|NotAllowed/i.test(String(e&&e.name||e))?'Allow the camera to scan.':'Could not open the camera.')}
+    }
+    start();
   }
   async function keepAwake(){
     try{if('wakeLock' in navigator&&!wake){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null})}}catch(e){}
