@@ -43989,16 +43989,42 @@ document.addEventListener('visibilitychange', () => {
     const box=el('div','rmtScan');
     box.innerHTML='<video playsinline muted autoplay></video><div class="rmtScanFrame"></div><div class="rmtScanMsg">Starting the camera\u2026</div>'
       +'<div class="rmtScanPaste" hidden><input type="url" inputmode="url" autocomplete="off" placeholder="http://192.168.1.5:8080/?pin=123456"><button type="button" class="rmtBtn" data-a="open">Open</button></div>'
-      +'<div class="rmtScanBtns"><button type="button" class="rmtBtn" data-a="retry" hidden>Try again</button><button type="button" class="rmtBtn" data-a="paste">Paste the link</button><button type="button" class="rmtBtn big" data-a="cancel">Cancel</button></div>';
+      +'<div class="rmtScanBtns"><button type="button" class="rmtBtn" data-a="retry" hidden>Try again</button><button type="button" class="rmtBtn" data-a="photo">Take a photo of the QR</button><button type="button" class="rmtBtn" data-a="paste">Paste the link</button><button type="button" class="rmtBtn big" data-a="cancel">Cancel</button></div>'
+      +'<input type="file" accept="image/*" capture="environment" hidden data-a="file">';
     document.body.appendChild(box);
     const vid=box.querySelector('video'),msgEl=box.querySelector('.rmtScanMsg'),pasteRow=box.querySelector('.rmtScanPaste'),inp=pasteRow.querySelector('input'),btn=a=>box.querySelector('[data-a="'+a+'"]');
     const msg=(t,err)=>{msgEl.textContent=t;msgEl.classList.toggle('err',!!err)};
-    let stream=null,stop=false,timer=0,runId=0;
+    let stream=null,stop=false,timer=0,runId=0,R=null;
+    /* the reader: the phone's own, or jsQR (loaded the first time it is needed) */
+    const reader=async()=>{
+      if(R)return R;let det=null,jsq=null;
+      try{if('BarcodeDetector' in window){const f=BarcodeDetector.getSupportedFormats?await BarcodeDetector.getSupportedFormats():['qr_code'];if(!f||f.includes('qr_code'))det=new BarcodeDetector({formats:['qr_code']})}}catch(e){det=null}
+      if(!det)jsq=await loadJsQR();
+      return R=(det||jsq)?{det,jsq}:null;
+    };
+    /* read a QR from a picture (a photo taken with the phone's Camera app: this needs no camera permission for this app) */
+    const readPhoto=async file=>{
+      let bmp=null;try{bmp=await createImageBitmap(file)}catch(e){}
+      if(!bmp){bmp=await new Promise((ok,no)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{URL.revokeObjectURL(u);ok(im)};im.onerror=()=>no(new Error('picture could not be read'));im.src=u})}
+      const w0=bmp.width||bmp.naturalWidth,h0=bmp.height||bmp.naturalHeight,rd=await reader();if(!rd)return{err:'noreader'};
+      for(const maxW of [1600,900,500]){
+        const k=Math.min(1,maxW/w0),cv=document.createElement('canvas');cv.width=Math.round(w0*k);cv.height=Math.round(h0*k);
+        const cx=cv.getContext('2d',{willReadFrequently:true});cx.drawImage(bmp,0,0,cv.width,cv.height);
+        try{
+          if(rd.det){const r=await rd.det.detect(cv);if(r&&r[0])return{val:r[0].rawValue}}
+          else{const d=cx.getImageData(0,0,cv.width,cv.height),r=rd.jsq(d.data,d.width,d.height,{inversionAttempts:'attemptBoth'});if(r)return{val:r.data}}
+        }catch(e){}
+      }
+      return{val:''};
+    };
     const stopCam=()=>{clearTimeout(timer);try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}stream=null;try{vid.srcObject=null}catch(e){}};
     const end=()=>{stop=true;runId++;stopCam();box.remove()};
     const bad=e=>{
       const n=String(e&&e.name||''),m=String(e&&e.message||e||'');
-      if(/NotAllowed|Security/i.test(n))return 'The camera is blocked. Allow the camera for this app in the phone settings (Settings \u203a Apps \u203a this app \u203a Permissions), then tap Try again.';
+      if(/NotAllowed|Security/i.test(n))return (window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()
+        ?'This version of the app has no camera permission, so Android cannot ask for it (the app needs an update). '
+        :'The camera is blocked. Allow it for this app in the phone settings (Settings \u203a Apps \u203a this app \u203a Permissions), then tap Try again. ')
+        +'You can still tap Take a photo of the QR, or scan it with the phone\u2019s own Camera app.';
       if(/NotFound|DevicesNotFound/i.test(n))return 'No camera was found on this phone.';
       if(/NotReadable|TrackStart/i.test(n))return 'The camera is being used by another app. Close it, then tap Try again.';
       return 'Could not start the camera ('+(n||'error')+(m?': '+m:'')+'). Tap Try again, or paste the link.';
@@ -44010,14 +44036,26 @@ document.addEventListener('visibilitychange', () => {
       const a=b.dataset.a;
       if(a==='cancel')end();
       else if(a==='retry')start();
+      else if(a==='photo'){const f=box.querySelector('[data-a="file"]');f.value='';f.click()}
       else if(a==='paste'){pasteRow.hidden=!pasteRow.hidden;if(!pasteRow.hidden){stopCam();msg('Paste the link shown in PreCenter (Screens \u203a Phone remote on this Wi-Fi).');inp.focus()}else start()}
       else if(a==='open'){if(!submit(inp.value.trim()))msg('That is not a PreCenter Wi-Fi link. It looks like http://192.168.1.5:8080/?pin=123456',true)}
+    };
+    box.querySelector('[data-a="file"]').onchange=async e=>{
+      const f=e.target.files&&e.target.files[0];if(!f)return;
+      stopCam();pasteRow.hidden=true;msg('Reading the photo\u2026');
+      try{
+        const r=await readPhoto(f);
+        if(r.err==='noreader')msg('This phone has no QR reader built in and the reader could not be loaded (no internet?). Scan the QR with the phone\u2019s own Camera app instead, or tap Paste the link.',true);
+        else if(r.val){if(!submit(r.val))msg('That QR is not from PreCenter. Use the one in Screens \u203a Phone remote on this Wi-Fi.',true)}
+        else msg('No QR code was found in that photo. Hold the phone closer so the QR fills most of the picture, and take it again.',true);
+      }catch(er){msg('Could not read that photo ('+(er&&er.message||er)+'). Try again.',true)}
+      btn('retry').hidden=false;
     };
     inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();btn('open').click()}};
 
     async function start(){
       const my=++runId;stopCam();btn('retry').hidden=true;pasteRow.hidden=true;msg('Starting the camera\u2026');
-      if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){msg('This phone cannot open the camera here. Scan the QR with the phone\u2019s own Camera app, or tap Paste the link.',true);btn('retry').hidden=true;return}
+      if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){msg('This phone cannot open the live camera here. Tap Take a photo of the QR, scan it with the phone\u2019s own Camera app, or tap Paste the link.',true);btn('retry').hidden=true;return}
       let err=null;
       for(const c of [{video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false},{video:{facingMode:'environment'},audio:false},{video:true,audio:false}]){
         try{stream=await navigator.mediaDevices.getUserMedia(c);err=null;break}catch(e){err=e;if(/NotAllowed|Security|NotFound/i.test(String(e&&e.name)))break}
@@ -44026,11 +44064,10 @@ document.addEventListener('visibilitychange', () => {
       if(!stream){msg(bad(err),true);btn('retry').hidden=false;return}
       vid.muted=true;vid.setAttribute('muted','');vid.setAttribute('playsinline','');vid.srcObject=stream;
       try{await vid.play()}catch(e){msg('Tap the screen to start the camera.')}          /* blocked until a tap: wait, do not give up */
-      /* pick the reader: the phone's own, or jsQR */
-      let det=null,jsq=null;
-      try{if('BarcodeDetector' in window){const f=BarcodeDetector.getSupportedFormats?await BarcodeDetector.getSupportedFormats():['qr_code'];if(!f||f.includes('qr_code'))det=new BarcodeDetector({formats:['qr_code']})}}catch(e){det=null}
-      if(!det){msg('Loading the QR reader\u2026');jsq=await loadJsQR();if(my!==runId)return;
-        if(!jsq){msg('This phone has no QR reader built in and the reader could not be loaded (no internet?). Scan the QR with the phone\u2019s own Camera app, or tap Paste the link.',true);btn('retry').hidden=false;return}}
+      if(!R&&!('BarcodeDetector' in window))msg('Loading the QR reader\u2026');
+      const rd=await reader();if(my!==runId)return;
+      if(!rd){msg('This phone has no QR reader built in and the reader could not be loaded (no internet?). Take a photo of the QR, scan it with the phone\u2019s own Camera app, or tap Paste the link.',true);btn('retry').hidden=false;return}
+      let det=rd.det,jsq=rd.jsq;
       msg(vid.paused?'Tap the screen to start the camera.':'Point the camera at the QR code in PreCenter');
       const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});let fails=0;
       const tick=async()=>{
