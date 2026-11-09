@@ -68,7 +68,34 @@ jobs:
           '''
           s=s.replace('<application',perms+'<application',1)
           s=re.sub(r'(<application[^>]*>)',lambda m:m.group(1)+meta,s,count=1)
+          # PreCenter's Wi-Fi remote page is plain http:// on the LAN
+          if 'usesCleartextTraffic' not in s:
+              s=s.replace('<application','<application android:usesCleartextTraffic="true"',1)
           open(p,'w').write(s)
+          PY
+
+      - name: App icon (from ../icons, replaces the default Capacitor icon)
+        run: |
+          pip install pillow
+          python3 - <<'PY'
+          import os
+          from PIL import Image
+          res='android/app/src/main/res'
+          fg=Image.open('../icons/icon-512-maskable.png').convert('RGBA')   # adaptive icon foreground (content is inside the safe zone)
+          legacy=Image.open('../icons/icon-512.png').convert('RGBA')        # old Android versions
+          dens={'mdpi':(48,108),'hdpi':(72,162),'xhdpi':(96,216),'xxhdpi':(144,324),'xxxhdpi':(192,432)}
+          for d,(l,a) in dens.items():
+              folder=f'{res}/mipmap-{d}'
+              os.makedirs(folder,exist_ok=True)
+              legacy.resize((l,l),Image.LANCZOS).save(f'{folder}/ic_launcher.png')
+              legacy.resize((l,l),Image.LANCZOS).save(f'{folder}/ic_launcher_round.png')
+              fg.resize((a,a),Image.LANCZOS).save(f'{folder}/disciples_fg.png')
+          os.makedirs(f'{res}/mipmap-anydpi-v26',exist_ok=True)
+          xml='<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n    <background android:drawable="@color/disciples_icon_bg"/>\n    <foreground android:drawable="@mipmap/disciples_fg"/>\n</adaptive-icon>\n'
+          for n in ('ic_launcher','ic_launcher_round'):
+              open(f'{res}/mipmap-anydpi-v26/{n}.xml','w').write(xml)
+          open(f'{res}/values/disciples_icon.xml','w').write('<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="disciples_icon_bg">#0B0B0C</color>\n</resources>\n')
+          print('icons written')
           PY
 
       - name: Keep the same signing key every build (optional secret DEBUG_KEYSTORE_BASE64)
