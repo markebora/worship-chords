@@ -22038,7 +22038,7 @@ function renderPads(){
         id="padsAppFrame"
         src="/pads.html"
         title="Pads"
-        allow="autoplay"
+        allow="autoplay; microphone; camera"
       ></iframe>
 
     </div>
@@ -23705,6 +23705,70 @@ function renderProfile(){
 }
 
 
+/* ---------- Permissions (camera / microphone / notifications) ---------- */
+async function permState(kind){
+  try{
+    if(kind==='notifications'){
+      const Push=(typeof getNativePush==='function')?getNativePush():null;
+      if(Push&&Push.checkPermissions){
+        const r=await Push.checkPermissions();
+        return r.receive==='granted'?'granted':(r.receive==='denied'?'denied':'prompt');
+      }
+      if('Notification' in window)return Notification.permission==='default'?'prompt':Notification.permission;
+      return 'unsupported';
+    }
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return 'unsupported';
+    if(navigator.permissions&&navigator.permissions.query){
+      const r=await navigator.permissions.query({name:kind==='camera'?'camera':'microphone'});
+      return r.state;
+    }
+  }catch(e){}
+  return 'prompt';
+}
+async function requestPermission(kind){
+  try{
+    if(kind==='notifications'){
+      const Push=(typeof getNativePush==='function')?getNativePush():null;
+      if(Push&&Push.requestPermissions){const r=await Push.requestPermissions();return r.receive==='granted'?'granted':'denied'}
+      if('Notification' in window){const r=await Notification.requestPermission();return r==='default'?'prompt':r}
+      return 'unsupported';
+    }
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return 'unsupported';
+    const st=await navigator.mediaDevices.getUserMedia(kind==='camera'?{video:{facingMode:'environment'}}:{audio:true});
+    st.getTracks().forEach(t=>t.stop());
+    return 'granted';
+  }catch(e){
+    return /NotFound/i.test(String(e&&e.name))?'unsupported':'denied';
+  }
+}
+const PERM_LABELS={camera:'Camera',microphone:'Microphone',notifications:'Notifications'};
+const PERM_HINTS={camera:'Scan the Remote QR code',microphone:'Audio input and sound features',notifications:'Song and lineup reminders'};
+async function refreshPermissionRows(){
+  for(const k of ['camera','microphone','notifications']){
+    const row=document.querySelector('[data-perm-row="'+k+'"]');if(!row)continue;
+    const st=await permState(k);
+    const lab=row.querySelector('[data-perm-state]'),btn=row.querySelector('button');
+    if(lab)lab.textContent=st==='granted'?'Allowed':st==='denied'?'Blocked':st==='unsupported'?'Not available':'Not asked yet';
+    if(btn){btn.hidden=(st==='granted'||st==='unsupported');btn.textContent=st==='denied'?'How to enable':'Allow'}
+  }
+}
+function bindPermissionRows(){
+  document.querySelectorAll('[data-perm-row] button').forEach(btn=>{
+    btn.onclick=async()=>{
+      const k=btn.closest('[data-perm-row]').getAttribute('data-perm-row');
+      const before=await permState(k);
+      if(before==='denied'){
+        showToast('Open Settings \u203a Apps \u203a this app \u203a Permissions and allow '+PERM_LABELS[k]+'.','info');
+        return;
+      }
+      const r=await requestPermission(k);
+      showToast(PERM_LABELS[k]+(r==='granted'?' allowed.':' was not allowed.'),r==='granted'?'success':'error');
+      refreshPermissionRows();
+    };
+  });
+  refreshPermissionRows();
+}
+
 function renderProfileSettings(){
 
   recordNavHistory('profileSettings');
@@ -23903,6 +23967,26 @@ function renderProfileSettings(){
       <div class="profileSection">
 
         <div class="sectionLabel">
+          Permissions
+        </div>
+
+        <div class="settingsCard">
+          ${['camera','microphone','notifications'].map(k=>`
+            <div class="settingsRow" data-perm-row="${k}">
+              <div>
+                <div class="settingsRowLabel">${PERM_LABELS[k]}</div>
+                <div class="settingsRowSub"><span data-perm-state>Checking\u2026</span> \u00b7 ${PERM_HINTS[k]}</div>
+              </div>
+              <button class="toolbarBtn" type="button">Allow</button>
+            </div>
+          `).join('')}
+        </div>
+
+      </div>
+
+      <div class="profileSection">
+
+        <div class="sectionLabel">
           Data
         </div>
 
@@ -24005,6 +24089,8 @@ function renderProfileSettings(){
 
   };
 
+
+  bindPermissionRows();
 
   /* ---------- Notifications ---------- */
 
