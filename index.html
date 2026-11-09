@@ -9175,6 +9175,12 @@ body.songBottomHidden .annotateToolbar{
 .rmtBRh b{color:var(--accent,#E8B923)}
 .rmtBRh span{font-size:11px;font-weight:800;letter-spacing:.06em;color:#9a9aa3}
 .rmtBRt{margin-top:6px;font-size:15px;line-height:1.35;white-space:pre-wrap;word-break:break-word;color:#e8e8ec}
+.rmtWifi{margin-top:16px;display:flex;flex-direction:column;gap:8px}.rmtWifi .rmtBtn{font-size:13px;opacity:.9}
+.rmtScan{position:fixed;inset:0;z-index:10100;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:12px;padding:16px 16px calc(20px + env(safe-area-inset-bottom,0px))}
+.rmtScan video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.rmtScanFrame{position:absolute;left:50%;top:42%;width:min(70vw,300px);aspect-ratio:1;transform:translate(-50%,-50%);border:3px solid var(--accent,#E8B923);border-radius:20px;box-shadow:0 0 0 100vmax rgba(0,0,0,.45)}
+.rmtScanMsg{position:relative;color:#fff;font-weight:600;text-align:center;font-size:14px;text-shadow:0 1px 3px #000;max-width:90%}
+.rmtScan .rmtBtn{position:relative;min-width:200px}
 </style>
 </head>
 
@@ -43726,12 +43732,15 @@ document.addEventListener('visibilitychange', () => {
             '<div id="rmtBqOut"></div>'+
           '</div>'+
         '</div>'+
+        '<div class="rmtWifi"><button type="button" class="rmtBtn" id="rmtWifi">Faster on the same Wi-Fi: scan the QR in PreCenter</button><button type="button" class="rmtBtn" id="rmtWifiLast" hidden>Open the last Wi-Fi remote</button></div>'+
       '</div>'+
       '<div class="rmtStage" id="rmtStageV" hidden><div class="stgTop"><span class="stgLab" id="stgLab"></span><span id="stgTitle"></span><span><b class="stgNum" id="stgNum"></b><span id="stgClock"></span></span></div>'+
       '<div class="stgMain" id="stgMain"><div class="stgText" id="stgText"></div></div><div class="stgMsg" id="stgMsg"></div><div class="stgNext" id="stgNext"></div></div>';
     document.body.appendChild(ov);
     ov.querySelector('#rmtClose').onclick=close;
     $('rmtPv').onclick=tapVid;
+    $('rmtWifi').onclick=wifiScan;
+    try{const last=localStorage.getItem('dscLanLast');if(last&&/^http:\/\/[0-9.]+:\d+\//.test(last)){const b=$('rmtWifiLast');b.hidden=false;b.onclick=()=>{location.href=last}}}catch(e){}
     $('rmtStat').onclick=()=>{subscribe();say('Reconnecting\u2026')};
     ov.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;lastScroll='';render()});
     $('rmtNext').onclick=()=>send('next');
@@ -43948,6 +43957,36 @@ document.addEventListener('visibilitychange', () => {
     t.style.fontSize=best+'px';
   }
 
+  /* Wi-Fi remote: PreCenter (desktop app) shows a QR holding http://<computer>:<port>/?pin=123456. The page it opens is served by
+     the computer itself and works with no internet. A secure page cannot open a plain ws:// link, so we open that page instead. */
+  function wifiGo(txt){
+    const t=String(txt||'').trim();
+    if(!/^http:\/\/(\d{1,3}\.){3}\d{1,3}:\d{2,5}\/\?pin=\d{6}$/.test(t))return false;
+    try{localStorage.setItem('dscLanLast',t)}catch(e){}
+    say('Connecting over Wi-Fi\u2026');location.href=t;return true;
+  }
+  async function wifiScan(){
+    if(!('BarcodeDetector' in window)||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+      const v=prompt('This phone cannot scan inside the app. Scan the QR with the phone camera, or paste the link from PreCenter (Screens \u203a Phone remote on this Wi-Fi):','');
+      if(v&&!wifiGo(v))say('That is not a PreCenter Wi-Fi link.');return;
+    }
+    let stream=null,det=null,stop=false;
+    const box=el('div','rmtScan');box.innerHTML='<video playsinline muted autoplay></video><div class="rmtScanFrame"></div><div class="rmtScanMsg">Point the camera at the QR code in PreCenter</div><button type="button" class="rmtBtn big">Cancel</button>';
+    document.body.appendChild(box);
+    const end=()=>{stop=true;try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}box.remove()};
+    box.querySelector('button').onclick=end;
+    try{
+      det=new BarcodeDetector({formats:['qr_code']});
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+      const vid=box.querySelector('video');vid.srcObject=stream;await vid.play();
+      const tick=async()=>{
+        if(stop)return;
+        try{const r=await det.detect(vid);for(const c of r){if(wifiGo(c.rawValue)){end();return}else{box.querySelector('.rmtScanMsg').textContent='That QR is not from PreCenter. Try the one in Screens \u203a Phone remote on this Wi-Fi.'}}}catch(e){}
+        setTimeout(tick,250);
+      };
+      tick();
+    }catch(e){end();say(/denied|NotAllowed/i.test(String(e&&e.name||e))?'Allow the camera to scan.':'Could not open the camera.')}
+  }
   async function keepAwake(){
     try{if('wakeLock' in navigator&&!wake){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null})}}catch(e){}
   }
@@ -43992,92 +44031,6 @@ document.addEventListener('visibilitychange', () => {
   document.addEventListener('click',e=>{
     if(e.target.closest&&e.target.closest('#remoteOpenBtn')){e.preventDefault();open()}
   });
-})();
-</script>
-
-<style id="stageLiveCss">
-#stageLiveBtn{min-width:64px;font-weight:800;letter-spacing:.04em;font-size:12px;padding:0 10px}
-#stageLiveBtn.on{background:#e8b826;color:#111;border-color:#e8b826}
-#stageLiveBtn.on::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#d92b2b;margin-right:6px;vertical-align:middle;animation:pcLiveDot 1.2s infinite}
-@keyframes pcLiveDot{50%{opacity:.25}}
-#stageStructure.pcFollow .flowLineWrap{opacity:.38;transition:opacity .25s}
-#stageStructure.pcFollow .flowLineWrap.pcLive{opacity:1;background:rgba(232,184,38,.14);border-left:4px solid #e8b826;border-radius:6px;padding-left:8px;margin-left:-12px}
-</style>
-<script id="stageLiveJs">
-/* ===== Stage mode follows PreCenter =====
-   While Stage mode (the square icon on the song page) is open, this watches presenter/{teamId} (the same
-   document the Remote tab reads). When PreCenter is showing a song that is in this phone's lineup, Stage
-   mode opens that song, highlights the lines of the slide that is live, and scrolls to them. The LIVE button
-   turns following off and on. */
-(function(){
-  let unsub=null,st=null,follow=true,subbing=false;
-  const norm=s=>String(s||'').toLowerCase().replace(/\[[^\]]*\]/g,'').replace(/[^a-z0-9À-￿]+/g,'');
-  const $=id=>document.getElementById(id);
-  function clearHL(){const r=$('stageStructure');if(!r)return;r.classList.remove('pcFollow');r.querySelectorAll('.pcLive').forEach(e=>e.classList.remove('pcLive'))}
-  function sync(){const b=$('stageLiveBtn');if(!b)return;const live=!!(st&&st.on);b.textContent=live?(follow?'LIVE':'Live off'):'No live';b.classList.toggle('on',live&&follow);b.title=live?('PreCenter: '+(st.title||'')+(st.label?' · '+st.label:'')):'PreCenter is not live'}
-  const lines=t=>String(t||'').split('\n').map(x=>x.trim()).filter(Boolean);
-  const same=(a,b)=>{if(a.length<3||b.length<3)return false;const n=Math.min(18,a.length,b.length);return a.slice(0,n)===b.slice(0,n)};
-  function highlight(){
-    const root=$('stageStructure');if(!root)return;
-    clearHL();
-    const wraps=[...root.querySelectorAll('.flowLineWrap')];
-    const ly=[];wraps.forEach((w,i)=>{const l=w.querySelector('.lyricLine');if(l)ly.push({w,i,n:norm(l.textContent)})});
-    const k=Math.max(0,st.idx|0),cards=Array.isArray(st.sl)?st.sl:[];
-    const cardLines=j=>lines(j===k?st.text:(cards[j]&&cards[j].t));
-    /* walk through the song in order so a chorus that repeats lands on the right copy */
-    let p=0,start=-1,tn=cardLines(k);
-    for(let j=0;j<=k;j++){
-      const cl=cardLines(j);if(!cl.length)continue;
-      const a=norm(cl[0]);let q=-1;for(let x=p;x<ly.length;x++)if(same(ly[x].n,a)){q=x;break}
-      if(q>=0){p=q+cl.length;if(j===k)start=q}
-    }
-    if(start<0&&tn.length){const a=norm(tn[0]);for(let x=0;x<ly.length;x++)if(same(ly[x].n,a)){start=x;break}}
-    if(start<0)return;
-    root.classList.add('pcFollow');
-    const first=[];
-    for(let x=start;x<Math.min(ly.length,start+Math.max(1,tn.length));x++){
-      ly[x].w.classList.add('pcLive');
-      const prev=wraps[ly[x].i-1];if(prev&&prev.querySelector('.chordLine'))prev.classList.add('pcLive');
-      first.push(prev&&prev.querySelector('.chordLine')?prev:ly[x].w);
-    }
-    try{if(typeof stageStopScroll==='function')stageStopScroll()}catch(e){}
-    if(first[0])first[0].scrollIntoView({block:'center',behavior:'smooth'});
-  }
-  function apply(){
-    sync();
-    if(!$('stageOverlay')||!st||!st.on||!follow||typeof currentSong==='undefined'||!currentSong){clearHL();return}
-    if(norm(st.title)!==norm(currentSong.title)){
-      let li=null;try{li=stageLineupInfo()}catch(e){}
-      const hit=li&&li.songs.find(e=>norm(e.title)===norm(st.title));
-      if(hit){goToLineupSongById(hit.id);stageRefresh();return}
-      clearHL();return;
-    }
-    highlight();
-  }
-  async function subscribe(){
-    if(unsub||subbing)return;subbing=true;
-    try{try{await firebaseReadyPromise}catch(e){}
-      if(typeof firestoreDb==='undefined'||!firestoreDb||typeof firebaseAuth==='undefined'||!firebaseAuth||!firebaseAuth.currentUser)return;
-      const team=typeof getActiveTeamId==='function'?(getActiveTeamId()||''):'';if(!team)return;
-      if(!$('stageOverlay'))return;
-      unsub=firestoreDb.collection('presenter').doc(team).onSnapshot(s=>{st=s.exists?s.data():null;apply()},()=>{});
-    }finally{subbing=false}
-  }
-  function stop(){if(unsub){try{unsub()}catch(e){}unsub=null}st=null}
-  const oOpen=window.openStageMode,oClose=window.closeStageMode,oRef=window.stageRefresh;
-  if(typeof oOpen!=='function'||typeof oRef!=='function')return;
-  window.openStageMode=function(){
-    oOpen.apply(this,arguments);
-    const top=document.querySelector('#stageOverlay .stageTop'),chords=$('stageChordsBtn');
-    if(top&&chords&&!$('stageLiveBtn')){
-      const b=document.createElement('button');b.type='button';b.id='stageLiveBtn';b.className='stageIconBtn';b.textContent='No live';
-      b.onclick=()=>{follow=!follow;if(!follow)clearHL();apply()};
-      top.insertBefore(b,chords);
-    }
-    subscribe();
-  };
-  window.stageRefresh=function(){oRef.apply(this,arguments);if(st&&st.on&&follow&&$('stageOverlay')){sync();if(norm(st.title)===norm(currentSong&&currentSong.title))highlight()}else sync()};
-  if(typeof oClose==='function')window.closeStageMode=function(){stop();return oClose.apply(this,arguments)};
 })();
 </script>
 </body>
