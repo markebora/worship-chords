@@ -9183,8 +9183,14 @@ body.songBottomHidden .annotateToolbar{
 .rmtScan video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .rmtScanFrame{position:absolute;left:50%;top:42%;width:min(70vw,300px);aspect-ratio:1;transform:translate(-50%,-50%);border:3px solid var(--accent,#E8B923);border-radius:20px;box-shadow:0 0 0 100vmax rgba(0,0,0,.45)}
 .rmtScanMsg{position:relative;color:#fff;font-weight:600;text-align:center;font-size:14px;text-shadow:0 1px 3px #000;max-width:90%}
-.rmtScan .rmtBtn{position:relative;min-width:240px}
-.rmtScan .rmtBtn.big{min-height:52px;font-size:17px}
+.rmtScan .rmtBtn{position:relative;min-width:200px}
+.rmtScanMsg.err{color:#ffb4a8}
+.rmtScanBtns{position:relative;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;width:100%}
+.rmtScanBtns .rmtBtn{min-width:0;flex:1 1 140px;max-width:220px}
+.rmtScanPaste{position:relative;display:flex;gap:8px;width:100%;max-width:440px}
+.rmtScanPaste[hidden],.rmtScan [hidden]{display:none!important}
+.rmtScanPaste input{flex:1;min-width:0;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.65);color:#fff;font-size:16px}
+.rmtScanPaste .rmtBtn{flex:0 0 auto;min-width:0}
 </style>
 </head>
 
@@ -22035,7 +22041,7 @@ function renderPads(){
         id="padsAppFrame"
         src="/pads.html"
         title="Pads"
-        allow="autoplay"
+        allow="autoplay; microphone; camera"
       ></iframe>
 
     </div>
@@ -23702,6 +23708,70 @@ function renderProfile(){
 }
 
 
+/* ---------- Permissions (camera / microphone / notifications) ---------- */
+async function permState(kind){
+  try{
+    if(kind==='notifications'){
+      const Push=(typeof getNativePush==='function')?getNativePush():null;
+      if(Push&&Push.checkPermissions){
+        const r=await Push.checkPermissions();
+        return r.receive==='granted'?'granted':(r.receive==='denied'?'denied':'prompt');
+      }
+      if('Notification' in window)return Notification.permission==='default'?'prompt':Notification.permission;
+      return 'unsupported';
+    }
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return 'unsupported';
+    if(navigator.permissions&&navigator.permissions.query){
+      const r=await navigator.permissions.query({name:kind==='camera'?'camera':'microphone'});
+      return r.state;
+    }
+  }catch(e){}
+  return 'prompt';
+}
+async function requestPermission(kind){
+  try{
+    if(kind==='notifications'){
+      const Push=(typeof getNativePush==='function')?getNativePush():null;
+      if(Push&&Push.requestPermissions){const r=await Push.requestPermissions();return r.receive==='granted'?'granted':'denied'}
+      if('Notification' in window){const r=await Notification.requestPermission();return r==='default'?'prompt':r}
+      return 'unsupported';
+    }
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return 'unsupported';
+    const st=await navigator.mediaDevices.getUserMedia(kind==='camera'?{video:{facingMode:'environment'}}:{audio:true});
+    st.getTracks().forEach(t=>t.stop());
+    return 'granted';
+  }catch(e){
+    return /NotFound/i.test(String(e&&e.name))?'unsupported':'denied';
+  }
+}
+const PERM_LABELS={camera:'Camera',microphone:'Microphone',notifications:'Notifications'};
+const PERM_HINTS={camera:'Scan the Remote QR code',microphone:'Audio input and sound features',notifications:'Song and lineup reminders'};
+async function refreshPermissionRows(){
+  for(const k of ['camera','microphone','notifications']){
+    const row=document.querySelector('[data-perm-row="'+k+'"]');if(!row)continue;
+    const st=await permState(k);
+    const lab=row.querySelector('[data-perm-state]'),btn=row.querySelector('button');
+    if(lab)lab.textContent=st==='granted'?'Allowed':st==='denied'?'Blocked':st==='unsupported'?'Not available':'Not asked yet';
+    if(btn){btn.hidden=(st==='granted'||st==='unsupported');btn.textContent=st==='denied'?'How to enable':'Allow'}
+  }
+}
+function bindPermissionRows(){
+  document.querySelectorAll('[data-perm-row] button').forEach(btn=>{
+    btn.onclick=async()=>{
+      const k=btn.closest('[data-perm-row]').getAttribute('data-perm-row');
+      const before=await permState(k);
+      if(before==='denied'){
+        showToast('Open Settings \u203a Apps \u203a this app \u203a Permissions and allow '+PERM_LABELS[k]+'.','info');
+        return;
+      }
+      const r=await requestPermission(k);
+      showToast(PERM_LABELS[k]+(r==='granted'?' allowed.':' was not allowed.'),r==='granted'?'success':'error');
+      refreshPermissionRows();
+    };
+  });
+  refreshPermissionRows();
+}
+
 function renderProfileSettings(){
 
   recordNavHistory('profileSettings');
@@ -23900,6 +23970,26 @@ function renderProfileSettings(){
       <div class="profileSection">
 
         <div class="sectionLabel">
+          Permissions
+        </div>
+
+        <div class="settingsCard">
+          ${['camera','microphone','notifications'].map(k=>`
+            <div class="settingsRow" data-perm-row="${k}">
+              <div>
+                <div class="settingsRowLabel">${PERM_LABELS[k]}</div>
+                <div class="settingsRowSub"><span data-perm-state>Checking\u2026</span> \u00b7 ${PERM_HINTS[k]}</div>
+              </div>
+              <button class="toolbarBtn" type="button">Allow</button>
+            </div>
+          `).join('')}
+        </div>
+
+      </div>
+
+      <div class="profileSection">
+
+        <div class="sectionLabel">
           Data
         </div>
 
@@ -24002,6 +24092,8 @@ function renderProfileSettings(){
 
   };
 
+
+  bindPermissionRows();
 
   /* ---------- Notifications ---------- */
 
@@ -34601,7 +34693,7 @@ async function openSharedLineupLink(url){
   try{
 
     const response =
-      await fetch('/api/lineup-share?token=' + encodeURIComponent(token), { cache:'no-store' });
+      await fetch(API_BASE_URL + '/api/lineup-share?token=' + encodeURIComponent(token), { cache:'no-store' });
 
     const data = await response.json().catch(() => ({}));
 
@@ -44218,68 +44310,121 @@ window.dscQrDecode=function(img){
     try{localStorage.setItem('dscLanLast',t)}catch(e){}
     say('Connecting over Wi-Fi\u2026');location.href=t;return true;
   }
-  function wifiManual(){
-    /* typed fallback: computer address (as shown in PreCenter) and the 6-digit PIN */
-    const last=(function(){try{return localStorage.getItem('dscLanLast')||''}catch(e){return ''}})();
-    const m=last.match(/^http:\/\/([\d.]+:\d+)\/\?pin=(\d{6})$/);
-    const ad=prompt('Computer address shown in PreCenter, for example 192.168.1.175:8765',m?m[1]:'');
-    if(!ad)return;
-    const pin=prompt('6-digit PIN shown in PreCenter','');
-    if(!pin)return;
-    const addr=ad.trim().replace(/^https?:\/\//,'').replace(/\/.*$/,'');
-    const full='http://'+(/:\d+$/.test(addr)?addr:addr+':8765')+'/?pin='+pin.trim();
-    if(!wifiGo(full))say('That address or PIN does not look right.');
+  /* Scans the QR code PreCenter shows. It never closes by itself: when something goes wrong it says what, and offers
+     "Try again", "Paste the link" and "Cancel". Works with the phone's built-in QR reader (BarcodeDetector) and, where
+     the phone has none, with the jsQR library loaded when needed. */
+  function loadJsQR(){
+    return new Promise(res=>{
+      if(window.jsQR)return res(window.jsQR);
+      const urls=['https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js','https://unpkg.com/jsqr@1.4.0/dist/jsQR.js'];
+      const next=()=>{
+        const u=urls.shift();if(!u){if(typeof window.dscQrDecode==='function'){window.jsQR=(d,w,h)=>{const x=window.dscQrDecode({data:d,width:w,height:h});return x?{data:x}:null};return res(window.jsQR)}return res(null)}
+        const sc=document.createElement('script');sc.src=u;sc.onload=()=>res(window.jsQR||null);sc.onerror=()=>{sc.remove();next()};document.head.appendChild(sc);
+      };next();
+    });
   }
   async function wifiScan(){
-    const md=navigator.mediaDevices;
-    if(!md||!md.getUserMedia){wifiManual();return}
-    let stream=null,det=null,stop=false,timer=0;
     const box=el('div','rmtScan');
-    box.innerHTML='<video playsinline muted autoplay></video><div class="rmtScanFrame"></div><div class="rmtScanMsg">Starting camera…</div><button type="button" class="rmtBtn" data-t>Type address and PIN instead</button><button type="button" class="rmtBtn big" data-c>Cancel</button>';
+    box.innerHTML='<video playsinline muted autoplay></video><div class="rmtScanFrame"></div><div class="rmtScanMsg">Starting the camera\u2026</div>'
+      +'<div class="rmtScanPaste" hidden><input type="url" inputmode="url" autocomplete="off" placeholder="http://192.168.1.5:8080/?pin=123456"><button type="button" class="rmtBtn" data-a="open">Open</button></div>'
+      +'<div class="rmtScanBtns"><button type="button" class="rmtBtn" data-a="retry" hidden>Try again</button><button type="button" class="rmtBtn" data-a="photo">Take a photo of the QR</button><button type="button" class="rmtBtn" data-a="paste">Paste the link</button><button type="button" class="rmtBtn big" data-a="cancel">Cancel</button></div>'
+      +'<input type="file" accept="image/*" capture="environment" hidden data-a="file">';
     document.body.appendChild(box);
-    const msg=t=>{const m=box.querySelector('.rmtScanMsg');if(m)m.textContent=t};
-    const end=()=>{stop=true;clearTimeout(timer);try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}box.remove()};
-    box.querySelector('[data-c]').onclick=end;
-    box.querySelector('[data-t]').onclick=()=>{end();wifiManual()};
-    try{
-      if('BarcodeDetector' in window){
+    const vid=box.querySelector('video'),msgEl=box.querySelector('.rmtScanMsg'),pasteRow=box.querySelector('.rmtScanPaste'),inp=pasteRow.querySelector('input'),btn=a=>box.querySelector('[data-a="'+a+'"]');
+    const msg=(t,err)=>{msgEl.textContent=t;msgEl.classList.toggle('err',!!err)};
+    let stream=null,stop=false,timer=0,runId=0,R=null;
+    /* the reader: the phone's own, or jsQR (loaded the first time it is needed) */
+    const reader=async()=>{
+      if(R)return R;let det=null,jsq=null;
+      try{if('BarcodeDetector' in window){const f=BarcodeDetector.getSupportedFormats?await BarcodeDetector.getSupportedFormats():['qr_code'];if(!f||f.includes('qr_code'))det=new BarcodeDetector({formats:['qr_code']})}}catch(e){det=null}
+      if(!det)jsq=await loadJsQR();
+      return R=(det||jsq)?{det,jsq}:null;
+    };
+    /* read a QR from a picture (a photo taken with the phone's Camera app: this needs no camera permission for this app) */
+    const readPhoto=async file=>{
+      let bmp=null;try{bmp=await createImageBitmap(file)}catch(e){}
+      if(!bmp){bmp=await new Promise((ok,no)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{URL.revokeObjectURL(u);ok(im)};im.onerror=()=>no(new Error('picture could not be read'));im.src=u})}
+      const w0=bmp.width||bmp.naturalWidth,h0=bmp.height||bmp.naturalHeight,rd=await reader();if(!rd)return{err:'noreader'};
+      for(const maxW of [1600,900,500]){
+        const k=Math.min(1,maxW/w0),cv=document.createElement('canvas');cv.width=Math.round(w0*k);cv.height=Math.round(h0*k);
+        const cx=cv.getContext('2d',{willReadFrequently:true});cx.drawImage(bmp,0,0,cv.width,cv.height);
         try{
-          const f=BarcodeDetector.getSupportedFormats?await BarcodeDetector.getSupportedFormats():['qr_code'];
-          if(f.indexOf('qr_code')>=0)det=new BarcodeDetector({formats:['qr_code']});
-        }catch(e){det=null}
-      }
-      if(!det&&typeof window.dscQrDecode!=='function'){end();wifiManual();return}
-      try{stream=await md.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280}},audio:false})}
-      catch(e){stream=await md.getUserMedia({video:true,audio:false})}
-      if(stop){stream.getTracks().forEach(t=>t.stop());return}
-      const vid=box.querySelector('video');vid.srcObject=stream;
-      try{await vid.play()}catch(e){}
-      msg('Point the camera at the QR code in PreCenter');
-      const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});
-      const found=raw=>{
-        if(wifiGo(raw)){end();return true}
-        msg('That QR is not from PreCenter. Use the one in Screens › Phone remote on this Wi-Fi.');return false;
-      };
-      const tick=async()=>{
-        if(stop)return;
-        try{
-          if(vid.videoWidth>0){
-            if(det){const r=await det.detect(vid);for(const c of r){if(found(c.rawValue))return}}
-            else{
-              const w=Math.min(640,vid.videoWidth),h=Math.round(vid.videoHeight*w/vid.videoWidth);
-              cv.width=w;cv.height=h;cx.drawImage(vid,0,0,w,h);
-              const t=window.dscQrDecode(cx.getImageData(0,0,w,h));
-              if(t&&found(t))return;
-            }
-          }
+          if(rd.det){const r=await rd.det.detect(cv);if(r&&r[0])return{val:r[0].rawValue}}
+          else{const d=cx.getImageData(0,0,cv.width,cv.height),r=rd.jsq(d.data,d.width,d.height,{inversionAttempts:'attemptBoth'});if(r)return{val:r.data}}
         }catch(e){}
-        timer=setTimeout(tick,det?200:250);
+      }
+      return{val:''};
+    };
+    const stopCam=()=>{clearTimeout(timer);try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}stream=null;try{vid.srcObject=null}catch(e){}};
+    const end=()=>{stop=true;runId++;stopCam();box.remove()};
+    const bad=e=>{
+      const n=String(e&&e.name||''),m=String(e&&e.message||e||'');
+      if(/NotAllowed|Security/i.test(n))return (window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()
+        ?'This version of the app has no camera permission, so Android cannot ask for it (the app needs an update). '
+        :'The camera is blocked. Allow it for this app in the phone settings (Settings \u203a Apps \u203a this app \u203a Permissions), then tap Try again. ')
+        +'You can still tap Take a photo of the QR, or scan it with the phone\u2019s own Camera app.';
+      if(/NotFound|DevicesNotFound/i.test(n))return 'No camera was found on this phone.';
+      if(/NotReadable|TrackStart/i.test(n))return 'The camera is being used by another app. Close it, then tap Try again.';
+      return 'Could not start the camera ('+(n||'error')+(m?': '+m:'')+'). Tap Try again, or paste the link.';
+    };
+    const submit=v=>{if(wifiGo(v)){end();return true}return false};
+    box.onclick=e=>{                                   /* the phone may need one tap before it lets the camera picture start */
+      const b=e.target.closest&&e.target.closest('button');
+      if(!b){if(vid.srcObject&&vid.paused)vid.play().catch(()=>{});return}
+      const a=b.dataset.a;
+      if(a==='cancel')end();
+      else if(a==='retry')start();
+      else if(a==='photo'){const f=box.querySelector('[data-a="file"]');f.value='';f.click()}
+      else if(a==='paste'){pasteRow.hidden=!pasteRow.hidden;if(!pasteRow.hidden){stopCam();msg('Paste the link shown in PreCenter (Screens \u203a Phone remote on this Wi-Fi).');inp.focus()}else start()}
+      else if(a==='open'){if(!submit(inp.value.trim()))msg('That is not a PreCenter Wi-Fi link. It looks like http://192.168.1.5:8080/?pin=123456',true)}
+    };
+    box.querySelector('[data-a="file"]').onchange=async e=>{
+      const f=e.target.files&&e.target.files[0];if(!f)return;
+      stopCam();pasteRow.hidden=true;msg('Reading the photo\u2026');
+      try{
+        const r=await readPhoto(f);
+        if(r.err==='noreader')msg('This phone has no QR reader built in and the reader could not be loaded (no internet?). Scan the QR with the phone\u2019s own Camera app instead, or tap Paste the link.',true);
+        else if(r.val){if(!submit(r.val))msg('That QR is not from PreCenter. Use the one in Screens \u203a Phone remote on this Wi-Fi.',true)}
+        else msg('No QR code was found in that photo. Hold the phone closer so the QR fills most of the picture, and take it again.',true);
+      }catch(er){msg('Could not read that photo ('+(er&&er.message||er)+'). Try again.',true)}
+      btn('retry').hidden=false;
+    };
+    inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();btn('open').click()}};
+
+    async function start(){
+      const my=++runId;stopCam();btn('retry').hidden=true;pasteRow.hidden=true;msg('Starting the camera\u2026');
+      if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){msg('This phone cannot open the live camera here. Tap Take a photo of the QR, scan it with the phone\u2019s own Camera app, or tap Paste the link.',true);btn('retry').hidden=true;return}
+      let err=null;
+      for(const c of [{video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false},{video:{facingMode:'environment'},audio:false},{video:true,audio:false}]){
+        try{stream=await navigator.mediaDevices.getUserMedia(c);err=null;break}catch(e){err=e;if(/NotAllowed|Security|NotFound/i.test(String(e&&e.name)))break}
+      }
+      if(my!==runId){try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}return}
+      if(!stream){msg(bad(err),true);btn('retry').hidden=false;return}
+      vid.muted=true;vid.setAttribute('muted','');vid.setAttribute('playsinline','');vid.srcObject=stream;
+      try{await vid.play()}catch(e){msg('Tap the screen to start the camera.')}          /* blocked until a tap: wait, do not give up */
+      if(!R&&!('BarcodeDetector' in window))msg('Loading the QR reader\u2026');
+      const rd=await reader();if(my!==runId)return;
+      if(!rd){msg('This phone has no QR reader built in and the reader could not be loaded (no internet?). Take a photo of the QR, scan it with the phone\u2019s own Camera app, or tap Paste the link.',true);btn('retry').hidden=false;return}
+      let det=rd.det,jsq=rd.jsq;
+      msg(vid.paused?'Tap the screen to start the camera.':'Point the camera at the QR code in PreCenter');
+      const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});let fails=0;
+      const tick=async()=>{
+        if(stop||my!==runId)return;
+        try{
+          if(vid.readyState>=2&&vid.videoWidth&&!vid.paused){
+            if(/^Tap the screen/.test(msgEl.textContent))msg('Point the camera at the QR code in PreCenter');
+            let val='';
+            if(det){const r=await det.detect(vid);if(r&&r[0])val=r[0].rawValue}
+            else{const k=Math.min(1,640/vid.videoWidth);cv.width=Math.round(vid.videoWidth*k);cv.height=Math.round(vid.videoHeight*k);cx.drawImage(vid,0,0,cv.width,cv.height);const d=cx.getImageData(0,0,cv.width,cv.height),r=jsq(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});if(r)val=r.data}
+            fails=0;
+            if(val){if(submit(val))return;msg('That QR is not from PreCenter. Use the one in Screens \u203a Phone remote on this Wi-Fi.',true)}
+          }
+        }catch(e){if(det&&++fails>=10){det=null;jsq=await loadJsQR();if(!jsq){msg('The phone\u2019s QR reader is not working and the other reader could not be loaded. Tap Paste the link.',true);btn('retry').hidden=false;return}}}
+        timer=setTimeout(tick,200);
       };
       tick();
-    }catch(e){
-      const n=String(e&&e.name||e);
-      msg(/denied|NotAllowed|Permission/i.test(n)?'Camera is blocked. Allow the camera for this site in your browser settings, or type the address instead.':'Could not open the camera ('+n+'). You can type the address instead.');
     }
+    start();
   }
   async function keepAwake(){
     try{if('wakeLock' in navigator&&!wake){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null})}}catch(e){}
