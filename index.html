@@ -9139,6 +9139,9 @@ body.songBottomHidden .annotateToolbar{
 .rmtTabs button{flex:1;padding:7px 4px;font-size:13px}
 .rmtStat{margin-left:0;flex:none;width:12px;height:12px;min-width:12px;padding:0;border-radius:50%;background:#8a8a93;font-size:0;color:transparent;max-width:none}
 .rmtStat.ok{background:#30d158}.rmtStat.warn{background:#ff9f0a}.rmtStat.bad{background:#ff453a}
+.rmtConn{flex:none;font-size:11px;font-weight:700;padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.08);color:#cfcfd4;white-space:nowrap}
+.rmtConn.lan{background:rgba(48,209,88,.18);color:#6ee08a}
+.rmtConn.cloud{background:rgba(255,159,10,.18);color:#ffb340}
 .rmtTop{flex:none;padding:8px 12px 10px;background:#0b0b0c;border-bottom:1px solid rgba(255,255,255,.10)}
 .rmtTop[hidden]{display:none!important}
 .rmtTop .rmtTitle{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -9180,14 +9183,8 @@ body.songBottomHidden .annotateToolbar{
 .rmtScan video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .rmtScanFrame{position:absolute;left:50%;top:42%;width:min(70vw,300px);aspect-ratio:1;transform:translate(-50%,-50%);border:3px solid var(--accent,#E8B923);border-radius:20px;box-shadow:0 0 0 100vmax rgba(0,0,0,.45)}
 .rmtScanMsg{position:relative;color:#fff;font-weight:600;text-align:center;font-size:14px;text-shadow:0 1px 3px #000;max-width:90%}
-.rmtScan .rmtBtn{position:relative;min-width:200px}
-.rmtScanMsg.err{color:#ffb4a8}
-.rmtScanBtns{position:relative;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;width:100%}
-.rmtScanBtns .rmtBtn{min-width:0;flex:1 1 140px;max-width:220px}
-.rmtScanPaste{position:relative;display:flex;gap:8px;width:100%;max-width:440px}
-.rmtScanPaste[hidden],.rmtScan [hidden]{display:none!important}
-.rmtScanPaste input{flex:1;min-width:0;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.65);color:#fff;font-size:16px}
-.rmtScanPaste .rmtBtn{flex:0 0 auto;min-width:0}
+.rmtScan .rmtBtn{position:relative;min-width:240px}
+.rmtScan .rmtBtn.big{min-height:52px;font-size:17px}
 </style>
 </head>
 
@@ -22038,7 +22035,7 @@ function renderPads(){
         id="padsAppFrame"
         src="/pads.html"
         title="Pads"
-        allow="autoplay; microphone; camera"
+        allow="autoplay"
       ></iframe>
 
     </div>
@@ -23705,70 +23702,6 @@ function renderProfile(){
 }
 
 
-/* ---------- Permissions (camera / microphone / notifications) ---------- */
-async function permState(kind){
-  try{
-    if(kind==='notifications'){
-      const Push=(typeof getNativePush==='function')?getNativePush():null;
-      if(Push&&Push.checkPermissions){
-        const r=await Push.checkPermissions();
-        return r.receive==='granted'?'granted':(r.receive==='denied'?'denied':'prompt');
-      }
-      if('Notification' in window)return Notification.permission==='default'?'prompt':Notification.permission;
-      return 'unsupported';
-    }
-    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return 'unsupported';
-    if(navigator.permissions&&navigator.permissions.query){
-      const r=await navigator.permissions.query({name:kind==='camera'?'camera':'microphone'});
-      return r.state;
-    }
-  }catch(e){}
-  return 'prompt';
-}
-async function requestPermission(kind){
-  try{
-    if(kind==='notifications'){
-      const Push=(typeof getNativePush==='function')?getNativePush():null;
-      if(Push&&Push.requestPermissions){const r=await Push.requestPermissions();return r.receive==='granted'?'granted':'denied'}
-      if('Notification' in window){const r=await Notification.requestPermission();return r==='default'?'prompt':r}
-      return 'unsupported';
-    }
-    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return 'unsupported';
-    const st=await navigator.mediaDevices.getUserMedia(kind==='camera'?{video:{facingMode:'environment'}}:{audio:true});
-    st.getTracks().forEach(t=>t.stop());
-    return 'granted';
-  }catch(e){
-    return /NotFound/i.test(String(e&&e.name))?'unsupported':'denied';
-  }
-}
-const PERM_LABELS={camera:'Camera',microphone:'Microphone',notifications:'Notifications'};
-const PERM_HINTS={camera:'Scan the Remote QR code',microphone:'Audio input and sound features',notifications:'Song and lineup reminders'};
-async function refreshPermissionRows(){
-  for(const k of ['camera','microphone','notifications']){
-    const row=document.querySelector('[data-perm-row="'+k+'"]');if(!row)continue;
-    const st=await permState(k);
-    const lab=row.querySelector('[data-perm-state]'),btn=row.querySelector('button');
-    if(lab)lab.textContent=st==='granted'?'Allowed':st==='denied'?'Blocked':st==='unsupported'?'Not available':'Not asked yet';
-    if(btn){btn.hidden=(st==='granted'||st==='unsupported');btn.textContent=st==='denied'?'How to enable':'Allow'}
-  }
-}
-function bindPermissionRows(){
-  document.querySelectorAll('[data-perm-row] button').forEach(btn=>{
-    btn.onclick=async()=>{
-      const k=btn.closest('[data-perm-row]').getAttribute('data-perm-row');
-      const before=await permState(k);
-      if(before==='denied'){
-        showToast('Open Settings \u203a Apps \u203a this app \u203a Permissions and allow '+PERM_LABELS[k]+'.','info');
-        return;
-      }
-      const r=await requestPermission(k);
-      showToast(PERM_LABELS[k]+(r==='granted'?' allowed.':' was not allowed.'),r==='granted'?'success':'error');
-      refreshPermissionRows();
-    };
-  });
-  refreshPermissionRows();
-}
-
 function renderProfileSettings(){
 
   recordNavHistory('profileSettings');
@@ -23967,26 +23900,6 @@ function renderProfileSettings(){
       <div class="profileSection">
 
         <div class="sectionLabel">
-          Permissions
-        </div>
-
-        <div class="settingsCard">
-          ${['camera','microphone','notifications'].map(k=>`
-            <div class="settingsRow" data-perm-row="${k}">
-              <div>
-                <div class="settingsRowLabel">${PERM_LABELS[k]}</div>
-                <div class="settingsRowSub"><span data-perm-state>Checking\u2026</span> \u00b7 ${PERM_HINTS[k]}</div>
-              </div>
-              <button class="toolbarBtn" type="button">Allow</button>
-            </div>
-          `).join('')}
-        </div>
-
-      </div>
-
-      <div class="profileSection">
-
-        <div class="sectionLabel">
           Data
         </div>
 
@@ -24089,8 +24002,6 @@ function renderProfileSettings(){
 
   };
 
-
-  bindPermissionRows();
 
   /* ---------- Notifications ---------- */
 
@@ -34690,7 +34601,7 @@ async function openSharedLineupLink(url){
   try{
 
     const response =
-      await fetch(API_BASE_URL + '/api/lineup-share?token=' + encodeURIComponent(token), { cache:'no-store' });
+      await fetch('/api/lineup-share?token=' + encodeURIComponent(token), { cache:'no-store' });
 
     const data = await response.json().catch(() => ({}));
 
@@ -43667,6 +43578,240 @@ document.addEventListener('visibilitychange', () => {
 });
 </script>
 
+<script id="qrDecodeJs">
+/* Small QR code reader (byte, numeric and alphanumeric modes, versions 1-10, all error levels). Used when the phone's browser has no QR scanner of its own. */
+(function(){
+'use strict';
+var RS=[[[[1,26,19]],[[1,26,16]],[[1,26,13]],[[1,26,9]]],[[[1,44,34]],[[1,44,28]],[[1,44,22]],[[1,44,16]]],[[[1,70,55]],[[1,70,44]],[[2,35,17]],[[2,35,13]]],[[[1,100,80]],[[2,50,32]],[[2,50,24]],[[4,25,9]]],[[[1,134,108]],[[2,67,43]],[[2,33,15],[2,34,16]],[[2,33,11],[2,34,12]]],[[[2,86,68]],[[4,43,27]],[[4,43,19]],[[4,43,15]]],[[[2,98,78]],[[4,49,31]],[[2,32,14],[4,33,15]],[[4,39,13],[1,40,14]]],[[[2,121,97]],[[2,60,38],[2,61,39]],[[4,40,18],[2,41,19]],[[4,40,14],[2,41,15]]],[[[2,146,116]],[[3,58,36],[2,59,37]],[[4,36,16],[4,37,17]],[[4,36,12],[4,37,13]]],[[[2,86,68],[2,87,69]],[[4,69,43],[1,70,44]],[[6,43,19],[2,44,20]],[[6,43,15],[2,44,16]]]];
+var ALIGN=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50]];
+var EXP=new Uint8Array(512),LOG=new Uint8Array(256);
+(function(){var x=1,i;for(i=0;i<255;i++){EXP[i]=x;LOG[x]=i;x<<=1;if(x&256)x^=0x11d}for(i=255;i<512;i++)EXP[i]=EXP[i-255]})();
+function mul(a,b){return a&&b?EXP[LOG[a]+LOG[b]]:0}
+function inv(a){return EXP[255-LOG[a]]}
+function xorPoly(a,b){var n=Math.max(a.length,b.length),o=new Array(n),i;for(i=0;i<n;i++)o[i]=(a[i]||0)^(b[i]||0);return o}
+/* Reed-Solomon: fixes damaged codewords (cw = data followed by nsym check symbols) */
+function rsCorrect(cw,nsym){
+  var n=cw.length,S=new Array(nsym),bad=false,i,j;
+  for(i=0;i<nsym;i++){var s=0;for(j=0;j<n;j++)s=mul(s,EXP[i])^cw[j];S[i]=s;if(s)bad=true}
+  if(!bad)return cw;
+  var C=[1],B=[1],L=0,m=1,b=1,nn;
+  for(nn=0;nn<nsym;nn++){
+    var d=S[nn];for(i=1;i<=L;i++)d^=mul(C[i]||0,S[nn-i]);
+    if(d===0){m++;continue}
+    var coef=mul(d,inv(b)),sh=[],k;for(k=0;k<m;k++)sh.push(0);B.forEach(function(x){sh.push(mul(x,coef))});
+    if(2*L<=nn){var T=C.slice();C=xorPoly(C,sh);L=nn+1-L;B=T;b=d;m=1}else{C=xorPoly(C,sh);m++}
+  }
+  if(L>nsym/2)return null;
+  var pos=[];
+  for(j=0;j<n;j++){var xi=EXP[(255-((n-1-j)%255))%255],v=0,pw=1;for(i=0;i<=L;i++){v^=mul(C[i]||0,pw);pw=mul(pw,xi)}if(v===0)pos.push(j)}
+  if(pos.length!==L)return null;
+  var om=new Array(nsym).fill(0),k2;
+  for(i=0;i<nsym;i++)for(k2=0;k2<=L&&k2<=i;k2++)om[i]^=mul(S[i-k2],C[k2]||0);
+  var out=cw.slice();
+  for(var q=0;q<pos.length;q++){
+    j=pos[q];var X=EXP[(n-1-j)%255],xi2=inv(X),o=0,pw2=1;
+    for(i=0;i<nsym;i++){o^=mul(om[i],pw2);pw2=mul(pw2,xi2)}
+    var ld=0,pw3=1,x2=mul(xi2,xi2);for(i=1;i<=L;i+=2){ld^=mul(C[i]||0,pw3);pw3=mul(pw3,x2)}
+    if(!ld)return null;
+    out[j]^=mul(mul(X,o),inv(ld));
+  }
+  for(i=0;i<nsym;i++){var s2=0;for(j=0;j<n;j++)s2=mul(s2,EXP[i])^out[j];if(s2)return null}
+  return out;
+}
+/* black and white picture, judged against the brightness around each pixel */
+function binarize(img){
+  var w=img.width,h=img.height,px=img.data,g=new Uint8Array(w*h),i;
+  for(i=0;i<w*h;i++)g[i]=(77*px[i*4]+150*px[i*4+1]+29*px[i*4+2])>>8;
+  var W=w+1,I=new Float64Array(W*(h+1)),x,y;
+  for(y=0;y<h;y++){var row=0;for(x=0;x<w;x++){row+=g[y*w+x];I[(y+1)*W+x+1]=I[y*W+x+1]+row}}
+  var r=Math.max(6,Math.floor(Math.min(w,h)/14)),bw=new Uint8Array(w*h);
+  for(y=0;y<h;y++){var y0=Math.max(0,y-r),y1=Math.min(h,y+r+1);
+    for(x=0;x<w;x++){var x0=Math.max(0,x-r),x1=Math.min(w,x+r+1),n=(x1-x0)*(y1-y0),sum=I[y1*W+x1]-I[y0*W+x1]-I[y1*W+x0]+I[y0*W+x0];
+      bw[y*w+x]=g[y*w+x]*n<sum*0.9?1:0}}
+  return bw;
+}
+function near(a,b,t){return Math.abs(a-b)<=t}
+/* one direction: starting from a dark pixel, lengths of the dark/light/dark run pattern to each side */
+function walk(bw,w,h,x,y,dx,dy){
+  var runs=[0,0,0],st=1,i=0;
+  while(i<3){var xx=x+dx*(runs[0]+runs[1]+runs[2]+(i===0?0:0)),yy=0;break}
+  /* simple walker */
+  var cx=x,cy=y,col=1,idx=0;runs=[0,0,0];
+  while(cx>=0&&cy>=0&&cx<w&&cy<h&&idx<3){
+    if(bw[cy*w+cx]===col){runs[idx]++}else{idx++;col=col?0:1;if(idx<3)runs[idx]=1}
+    cx+=dx;cy+=dy;
+  }
+  return runs;
+}
+function findFinders(bw,w,h){
+  var cands=[],y,x;
+  for(y=0;y<h;y++){
+    var runs=[],starts=[],cur=bw[y*w],len=0,start=0;
+    for(x=0;x<w;x++){if(bw[y*w+x]===cur)len++;else{runs.push(len);starts.push(start);cur=bw[y*w+x];start=x;len=1}}
+    runs.push(len);starts.push(start);
+    var firstDark=bw[y*w]===1?0:1;
+    for(var i=firstDark;i+4<runs.length;i+=2){
+      var a=runs[i],b=runs[i+1],c=runs[i+2],d=runs[i+3],e=runs[i+4],tot=a+b+c+d+e,m=tot/7;
+      if(tot<14||m<1.5)continue;
+      if(!(near(a,m,m*0.6)&&near(b,m,m*0.6)&&near(c,3*m,m*1.2)&&near(d,m,m*0.6)&&near(e,m,m*0.6)))continue;
+      var cx=starts[i]+tot/2;
+      /* check the same pattern going up and down through the middle */
+      var xi=Math.round(cx),up=walk(bw,w,h,xi,y,0,-1),dn=walk(bw,w,h,xi,y+1,0,1);
+      /* dn starts on the next pixel: it belongs to the centre run as well, if dark */
+      var cu=up[0],cd=bw[(y+1)*w+xi]===1?dn[0]:0;
+      var lu=up[1],du=up[2],ld,dd;
+      if(cd===0){continue}
+      ld=dn[1];dd=dn[2];
+      var cen=cu+cd,mm=(cen/3+lu+du+ld+dd)/5;
+      if(!(near(lu,mm,mm*0.7)&&near(du,mm,mm*0.7)&&near(ld,mm,mm*0.7)&&near(dd,mm,mm*0.7)&&near(cen,3*mm,mm*1.4)))continue;
+      var cy=y-cu+1+cen/2;
+      var found=false;
+      for(var k=0;k<cands.length;k++){var q=cands[k];if(Math.abs(q.x-cx)<m*2.5&&Math.abs(q.y-cy)<m*2.5&&near(q.m,mm,mm*0.6)){q.x=(q.x*q.n+cx)/(q.n+1);q.y=(q.y*q.n+cy)/(q.n+1);q.m=(q.m*q.n+mm)/(q.n+1);q.n++;found=true;break}}
+      if(!found)cands.push({x:cx,y:cy,m:mm,n:1});
+    }
+  }
+  return cands.filter(function(c){return c.n>=2}).sort(function(a,b){return b.n-a.n}).slice(0,9);
+}
+function pickTriple(c){
+  var best=null,i,j,k,p;
+  for(i=0;i<c.length;i++)for(j=i+1;j<c.length;j++)for(k=j+1;k<c.length;k++){
+    var t=[c[i],c[j],c[k]],ms=t.map(function(q){return q.m});
+    if(Math.max.apply(0,ms)/Math.min.apply(0,ms)>1.6)continue;
+    for(p=0;p<3;p++){
+      var A=t[p],B=t[(p+1)%3],C=t[(p+2)%3],ab=Math.hypot(B.x-A.x,B.y-A.y),ac=Math.hypot(C.x-A.x,C.y-A.y);
+      if(ab<1||ac<1)continue;
+      var dot=((B.x-A.x)*(C.x-A.x)+(B.y-A.y)*(C.y-A.y))/(ab*ac),rat=Math.min(ab,ac)/Math.max(ab,ac);
+      if(Math.abs(dot)>0.35||rat<0.7)continue;
+      var sc=Math.abs(dot)*2+(1-rat)+(1/(A.n+B.n+C.n));
+      if(!best||sc<best.sc)best={sc:sc,A:A,B:B,C:C};
+    }
+  }
+  if(!best)return null;
+  var A2=best.A,B2=best.B,C2=best.C,cross=(B2.x-A2.x)*(C2.y-A2.y)-(B2.y-A2.y)*(C2.x-A2.x);
+  return cross>0?{tl:A2,tr:B2,bl:C2}:{tl:A2,tr:C2,bl:B2};
+}
+/* maps module coordinates to picture coordinates from 4 point pairs */
+function homography(s,d){
+  var M=[],i,j,k;
+  for(i=0;i<4;i++){
+    M.push([s[i][0],s[i][1],1,0,0,0,-d[i][0]*s[i][0],-d[i][0]*s[i][1],d[i][0]]);
+    M.push([0,0,0,s[i][0],s[i][1],1,-d[i][1]*s[i][0],-d[i][1]*s[i][1],d[i][1]]);
+  }
+  for(i=0;i<8;i++){
+    var p=i;for(j=i+1;j<8;j++)if(Math.abs(M[j][i])>Math.abs(M[p][i]))p=j;
+    var t=M[i];M[i]=M[p];M[p]=t;
+    if(Math.abs(M[i][i])<1e-12)return null;
+    for(j=0;j<8;j++)if(j!==i){var f=M[j][i]/M[i][i];for(k=i;k<9;k++)M[j][k]-=f*M[i][k]}
+  }
+  var h=[];for(i=0;i<8;i++)h.push(M[i][8]/M[i][i]);
+  return function(x,y){var z=h[6]*x+h[7]*y+1;return[(h[0]*x+h[1]*y+h[2])/z,(h[3]*x+h[4]*y+h[5])/z]};
+}
+function dark(bw,w,h,x,y){x=Math.round(x);y=Math.round(y);return x>=0&&y>=0&&x<w&&y<h?bw[y*w+x]:0}
+function alignScore(bw,w,h,cx,cy,m){
+  var s=0,dx,dy;
+  for(dy=-2;dy<=2;dy++)for(dx=-2;dx<=2;dx++){
+    var want=Math.max(Math.abs(dx),Math.abs(dy))===1?0:1;
+    if(dark(bw,w,h,cx+dx*m,cy+dy*m)===want)s++;
+  }
+  return s;
+}
+var FMT=[];
+(function(){for(var d=0;d<32;d++){var v=d<<10,r=v;while(bl(r)>=11)r^=0x537<<(bl(r)-11);FMT.push(((d<<10)|r)^0x5412)}function bl(x){var n=0;while(x){n++;x>>=1}return n}})();
+function pop(x){var n=0;while(x){n+=x&1;x>>=1}return n}
+function fnMask(v,dim){
+  var f=[],r,c,i,j;for(r=0;r<dim;r++)f.push(new Uint8Array(dim));
+  function box(r0,c0,r1,c1){for(var a=r0;a<=r1;a++)for(var b=c0;b<=c1;b++)if(a>=0&&b>=0&&a<dim&&b<dim)f[a][b]=1}
+  box(0,0,8,8);box(0,dim-8,8,dim-1);box(dim-8,0,dim-1,8);
+  for(i=0;i<dim;i++){f[6][i]=1;f[i][6]=1}
+  if(v>=2){var al=ALIGN[v-1];for(i=0;i<al.length;i++)for(j=0;j<al.length;j++){
+    if((i===0&&j===0)||(i===0&&j===al.length-1)||(i===al.length-1&&j===0))continue;
+    box(al[i]-2,al[j]-2,al[i]+2,al[j]+2)}}
+  if(v>=7){box(0,dim-11,5,dim-9);box(dim-11,0,dim-9,5)}
+  return f;
+}
+function maskBit(k,i,j){switch(k){case 0:return(i+j)%2===0;case 1:return i%2===0;case 2:return j%3===0;case 3:return(i+j)%3===0;case 4:return(Math.floor(i/2)+Math.floor(j/3))%2===0;case 5:return(i*j)%2+(i*j)%3===0;case 6:return((i*j)%2+(i*j)%3)%2===0;default:return((i*j)%3+(i+j)%2)%2===0}}
+function readText(data,v){
+  var pos=0,total=data.length*8;
+  function rd(n){var x=0;for(var i=0;i<n;i++){if(pos>=total)throw 0;x=(x<<1)|((data[pos>>3]>>(7-(pos&7)))&1);pos++}return x}
+  var out='',bytes=[],AL='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:';
+  function flush(){if(bytes.length){out+=new TextDecoder('utf-8').decode(new Uint8Array(bytes));bytes=[]}}
+  while(pos+4<=total){
+    var mode=rd(4);if(mode===0)break;
+    if(mode===4){var n=rd(v<10?8:16);for(var i=0;i<n;i++)bytes.push(rd(8))}
+    else if(mode===1){flush();var n1=rd(v<10?10:12);while(n1>=3){out+=('00'+rd(10)).slice(-3);n1-=3}if(n1===2)out+=('0'+rd(7)).slice(-2);else if(n1===1)out+=rd(4)}
+    else if(mode===2){flush();var n2=rd(v<10?9:11);while(n2>=2){var p=rd(11);out+=AL[Math.floor(p/45)]+AL[p%45];n2-=2}if(n2===1)out+=AL[rd(6)]}
+    else if(mode===7){rd(8)}
+    else throw 0;
+  }
+  flush();return out;
+}
+function sample(bw,w,h,H,dim){
+  var mod=[],r,c;
+  for(r=0;r<dim;r++){var row=new Uint8Array(dim);
+    for(c=0;c<dim;c++){var p=H(c+0.5,r+0.5),q1=H(c+0.25,r+0.25),q2=H(c+0.75,r+0.25),q3=H(c+0.25,r+0.75),q4=H(c+0.75,r+0.75);
+      row[c]=(dark(bw,w,h,p[0],p[1])+dark(bw,w,h,q1[0],q1[1])+dark(bw,w,h,q2[0],q2[1])+dark(bw,w,h,q3[0],q3[1])+dark(bw,w,h,q4[0],q4[1]))>=3?1:0}
+    mod.push(row)}
+  return mod;
+}
+function decodeGrid(mod,v,dim){
+  var i,ec,mk,fb=function(list){var x=0;list.forEach(function(rc,n){x|=mod[rc[0]][rc[1]]<<n});return x};
+  var a=[],b=[];
+  for(i=0;i<15;i++){
+    a.push(i<6?[i,8]:i<8?[i+1,8]:[dim-15+i,8]);
+    b.push(i<8?[8,dim-i-1]:i<9?[8,15-i]:[8,15-i-1]);
+  }
+  var f1=fb(a),f2=fb(b),best=-1,bd=99,d;
+  for(i=0;i<32;i++){d=Math.min(pop(f1^FMT[i]),pop(f2^FMT[i]));if(d<bd){bd=d;best=i}}
+  if(bd>3)return null;
+  ec=best>>3;mk=best&7;
+  var level={1:0,0:1,3:2,2:3}[ec],groups=RS[v-1][level],fn=fnMask(v,dim),bits=[],up=true,col,cnt,row,dc;
+  for(col=dim-1;col>0;col-=2){
+    if(col===6)col--;
+    for(cnt=0;cnt<dim;cnt++){row=up?dim-1-cnt:cnt;
+      for(dc=0;dc<2;dc++){var cc=col-dc;if(!fn[row][cc])bits.push(mod[row][cc]^(maskBit(mk,row,cc)?1:0))}}
+    up=!up;
+  }
+  var cws=[];for(i=0;i+8<=bits.length;i+=8){var x=0;for(var k=0;k<8;k++)x=(x<<1)|bits[i+k];cws.push(x)}
+  var blocks=[],nTot=0;
+  groups.forEach(function(g){for(var n=0;n<g[0];n++){blocks.push({total:g[1],data:g[2],cw:[]});nTot+=g[1]}});
+  if(cws.length<nTot)return null;
+  var maxData=0,ecLen=blocks[0].total-blocks[0].data,p=0,j;
+  blocks.forEach(function(bk){if(bk.data>maxData)maxData=bk.data});
+  for(i=0;i<maxData;i++)for(j=0;j<blocks.length;j++)if(i<blocks[j].data)blocks[j].cw.push(cws[p++]);
+  for(i=0;i<ecLen;i++)for(j=0;j<blocks.length;j++)blocks[j].cw.push(cws[p++]);
+  var data=[];
+  for(j=0;j<blocks.length;j++){var fixed=rsCorrect(blocks[j].cw,ecLen);if(!fixed)return null;for(i=0;i<blocks[j].data;i++)data.push(fixed[i])}
+  try{return readText(data,v)}catch(e){return null}
+}
+function attempt(bw,w,h,t,useAlign){
+  var A=t.tl,B=t.tr,C=t.bl,m=(A.m+B.m+C.m)/3,
+      d=(Math.hypot(B.x-A.x,B.y-A.y)+Math.hypot(C.x-A.x,C.y-A.y))/2/m+7,
+      v=Math.round((d-17)/4);
+  if(v<1||v>10)return null;
+  var dim=17+4*v,D=dim-3.5,
+      D4={x:B.x+C.x-A.x,y:B.y+C.y-A.y},
+      src=[[3.5,3.5],[D,3.5],[3.5,D],[D,D]],
+      H=homography(src,[[A.x,A.y],[B.x,B.y],[C.x,C.y],[D4.x,D4.y]]);
+  if(!H)return null;
+  if(useAlign&&v>=2){
+    var pr=H(dim-6.5,dim-6.5),mm=Math.hypot(B.x-A.x,B.y-A.y)/(dim-7),bestS=-1,bx=0,by=0,rad=Math.ceil(mm*3),sx,sy;
+    for(sy=-rad;sy<=rad;sy++)for(sx=-rad;sx<=rad;sx++){var s=alignScore(bw,w,h,pr[0]+sx,pr[1]+sy,mm);if(s>bestS){bestS=s;bx=pr[0]+sx;by=pr[1]+sy}}
+    if(bestS>=23){var H2=homography([[3.5,3.5],[D,3.5],[3.5,D],[dim-6.5,dim-6.5]],[[A.x,A.y],[B.x,B.y],[C.x,C.y],[bx,by]]);if(H2)H=H2}
+  }
+  return decodeGrid(sample(bw,w,h,H,dim),v,dim);
+}
+/* img: ImageData-like {data,width,height}. Returns the text in the QR code, or null */
+window.dscQrDecode=function(img){
+  try{
+    var w=img.width,h=img.height,bw=binarize(img),f=findFinders(bw,w,h);
+    if(f.length<3)return null;
+    var t=pickTriple(f);if(!t)return null;
+    return attempt(bw,w,h,t,true)||attempt(bw,w,h,t,false);
+  }catch(e){return null}
+};
+})();
+
+</script>
 <script id="remoteJs">
 /* ===== Remote control for PreCenter (the lyrics presenter on the computer) =====
    Reads presenter/{teamId} (what the computer is showing) and sends button
@@ -43802,7 +43947,7 @@ document.addEventListener('visibilitychange', () => {
     ov.innerHTML=
       '<div class="rmtBar"><button type="button" class="rmtX" id="rmtClose" aria-label="Close">✕</button>'+
       '<div class="rmtTabs"><button type="button" data-tab="flow" class="on">Flow</button><button type="button" data-tab="slide">Slide</button><button type="button" data-tab="bible">Bible</button><button type="button" data-tab="stage">Stage</button></div>'+
-      '<div class="rmtStat" id="rmtStat" role="status"></div></div>'+
+      '<div class="rmtConn" id="rmtConn"></div><div class="rmtStat" id="rmtStat" role="status"></div></div>'+
       '<div class="rmtTop" id="rmtTop" hidden>'+
         '<div class="rmtHead"><div class="rmtTitle" id="rmtTitle"></div><div class="rmtNum" id="rmtNum"></div></div><div class="rmtLab" id="rmtLab"></div>'+
         '<div class="rmtPrev" id="rmtPv" hidden><div class="rmtPrevBg" id="rmtPrevBg"></div><video class="rmtPrevVid" id="rmtPrevVid" muted playsinline loop autoplay preload="auto" hidden></video><div class="rmtPrevDim" id="rmtPrevDim"></div><div class="rmtPrevTx"><span class="rmtPrevTxI" id="rmtPrevTxI"></span></div><div class="rmtPrevDbg" id="rmtPrevDbg" hidden></div></div>'+
@@ -43950,7 +44095,22 @@ document.addEventListener('visibilitychange', () => {
   function setStat(){
     const st=status(),sb=$('rmtStat');if(!sb)return;
     sb.className='rmtStat '+st[1];sb.title=st[0];sb.setAttribute('aria-label',st[0]);
+    connLabel();
   }
+  /* which road the remote is using: the computer on this Wi-Fi (page served by PreCenter, window.dscLan set) or the internet (Firestore) */
+  function connLabel(){
+    const c=$('rmtConn');if(!c)return;
+    if(window.dscLan){
+      const ms=window.dscLan.ms,up=window.dscLan.open;
+      c.className='rmtConn lan';
+      c.textContent=up?('Wi-Fi \u00b7 '+(ms==null?'\u2026':ms+' ms')):'Wi-Fi \u00b7 reconnecting';
+      c.title='Direct to the computer on this Wi-Fi'+(window.dscLan.host?' ('+window.dscLan.host+')':'');
+    }else{
+      c.className='rmtConn cloud';c.textContent='Cloud';
+      c.title='Using the internet (Disciples cloud). Scan the QR in PreCenter to switch to Wi-Fi.';
+    }
+  }
+  setInterval(()=>{if(ov&&!ov.hidden)connLabel()},1500);
   function render(){
     if(!ov||ov.hidden)return;
     ov.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
@@ -44058,121 +44218,68 @@ document.addEventListener('visibilitychange', () => {
     try{localStorage.setItem('dscLanLast',t)}catch(e){}
     say('Connecting over Wi-Fi\u2026');location.href=t;return true;
   }
-  /* Scans the QR code PreCenter shows. It never closes by itself: when something goes wrong it says what, and offers
-     "Try again", "Paste the link" and "Cancel". Works with the phone's built-in QR reader (BarcodeDetector) and, where
-     the phone has none, with the jsQR library loaded when needed. */
-  function loadJsQR(){
-    return new Promise(res=>{
-      if(window.jsQR)return res(window.jsQR);
-      const urls=['https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js','https://unpkg.com/jsqr@1.4.0/dist/jsQR.js'];
-      const next=()=>{
-        const u=urls.shift();if(!u)return res(null);
-        const sc=document.createElement('script');sc.src=u;sc.onload=()=>res(window.jsQR||null);sc.onerror=()=>{sc.remove();next()};document.head.appendChild(sc);
-      };next();
-    });
+  function wifiManual(){
+    /* typed fallback: computer address (as shown in PreCenter) and the 6-digit PIN */
+    const last=(function(){try{return localStorage.getItem('dscLanLast')||''}catch(e){return ''}})();
+    const m=last.match(/^http:\/\/([\d.]+:\d+)\/\?pin=(\d{6})$/);
+    const ad=prompt('Computer address shown in PreCenter, for example 192.168.1.175:8765',m?m[1]:'');
+    if(!ad)return;
+    const pin=prompt('6-digit PIN shown in PreCenter','');
+    if(!pin)return;
+    const addr=ad.trim().replace(/^https?:\/\//,'').replace(/\/.*$/,'');
+    const full='http://'+(/:\d+$/.test(addr)?addr:addr+':8765')+'/?pin='+pin.trim();
+    if(!wifiGo(full))say('That address or PIN does not look right.');
   }
   async function wifiScan(){
+    const md=navigator.mediaDevices;
+    if(!md||!md.getUserMedia){wifiManual();return}
+    let stream=null,det=null,stop=false,timer=0;
     const box=el('div','rmtScan');
-    box.innerHTML='<video playsinline muted autoplay></video><div class="rmtScanFrame"></div><div class="rmtScanMsg">Starting the camera\u2026</div>'
-      +'<div class="rmtScanPaste" hidden><input type="url" inputmode="url" autocomplete="off" placeholder="http://192.168.1.5:8080/?pin=123456"><button type="button" class="rmtBtn" data-a="open">Open</button></div>'
-      +'<div class="rmtScanBtns"><button type="button" class="rmtBtn" data-a="retry" hidden>Try again</button><button type="button" class="rmtBtn" data-a="photo">Take a photo of the QR</button><button type="button" class="rmtBtn" data-a="paste">Paste the link</button><button type="button" class="rmtBtn big" data-a="cancel">Cancel</button></div>'
-      +'<input type="file" accept="image/*" capture="environment" hidden data-a="file">';
+    box.innerHTML='<video playsinline muted autoplay></video><div class="rmtScanFrame"></div><div class="rmtScanMsg">Starting camera…</div><button type="button" class="rmtBtn" data-t>Type address and PIN instead</button><button type="button" class="rmtBtn big" data-c>Cancel</button>';
     document.body.appendChild(box);
-    const vid=box.querySelector('video'),msgEl=box.querySelector('.rmtScanMsg'),pasteRow=box.querySelector('.rmtScanPaste'),inp=pasteRow.querySelector('input'),btn=a=>box.querySelector('[data-a="'+a+'"]');
-    const msg=(t,err)=>{msgEl.textContent=t;msgEl.classList.toggle('err',!!err)};
-    let stream=null,stop=false,timer=0,runId=0,R=null;
-    /* the reader: the phone's own, or jsQR (loaded the first time it is needed) */
-    const reader=async()=>{
-      if(R)return R;let det=null,jsq=null;
-      try{if('BarcodeDetector' in window){const f=BarcodeDetector.getSupportedFormats?await BarcodeDetector.getSupportedFormats():['qr_code'];if(!f||f.includes('qr_code'))det=new BarcodeDetector({formats:['qr_code']})}}catch(e){det=null}
-      if(!det)jsq=await loadJsQR();
-      return R=(det||jsq)?{det,jsq}:null;
-    };
-    /* read a QR from a picture (a photo taken with the phone's Camera app: this needs no camera permission for this app) */
-    const readPhoto=async file=>{
-      let bmp=null;try{bmp=await createImageBitmap(file)}catch(e){}
-      if(!bmp){bmp=await new Promise((ok,no)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{URL.revokeObjectURL(u);ok(im)};im.onerror=()=>no(new Error('picture could not be read'));im.src=u})}
-      const w0=bmp.width||bmp.naturalWidth,h0=bmp.height||bmp.naturalHeight,rd=await reader();if(!rd)return{err:'noreader'};
-      for(const maxW of [1600,900,500]){
-        const k=Math.min(1,maxW/w0),cv=document.createElement('canvas');cv.width=Math.round(w0*k);cv.height=Math.round(h0*k);
-        const cx=cv.getContext('2d',{willReadFrequently:true});cx.drawImage(bmp,0,0,cv.width,cv.height);
+    const msg=t=>{const m=box.querySelector('.rmtScanMsg');if(m)m.textContent=t};
+    const end=()=>{stop=true;clearTimeout(timer);try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}box.remove()};
+    box.querySelector('[data-c]').onclick=end;
+    box.querySelector('[data-t]').onclick=()=>{end();wifiManual()};
+    try{
+      if('BarcodeDetector' in window){
         try{
-          if(rd.det){const r=await rd.det.detect(cv);if(r&&r[0])return{val:r[0].rawValue}}
-          else{const d=cx.getImageData(0,0,cv.width,cv.height),r=rd.jsq(d.data,d.width,d.height,{inversionAttempts:'attemptBoth'});if(r)return{val:r.data}}
-        }catch(e){}
+          const f=BarcodeDetector.getSupportedFormats?await BarcodeDetector.getSupportedFormats():['qr_code'];
+          if(f.indexOf('qr_code')>=0)det=new BarcodeDetector({formats:['qr_code']});
+        }catch(e){det=null}
       }
-      return{val:''};
-    };
-    const stopCam=()=>{clearTimeout(timer);try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}stream=null;try{vid.srcObject=null}catch(e){}};
-    const end=()=>{stop=true;runId++;stopCam();box.remove()};
-    const bad=e=>{
-      const n=String(e&&e.name||''),m=String(e&&e.message||e||'');
-      if(/NotAllowed|Security/i.test(n))return (window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()
-        ?'This version of the app has no camera permission, so Android cannot ask for it (the app needs an update). '
-        :'The camera is blocked. Allow it for this app in the phone settings (Settings \u203a Apps \u203a this app \u203a Permissions), then tap Try again. ')
-        +'You can still tap Take a photo of the QR, or scan it with the phone\u2019s own Camera app.';
-      if(/NotFound|DevicesNotFound/i.test(n))return 'No camera was found on this phone.';
-      if(/NotReadable|TrackStart/i.test(n))return 'The camera is being used by another app. Close it, then tap Try again.';
-      return 'Could not start the camera ('+(n||'error')+(m?': '+m:'')+'). Tap Try again, or paste the link.';
-    };
-    const submit=v=>{if(wifiGo(v)){end();return true}return false};
-    box.onclick=e=>{                                   /* the phone may need one tap before it lets the camera picture start */
-      const b=e.target.closest&&e.target.closest('button');
-      if(!b){if(vid.srcObject&&vid.paused)vid.play().catch(()=>{});return}
-      const a=b.dataset.a;
-      if(a==='cancel')end();
-      else if(a==='retry')start();
-      else if(a==='photo'){const f=box.querySelector('[data-a="file"]');f.value='';f.click()}
-      else if(a==='paste'){pasteRow.hidden=!pasteRow.hidden;if(!pasteRow.hidden){stopCam();msg('Paste the link shown in PreCenter (Screens \u203a Phone remote on this Wi-Fi).');inp.focus()}else start()}
-      else if(a==='open'){if(!submit(inp.value.trim()))msg('That is not a PreCenter Wi-Fi link. It looks like http://192.168.1.5:8080/?pin=123456',true)}
-    };
-    box.querySelector('[data-a="file"]').onchange=async e=>{
-      const f=e.target.files&&e.target.files[0];if(!f)return;
-      stopCam();pasteRow.hidden=true;msg('Reading the photo\u2026');
-      try{
-        const r=await readPhoto(f);
-        if(r.err==='noreader')msg('This phone has no QR reader built in and the reader could not be loaded (no internet?). Scan the QR with the phone\u2019s own Camera app instead, or tap Paste the link.',true);
-        else if(r.val){if(!submit(r.val))msg('That QR is not from PreCenter. Use the one in Screens \u203a Phone remote on this Wi-Fi.',true)}
-        else msg('No QR code was found in that photo. Hold the phone closer so the QR fills most of the picture, and take it again.',true);
-      }catch(er){msg('Could not read that photo ('+(er&&er.message||er)+'). Try again.',true)}
-      btn('retry').hidden=false;
-    };
-    inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();btn('open').click()}};
-
-    async function start(){
-      const my=++runId;stopCam();btn('retry').hidden=true;pasteRow.hidden=true;msg('Starting the camera\u2026');
-      if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){msg('This phone cannot open the live camera here. Tap Take a photo of the QR, scan it with the phone\u2019s own Camera app, or tap Paste the link.',true);btn('retry').hidden=true;return}
-      let err=null;
-      for(const c of [{video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false},{video:{facingMode:'environment'},audio:false},{video:true,audio:false}]){
-        try{stream=await navigator.mediaDevices.getUserMedia(c);err=null;break}catch(e){err=e;if(/NotAllowed|Security|NotFound/i.test(String(e&&e.name)))break}
-      }
-      if(my!==runId){try{stream&&stream.getTracks().forEach(t=>t.stop())}catch(e){}return}
-      if(!stream){msg(bad(err),true);btn('retry').hidden=false;return}
-      vid.muted=true;vid.setAttribute('muted','');vid.setAttribute('playsinline','');vid.srcObject=stream;
-      try{await vid.play()}catch(e){msg('Tap the screen to start the camera.')}          /* blocked until a tap: wait, do not give up */
-      if(!R&&!('BarcodeDetector' in window))msg('Loading the QR reader\u2026');
-      const rd=await reader();if(my!==runId)return;
-      if(!rd){msg('This phone has no QR reader built in and the reader could not be loaded (no internet?). Take a photo of the QR, scan it with the phone\u2019s own Camera app, or tap Paste the link.',true);btn('retry').hidden=false;return}
-      let det=rd.det,jsq=rd.jsq;
-      msg(vid.paused?'Tap the screen to start the camera.':'Point the camera at the QR code in PreCenter');
-      const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});let fails=0;
+      if(!det&&typeof window.dscQrDecode!=='function'){end();wifiManual();return}
+      try{stream=await md.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280}},audio:false})}
+      catch(e){stream=await md.getUserMedia({video:true,audio:false})}
+      if(stop){stream.getTracks().forEach(t=>t.stop());return}
+      const vid=box.querySelector('video');vid.srcObject=stream;
+      try{await vid.play()}catch(e){}
+      msg('Point the camera at the QR code in PreCenter');
+      const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});
+      const found=raw=>{
+        if(wifiGo(raw)){end();return true}
+        msg('That QR is not from PreCenter. Use the one in Screens › Phone remote on this Wi-Fi.');return false;
+      };
       const tick=async()=>{
-        if(stop||my!==runId)return;
+        if(stop)return;
         try{
-          if(vid.readyState>=2&&vid.videoWidth&&!vid.paused){
-            if(/^Tap the screen/.test(msgEl.textContent))msg('Point the camera at the QR code in PreCenter');
-            let val='';
-            if(det){const r=await det.detect(vid);if(r&&r[0])val=r[0].rawValue}
-            else{const k=Math.min(1,640/vid.videoWidth);cv.width=Math.round(vid.videoWidth*k);cv.height=Math.round(vid.videoHeight*k);cx.drawImage(vid,0,0,cv.width,cv.height);const d=cx.getImageData(0,0,cv.width,cv.height),r=jsq(d.data,d.width,d.height,{inversionAttempts:'dontInvert'});if(r)val=r.data}
-            fails=0;
-            if(val){if(submit(val))return;msg('That QR is not from PreCenter. Use the one in Screens \u203a Phone remote on this Wi-Fi.',true)}
+          if(vid.videoWidth>0){
+            if(det){const r=await det.detect(vid);for(const c of r){if(found(c.rawValue))return}}
+            else{
+              const w=Math.min(640,vid.videoWidth),h=Math.round(vid.videoHeight*w/vid.videoWidth);
+              cv.width=w;cv.height=h;cx.drawImage(vid,0,0,w,h);
+              const t=window.dscQrDecode(cx.getImageData(0,0,w,h));
+              if(t&&found(t))return;
+            }
           }
-        }catch(e){if(det&&++fails>=10){det=null;jsq=await loadJsQR();if(!jsq){msg('The phone\u2019s QR reader is not working and the other reader could not be loaded. Tap Paste the link.',true);btn('retry').hidden=false;return}}}
-        timer=setTimeout(tick,200);
+        }catch(e){}
+        timer=setTimeout(tick,det?200:250);
       };
       tick();
+    }catch(e){
+      const n=String(e&&e.name||e);
+      msg(/denied|NotAllowed|Permission/i.test(n)?'Camera is blocked. Allow the camera for this site in your browser settings, or type the address instead.':'Could not open the camera ('+n+'). You can type the address instead.');
     }
-    start();
   }
   async function keepAwake(){
     try{if('wakeLock' in navigator&&!wake){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null})}}catch(e){}
