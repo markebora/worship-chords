@@ -9130,24 +9130,26 @@ body.songBottomHidden .annotateToolbar{
 .stgText{font-weight:700;line-height:1.18;white-space:pre-wrap;word-break:break-word;width:100%}
 .stgNext{border-top:1px solid rgba(255,255,255,.14);padding-top:10px;color:#a8a8b0;font-size:clamp(16px,4.6vmin,34px);line-height:1.25;white-space:pre-wrap;max-height:28%;overflow:hidden}
 .stgNext b{display:block;font-size:11px;letter-spacing:.12em;color:#6c6c75;margin-bottom:3px}
-.stgNext{display:none}
-.stgNext:empty{display:none}
-.rmtStage{gap:10px}
-.stgScreens{flex:none;display:grid;grid-template-columns:3fr 2fr;gap:10px;align-items:start}
-.stgCol{min-width:0}
-.stgTag{display:flex;align-items:center;gap:6px;margin:0 0 5px;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a8a93}
-.stgLive .stgTag{color:#ff6b61}.stgLive .stgTag i{width:7px;height:7px;border-radius:50%;background:#ff453a;box-shadow:0 0 8px #ff453a}
-.stgSlot .rmtPrev,.stgNxPv{width:100%;margin:0}
-.stgNxPv{opacity:.92}
-.stgNxPv .rmtPrevDim{background:rgba(0,0,0,.35)}
-.stgMain{flex:1;min-height:90px}
-.rmtStage{overflow-y:auto}
-.stgScreens{grid-template-columns:1fr}
-.stgMain{display:none}
-@media (orientation:landscape){
-  .stgScreens{grid-template-columns:1.5fr 1fr}
-  .stgSlot .rmtPrev,.stgNxPv{width:min(100%,calc((100vh - 215px)*16/9))}
-}
+/* Stage: same look as PreCenter's stage display. Black, clock on top, LIVE (red) with chords above the words, NEXT (gold). */
+.rmtStage{display:grid;grid-template-rows:auto 2.3fr 1fr auto;gap:10px;padding:10px 14px 8px;background:#000}
+.stgHb{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:15px;font-weight:600;color:#a7a7ae;font-variant-numeric:tabular-nums}
+.stgSt{flex:1;text-align:center;color:#ff6b61;font-weight:800;letter-spacing:.06em}
+.stgTm{color:var(--accent,#E8B923);font-weight:700}
+.stgCard{position:relative;min-height:0;border:2px solid #2d2d32;border-radius:14px;background:#0c0c0e;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:34px 12px 10px}
+.stgCard.live{border-color:#d33}
+.stgCard.nx{border-color:var(--accent,#E8B923);padding-top:30px}
+.stgTag{position:absolute;top:8px;left:10px;font:800 11px/1 system-ui,sans-serif;letter-spacing:.12em;padding:4px 9px;border-radius:7px;background:#d33;color:#fff}
+.stgCard.nx .stgTag{background:var(--accent,#E8B923);color:#171200}
+.stgT{width:100%;max-height:100%;overflow:hidden;text-align:center;white-space:pre-wrap;line-height:1.2;word-break:break-word;color:#fff}
+.stgCard.nx .stgT{color:var(--accent,#E8B923)}
+.stgCl{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;line-height:1.12;margin:.18em 0;white-space:normal}
+.stgCs{display:inline-flex;flex-direction:column;align-items:flex-start}
+.stgCs b{font-size:.6em;line-height:1.15;font-weight:800;color:var(--accent,#E8B923);padding-right:.4em;white-space:pre}
+.stgCs i{font-style:normal;white-space:pre-wrap}
+.stgCard.nx .stgCs b{color:#fff}
+.stgMsg{background:var(--accent,#E8B923);color:var(--accent-ink,#171200);font-weight:700;font-size:16px;text-align:center;border-radius:12px;padding:8px 12px}
+.stgMsg:empty{display:none}
+@media (orientation:landscape){.rmtStage{grid-template-columns:1.6fr 1fr;grid-template-rows:auto 1fr auto}.stgHb{grid-column:1/3}.stgMsg{grid-column:1/3}}
 .stgMsg{margin-top:8px;background:var(--accent,#E8B923);color:var(--accent-ink,#171200);font-weight:700;font-size:clamp(16px,4vmin,30px);text-align:center;border-radius:10px;padding:8px 12px}
 .stgMsg:empty{display:none}
 
@@ -44049,7 +44051,7 @@ window.dscQrDecode=function(img){
     const prev=$('rmtPv'),plain=$('rmtText');
     if(!prev)return;
     const b=bgResolve(state&&state.bg),css=bgCss(b),vu=bgVidList().length;
-    const show=!!(css||vu)||tab==='stage';
+    const show=!!(css||vu);
     prev.hidden=!show;
     plain.hidden=show;             /* the preview already shows the words */
     if(!show){paintVid(false);return}
@@ -44119,10 +44121,12 @@ window.dscQrDecode=function(img){
           '</div>'+
         '</div>'+
       '</div>'+
-      '<div class="rmtStage" id="rmtStageV" hidden><div class="stgTop"><span class="stgLab" id="stgLab"></span><span id="stgTitle"></span><span><b class="stgNum" id="stgNum"></b><span id="stgClock"></span></span></div>'+
-      '<div class="stgScreens"><div class="stgCol stgLive"><div class="stgTag"><i></i>Live</div><div class="stgSlot" id="stgLiveSlot"></div></div>'+
-        '<div class="stgCol stgNx"><div class="stgTag">Next</div><div class="rmtPrev stgNxPv" id="stgNxPv"><div class="rmtPrevBg" id="stgNxBg"></div><div class="rmtPrevDim" id="stgNxDim"></div><div class="rmtPrevTx"><span class="rmtPrevTxI" id="stgNxTx"></span></div></div></div></div>'+
-      '<div class="stgMain" id="stgMain"><div class="stgText" id="stgText"></div></div><div class="stgMsg" id="stgMsg"></div><div class="stgNext" id="stgNext"></div></div>'+
+      '<div class="rmtStage" id="rmtStageV" hidden>'+
+        '<div class="stgHb"><span id="stgClock"></span><span class="stgSt" id="stgSt"></span><span class="stgTm" id="stgNum"></span></div>'+
+        '<div class="stgCard live"><span class="stgTag">LIVE</span><div class="stgT" id="stgLiveT"></div></div>'+
+        '<div class="stgCard nx"><span class="stgTag">NEXT</span><div class="stgT" id="stgNxT"></div></div>'+
+        '<div class="stgMsg" id="stgMsg"></div>'+
+      '</div>'+
       '<div class="rmtTabs" role="tablist"><button type="button" data-tab="flow" class="on">'+IC_FLOW+'<span>Flow</span></button><button type="button" data-tab="slide">'+IC_SLIDE+'<span>Slide</span></button><button type="button" data-tab="bible">'+IC_BIBLE+'<span>Bible</span></button><button type="button" data-tab="stage">'+IC_STAGE+'<span>Stage</span></button></div>';
     document.body.appendChild(ov);
     ov.querySelector('#rmtClose').onclick=close;
@@ -44140,7 +44144,7 @@ window.dscQrDecode=function(img){
     $('rmtBqGo').onclick=bqSearch;
     $('rmtBqIn').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();bqSearch()}};
     $('rmtBqVer').onchange=()=>{try{localStorage.setItem('rmtBibleVer',$('rmtBqVer').value)}catch(e){}if($('rmtBqIn').value.trim())bqSearch()};
-    window.addEventListener('resize',()=>{if(ov&&!ov.hidden&&tab==='stage'){fit();fitIn($('stgNxPv'),$('stgNxTx'))}if(ov&&!ov.hidden)fitPrev()});
+    window.addEventListener('resize',()=>{if(ov&&!ov.hidden&&tab==='stage')fit();if(ov&&!ov.hidden)fitPrev()});
     document.addEventListener('visibilitychange',()=>{if(ov&&!ov.hidden&&document.visibilityState==='visible'){keepAwake();try{paintVid(!(state&&state.black))}catch(e){}}});
   }
 
@@ -44264,14 +44268,11 @@ window.dscQrDecode=function(img){
     const live=!!(state&&state.on!==false);
     $('rmtStageV').hidden=tab!=='stage';
     $('rmtRemote').hidden=tab==='stage';
-    {const pv=$('rmtPv'),slot=$('stgLiveSlot'),top=$('rmtTop');
-     if(tab==='stage'){if(pv.parentNode!==slot)slot.appendChild(pv)}
-     else if(pv.parentNode!==top)top.insertBefore(pv,$('rmtText'))}
     $('rmtTop').hidden=tab==='stage'||!live;
     $('rmtFlow').hidden=tab!=='flow';$('rmtSlideP').hidden=tab!=='slide';$('rmtBibleP').hidden=tab!=='bible';
     const m=msgFor();$('rmtMsg').hidden=!m||live;$('rmtMsg').textContent=m;
     $('rmtLive').hidden=!live;
-    if(!live){if(tab==='stage'){$('stgText').textContent=m;$('stgLab').textContent='';$('stgTitle').textContent='';$('stgNext').textContent='';$('stgMsg').textContent='';$('stgNxTx').textContent='';fit()}return}
+    if(!live){if(tab==='stage'){stgFill($('stgLiveT'),m,null);stgFill($('stgNxT'),'',null);$('stgMsg').textContent='';$('stgSt').textContent='';fit()}return}
     $('rmtTitle').textContent=state.title||'';
     $('rmtLab').textContent=state.label||'';
     const n=+state.n||0,at=(+state.idx||0)+1;
@@ -44332,42 +44333,48 @@ window.dscQrDecode=function(img){
       });
     }
     if(tab==='bible')renderBible();
-    $('stgLab').textContent=state.label||'';
-    $('stgTitle').textContent=state.title||'';
-    $('stgText').textContent=state.black?'':(state.text||'');
-    $('stgMsg').textContent=state.msg||'';
-    $('stgNum').textContent=n?(at+' / '+n):'';
-    const nx=$('stgNext');nx.textContent='';
-    const nxt=state.next||(at<n?('Slide '+(at+1)):'');
-    if(nxt){nx.append(el('b',null,'NEXT'),document.createTextNode(nxt))}
-    paintNx(nxt,n,at);
+    paintStage(n,at);
     clock();
     if(tab==='stage')fit();
   }
-  /* Stage: the next screen, drawn with the same background as the live one (PreCenter sends the next slide's words) */
-  function paintNx(nxt,n,at){
-    const b=bgResolve(state&&state.bg),css=bgCss(b);
-    $('stgNxBg').style.background=css||'#000';
-    const tx=$('stgNxTx');
-    tx.textContent=nxt||'';
-    tx.style.opacity=nxt?'1':'.5';
-    if(!nxt)tx.textContent=at>=n&&n?'End of this item':'';
-    if(tab==='stage')fitIn($('stgNxPv'),tx);
+  /* Stage: chords come from PreCenter as JSON (state.ch for this slide, state.chn for the next): lines of [chord, words] pairs */
+  function chParse(j){if(typeof j!=='string'||!j)return null;try{const a=JSON.parse(j);return Array.isArray(a)&&a.length?a:null}catch(e){return null}}
+  function stgFill(el,text,ch){
+    el.textContent='';
+    if(!ch){el.textContent=text||'';return}
+    ch.forEach(ln=>{
+      if(!Array.isArray(ln))return;
+      const d=document.createElement('div');d.className='stgCl';
+      ln.forEach(q=>{if(!Array.isArray(q))return;const c=document.createElement('span');c.className='stgCs';const b=document.createElement('b'),i=document.createElement('i');b.textContent=q[0]||'\u00a0';i.textContent=q[1]||'';c.append(b,i);d.appendChild(c)});
+      el.appendChild(d);
+    });
   }
-
+  function paintStage(n,at){
+    const hide=!!(state.black||state.clear);
+    stgFill($('stgLiveT'),hide?'':(state.text||''),hide?null:chParse(state.ch));
+    $('stgLiveT').style.opacity=state.black?'.3':'1';
+    $('stgSt').textContent=state.black?'BLACK':(state.clear?'TEXT CLEARED':'');
+    const nxt=state.next||'';
+    stgFill($('stgNxT'),nxt||(n&&at>=n?'\u2014 end \u2014':''),nxt?chParse(state.chn):null);
+    $('stgMsg').textContent=state.msg||'';
+    $('stgNum').textContent=n?(at+' / '+n):'';
+  }
   function clock(){
     const c=$('stgClock');if(c)c.textContent=new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
     if(ov&&!ov.hidden)setStat();
   }
 
+  function fitCard(el,max,min){
+    const box=el&&el.parentNode;if(!box||!box.clientHeight)return;
+    const cs=getComputedStyle(box),h=box.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom),w=box.clientWidth-parseFloat(cs.paddingLeft)-parseFloat(cs.paddingRight);
+    let lo=min,hi=max,best=min;
+    for(let i=0;i<10;i++){const mid=(lo+hi)/2;el.style.fontSize=mid+'px';if(el.scrollHeight<=h+1&&el.scrollWidth<=w+1){best=mid;lo=mid}else hi=mid}
+    el.style.fontSize=best+'px';
+  }
   function fit(){
-    const box=$('stgMain'),t=$('stgText');if(!box||!t)return;
-    let lo=14,hi=Math.min(box.clientWidth,box.clientHeight)*0.62||60,best=lo;
-    for(let i=0;i<12;i++){
-      const mid=(lo+hi)/2;t.style.fontSize=mid+'px';
-      if(t.scrollHeight<=box.clientHeight&&t.scrollWidth<=box.clientWidth){best=mid;lo=mid}else hi=mid;
-    }
-    t.style.fontSize=best+'px';
+    const st=$('rmtStageV');if(!st||st.hidden)return;
+    fitCard($('stgLiveT'),Math.min(64,innerWidth*0.16),11);
+    fitCard($('stgNxT'),Math.min(40,innerWidth*0.1),9);
   }
 
   /* Wi-Fi remote: PreCenter (desktop app) shows a QR holding http://<computer>:<port>/?pin=123456. The page it opens is served by
