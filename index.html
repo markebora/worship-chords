@@ -146,6 +146,14 @@ button{
   align-items:center;
 }
 
+#startupSplash #splashMark{width:132px;height:132px;overflow:visible;margin-bottom:14px}
+#startupSplash .spC{opacity:0;animation:spPop .7s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes spPop{0%{opacity:0;transform:translate(0,0) scale(.1)}100%{opacity:1;transform:translate(var(--x),var(--y)) scale(1)}}
+#startupSplash .spA{fill:none;stroke:#E8B923;stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round}
+#startupSplash .spA:not(.spH){stroke-dasharray:1;stroke-dashoffset:1;animation:spDraw .6s ease-out .75s forwards}
+#startupSplash .spH{opacity:0;animation:splashTaglineIn .25s ease-out 1.3s forwards}
+@keyframes spDraw{to{stroke-dashoffset:0}}
+
 #startupSplash #splashKicker{
   font-family:'Poppins', sans-serif;
   font-weight:700;
@@ -9060,6 +9068,28 @@ body.songBottomHidden .annotateToolbar{
 
 <style id="remoteCss">
 .topBtns{display:flex;align-items:center;gap:8px}
+/* Connect intro: three circles circulate when the Connect button is tapped, then fade into the remote */
+.cnxOv{position:fixed;inset:0;z-index:10060;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;opacity:0;pointer-events:none;visibility:hidden}
+.cnxOv.go{visibility:visible;pointer-events:auto;animation:cnxFade 3.1s ease both}
+@keyframes cnxFade{0%{opacity:0}8%{opacity:1}86%{opacity:1}100%{opacity:0}}
+.cnxOv svg{width:min(62vw,260px);height:auto;overflow:visible}
+.cnxC{opacity:0}
+.cnxOv.go .cnxC{animation:cnxPop .7s cubic-bezier(.2,1.4,.4,1) .2s both}
+@keyframes cnxPop{0%{opacity:0;transform:translate(0,0) scale(.1)}100%{opacity:1;transform:translate(var(--x),var(--y)) scale(1)}}
+.cnxSpin,.cnxPulse{transform-origin:0 0}
+.cnxOv.go .cnxSpin{animation:cnxSpin 1.5s cubic-bezier(.65,0,.35,1) .9s both}
+@keyframes cnxSpin{to{transform:rotate(-360deg)}}
+.cnxArr{fill:none;stroke:#E8B923;stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1}
+.cnxOv.go .cnxArr{animation:cnxDraw .6s ease-out .75s both}
+@keyframes cnxDraw{to{stroke-dashoffset:0}}
+.cnxHead{opacity:0}
+.cnxOv.go .cnxHead{animation:cnxIn .25s ease-out 1.3s both}
+@keyframes cnxIn{to{opacity:1}}
+.cnxOv.go .cnxPulse{animation:cnxPulse .5s ease-out 2.4s both}
+@keyframes cnxPulse{0%{transform:scale(1)}40%{transform:scale(1.1)}100%{transform:scale(1)}}
+.cnxLbl{color:#E8B923;font-weight:800;letter-spacing:.08em;font-size:15px;opacity:0}
+.cnxOv.go .cnxLbl{animation:cnxIn .4s ease-out .9s both}
+@media (prefers-reduced-motion:reduce){.cnxOv.go{animation-duration:.6s}.cnxOv.go *{animation:none!important;opacity:1!important;stroke-dashoffset:0!important}}
 .rmtOv{position:fixed;inset:0;z-index:10050;background:#0b0b0c;color:#f7f7f7;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);font-family:inherit}
 .rmtOv[hidden],.rmtOv [hidden]{display:none!important}
 .rmtBar{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.1)}
@@ -9231,6 +9261,7 @@ body.songBottomHidden .annotateToolbar{
 <div id="startupSplash">
 
   <div id="lockup">
+    <svg id="splashMark" viewBox="-110 -110 220 220" aria-hidden="true"><defs><linearGradient id="spG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFE600"/><stop offset="1" stop-color="#FF9500"/></linearGradient><linearGradient id="spB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#00D8FF"/><stop offset="1" stop-color="#0A62FF"/></linearGradient><linearGradient id="spV" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B24DFF"/><stop offset=".55" stop-color="#7C1AFF"/><stop offset="1" stop-color="#E060FF"/></linearGradient></defs><g class="spC" style="--x:0.0px;--y:-62.0px;animation-delay:0.20s"><circle r="40" fill="url(#spG)"/></g><g class="spC" style="--x:53.7px;--y:31.0px;animation-delay:0.28s"><circle r="40" fill="url(#spB)"/></g><g class="spC" style="--x:-53.7px;--y:31.0px;animation-delay:0.36s"><circle r="40" fill="url(#spV)"/></g><path class="spA" pathLength="1" d="M-67.4 -56.6A88 88 0 0 0 -82.7 -30.1"/><path class="spA spH" d="M-85.4 -40.8L-82.7 -30.1L-73.8 -36.5"/><path class="spA" pathLength="1" d="M82.7 -30.1A88 88 0 0 0 67.4 -56.6"/><path class="spA spH" d="M78.0 -53.6L67.4 -56.6L68.5 -45.6"/><path class="spA" pathLength="1" d="M-15.3 86.7A88 88 0 0 0 15.3 86.7"/><path class="spA spH" d="M7.4 94.4L15.3 86.7L5.3 82.1"/></svg>
     <div id="splashKicker">Disciples</div>
     <div id="wordText">Harmony</div>
     <div id="tagline">Follow Jesus. Make Him Known.</div>
@@ -9273,8 +9304,8 @@ body.songBottomHidden .annotateToolbar{
 
       <div class="topBtns">
 
-        <button type="button" class="activityBellBtn" id="remoteOpenBtn" aria-label="Remote control for PreCenter">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"></rect><path d="M8 21h8M12 16v5"></path></svg>
+        <button type="button" class="activityBellBtn" id="remoteOpenBtn" aria-label="Connect to PreCenter">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor" stroke="none"><circle cx="12" cy="5" r="3.4"/><circle cx="5.5" cy="15" r="3.4"/><circle cx="18.5" cy="15" r="3.4"/></g><g fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 6.5Q3.5 7.5 3.8 10.6"/><path d="M2.7 9.4L3.8 10.7L5.1 9.5"/><path d="M20.2 10.6Q20.5 7.5 17 6.5"/><path d="M18.6 5.5L16.9 6.5L17.9 8.2"/><path d="M9.5 21Q12 23 14.5 21.2"/><path d="M13.2 20.5L14.6 21.2L14 22.6"/></g></svg>
         </button>
 
         <button type="button" class="activityBellBtn" id="activityBellBtn" aria-label="Team activity">
@@ -44566,8 +44597,47 @@ window.dscQrDecode=function(img){
     document.documentElement.style.overflow='';
   }
 
+  /* Connect intro animation (plays over the remote while it opens) */
+  let cnxEl=null,cnxTimer=null;
+  function cnxBuild(){
+    const NS='http://www.w3.org/2000/svg';
+    const o=document.createElement('div');o.className='cnxOv';o.setAttribute('aria-hidden','true');
+    o.innerHTML='<svg viewBox="-110 -110 220 220"><g class="cnxPulse"><g class="cnxSpin"></g></g></svg><div class="cnxLbl">CONNECTING\u2026</div>';
+    const spin=o.querySelector('.cnxSpin');
+    const mk=(n,a,p)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);(p||spin).appendChild(e);return e};
+    const R=62,r=40,AR=88;
+    const defs=mk('defs',{});
+    [['cnxG',[['0','#FFE600'],['1','#FF9500']],0,0,0,1],['cnxB',[['0','#00D8FF'],['1','#0A62FF']],0,0,0,1],['cnxV',[['0','#B24DFF'],['.55','#7C1AFF'],['1','#E060FF']],0,0,1,1]].forEach(d=>{
+      const lg=mk('linearGradient',{id:d[0],x1:d[2],y1:d[3],x2:d[4],y2:d[5]},defs);
+      d[1].forEach(q=>mk('stop',{offset:q[0],'stop-color':q[1]},lg));
+    });
+    for(let i=0;i<3;i++){
+      const a=(-90+120*i)*Math.PI/180;
+      const g=mk('g',{class:'cnxC'});
+      g.style.setProperty('--x',(R*Math.cos(a)).toFixed(1)+'px');
+      g.style.setProperty('--y',(R*Math.sin(a)).toFixed(1)+'px');
+      g.style.animationDelay=(0.2+i*0.08)+'s';
+      mk('circle',{r:r,fill:'url(#'+['cnxG','cnxB','cnxV'][i]+')'},g);
+      const s=(-90+120*i-60+10)*Math.PI/180,e=(-90+120*i-60-10)*Math.PI/180;
+      const x1=AR*Math.cos(s),y1=AR*Math.sin(s),x2=AR*Math.cos(e),y2=AR*Math.sin(e);
+      mk('path',{class:'cnxArr',pathLength:1,d:'M'+x1.toFixed(1)+' '+y1.toFixed(1)+'A'+AR+' '+AR+' 0 0 0 '+x2.toFixed(1)+' '+y2.toFixed(1)});
+      const t=e-Math.PI/2,h=11,sp=0.6;
+      const p1=[x2-h*Math.cos(t-sp),y2-h*Math.sin(t-sp)],p2=[x2-h*Math.cos(t+sp),y2-h*Math.sin(t+sp)];
+      mk('path',{class:'cnxArr cnxHead',pathLength:1,style:'stroke-dasharray:none;stroke-dashoffset:0',d:'M'+p1[0].toFixed(1)+' '+p1[1].toFixed(1)+'L'+x2.toFixed(1)+' '+y2.toFixed(1)+'L'+p2[0].toFixed(1)+' '+p2[1].toFixed(1)});
+    }
+    document.body.appendChild(o);
+    return o;
+  }
+  function cnxPlay(){
+    try{
+      if(!cnxEl)cnxEl=cnxBuild();
+      cnxEl.classList.remove('go');void cnxEl.offsetWidth;cnxEl.classList.add('go');
+      clearTimeout(cnxTimer);cnxTimer=setTimeout(()=>{if(cnxEl)cnxEl.classList.remove('go')},3150);
+    }catch(e){}
+  }
+
   document.addEventListener('click',e=>{
-    if(e.target.closest&&e.target.closest('#remoteOpenBtn')){e.preventDefault();open()}
+    if(e.target.closest&&e.target.closest('#remoteOpenBtn')){e.preventDefault();cnxPlay();open()}
   });
 })();
 </script>
