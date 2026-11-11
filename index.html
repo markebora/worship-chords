@@ -9130,7 +9130,24 @@ body.songBottomHidden .annotateToolbar{
 .stgText{font-weight:700;line-height:1.18;white-space:pre-wrap;word-break:break-word;width:100%}
 .stgNext{border-top:1px solid rgba(255,255,255,.14);padding-top:10px;color:#a8a8b0;font-size:clamp(16px,4.6vmin,34px);line-height:1.25;white-space:pre-wrap;max-height:28%;overflow:hidden}
 .stgNext b{display:block;font-size:11px;letter-spacing:.12em;color:#6c6c75;margin-bottom:3px}
+.stgNext{display:none}
 .stgNext:empty{display:none}
+.rmtStage{gap:10px}
+.stgScreens{flex:none;display:grid;grid-template-columns:3fr 2fr;gap:10px;align-items:start}
+.stgCol{min-width:0}
+.stgTag{display:flex;align-items:center;gap:6px;margin:0 0 5px;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a8a93}
+.stgLive .stgTag{color:#ff6b61}.stgLive .stgTag i{width:7px;height:7px;border-radius:50%;background:#ff453a;box-shadow:0 0 8px #ff453a}
+.stgSlot .rmtPrev,.stgNxPv{width:100%;margin:0}
+.stgNxPv{opacity:.92}
+.stgNxPv .rmtPrevDim{background:rgba(0,0,0,.35)}
+.stgMain{flex:1;min-height:90px}
+.rmtStage{overflow-y:auto}
+.stgScreens{grid-template-columns:1fr}
+.stgMain{display:none}
+@media (orientation:landscape){
+  .stgScreens{grid-template-columns:1.5fr 1fr}
+  .stgSlot .rmtPrev,.stgNxPv{width:min(100%,calc((100vh - 215px)*16/9))}
+}
 .stgMsg{margin-top:8px;background:var(--accent,#E8B923);color:var(--accent-ink,#171200);font-weight:700;font-size:clamp(16px,4vmin,30px);text-align:center;border-radius:10px;padding:8px 12px}
 .stgMsg:empty{display:none}
 
@@ -43948,8 +43965,8 @@ window.dscQrDecode=function(img){
     if(b.k==='color'&&/^#[0-9a-fA-F]{3,8}$/.test(t))return t;
     return '';
   }
-  function fitPrev(){
-    const box=$('rmtPv'),sp=$('rmtPrevTxI');
+  function fitPrev(){fitIn($('rmtPv'),$('rmtPrevTxI'))}
+  function fitIn(box,sp){
     if(!box||box.hidden||!sp)return;
     const maxH=box.clientHeight*0.84;
     let lo=7,hi=box.clientHeight*0.42,best=lo;
@@ -44032,7 +44049,7 @@ window.dscQrDecode=function(img){
     const prev=$('rmtPv'),plain=$('rmtText');
     if(!prev)return;
     const b=bgResolve(state&&state.bg),css=bgCss(b),vu=bgVidList().length;
-    const show=!!(css||vu);
+    const show=!!(css||vu)||tab==='stage';
     prev.hidden=!show;
     plain.hidden=show;             /* the preview already shows the words */
     if(!show){paintVid(false);return}
@@ -44103,6 +44120,8 @@ window.dscQrDecode=function(img){
         '</div>'+
       '</div>'+
       '<div class="rmtStage" id="rmtStageV" hidden><div class="stgTop"><span class="stgLab" id="stgLab"></span><span id="stgTitle"></span><span><b class="stgNum" id="stgNum"></b><span id="stgClock"></span></span></div>'+
+      '<div class="stgScreens"><div class="stgCol stgLive"><div class="stgTag"><i></i>Live</div><div class="stgSlot" id="stgLiveSlot"></div></div>'+
+        '<div class="stgCol stgNx"><div class="stgTag">Next</div><div class="rmtPrev stgNxPv" id="stgNxPv"><div class="rmtPrevBg" id="stgNxBg"></div><div class="rmtPrevDim" id="stgNxDim"></div><div class="rmtPrevTx"><span class="rmtPrevTxI" id="stgNxTx"></span></div></div></div></div>'+
       '<div class="stgMain" id="stgMain"><div class="stgText" id="stgText"></div></div><div class="stgMsg" id="stgMsg"></div><div class="stgNext" id="stgNext"></div></div>'+
       '<div class="rmtTabs" role="tablist"><button type="button" data-tab="flow" class="on">'+IC_FLOW+'<span>Flow</span></button><button type="button" data-tab="slide">'+IC_SLIDE+'<span>Slide</span></button><button type="button" data-tab="bible">'+IC_BIBLE+'<span>Bible</span></button><button type="button" data-tab="stage">'+IC_STAGE+'<span>Stage</span></button></div>';
     document.body.appendChild(ov);
@@ -44121,7 +44140,7 @@ window.dscQrDecode=function(img){
     $('rmtBqGo').onclick=bqSearch;
     $('rmtBqIn').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();bqSearch()}};
     $('rmtBqVer').onchange=()=>{try{localStorage.setItem('rmtBibleVer',$('rmtBqVer').value)}catch(e){}if($('rmtBqIn').value.trim())bqSearch()};
-    window.addEventListener('resize',()=>{if(ov&&!ov.hidden&&tab==='stage')fit();if(ov&&!ov.hidden)fitPrev()});
+    window.addEventListener('resize',()=>{if(ov&&!ov.hidden&&tab==='stage'){fit();fitIn($('stgNxPv'),$('stgNxTx'))}if(ov&&!ov.hidden)fitPrev()});
     document.addEventListener('visibilitychange',()=>{if(ov&&!ov.hidden&&document.visibilityState==='visible'){keepAwake();try{paintVid(!(state&&state.black))}catch(e){}}});
   }
 
@@ -44245,11 +44264,14 @@ window.dscQrDecode=function(img){
     const live=!!(state&&state.on!==false);
     $('rmtStageV').hidden=tab!=='stage';
     $('rmtRemote').hidden=tab==='stage';
+    {const pv=$('rmtPv'),slot=$('stgLiveSlot'),top=$('rmtTop');
+     if(tab==='stage'){if(pv.parentNode!==slot)slot.appendChild(pv)}
+     else if(pv.parentNode!==top)top.insertBefore(pv,$('rmtText'))}
     $('rmtTop').hidden=tab==='stage'||!live;
     $('rmtFlow').hidden=tab!=='flow';$('rmtSlideP').hidden=tab!=='slide';$('rmtBibleP').hidden=tab!=='bible';
     const m=msgFor();$('rmtMsg').hidden=!m||live;$('rmtMsg').textContent=m;
     $('rmtLive').hidden=!live;
-    if(!live){if(tab==='stage'){$('stgText').textContent=m;$('stgLab').textContent='';$('stgTitle').textContent='';$('stgNext').textContent='';$('stgMsg').textContent='';fit()}return}
+    if(!live){if(tab==='stage'){$('stgText').textContent=m;$('stgLab').textContent='';$('stgTitle').textContent='';$('stgNext').textContent='';$('stgMsg').textContent='';$('stgNxTx').textContent='';fit()}return}
     $('rmtTitle').textContent=state.title||'';
     $('rmtLab').textContent=state.label||'';
     const n=+state.n||0,at=(+state.idx||0)+1;
@@ -44318,8 +44340,19 @@ window.dscQrDecode=function(img){
     const nx=$('stgNext');nx.textContent='';
     const nxt=state.next||(at<n?('Slide '+(at+1)):'');
     if(nxt){nx.append(el('b',null,'NEXT'),document.createTextNode(nxt))}
+    paintNx(nxt,n,at);
     clock();
     if(tab==='stage')fit();
+  }
+  /* Stage: the next screen, drawn with the same background as the live one (PreCenter sends the next slide's words) */
+  function paintNx(nxt,n,at){
+    const b=bgResolve(state&&state.bg),css=bgCss(b);
+    $('stgNxBg').style.background=css||'#000';
+    const tx=$('stgNxTx');
+    tx.textContent=nxt||'';
+    tx.style.opacity=nxt?'1':'.5';
+    if(!nxt)tx.textContent=at>=n&&n?'End of this item':'';
+    if(tab==='stage')fitIn($('stgNxPv'),tx);
   }
 
   function clock(){
