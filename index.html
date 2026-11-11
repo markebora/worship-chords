@@ -9133,6 +9133,10 @@ body.songBottomHidden .annotateToolbar{
 /* Stage: same look as PreCenter's stage display. Black, clock on top, LIVE (red) with chords above the words, NEXT (gold). */
 .rmtStage{display:grid;grid-template-rows:auto 2.3fr 1fr auto;gap:10px;padding:10px 14px 8px;background:#000}
 .stgHb{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:15px;font-weight:600;color:#a7a7ae;font-variant-numeric:tabular-nums}
+.stgFz{display:flex;gap:6px;flex:none}
+.stgFz button{min-width:44px;height:30px;padding:0 8px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);color:#fff;border-radius:9px;font:800 13px/1 system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+.stgFz button:active{filter:brightness(1.4)}
+.stgFz button[disabled]{opacity:.3}
 .stgSt{flex:1;text-align:center;color:#ff6b61;font-weight:800;letter-spacing:.06em}
 .stgTm{color:var(--accent,#E8B923);font-weight:700}
 .stgCard{position:relative;min-height:0;border:2px solid #2d2d32;border-radius:14px;background:#0c0c0e;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:34px 12px 10px}
@@ -44122,7 +44126,7 @@ window.dscQrDecode=function(img){
         '</div>'+
       '</div>'+
       '<div class="rmtStage" id="rmtStageV" hidden>'+
-        '<div class="stgHb"><span id="stgClock"></span><span class="stgSt" id="stgSt"></span><span class="stgTm" id="stgNum"></span></div>'+
+        '<div class="stgHb"><span id="stgClock"></span><span class="stgFz"><button type="button" id="stgFzM" aria-label="Smaller text">A\u2212</button><button type="button" id="stgFzP" aria-label="Larger text">A+</button></span><span class="stgSt" id="stgSt"></span><span class="stgTm" id="stgNum"></span></div>'+
         '<div class="stgCard live"><span class="stgTag">LIVE</span><div class="stgT" id="stgLiveT"></div></div>'+
         '<div class="stgCard nx"><span class="stgTag">NEXT</span><div class="stgT" id="stgNxT"></div></div>'+
         '<div class="stgMsg" id="stgMsg"></div>'+
@@ -44130,6 +44134,9 @@ window.dscQrDecode=function(img){
       '<div class="rmtTabs" role="tablist"><button type="button" data-tab="flow" class="on">'+IC_FLOW+'<span>Flow</span></button><button type="button" data-tab="slide">'+IC_SLIDE+'<span>Slide</span></button><button type="button" data-tab="bible">'+IC_BIBLE+'<span>Bible</span></button><button type="button" data-tab="stage">'+IC_STAGE+'<span>Stage</span></button></div>';
     document.body.appendChild(ov);
     ov.querySelector('#rmtClose').onclick=close;
+    ov.querySelector('#stgFzM').onclick=()=>stgFzSet(stgFz-STG_FZ_STEP);
+    ov.querySelector('#stgFzP').onclick=()=>stgFzSet(stgFz+STG_FZ_STEP);
+    stgFzUi();
     $('rmtPv').onclick=tapVid;
     $('rmtSwWifi').onclick=swWifi;
     $('rmtSwCloud').onclick=swCloud;
@@ -44371,10 +44378,27 @@ window.dscQrDecode=function(img){
     for(let i=0;i<10;i++){const mid=(lo+hi)/2;el.style.fontSize=mid+'px';if(el.scrollHeight<=h+1&&el.scrollWidth<=w+1){best=mid;lo=mid}else hi=mid}
     el.style.fontSize=best+'px';
   }
+  /* A- / A+ : text size for the Stage tab, as a percentage of the auto-fit size (saved on this phone) */
+  const STG_FZ_MIN=40,STG_FZ_MAX=100,STG_FZ_STEP=10;
+  let stgFz=100;
+  try{const v=parseInt(localStorage.getItem('dscStageFz'),10);if(v>=STG_FZ_MIN&&v<=STG_FZ_MAX)stgFz=v}catch(e){}
+  function stgFzUi(){
+    const m=$('stgFzM'),p=$('stgFzP');
+    if(m){m.disabled=stgFz<=STG_FZ_MIN;m.title=stgFz+'%'}
+    if(p){p.disabled=stgFz>=STG_FZ_MAX;p.title=stgFz+'%'}
+  }
+  function stgFzSet(v){
+    stgFz=Math.max(STG_FZ_MIN,Math.min(STG_FZ_MAX,v));
+    try{localStorage.setItem('dscStageFz',String(stgFz))}catch(e){}
+    stgFzUi();fit();
+  }
   function fit(){
     const st=$('rmtStageV');if(!st||st.hidden)return;
-    fitCard($('stgLiveT'),Math.min(64,innerWidth*0.16),11);
-    fitCard($('stgNxT'),Math.min(40,innerWidth*0.1),9);
+    const k=stgFz/100;
+    [[$('stgLiveT'),Math.min(64,innerWidth*0.16),11],[$('stgNxT'),Math.min(40,innerWidth*0.1),9]].forEach(a=>{
+      fitCard(a[0],a[1],a[2]);
+      if(k<1&&a[0])a[0].style.fontSize=(parseFloat(a[0].style.fontSize)*k)+'px';
+    });
   }
 
   /* Wi-Fi remote: PreCenter (desktop app) shows a QR holding http://<computer>:<port>/?pin=123456. The page it opens is served by
