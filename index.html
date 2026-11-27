@@ -9130,6 +9130,8 @@ body.songBottomHidden .annotateToolbar{
 .rmtPrevBg{position:absolute;inset:0;background:#000}
 .rmtPrevVid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:transparent;pointer-events:none}
 .rmtPrevVid[hidden]{display:none}
+.rmtPrev.live>.rmtPrevBg,.rmtPrev.live>.rmtPrevVid,.rmtPrev.live>.rmtPrevDim,.rmtPrev.live>.rmtPrevTx,.rmtPrev.live>.rmtPrevDbg{display:none!important}
+.rmtPrev.live{background:#000}.rmtPrevLive{position:absolute;inset:0;overflow:hidden;background:#000}.rmtPrevLive iframe{position:absolute;left:0;top:0;width:1280px;height:720px;border:0;transform-origin:0 0;pointer-events:none;background:#000}
 .rmtPrev.snap>.rmtPrevVid,.rmtPrev.snap>.rmtPrevDim,.rmtPrev.snap>.rmtPrevTx,.rmtPrev.snap>.rmtPrevDbg{display:none!important}
 .rmtPrevDbg{position:absolute;left:6px;bottom:6px;z-index:3;font:600 10px/1.3 system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.6);border-radius:6px;padding:2px 7px;pointer-events:none;max-width:90%}
 .rmtPrevDbg[hidden]{display:none}
@@ -44092,9 +44094,38 @@ window.dscQrDecode=function(img){
     if(v.error||!v.getAttribute('src')){v._i=0;v.removeAttribute('src');v.load();v.src=v._l[0]}
     const pr=v.play();if(pr&&pr.catch)pr.catch(()=>{});
   }
+  /* Wi-Fi page: the preview IS the audience screen (PreCenter's own output page in a small frame), so text, frame, fonts and backgrounds are exactly what the room sees.
+     The key for that page comes from PreCenter over the Wi-Fi socket; this script asks for it itself so it works with any PreCenter version. */
+  let lanKeyTry=0;
+  function lanKey(){
+    const L=window.dscLan;if(!L||L.bk||lanKeyTry||typeof WebSocket!=='function')return;
+    lanKeyTry=1;
+    let pin='';try{pin=localStorage.getItem('dscLanPin')||''}catch(e){}
+    let w;try{w=new WebSocket('ws://'+location.host+'/ws?pin='+encodeURIComponent(pin))}catch(e){lanKeyTry=0;return}
+    const done=()=>{try{w.close()}catch(e){}};
+    w.onmessage=ev=>{let m;try{m=JSON.parse(ev.data)}catch(e){return}if(m&&m.t==='hello'&&m.bk){L.bk=m.bk;done();try{paintPrev()}catch(e){}}};
+    w.onclose=()=>{if(!L.bk)setTimeout(()=>{lanKeyTry=0;try{lanKey()}catch(e){}},4000)};
+    w.onerror=done;
+    setTimeout(()=>{if(!L.bk)done()},6000);
+  }
+  function fitLive(){const pv=$('rmtPv'),f=$('rmtPrevFr');if(!pv||!f||pv.hidden)return;const k=pv.clientWidth/1280;if(k>0)f.style.transform='scale('+k+')'}
+  window.addEventListener('resize',function(){fitLive()});
+  function paintLive(){
+    const prev=$('rmtPv');
+    let host=$('rmtPrevLive');
+    if(!host){host=document.createElement('div');host.id='rmtPrevLive';host.className='rmtPrevLive';prev.insertBefore(host,prev.firstChild)}
+    const url='/broadcast/full?k='+encodeURIComponent(window.dscLan.bk)+'&n='+(parseInt(state&&state.mn,10)||0)+'&p=1&lite=1';
+    prev.hidden=false;prev.classList.remove('snap');prev.classList.add('live');$('rmtText').hidden=true;host.hidden=false;
+    let f=$('rmtPrevFr');
+    if(!f){f=document.createElement('iframe');f.id='rmtPrevFr';f.setAttribute('tabindex','-1');f.setAttribute('aria-hidden','true');host.appendChild(f)}
+    if(f.dataset.u!==url){f.dataset.u=url;f.src=url}
+    paintVid(false);fitLive();
+  }
   function paintPrev(){
     const prev=$('rmtPv'),plain=$('rmtText');
     if(!prev)return;
+    if(window.dscLan){lanKey();if(window.dscLan.bk){try{paintLive();return}catch(e){}}}
+    prev.classList.remove('live');
     prev.classList.remove('snap');
     /* PreCenter sends a picture of the real audience screen (state.snap): the preview is exactly what the room sees */
     const sn=state&&typeof state.snap==='string'&&/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(state.snap)?state.snap:'';
