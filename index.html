@@ -9018,6 +9018,23 @@ body.songBottomHidden .annotateToolbar{
 .stageIconBtn svg{width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round}
 .stageIconBtn.on{background:var(--accent); color:var(--accent-ink); border-color:transparent}
 .stageTitleBlock{flex:1; min-width:0}
+.stageLiveBtn{grid-auto-flow:column; gap:7px}
+.stageLiveBtn i{width:9px; height:9px; border-radius:50%; background:#6b6b73}
+.stageLiveBtn.on i{background:#ff7a1a}
+.stageLiveBtn.on.ok i{background:#12833a}
+.stageLiveBar{
+  width:100%; padding:6px 14px; border:0; border-bottom:1px solid #141417;
+  background:#0a0a0c; color:#b9b9c0; font:inherit; font-size:12px; text-align:left; cursor:pointer;
+}
+.stageLiveBar[hidden]{display:none}
+/* Live-follow mark: highlights the lyric TEXT only (no filled box / side bar behind the line).
+   Doubled class so it beats `.stageLyrics .lyricLine{color:#fff}` declared further down. */
+.stageLyrics .lyricLine.stageLiveLine{
+  background:none; box-shadow:none;
+  color:var(--accent,#e8b923);
+  text-shadow:0 0 10px rgba(232,185,35,.55);
+}
+.stageLyrics .lyricLine.stageLiveLine .detectedChord{color:inherit}
 .stageTitle{font-size:19px; font-weight:800; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .stageMeta{font-size:12.5px; color:#9a9aa2; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .stageScroll{
@@ -43535,6 +43552,309 @@ function stageGo(delta){
   stageRefresh();
 }
 
+/* ===== Live follow: the full view follows the slide PreCenter is showing =====
+   Two roads, same data:
+     Wi-Fi : ws://<computer>:<port>/ws?pin=...  (the link saved when the PreCenter QR was scanned)
+     Cloud : presenter/{teamId} in Firestore     (PreCenter's Remote button on, same team)
+   Wi-Fi wins while it is connected. Nothing is ever sent to the computer except a heartbeat. */
+const STAGE_LIVE_KEY = 'disciplesStageLive';
+let stageLive = null;
+
+function stageLiveLink(){
+  try{
+    const l = localStorage.getItem('dscLanLast') || '';
+    return /^http:\/\/[0-9.]+:\d+\/\?pin=\d{6}$/.test(l) ? l : '';
+  }catch(e){ return ''; }
+}
+
+function stageLiveInit(){
+  const btn = document.getElementById('stageLiveBtn');
+  if(!btn) return;
+  btn.onclick = () => {
+    const on = !stageLive;
+    try{ localStorage.setItem(STAGE_LIVE_KEY, on ? '1' : ''); }catch(e){}
+    if(on) stageLiveStart(); else stageLiveStop();
+  };
+  document.getElementById('stageLiveBar').onclick = stageLiveAskLink;
+  let saved = '';
+  try{ saved = localStorage.getItem(STAGE_LIVE_KEY) || ''; }catch(e){}
+  if(saved) stageLiveStart();
+}
+
+function stageLiveStart(){
+  stageLiveStop();
+  const live = stageLive = {
+    wifi:null, wifiAt:0, cloud:null, ws:null, unsub:null, wsTimer:null,
+    beat:null, fails:0, last:'', note:'', wifiNote:''
+  };
+  stageLiveWifi(live);
+  stageLiveCloud(live);
+  live.beat = setInterval(() => {
+    if(stageLive !== live) return;
+    const ws = live.ws;
+    if(ws && ws.readyState === 1){
+      /* a phone that changed networks can keep a dead socket "open" */
+      if(Date.now() - live.wifiAt > 25000){ stageLiveDropWifi(live); stageLiveRetry(live); }
+      else try{ ws.send('{"t":"hb"}'); }catch(e){}
+    }
+    stageLiveApply();
+  }, 5000);
+  stageLivePaint();
+}
+
+function stageLiveDropWifi(live){
+  const ws = live.ws;
+  live.ws = null;
+  live.wifi = null;
+  if(ws){
+    ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null;
+    try{ ws.close(); }catch(e){}
+  }
+}
+
+function stageLiveStop(){
+  const live = stageLive;
+  stageLive = null;
+  if(live){
+    clearInterval(live.beat);
+    clearTimeout(live.wsTimer);
+    stageLiveDropWifi(live);
+    if(live.unsub){ try{ live.unsub(); }catch(e){} }
+  }
+  stageLiveClearMark();
+  stageLivePaint();
+}
+
+function stageLiveRetry(live){
+  if(stageLive !== live) return;
+  clearTimeout(live.wsTimer);
+  /* slow down, so a wrong PIN never trips PreCenter's lock-out */
+  live.fails++;
+  live.wsTimer = setTimeout(() => stageLiveWifi(live), Math.min(20000, 1500 * Math.pow(2, live.fails - 1)));
+  stageLivePaint();
+}
+
+function stageLiveWifi(live){
+  if(stageLive !== live) return;
+  stageLiveDropWifi(live);
+  const m = /^http:\/\/([0-9.]+:\d+)\/\?pin=(\d{6})$/.exec(stageLiveLink());
+  if(!m){ live.wifiNote = 'nolink'; return; }
+  let ws;
+  try{ ws = new WebSocket('ws://' + m[1] + '/ws?pin=' + m[2]); }
+  catch(e){ live.wifiNote = 'blocked'; stageLivePaint(); return; }
+  live.ws = ws;
+  live.wifiNote = 'trying';
+  ws.onopen = () => { live.fails = 0; live.wifiAt = Date.now(); live.wifiNote = 'open'; stageLivePaint(); };
+  ws.onmessage = event => {
+    let msg;
+    try{ msg = JSON.parse(event.data); }catch(e){ return; }
+    live.wifiAt = Date.now();
+    if(msg && msg.t === 'state' && msg.d){ live.wifi = msg.d; stageLiveApply(); }
+  };
+  ws.onclose = () => {
+    if(live.ws !== ws) return;
+    live.ws = null;
+    live.wifi = null;
+    live.wifiNote = 'lost';
+    stageLiveRetry(live);
+    stageLiveApply();
+  };
+}
+
+async function stageLiveCloud(live){
+  try{ await firebaseReadyPromise; }catch(e){}
+  if(stageLive !== live || !firestoreDb || !firebaseAuth || !firebaseAuth.currentUser) return;
+  const teamId = getActiveTeamId();
+  if(!teamId) return;
+  live.unsub = firestoreDb.collection('presenter').doc(teamId).onSnapshot(snap => {
+    live.cloud = snap.exists ? snap.data() : null;
+    stageLiveApply();
+  }, () => { live.cloud = null; stageLivePaint(); });
+}
+
+function stageLiveSource(){
+  const live = stageLive;
+  if(!live) return null;
+  if(live.wifi && live.wifi.on !== false) return { state:live.wifi, road:'Wi-Fi' };
+  const c = live.cloud;
+  if(c && c.on !== false && Date.now() - (+c.hb || 0) < 120000) return { state:c, road:'Cloud' };
+  return null;
+}
+
+function stageLivePaint(){
+  const btn = document.getElementById('stageLiveBtn');
+  const bar = document.getElementById('stageLiveBar');
+  if(!btn || !bar) return;
+  const src = stageLiveSource();
+  btn.classList.toggle('on', !!stageLive);
+  btn.classList.toggle('ok', !!src);
+  btn.setAttribute('aria-pressed', stageLive ? 'true' : 'false');
+  bar.hidden = !stageLive;
+  if(!stageLive) return;
+  let text;
+  if(src){
+    text = 'Following PreCenter · ' + src.road + (stageLive.note ? ' · ' + stageLive.note : '');
+  }else{
+    const why = {
+      nolink:'Waiting for PreCenter. Tap here to add the Wi-Fi link, or turn on Remote in PreCenter.',
+      blocked:'This browser blocks the Wi-Fi link. Turn on Remote in PreCenter to follow over the cloud.',
+      lost:'Cannot reach PreCenter over Wi-Fi. Tap here to update the link.',
+      open:'Wi-Fi connected. Waiting for a slide.'
+    };
+    text = why[stageLive.wifiNote] || 'Connecting to PreCenter…';
+  }
+  bar.textContent = text;
+}
+
+function stageLiveAskLink(){
+  const live = stageLive;
+  if(!live) return;
+  const typed = window.prompt('Paste the link from PreCenter (Connect → Wi-Fi), e.g. http://192.168.1.5:8765/?pin=123456', stageLiveLink());
+  if(typed === null) return;
+  const link = typed.trim();
+  if(!/^http:\/\/[0-9.]+:\d+\/\?pin=\d{6}$/.test(link)){
+    showToast('That is not a PreCenter Wi-Fi link.', 'error');
+    return;
+  }
+  try{ localStorage.setItem('dscLanLast', link); }catch(e){}
+  if(stageLive === live){ live.fails = 0; clearTimeout(live.wsTimer); stageLiveWifi(live); stageLivePaint(); }
+}
+
+/* letters and numbers only, so punctuation, spacing and inline [G] chords never break a match */
+function stageLiveNorm(text){
+  return String(text || '')
+    .replace(/\[[A-G][^\]\n]{0,12}\]/g, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '');
+}
+
+/* the library / lineup song that matches the item PreCenter is showing */
+function stageLiveFindSong(state){
+  const lineup = (getLocalLineup().songs) || [];
+  const library = getSongs();
+  if(state.hid){
+    const byId = library.find(song => String(song.id) === state.hid);
+    if(byId) return byId;
+  }
+  const want = stageLiveNorm(state.title);
+  if(!want) return null;
+  if(currentSong && stageLiveNorm(currentSong.title) === want) return currentSong;
+  const named = library.filter(song => stageLiveNorm(song.title) === want);
+  return named.find(song => lineup.some(entry => entry.id === song.id)) || named[0] || null;
+}
+
+/* which repeat of this slide PreCenter is on: 0 = first Chorus, 1 = second, ... */
+function stageLiveRepeat(state){
+  const cards = Array.isArray(state.sl) ? state.sl : [];
+  const now = cards[state.idx];
+  if(!now) return 0;
+  const key = stageLiveNorm(now.t);
+  let count = 0;
+  for(let i = 0; i < state.idx; i++){
+    if(cards[i] && stageLiveNorm(cards[i].t) === key && (key || cards[i].l === now.l)) count++;
+  }
+  return count;
+}
+
+/* lines on screen that hold the words of the live slide */
+function stageLiveFindLines(state){
+  const els = Array.from(document.querySelectorAll('#stageStructure .lyricLine'));
+  let all = '';
+  const spans = els.map(el => {
+    const from = all.length;
+    all += stageLiveNorm(el.textContent);
+    return { el, from, to:all.length };
+  });
+  const rows = String(state.text || '').split('\n').map(stageLiveNorm).filter(Boolean);
+  if(!rows.length) return [];
+  /* whole slide first; if the words were edited in PreCenter, try one line of it */
+  const tries = [rows.join('')].concat(rows.filter(row => row.length >= 8));
+  for(const key of tries){
+    const hits = [];
+    for(let at = all.indexOf(key); at !== -1; at = all.indexOf(key, at + key.length)) hits.push(at);
+    if(!hits.length) continue;
+    const at = hits[Math.min(stageLiveRepeat(state), hits.length - 1)];
+    return spans.filter(s => s.to > at && s.from < at + key.length && s.to > s.from).map(s => s.el);
+  }
+  return [];
+}
+
+/* for slides with no matching words (intro, instrumental): go by the section name */
+function stageLiveFindSection(state){
+  const want = stageLiveNorm(state.label);
+  if(!want) return null;
+  const sections = Array.from(document.querySelectorAll('#stageStructure .songSection'));
+  const name = s => stageLiveNorm((s.querySelector('.songSectionName') || {}).textContent);
+  let hits = sections.filter(s => name(s) === want);
+  if(!hits.length){
+    const bare = want.replace(/\d+/g, '');
+    hits = sections.filter(s => name(s).replace(/\d+/g, '') === bare);
+  }
+  return hits.length ? hits[Math.min(stageLiveRepeat(state), hits.length - 1)] : null;
+}
+
+function stageLiveClearMark(){
+  document.querySelectorAll('.stageLiveLine').forEach(el => el.classList.remove('stageLiveLine'));
+}
+
+function stageLiveScrollTo(el){
+  const box = document.getElementById('stageScroll');
+  if(!box || !el) return;
+  const top = box.scrollTop + el.getBoundingClientRect().top - box.getBoundingClientRect().top - box.clientHeight * 0.22;
+  box.scrollTo({ top:Math.max(0, top), behavior:'smooth' });
+}
+
+function stageLiveApply(){
+  const live = stageLive;
+  if(!live || !stageOpen) return;
+  const src = stageLiveSource();
+  if(!src){ live.last = ''; stageLivePaint(); return; }
+  const state = src.state;
+
+  /* only act when the slide changes: heartbeats must not pull the page while someone is reading ahead */
+  const key = [state.sid, state.idx, state.text, state.title].join('|');
+  if(key === live.last){ stageLivePaint(); return; }
+  live.last = key;
+  live.note = '';
+
+  if(state.type && state.type !== 'song'){
+    live.note = 'showing ' + (state.title || 'another item');
+    stageLiveClearMark();
+    stageLivePaint();
+    return;
+  }
+
+  const song = stageLiveFindSong(state);
+  if(!song){
+    live.note = '"' + (state.title || 'Untitled') + '" is not in your library';
+    stageLiveClearMark();
+    stageLivePaint();
+    return;
+  }
+
+  if(!currentSong || currentSong.id !== song.id){
+    const inLineup = ((getLocalLineup().songs) || []).some(entry => entry.id === song.id);
+    if(inLineup && currentSong) goToLineupSongById(song.id);
+    else openSong(song);
+    stageRefresh();
+  }
+
+  stageStopScroll();
+  stageLiveClearMark();
+  const lines = stageLiveFindLines(state);
+  if(lines.length){
+    lines.forEach(el => el.classList.add('stageLiveLine'));
+    const section = lines[0].closest('.songSection');
+    const first = section && section.querySelector('.lyricLine') === lines[0];
+    const wrap = lines[0].closest('.flowLineWrap') || lines[0];
+    const above = wrap.previousElementSibling;
+    stageLiveScrollTo(first ? section : (above && above.querySelector('.chordLine') ? above : wrap));
+  }else{
+    stageLiveScrollTo(stageLiveFindSection(state));
+  }
+  stageLivePaint();
+}
+
 function openStageMode(){
   if(stageOpen || !currentSong) return;
 
@@ -43558,8 +43878,10 @@ function openStageMode(){
         <div class="stageTitle"></div>
         <div class="stageMeta"></div>
       </div>
+      <button class="stageIconBtn stageLiveBtn" id="stageLiveBtn" type="button" aria-pressed="false" aria-label="Follow PreCenter live"><i></i>LIVE</button>
       <button class="stageIconBtn${stageShowChords ? ' on' : ''}" id="stageChordsBtn" type="button" aria-label="Show or hide chords">Chords</button>
     </div>
+    <button type="button" class="stageLiveBar" id="stageLiveBar" hidden></button>
     <div class="stageScroll" id="stageScroll">
       <div class="stageLyrics" id="stageLyrics"></div>
       <div class="stageEndSpacer"></div>
@@ -43637,9 +43959,11 @@ function openStageMode(){
 
   stageRefresh();
   stageRequestWake();
+  stageLiveInit();
 }
 
 function closeStageMode(){
+  stageLiveStop();
   stageStopScroll();
   stageReleaseWake();
   const overlay = document.getElementById('stageOverlay');
